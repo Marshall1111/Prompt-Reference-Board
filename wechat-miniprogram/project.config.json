@@ -1,0 +1,49 @@
+{
+  "description": "照片风格转绘提示词展示版小程序",
+  "miniprogramRoot": "miniprogram/",
+  "projectname": "prompt-gallery-mini",
+  "setting": {
+    "compileHotReLoad": true,
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "compileType": "miniprogram",
+  "appid": "wx20a6917d17792511",
+  "libVersion": "latest",
+  "simulatorPluginLibVersion": {},
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "miniprogram/images"
+      },
+      {
+        "type": "folder",
+        "value": "images"
+      }
+    ],
+    "include": []
+  },
+  "editorSetting": {}
+}

@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "pages/index/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "风格提示词图库",
+    "navigationBarBackgroundColor": "#fffdf8",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f6f1e8"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

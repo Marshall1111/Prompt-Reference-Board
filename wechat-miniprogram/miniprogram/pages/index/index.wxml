@@ -1,0 +1,53 @@
+<view class="page">
+  <view class="content">
+    <view class="header">
+      <view>
+        <text class="eyebrow">Prompt reference board</text>
+        <text class="title">风格提示词图库</text>
+      </view>
+      <view class="search">
+        <text class="search-icon">⌕</text>
+        <input bindinput="onSearchInput" confirm-type="search" placeholder="搜索标签或提示词" value="{{query}}" />
+      </view>
+    </view>
+
+    <view wx:if="{{filteredStyles.length}}" class="gallery">
+      <view wx:for="{{columns}}" wx:for-item="column" wx:for-index="columnIndex" wx:key="columnIndex" class="gallery-column">
+        <view wx:for="{{column}}" wx:key="id" class="style-card">
+          <view class="preview {{item.image ? '' : 'preview-empty'}}">
+            <image wx:if="{{item.image}}" mode="widthFix" src="{{item.image}}" />
+            <view wx:else class="preview-placeholder">
+              <text>{{item.tags[0]}}</text>
+            </view>
+          </view>
+
+          <view class="tag-row">
+            <text wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this" class="tag">{{tag}}</text>
+          </view>
+
+          <view class="actions">
+            <button bindtap="copyPrompt" class="primary-button" data-id="{{item.id}}">复制</button>
+            <button bindtap="openPrompt" class="secondary-button" data-id="{{item.id}}">查看</button>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:else class="empty">
+      <text>没有匹配的风格</text>
+    </view>
+  </view>
+
+  <view wx:if="{{activeStyle}}" bindtap="closePrompt" class="modal-mask">
+    <view catchtap="noop" class="modal">
+      <view class="tag-row modal-tags">
+        <text wx:for="{{activeStyle.tags}}" wx:for-item="tag" wx:key="*this" class="tag">{{tag}}</text>
+      </view>
+      <text class="prompt-text">{{activeStyle.prompt}}</text>
+      <view class="modal-actions">
+        <button bindtap="copyActivePrompt" class="primary-button">复制</button>
+        <button bindtap="closePrompt" class="secondary-button">关闭</button>
+      </view>
+    </view>
+  </view>
+</view>

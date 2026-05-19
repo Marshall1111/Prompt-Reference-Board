@@ -1,0 +1,294 @@
+const styles = [
+  {
+    "id": "style_1779181030715",
+    "tags": [
+      "皮克斯",
+      "可爱",
+      "动画",
+      "宠物",
+      "儿童"
+    ],
+    "image": "/images-small/style_1779181030715.jpg",
+    "prompt": "转绘成3D皮克斯动画风格"
+  },
+  {
+    "id": "style_1779180992225",
+    "tags": [
+      "皮克斯",
+      "可爱",
+      "动画",
+      "宠物",
+      "儿童"
+    ],
+    "image": "/images-small/style_1779180992225.jpg",
+    "prompt": "转绘成3D皮克斯动画风格"
+  },
+  {
+    "id": "style_1779180072956",
+    "tags": [
+      "Plog",
+      "可爱",
+      "涂鸦",
+      "剪贴"
+    ],
+    "image": "/images-small/style_1779180072956.jpg",
+    "prompt": "保留原图尺寸，在图片中的动物、食物和人物和有趣的元素周围用粗糙手绘描边，并点缀可爱的手写涂鸦和剪贴风格的注释（英文），还有俏皮的白色马克笔画、爱心、星星、蛋糕、笑脸和小型食物等图标，营造出一种可爱的Instagram美食氛围，8K画质。"
+  },
+  {
+    "id": "style_1779180012171",
+    "tags": [
+      "可爱",
+      "宠物",
+      "手绘"
+    ],
+    "image": "/images-small/style_1779180012171.jpg",
+    "prompt": "把参考图中的主体变成一个萌风Q版角色，凌乱粗糙的黑色线稿，幼态比例，像小孩随手涂鸦但极具设计感，粗笔触、水粉厚涂、蜡笔质感，边缘随意外扩，留白背景、可爱、手绘感极强，不精致，故意画歪，松散构图，低饱和奶油色调，艺术涂鸦插画"
+  },
+  {
+    "id": "style_1779179958695",
+    "tags": [
+      "平面",
+      "插画",
+      "涂鸦",
+      "儿童",
+      "宠物"
+    ],
+    "image": "/images-small/style_1779179958695.jpg",
+    "prompt": "请将整个图像转化为单一的装饰性民间平面插图，带有涂鸦元素。使用大胆而俏皮的色彩调色板，与原图像完全不同。\n将所有细节简化为干净、平面的形状，带有手工制作的、略显不完美感，仿佛绘制在一张白纸上。整体风格应显得可爱、童趣十足且异想天开。"
+  },
+  {
+    "id": "style_1779179914765",
+    "tags": [
+      "儿童",
+      "插画",
+      "可爱",
+      "卡通"
+    ],
+    "image": "/images-small/style_1779179914765.jpg",
+    "prompt": "Please transform the entire image into a single Decorative Folk Flat Illustration with Doodle elements. Use a bold and playful color palette, completely different from the original image. Simplify all details into clean, flat shapes with a handmade, slightly imperfect feel, as if drawn on a sheet of white paper. The overall style should look cute, childlike, and whimsical."
+  },
+  {
+    "id": "style_1779179882103",
+    "tags": [
+      "艺术",
+      "宠物"
+    ],
+    "image": "/images-small/style_1779179882103.jpg",
+    "prompt": "模仿梵高《戴草帽的自画像》风格，将主体替换为一只我上传的宠物。\n艺术风格： 严格遵循后印象派油画质感，使用标志性的粗犷、旋转笔触和厚涂法（Impasto）。背景采用原作中蓝灰色与橙色交织的短笔触。\n主体特征： 宠物呈现正面半身像，保留其面部花纹特征，眼神深邃。\n核心元素： 宠物必须戴着原作中那顶标志性的黄色草帽，穿着类似的蓝色粗线外套。\n氛围： 色彩协调，光影对比强烈，呈现出一种古典艺术史的质感。"
+  },
+  {
+    "id": "style_1779179828722",
+    "tags": [
+      "手绘",
+      "插画",
+      "卡通"
+    ],
+    "image": "/images-small/style_1779179828722.jpg",
+    "prompt": "Transform the subject from the uploaded image into a character in the style of Charlie and Lola (children’s cartoon). Match the official cartoon look — thin sketchy outlines, flat colors, childlike proportions, playful hand-drawn charm, and simple textures. Retain the subject’s original clothing, hairstyle, facial features, accessories, skin tone, pose, and expression - but reinterpret them as if they belong in the Charlie and Lola world.Clothing should be simplified into flat shapes and bright colors, while keeping the overall outfit recognizable. Background: plain white or transparent to keep the focus on the character.» Negative Prompt: «No realistic shading, no detailed rendering, no anime or manga style, no 3D modeling, no photographic textures."
+  },
+  {
+    "id": "style_1779179773582",
+    "tags": [
+      "卡通"
+    ],
+    "image": "/images-small/style_1779179773582.jpg",
+    "prompt": "把照片生成いらすとや风格的图片"
+  },
+  {
+    "id": "style_1779179722094",
+    "tags": [
+      "卡通",
+      "丑萌",
+      "儿童",
+      "宠物"
+    ],
+    "image": "/images-small/style_1779179722094.jpg",
+    "prompt": "转绘成独立卡通插画，新天真流行艺术风格，丑萌趣味人物，超细黑色轮廓线，高饱和度明快平涂色彩，手绘随性不规则线条，低保真涂鸦质感，怪诞无厘头趣味，夸张面部神态，微猎奇却软萌可爱，极简背景，现代街头艺术氛围，摒弃精致流水线画风"
+  },
+  {
+    "id": "style_1779179665778",
+    "tags": [
+      "随意",
+      "手绘",
+      "丑萌",
+      "速写"
+    ],
+    "image": "/images-small/style_1779179665778.jpg",
+    "prompt": "给我生成一个照片，像灵魂画手在休息时间随便用中性笔勾勒几笔一样，线条简单利索，乍一看很随便甚至像用左手乱涂一样线条一抖一抖的，眼睛可以是豆豆眼也可以是一个横线条，反正不能展示一点画功，但该有的精髓都在，画面要带有莫名喜感和自信，有种越荒谬越搞笑越好，颜色要黑色线条，画面中只显示纸张和画就可以，"
+  },
+  {
+    "id": "style_1779179649152",
+    "tags": [
+      "随意",
+      "手绘",
+      "丑萌"
+    ],
+    "image": "/images-small/style_1779179649152.jpg",
+    "prompt": "请把附上的图片，用最粗糙、最寒碜的线条重新画一遍。背景是白色。要画出那种用鼠标在画图工具里画的、看似对又不太对、有点神韵但又很微妙地跑偏的感觉，直接把像素感拉满。总之请全力表现那种“寒碜感”。哎呀算了，随便画吧。"
+  },
+  {
+    "id": "style_1779179574408",
+    "tags": [
+      "丑萌",
+      "手绘",
+      "随意"
+    ],
+    "image": "/images-small/style_1779179574408.jpg",
+    "prompt": "把这张照片变成一幅又丑又有趣的涂鸦画。画成这样：用廉价马克笔或蜡笔快速草图，凌乱、粗糙、孩童风格，糟糕透视和尴尬比例，面部特征略显夸张。添加：简单的卡通背景（如建筑物、树木、街道），随机的草图线条和细节，颜色不均匀，笔触可见。风格：看起来像懒散的画作，不打磨，幽默，还有点傻乎乎的表情包。 随意、网络风格 不要：让它变得真实"
+  },
+  {
+    "id": "style_1779179528876",
+    "tags": [
+      "手绘",
+      "涂鸦"
+    ],
+    "image": "/images-small/style_1779179528876.jpg",
+    "prompt": "把这个照片变成一张风格[搞笑]的涂鸦画"
+  },
+  {
+    "id": "style_1779179490072",
+    "tags": [
+      "插画",
+      "手绘",
+      "随意",
+      "儿童",
+      "宠物"
+    ],
+    "image": "/images-small/style_1779179490072.jpg",
+    "prompt": "Turn this photo into a funny doodle drawing. Make it look like: a quick sketch using a cheap marker or crayon messy, rough, childlike style bad perspective and awkward proportions slightly exaggerated facial features Add: simple cartoon background (like buildings, trees, street) random sketchy lines and details uneven coloring and visible strokes Style: looks like a lazy drawing, not polished humorous and a bit stupid-looking meme-like, casual, internet style.人物脸部可以适当夸张，但不要丑化\n Do NOT: make it realistic"
+  },
+  {
+    "id": "style_1779179444790",
+    "tags": [
+      "复古",
+      "海报",
+      "儿童",
+      "宠物"
+    ],
+    "image": "/images-small/style_1779179444790.jpg",
+    "prompt": "把参考图中的主体转绘成矢量平面插画，放到复古漫画风格的海报中，半色调网点印刷纹理，波普艺术风格，\n复古漫画书艺术，怀旧儿童绘本插画，网点印刷风格,\n图形设计，可爱俏皮，清晰线条，点状纹理，粗糙印刷质感，\n2D平面设计，无真实阴影，通过半色调网点密度表现阴影，\n有限色彩方案，鲜艳饱和色彩，有限色彩选择，无渐变，\n无复杂细节，简洁造型，高对比度，粗黑轮廓线，\n儿童绘本风格，怀旧1950-60年代印刷艺术，画面无字，\n突出手绘质感，手工绘制不完善、不固定，\n整个画面背景是复古漫画海报风格，增加合适的文字和装饰"
+  },
+  {
+    "id": "style_1779179392820",
+    "tags": [
+      "诡异",
+      "童话",
+      "猎奇"
+    ],
+    "image": "/images-small/style_1779179392820.jpg",
+    "prompt": "Turn this photo into a strange vintage Soviet children's book\nillustration with grotesque humorous cartoon energy. Use thin shaky\nblack ink lines, awkward anatomy, elongated limbs uncomfortable\nfacial expressions, chaotic movement， weird proportions, sparse\ncomposition, and intentionally clumsy drawing style. Make the\ncharacters look slightly absurd nervous. and ridiculous rather than\ncute.Use pale faded watercolor washes, dirty paper texture, uneven\ncoloring, washed-out muted colors, lots of empty space, careless\nsketchy linework, and rough old-print illustration texture Keep the\nbackground minimal and random, with small strange details and loose\ndoodies. The mood should feel weird, humorous, slightly unsettling,\nand authentically like an old Eastern European children's book\nillustration from the 19805. Do NOT make it polished, aesthetic,\nmodern, cute, detailed, or realistic. Write an absurd text in\nEnglish that is slightly related to the illustration, but not much,\nwith a confusing rhyme. The font is handwritten, clumsy as an\nillustration style"
+  },
+  {
+    "id": "style_1779179328013",
+    "tags": [
+      "卡通",
+      "插画",
+      "复古",
+      "海报",
+      "儿童",
+      "宠物",
+      "旅行"
+    ],
+    "image": "/images-small/style_1779179328013.jpg",
+    "prompt": "将照片转换成高饱和度复古旅行海报风格的平面卡通插画（flat cartoon poster illustration）。人物整体采用儿童绘本式的夸张卡通比例，脸部高度简化和平面化，使用圆润几何造型、大色块上色、极少面部细节、粗黑色描边，弱化真实皮肤纹理和真实五官结构，不要写实感。\n\n整体风格参考：retro travel poster、flat illustration、storybook art、vector cartoon、mid-century poster、bold colorful graphic design。画面使用强烈撞色、高饱和橙色、黄色、蓝绿色、深蓝色，带复古印刷颗粒感和手绘纹理。\n\n人物表情要阳光可爱，但采用二维动画式处理，眼睛、嘴巴、腮红、头发都尽量图形化和符号化，避免真实照片转绘效果。背景加入卡通城市、树木、蓝天、云朵、道路、旅行箱、路牌等元素，整体构图像儿童绘本封面和复古宣传海报。\n\n加入大面积手绘英文标语，例如 “HAPPY TRAVEL”、“DREAM BIG”、“VIBRANT ENERGY”、“SLOW DOWN”，字体夸张醒目。\n\n避免：realistic face、photo texture、real skin、3D render、cinematic lighting、high detail skin、semi-realistic illustration、AI photo style、complex shadow、photorealism。\n\nmake the face look more like a flat cartoon graphic than a painted realistic portrait"
+  },
+  {
+    "id": "style_1779165306174",
+    "tags": [
+      "像素",
+      "头像",
+      "儿童",
+      "宠物",
+      "卡通"
+    ],
+    "image": "/images-small/style_1779165306174.jpg",
+    "prompt": "提取图中人物头部的关键特点，以卡通像素风格画出来,像素艺术，精致，像素风格，下面用英语标注文字“STINGER”，只画人物的头，人物头的大小为整个图片的1/9，头像居中，正中间，背景为浅绿色，纯色背景。比例2:3。"
+  },
+  {
+    "id": "anime",
+    "tags": [
+      "动漫",
+      "宠物",
+      "插画",
+      "冰箱贴",
+      "豆包"
+    ],
+    "image": "/images-small/anime.jpg",
+    "prompt": "请根据我提供的真实照片，识别出画面的主体是什么，生成一张上下分区的摄影海报，整体参考“小红书城市打卡 / 风景冰箱贴 / 极简拼贴”风格。\n【画面结构】 画面为竖版构图，比例 3:4 ，整张图分为上下两个部分。\n上半部分占画面约 50%，为极简纯色背景；\n下半部分占画面约 50%，保留原图，不修改\n【上半部分：小狗冰箱贴图标】 从下半部分真实照片中提取最有识别度的元素，例如小狗脑袋，小狗动作，玩耍的玩具等。 将该元素转化为一个简约的“冰箱贴式图标”：\n1、保留小狗的核心轮廓和标志性特征；\n2、造型简洁、干净、像旅行纪念品冰箱贴；\n3、有轻微立体感和投影；\n4、边缘清晰，白色或浅色描边；\n5、细节适度简化，不要画得太复杂；\n6、图标位于上半部分居中偏上位置；\n7、图标尺寸较小且精致，周围保留大量留白。\n【背景颜色】 上半部分背景颜色从照片中提取一个最主要、最有记忆点的颜色，颜色要和照片主体保持和谐。 小狗的颜色例如奶黄色、黑色。不要加入复杂图案。\n【文字排版】 在图标的下方添加一行字体优雅的数字： “ 2026.05.10”\n【整体气质】 整体要像一张高级摄影卡片： 真实照片 + 极简小狗冰箱贴 + 主色背景 + 轻盈文字排版。 风格清爽、干净、明亮。 强调小狗的主体识别度、表情动作。\n【避免】\n不要做成普通拼贴。\n不要把上半部分画得复杂。\n不要添加多余装饰元素。\n不要改变下半部分照片。\n不要出现乱码文字。\n不要过度卡通化。\n不要让图标太大。\n不要让文字压住小狗的主体。原比例。"
+  },
+  {
+    "id": "watercolor",
+    "tags": [
+      "动漫",
+      "宠物",
+      "合影",
+      "冰箱贴",
+      "豆包"
+    ],
+    "image": "/images-small/watercolor.jpg",
+    "prompt": "帮我生成图片：请根据我提供的真实照片，生成一张上下分区的旅行摄影海报，整体参考打卡 / 冰箱贴 / 极简拼贴风格。\n【画面结构】 画面为竖版构图，比例 3:4 ，整张图分为上下两个部分。\n上半部分占画面约 50%，为极简纯色背景；\n下半部分占画面约 50%，保留原图，不修改。\n【上半部分：冰箱贴图标】 从下半部分真实照片中提取最有识别度的主体元素。 将该建筑元素转化为一个简约的“冰箱贴式图标”，\n1、保留主体的核心轮廓和标志性特征；\n2、造型简洁、干净、像旅行纪念品冰箱贴；\n3、有轻微立体感和投影；\n4、边缘清晰，白色或浅色描边；\n5、细节适度简化，不要画得太复杂；\n6、图标位于上半部分居中偏上位置；\n7、图标尺寸较小且精致，周围保留大量留白。\n【背景颜色】 上半部分背景颜色从照片中提取一个最主要、最有记忆点的颜色。 例如主体的蓝色、黄色、红色、绿色，或照片中最强烈的环境色。 背景为纯色颜色要饱和、干净、有旅行明信片感。 不要使用渐变，不要加入复杂图案。\n【文字排版】 在冰箱贴图标下方添加一行优雅的适配画面的手写文字。\n【整体气质】 整体要像一张高级旅行摄影卡片： 真实照片 + 极简合影冰箱贴 + 主色背景 + 轻盈文字排版。 风格清爽、干净、明亮、有城市漫游感。 强调识别度、色彩记忆点和小红书旅行打卡氛围。\n【避免】\n不要做成普通拼贴。\n不要把上半部分画得复杂。\n不要添加多余装饰元素。\n不要改变下半部分照片。\n不要出现乱码文字。\n不要过度卡通化。\n不要让冰箱贴图标太大。\n不要让文字压住主体。原比例。"
+  },
+  {
+    "id": "oil_painting",
+    "tags": [
+      "宠物",
+      "随意",
+      "手绘",
+      "丑萌",
+      "涂鸦",
+      "漫画"
+    ],
+    "image": "/images-small/oil_painting.jpg",
+    "prompt": "Turn this photo into a funny ugly doodle drawing. Make it look like: a quick sketch using a cheap marker or crayon messy, rough, childlike style bad perspective and awkward proportions slightly exaggerated facial features Add: simple cartoon background (like buildings, trees, street) random sketchy lines and details uneven coloring and visible strokes Style: looks like a lazy drawing, not polished humorous and a bit stupid-looking meme-like, casual, internet style Do NOT: make it realistic"
+  },
+  {
+    "id": "cyberpunk",
+    "tags": [
+      "手绘",
+      "蜡笔",
+      "儿童",
+      "宠物",
+      "可爱"
+    ],
+    "image": "/images-small/cyberpunk.jpg",
+    "prompt": "现在你是幼儿园小孩，请把整张图片用蜡笔画出来！不要模仿任何已有动漫、IP、艺术家风格！不要有太多的细节，复杂的地方可以一笔带过，带一点笨拙的感觉，颜色可以大胆一点，有些地方可以用完全不一样的颜色，但像草莓这种有固定颜色的一定要用那个颜色，并且要有一种画在白纸上的感觉。可以在空白处或者物品上面叠涂加点五颜六色的点缀，蜡笔的笔触可以不一致，像真实蜡笔一样可以有蜡笔屑，也可以有叠涂后稍微凸起来的效果，或者颜色蹭上去的感觉，构图不要太成熟，可以稍微无逻辑，线条随意不能笔直，比例不用一模一样，不要有照着图片画的感觉，也不能有大人帮忙画的感觉，稍微丑不拉几也可以，要的就是好奇怪但有点治愈这种丑萌丑萌的感觉～"
+  },
+  {
+    "id": "pixel",
+    "tags": [
+      "丑萌",
+      "插画",
+      "宠物"
+    ],
+    "image": "/images-small/pixel.jpg",
+    "prompt": "Turn this photo into indie cartoon illustration, neo-naive pop style, ugly cute characters, very thin black outlines, flat vibrant high-saturation colors, hand-drawn imperfect lines, lo-fi doodle aesthetic，quirky and absurd humor, exaggerated expressions, slightly grotesque but cute, minimal background,contemporary street art vibe, anti-polished illustration style."
+  },
+  {
+    "id": "clay",
+    "tags": [
+      "手绘",
+      "儿童",
+      "可爱",
+      "随意",
+      "宠物"
+    ],
+    "image": "/images-small/clay.jpg",
+    "prompt": "把这张照片改成韩式稚拙扁平插画风格，保留场景里的物体和大致布局，粗糙抖动的黑色间断手绘轮廓，去掉照片里的光影、透视和细节纹理，全部改成纯色平涂。采用高饱和的红/黄/绿/白调色块，边缘圆润，整体背景用亮蓝色，左右两侧留出纯蓝色的背景，物体简化成简单的几何形状，整体是可爱的童趣感，上部手写文案“How are you today?”下部拼贴手写文案“Let the wind carry your worries away.”"
+  },
+  {
+    "id": "pencil",
+    "tags": [
+      "涂鸦",
+      "速写",
+      "儿童",
+      "插画",
+      "宠物"
+    ],
+    "image": "/images-small/pencil.jpg",
+    "prompt": "以涂鸦速写风表现【主题/主体】，整体呈现快速勾勒、自由变形、即兴手绘与草稿式的视觉效果。线条随手、夸张、可粗细不一，略显凌乱但具有节奏和表现力，强调概括、夸张、趣味和随性，而不是严谨写实或精细刻画。\n\n颜色采用粗糙、干刷感明显的块面表现，可保留不均匀的涂抹痕迹、刷痕、飞白与覆盖感，色彩根据【主题/主体】自动适配，但整体保持涂鸦式、速写式、概括式的表达。不要透明水彩晕染效果，不要细腻水彩过渡，不要纸纹理，不要柔和雾化，不要梦幻质感。\n\n背景以留白为主，保持简洁、轻松、未完成感和设计感，可加入少量辅助性符号、箭头、记号、圈画、重复线、随手写的文字或其他涂鸦元素，以增强速写本或随笔式视觉语言，但不可过于拥挤，不可破坏主体和留白气质。\n\n画面内容不需要预先写清楚，由【主题/主体】自动推演并生成最适合的主体形象、动作、相关元素、符号或简化场景，整体保持统一的涂鸦速写风和夸张概括的表现方式，避免复杂写实背景和过度铺陈。\n画面中需自然加入专属签名“voxcat”，作为画面的一部分，位置低调但清晰，可放在左下角、右下角或标题附近，风格需与整体版式统一，像作品署名或设计落款；签名字体精致、克制、高级，不可过大，不可破坏主体构图，不可显得突兀或廉价。"
+  }
+];
+
+module.exports = {
+  styles
+};
