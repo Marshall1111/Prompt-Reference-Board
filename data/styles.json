@@ -9,19 +9,7 @@
       "儿童"
     ],
     "image": "/style-previews/style_1779181030715/cover.png",
-    "prompt": "转绘成3D皮克斯动画风格"
-  },
-  {
-    "id": "style_1779180992225",
-    "tags": [
-      "皮克斯",
-      "可爱",
-      "动画",
-      "宠物",
-      "儿童"
-    ],
-    "image": "/style-previews/style_1779180992225/cover.png",
-    "prompt": "转绘成3D皮克斯动画风格"
+    "prompt": "将图片风格化为皮克斯动画风格，角色造型圆润可爱，光影层次分明，保留人物或宠物原有姿态和互动关系，画面温暖明亮。"
   },
   {
     "id": "style_1779180072956",
@@ -73,7 +61,7 @@
       "艺术",
       "宠物"
     ],
-    "image": "/style-previews/style_1779179882103/cover.jpg",
+    "image": "/style-previews/style_1779179882103/cover.png",
     "prompt": "模仿梵高《戴草帽的自画像》风格，将主体替换为一只我上传的宠物。\n艺术风格： 严格遵循后印象派油画质感，使用标志性的粗犷、旋转笔触和厚涂法（Impasto）。背景采用原作中蓝灰色与橙色交织的短笔触。\n主体特征： 宠物呈现正面半身像，保留其面部花纹特征，眼神深邃。\n核心元素： 宠物必须戴着原作中那顶标志性的黄色草帽，穿着类似的蓝色粗线外套。\n氛围： 色彩协调，光影对比强烈，呈现出一种古典艺术史的质感。"
   },
   {
@@ -83,7 +71,7 @@
       "插画",
       "卡通"
     ],
-    "image": "/style-previews/style_1779179828722/cover.jpg",
+    "image": "/style-previews/style_1779179828722/cover.png",
     "prompt": "Transform the subject from the uploaded image into a character in the style of Charlie and Lola (children’s cartoon). Match the official cartoon look — thin sketchy outlines, flat colors, childlike proportions, playful hand-drawn charm, and simple textures. Retain the subject’s original clothing, hairstyle, facial features, accessories, skin tone, pose, and expression - but reinterpret them as if they belong in the Charlie and Lola world.Clothing should be simplified into flat shapes and bright colors, while keeping the overall outfit recognizable. Background: plain white or transparent to keep the focus on the character.» Negative Prompt: «No realistic shading, no detailed rendering, no anime or manga style, no 3D modeling, no photographic textures."
   },
   {
