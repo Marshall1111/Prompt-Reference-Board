@@ -5,3 +5,4 @@ dist
 npm-debug.log*
 server.out.log
 server.err.log
+.git-work/
