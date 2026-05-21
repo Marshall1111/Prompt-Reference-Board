@@ -1,0 +1,9 @@
+{
+    "ok":  true,
+    "run_dir":  "D:\\Prompt-Reference-Board\\Prompt-Reference-Board\\pet_pics\\museboard-run",
+    "spritesheet":  "D:\\Prompt-Reference-Board\\Prompt-Reference-Board\\pet_pics\\museboard-run\\final\\spritesheet.webp",
+    "validation":  "D:\\Prompt-Reference-Board\\Prompt-Reference-Board\\pet_pics\\museboard-run\\final\\validation.json",
+    "contact_sheet":  "D:\\Prompt-Reference-Board\\Prompt-Reference-Board\\pet_pics\\museboard-run\\qa\\contact-sheet.png",
+    "review":  "D:\\Prompt-Reference-Board\\Prompt-Reference-Board\\pet_pics\\museboard-run\\qa\\review.json",
+    "package":  "C:\\Users\\gnsfb\\.codex\\pets\\museboard"
+}
