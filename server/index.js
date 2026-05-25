@@ -111,6 +111,20 @@ app.post("/api/styles", async (req, res) => {
   res.status(201).json(style);
 });
 
+app.put("/api/styles/order", async (req, res) => {
+  const styles = await readStyles();
+  const ids = Array.isArray(req.body.ids) ? req.body.ids.map(String) : [];
+  const currentIds = new Set(styles.map((style) => style.id));
+  const nextIds = new Set(ids);
+  const hasSameItems = ids.length === styles.length && ids.every((id) => currentIds.has(id)) && nextIds.size === currentIds.size;
+  if (!hasSameItems) return res.status(400).json({ message: "排序数据与当前风格列表不匹配。" });
+
+  const styleById = new Map(styles.map((style) => [style.id, style]));
+  const nextStyles = ids.map((id) => styleById.get(id));
+  await saveStyles(nextStyles);
+  res.json(nextStyles);
+});
+
 app.put("/api/styles/:id", async (req, res) => {
   const styles = await readStyles();
   const style = styles.find((item) => item.id === req.params.id);
@@ -288,9 +302,9 @@ function formatImageResponse(payload, outputFormat, mode) {
 }
 
 function normalizeSize(value) {
-  const size = String(value || "1024x1024").trim();
+  const size = String(value || "auto").trim();
   if (size === "auto") return "auto";
-  return /^\d{2,5}x\d{2,5}$/.test(size) ? size : "1024x1024";
+  return /^\d{2,5}x\d{2,5}$/.test(size) ? size : "auto";
 }
 
 function normalizeOption(value, allowed, fallback) {
@@ -375,10 +389,11 @@ async function syncMiniProgram(styles) {
   await mkdir(path.dirname(miniDataPath), { recursive: true });
   await mkdir(miniImageRoot, { recursive: true });
   const miniStyles = await Promise.all(
-    styles.map(async (style) => {
+    styles.map(async (style, index) => {
       const miniImage = await ensureMiniImage(style);
       return {
         id: style.id,
+        sort: index,
         tags: normalizeTags(style.tags),
         image: miniImage,
         prompt: String(style.prompt || "")

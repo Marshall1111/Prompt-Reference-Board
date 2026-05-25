@@ -1,14 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Check, Clipboard, Download, Eye, Home, ImageUp, LoaderCircle, Plus, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, Home, ImageUp, LoaderCircle, Plus, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
 const GENERATION_DEFAULTS = {
-  size: "1024x1024",
+  size: "auto",
   quality: "medium",
   output_format: "png",
   background: "auto",
   moderation: "auto"
+};
+
+const REFERENCE_UPLOAD_LIMITS = {
+  maxBytes: 4 * 1024 * 1024,
+  maxDimension: 2048,
+  jpegQuality: 0.86
 };
 
 const GENERATION_STEPS = ["准备请求", "提交到中转站", "等待模型生成", "接收图片结果", "准备预览"];
@@ -87,6 +93,33 @@ function App() {
     setStyles((current) => current.map((style) => (style.id === styleId ? updated : style)));
   }
 
+  async function reorderVisibleStyles(orderedVisibleIds) {
+    if (!orderedVisibleIds.length) return;
+    const visibleIds = new Set(orderedVisibleIds);
+    const styleById = new Map(styles.map((style) => [style.id, style]));
+    let visibleIndex = 0;
+    const nextStyles = styles.map((style) => {
+      if (!visibleIds.has(style.id)) return style;
+      const nextId = orderedVisibleIds[visibleIndex];
+      visibleIndex += 1;
+      return styleById.get(nextId) || style;
+    });
+
+    setStyles(nextStyles);
+    try {
+      const response = await fetch("/api/styles/order", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: nextStyles.map((style) => style.id) })
+      });
+      if (!response.ok) throw new Error("Failed to save order");
+      const savedStyles = await response.json();
+      setStyles(savedStyles);
+    } catch {
+      refreshStyles().then(setStyles);
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="workspace">
@@ -111,6 +144,7 @@ function App() {
           <ManagePage
             onCreateStyle={createStyle}
             onDeleteStyle={deleteStyle}
+            onReorderStyles={reorderVisibleStyles}
             onStyleChange={updateStyle}
             onUploadImage={uploadStyleImage}
             styles={filteredStyles}
@@ -150,9 +184,14 @@ function App() {
 }
 
 function GalleryPage({ copiedId, onCopy, onGenerate, onViewPrompt, styles }) {
+  const columnCount = useResponsiveColumnCount();
+  const columns = useMemo(() => splitStylesByColumns(styles, columnCount), [styles, columnCount]);
+
   return (
     <section className="masonry-gallery" aria-label="风格提示词列表">
-      {styles.map((style) => (
+      {columns.map((column, columnIndex) => (
+        <div className="masonry-column" key={columnIndex}>
+          {column.map((style) => (
         <article className="style-card" key={style.id}>
           <div className="image-frame">
             <img alt={`${style.tags.join("、")}示例图`} src={cacheBust(style.image)} />
@@ -179,8 +218,38 @@ function GalleryPage({ copiedId, onCopy, onGenerate, onViewPrompt, styles }) {
             </button>
           </div>
         </article>
+          ))}
+        </div>
       ))}
     </section>
+  );
+}
+
+function useResponsiveColumnCount() {
+  const [columnCount, setColumnCount] = useState(() => getResponsiveColumnCount());
+
+  useEffect(() => {
+    const updateColumnCount = () => setColumnCount(getResponsiveColumnCount());
+    window.addEventListener("resize", updateColumnCount);
+    return () => window.removeEventListener("resize", updateColumnCount);
+  }, []);
+
+  return columnCount;
+}
+
+function getResponsiveColumnCount() {
+  if (window.matchMedia("(max-width: 820px)").matches) return 1;
+  if (window.matchMedia("(max-width: 1120px)").matches) return 2;
+  return 3;
+}
+
+function splitStylesByColumns(styles, columnCount) {
+  return styles.reduce(
+    (columns, style, index) => {
+      columns[index % columnCount].push(style);
+      return columns;
+    },
+    Array.from({ length: columnCount }, () => [])
   );
 }
 
@@ -236,7 +305,8 @@ function ImageGeneratorModal({ onClose, style }) {
       formData.append("prompt", prompt);
       if (selectedProvider) formData.append("provider", selectedProvider);
       Object.entries(GENERATION_DEFAULTS).forEach(([key, value]) => formData.append(key, value));
-      getOrderedReferences(references).forEach((reference) => formData.append("reference", reference.file));
+      const preparedReferences = await Promise.all(getOrderedReferences(references).map(prepareReferenceForUpload));
+      preparedReferences.forEach((reference) => formData.append("reference", reference.file));
       setProgressStep(1);
 
       const response = await fetch("/api/generate-image", {
@@ -360,6 +430,7 @@ function ImageGeneratorModal({ onClose, style }) {
         {references.length > 0 && (
           <div className="reference-list">
             <p className="storage-note">提示词里的“图一 / 图二”对应下面列表中的编号。</p>
+            <p className="storage-note">生成前会自动压缩体积过大或边长过长的参考图，再按当前编号顺序上传。</p>
             {getOrderedReferences(references).map((reference) => (
               <article className="reference-item" key={reference.id}>
                 <img alt={`${imageLabel(reference.order)}预览`} src={reference.previewUrl} />
@@ -455,9 +526,51 @@ function formatFileSize(size) {
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function ManagePage({ onCreateStyle, onDeleteStyle, onStyleChange, onUploadImage, styles }) {
+async function prepareReferenceForUpload(reference) {
+  const file = reference.file;
+  if (!file.type.startsWith("image/")) return reference;
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const longestSide = Math.max(bitmap.width, bitmap.height);
+    const scale = Math.min(1, REFERENCE_UPLOAD_LIMITS.maxDimension / longestSide);
+    const shouldCompress = file.size > REFERENCE_UPLOAD_LIMITS.maxBytes || scale < 1;
+
+    if (!shouldCompress) {
+      bitmap.close?.();
+      return reference;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d", { alpha: false });
+    if (!context) return reference;
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", REFERENCE_UPLOAD_LIMITS.jpegQuality));
+    if (!blob || blob.size >= file.size) return reference;
+
+    const compressedName = `${file.name.replace(/\.[^.]+$/, "") || "reference"}-compressed.jpg`;
+    return {
+      ...reference,
+      file: new File([blob], compressedName, {
+        type: "image/jpeg",
+        lastModified: file.lastModified
+      })
+    };
+  } catch {
+    return reference;
+  }
+}
+
+function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChange, onUploadImage, styles }) {
   const [drafts, setDrafts] = useState({});
   const [savingId, setSavingId] = useState("");
+  const [draggingId, setDraggingId] = useState("");
 
   useEffect(() => {
     setDrafts(
@@ -486,6 +599,27 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onStyleChange, onUploadImage
     setSavingId("");
   }
 
+  function moveStyle(styleId, offset) {
+    const index = styles.findIndex((style) => style.id === styleId);
+    const nextIndex = index + offset;
+    if (index < 0 || nextIndex < 0 || nextIndex >= styles.length) return;
+    const nextIds = styles.map((style) => style.id);
+    const [movedId] = nextIds.splice(index, 1);
+    nextIds.splice(nextIndex, 0, movedId);
+    onReorderStyles(nextIds);
+  }
+
+  function dropStyle(targetId) {
+    if (!draggingId || draggingId === targetId) return;
+    const nextIds = styles.map((style) => style.id);
+    const fromIndex = nextIds.indexOf(draggingId);
+    const targetIndex = nextIds.indexOf(targetId);
+    if (fromIndex < 0 || targetIndex < 0) return;
+    const [movedId] = nextIds.splice(fromIndex, 1);
+    nextIds.splice(targetIndex, 0, movedId);
+    onReorderStyles(nextIds);
+  }
+
   return (
     <section className="manage-list" aria-label="维护风格内容">
       <button className="add-button" onClick={onCreateStyle} type="button">
@@ -493,10 +627,28 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onStyleChange, onUploadImage
         <span>新增风格</span>
       </button>
 
-      {styles.map((style) => {
+      {styles.map((style, index) => {
         const draft = drafts[style.id] || { tags: "", prompt: "" };
         return (
-          <article className="manage-card" key={style.id}>
+          <article
+            className={`manage-card ${draggingId === style.id ? "is-dragging" : ""}`}
+            draggable
+            key={style.id}
+            onDragEnd={() => setDraggingId("")}
+            onDragOver={(event) => event.preventDefault()}
+            onDragStart={() => setDraggingId(style.id)}
+            onDrop={() => dropStyle(style.id)}
+          >
+            <div className="manage-order-tools" aria-label="排序">
+              <GripVertical size={18} />
+              <span>#{index + 1}</span>
+              <button className="icon-button" disabled={index === 0} onClick={() => moveStyle(style.id, -1)} type="button" aria-label="上移">
+                <ArrowUp size={18} />
+              </button>
+              <button className="icon-button" disabled={index === styles.length - 1} onClick={() => moveStyle(style.id, 1)} type="button" aria-label="下移">
+                <ArrowDown size={18} />
+              </button>
+            </div>
             <img alt="当前示例图" src={cacheBust(style.image)} />
             <div className="manage-body">
               <label className="field-label">

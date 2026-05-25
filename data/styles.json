@@ -1,5 +1,15 @@
 [
   {
+    "id": "style_1779179574408",
+    "tags": [
+      "丑萌",
+      "手绘",
+      "随意"
+    ],
+    "image": "/style-previews/style_1779179574408/cover.png",
+    "prompt": "把这 张照片改成画风笨拙又搞笑的涂鸦风插画 。 特点： - 营造出像是用平价马克笔、蜡笔随手画出来的潦草速写质感- 线条杂乱随性，充满孩子气画风- 透视扭曲失衡，整体构图比例不协调- 脸部五官稍作夸张处理，打造滑稽喜感 额外添加元素：- 简约漫画风背景（结合参考照片联想绘制即可）- 添上无意义的乱涂线条、细碎随性的小细节- 保留上色不均、涂色出界、明显的笔触痕迹 整体风格：- 透着敷衍潦草、毫无用心去画的随性感- 切勿画得太过精致完整- 沙雕搞笑的表情包趣味画风- 贴合网络轻松趣味的氛围 禁止要求：- 不要画得写实- 不要刻画得太过精致细腻- 不要做出专业规整的绘画效果。请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
+  },
+  {
     "id": "style_1779671305701",
     "tags": [
       "油画",
@@ -10,28 +20,14 @@
     "prompt": "A cute 【animal】 wearing sunglasses, Van Gogh inspired impasto oil painting, heavy palette knife texture, thick expressive brush strokes, rich oil paint layers, highly textured canvas, vibrant complementary colors, artistic pet portrait, centered composition, painterly abstract background, bold expressive strokes, modern trendy aesthetic, handmade painting feeling, museum-quality oil painting. 请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
   },
   {
-    "id": "style_1779323084946",
+    "id": "style_1779180012171",
     "tags": [
-      "艺术"
+      "可爱",
+      "宠物",
+      "手绘"
     ],
-    "image": "/style-previews/style_1779323084946/cover.jpg",
-    "prompt": "把图二中的猫咪换成图一中的狗狗，比例改成2:3."
-  },
-  {
-    "id": "style_1779322951275",
-    "tags": [
-      "表情包"
-    ],
-    "image": "/style-previews/style_1779322951275/cover.png",
-    "prompt": "表情包提示词全文\n任务目标：\n基于参考图生成一套“聊天贴纸表情包合集”。整体需具备强情绪表达、传播性，以及统一但极具个性的视觉风格。最终效果应像：一个人用鼠标在电脑上胡乱画画并顺手乱写文字，低质量但非常真实、有趣、好笑。\n\n————————\n输入结构：\n\n图片1：角色参考（可能包含一个或多个角色，如人物、宠物等）\n图片2：版式参考（仅用于理解16格结构，不限制风格）\n用户输入变量：\n- 文案内容（多行文本，可少于或多于16条）\n\n————————\n角色识别与使用规则：\n\n- 识别所有角色（人/动物/组合）\n- 每个角色都可作为贴纸主角\n- 不同贴纸可使用不同角色\n- 可出现多角色互动（贴贴、争抢、对视等）\n- 分配需自然，符合聊天语境\n\n————————\n一致性要求（核心重定义）：\n\n本任务采用“错误一致性”，而非“写实一致性”。\n\n同一角色在不同贴纸中：\n不需要长得一样，但必须“画得像同一个人乱画的”。\n\n必须统一：\n- 相同的笨拙画法\n- 相同的简化方式（符号脸/火柴人）\n- 相同的错误习惯（比例歪、线条抖）\n- 相同的混乱程度\n\n允许：\n- 五官错位\n- 比例变化\n- 结构错误\n- 细节缺失\n\n必须：\n- 保留最低识别特征（如发型轮廓、颜色、标志物）\n\n总结：\n一致性 = 错得一致，而不是像得一致\n\n————————\n版式与结构：\n\n- 共16个贴纸，4x4排列\n- 每个贴纸为独立画面\n- 可单角色或多角色\n- 单个贴纸内部可以混乱\n- 整体排布必须清晰\n\n————————\n文案系统（表达核心）：\n\n用户输入多行中文文案：\n\n数量处理：\n- 少于16条 → 自动补全\n- 多于16条 → 自然筛选最有表达力的16条\n\n补全原则：\n- 保持语气一致（嘴臭 / 摆烂 / 打工人 / 崩溃 / 撒娇等）\n- 具备互联网语言感\n- 优先短句，但允许长句增强张力\n- 避免重复表达\n\n表达目标：\n- 一眼能懂\n- 情绪强烈\n- 有传播感（像真实表情包）\n\n语气优先：\n- 吐槽\n- 自言自语\n- 情绪爆发\n- 敷衍 / 不耐烦 / 荒谬\n\n避免：\n- 礼貌表达\n- 标准回复句式\n\n————————\n文字与画面融合（关键）：\n\n文字必须“画出来”，而不是“排版出来”。\n\n必须做到：\n- 字像鼠标手写：歪、抖、大小不一\n- 排版混乱：倾斜、错位、挤压、重叠\n- 行距不均匀\n- 可贴在角色上、旁边或边缘\n\n允许：\n- 重复字（啊啊啊啊）\n- 拉长音（烦——死——了）\n- 标点乱用（？？？？！！）\n- 不工整甚至略丑\n\n必须：\n- 保持可读性\n- 不影响理解\n\n————————\n表达生成机制（最核心）：\n\n整套贴纸必须模拟这个过程：\n\n“一个不会画画的人，用鼠标在电脑上，一边乱画，一边顺手乱写。”\n\n关键要求：\n\n- 图像和文字属于同一次行为\n- 不是先设计图再加文字\n- 而是同时发生\n\n每个贴纸应像：\n- 随手画完\n- 临时想到一句话写上去\n- 有点敷衍甚至随意\n\n————————\n图文关系：\n\n图与文字必须形成：\n\n- 吐槽关系\n- 情绪强化\n- 自言自语\n- 或轻微不匹配（增强荒诞）\n\n允许：\n- 文案和表情不完全对应\n- 出现“跑题幽默”\n\n目标：\n不是精准，而是好笑\n\n————————\n美学风格DNA（核心驱动）：\n\n风格来源：极差手绘 + MS Paint鼠标乱画 + 失败模仿\n\n视觉特征：\n\n线条：\n- 抖动、不稳定、锯齿明显\n- 像鼠标画\n\n形态：\n- 比例失衡\n- 火柴人或极简结构\n- 可变形\n\n细节：\n- 极少细节\n- 呈现“不会画”\n\n质感：\n- 像素感\n- 边缘粗糙\n\n构图：\n- 单个贴纸允许混乱\n- 整体结构清晰\n\n情绪：\n- 笨拙、直接、荒诞、好笑\n\n还原：\n- 模糊像原图\n- 允许错误和误解\n- 类似失败临摹\n\n————————\n风格执行约束（极重要）：\n\n当冲突发生时：\n\n真实感 vs 风格 → 必须优先风格\n\n允许破坏：\n- 精细度\n- 比例\n- 结构\n- 干净程度\n\n禁止：\n- 精致画面\n- 正常比例\n- 干净线条\n- 强设计感\n\n判断标准：\n\n如果画面开始“好看”，说明失败  \n必须回到粗糙、混乱状态\n\n————————\n去模板化与随机生成机制（关键）：\n\n严禁：\n- 使用编号（1.2.3.）\n- 列表结构\n- 顺序生成内容\n\n必须：\n\n将16个贴纸视为：\n“16次独立、随机、临时表达”\n\n随机性要求：\n\n- 文案长度不一致（有长有短）\n- 语气不一致\n- 有的完整，有的碎片\n- 有的甚至很随意\n\n避免：\n- 重复句式\n- 固定套路\n- 常见模板（你好/哈哈/在吗等）\n\n允许：\n- 有些贴纸几乎没文字\n- 有些很密集\n- 有些很突兀\n\n生成方式：\n\n不要规划整体，\n而是模拟：\n\n“连续16次随手乱写+乱画”\n\n必须有：\n- 情绪波动\n- 表达不稳定\n- 随机感\n\n反复用要求：\n\n每次生成必须：\n- 避免复用旧表达\n- 避免固定组合\n- 像全新内容\n\n————————\n贴纸要求：\n\n- 每个贴纸清晰独立\n- 表情明确\n- 可用于聊天\n- 情绪强烈\n\n————————\n最终目标：\n\n生成16枚贴纸合集。\n\n效果必须像：\n\n“一个人不会画画，但用鼠标乱画了16次，\n每次顺手写了一句不同状态下的吐槽，\n结果意外很好笑。”\n\n而不是：\n\n“AI设计了一套统一风格的贴纸”"
-  },
-  {
-    "id": "style_1779268159068",
-    "tags": [
-      "人物"
-    ],
-    "image": "/style-previews/style_1779268159068/cover.png",
-    "prompt": "Turn the person from the photo into a grotesque humorous fashion caricature sketch. Strongly exaggerated anatomy, elongated proportions, expressive crooked hands, dramatic face, awkward elegant posture, satirical fashion energy, messy ink lines, rough watercolor, sketchbook style, vintage magazine illustration on beige aged paper. Add handwritten Chinese notes, arrows, funny observations, doodles, and absurd personality analysis around the character."
+    "image": "/style-previews/style_1779180012171/cover.jpg",
+    "prompt": "把参考图中的主体变成一个萌风Q版角色，凌乱粗糙的黑色线稿，幼态比例，像小孩随手涂鸦但极具设计感，粗笔触、水粉厚涂、蜡笔质感，边缘随意外扩，留白背景、可爱、手绘感极强，不精致，故意画歪，松散构图，低饱和奶油色调，艺术涂鸦插画。请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
   },
   {
     "id": "style_1779181030715",
@@ -46,27 +42,6 @@
     "prompt": "将图片风格化为皮克斯动画风格，角色造型圆润可爱，光影层次分明，保留人物或宠物原有姿态和互动关系，画面温暖明亮。请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
   },
   {
-    "id": "style_1779180072956",
-    "tags": [
-      "Plog",
-      "可爱",
-      "涂鸦",
-      "剪贴"
-    ],
-    "image": "/style-previews/style_1779180072956/cover.jpg",
-    "prompt": "保留原图尺寸，在图片中的动物、食物和人物和有趣的元素周围用粗糙手绘描边，并点缀可爱的手写涂鸦和剪贴风格的注释（英文），还有俏皮的白色马克笔画、爱心、星星、蛋糕、笑脸和小型食物等图标，营造出一种可爱的Instagram美食氛围，8K画质。请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
-  },
-  {
-    "id": "style_1779180012171",
-    "tags": [
-      "可爱",
-      "宠物",
-      "手绘"
-    ],
-    "image": "/style-previews/style_1779180012171/cover.jpg",
-    "prompt": "把参考图中的主体变成一个萌风Q版角色，凌乱粗糙的黑色线稿，幼态比例，像小孩随手涂鸦但极具设计感，粗笔触、水粉厚涂、蜡笔质感，边缘随意外扩，留白背景、可爱、手绘感极强，不精致，故意画歪，松散构图，低饱和奶油色调，艺术涂鸦插画。请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
-  },
-  {
     "id": "style_1779179958695",
     "tags": [
       "平面",
@@ -77,6 +52,41 @@
     ],
     "image": "/style-previews/style_1779179958695/cover.png",
     "prompt": "请将整个图像转化为单一的装饰性民间平面插图，带有涂鸦元素。使用大胆而俏皮的色彩调色板，与原图像完全不同。\n将所有细节简化为干净、平面的形状，带有手工制作的、略显不完美感，仿佛绘制在一张白纸上。整体风格应显得可爱、童趣十足且异想天开。请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
+  },
+  {
+    "id": "style_1779323084946",
+    "tags": [
+      "艺术"
+    ],
+    "image": "/style-previews/style_1779323084946/cover.jpg",
+    "prompt": "把图二中的猫咪换成图一中的狗狗，比例改成2:3."
+  },
+  {
+    "id": "style_1779268159068",
+    "tags": [
+      "人物"
+    ],
+    "image": "/style-previews/style_1779268159068/cover.png",
+    "prompt": "Turn the person from the photo into a grotesque humorous fashion caricature sketch. Strongly exaggerated anatomy, elongated proportions, expressive crooked hands, dramatic face, awkward elegant posture, satirical fashion energy, messy ink lines, rough watercolor, sketchbook style, vintage magazine illustration on beige aged paper. Add handwritten Chinese notes, arrows, funny observations, doodles, and absurd personality analysis around the character."
+  },
+  {
+    "id": "style_1779322951275",
+    "tags": [
+      "表情包"
+    ],
+    "image": "/style-previews/style_1779322951275/cover.png",
+    "prompt": "表情包提示词全文\n任务目标：\n基于参考图生成一套“聊天贴纸表情包合集”。整体需具备强情绪表达、传播性，以及统一但极具个性的视觉风格。最终效果应像：一个人用鼠标在电脑上胡乱画画并顺手乱写文字，低质量但非常真实、有趣、好笑。\n\n————————\n输入结构：\n\n图片1：角色参考（可能包含一个或多个角色，如人物、宠物等）\n图片2：版式参考（仅用于理解16格结构，不限制风格）\n用户输入变量：\n- 文案内容（多行文本，可少于或多于16条）\n\n————————\n角色识别与使用规则：\n\n- 识别所有角色（人/动物/组合）\n- 每个角色都可作为贴纸主角\n- 不同贴纸可使用不同角色\n- 可出现多角色互动（贴贴、争抢、对视等）\n- 分配需自然，符合聊天语境\n\n————————\n一致性要求（核心重定义）：\n\n本任务采用“错误一致性”，而非“写实一致性”。\n\n同一角色在不同贴纸中：\n不需要长得一样，但必须“画得像同一个人乱画的”。\n\n必须统一：\n- 相同的笨拙画法\n- 相同的简化方式（符号脸/火柴人）\n- 相同的错误习惯（比例歪、线条抖）\n- 相同的混乱程度\n\n允许：\n- 五官错位\n- 比例变化\n- 结构错误\n- 细节缺失\n\n必须：\n- 保留最低识别特征（如发型轮廓、颜色、标志物）\n\n总结：\n一致性 = 错得一致，而不是像得一致\n\n————————\n版式与结构：\n\n- 共16个贴纸，4x4排列\n- 每个贴纸为独立画面\n- 可单角色或多角色\n- 单个贴纸内部可以混乱\n- 整体排布必须清晰\n\n————————\n文案系统（表达核心）：\n\n用户输入多行中文文案：\n\n数量处理：\n- 少于16条 → 自动补全\n- 多于16条 → 自然筛选最有表达力的16条\n\n补全原则：\n- 保持语气一致（嘴臭 / 摆烂 / 打工人 / 崩溃 / 撒娇等）\n- 具备互联网语言感\n- 优先短句，但允许长句增强张力\n- 避免重复表达\n\n表达目标：\n- 一眼能懂\n- 情绪强烈\n- 有传播感（像真实表情包）\n\n语气优先：\n- 吐槽\n- 自言自语\n- 情绪爆发\n- 敷衍 / 不耐烦 / 荒谬\n\n避免：\n- 礼貌表达\n- 标准回复句式\n\n————————\n文字与画面融合（关键）：\n\n文字必须“画出来”，而不是“排版出来”。\n\n必须做到：\n- 字像鼠标手写：歪、抖、大小不一\n- 排版混乱：倾斜、错位、挤压、重叠\n- 行距不均匀\n- 可贴在角色上、旁边或边缘\n\n允许：\n- 重复字（啊啊啊啊）\n- 拉长音（烦——死——了）\n- 标点乱用（？？？？！！）\n- 不工整甚至略丑\n\n必须：\n- 保持可读性\n- 不影响理解\n\n————————\n表达生成机制（最核心）：\n\n整套贴纸必须模拟这个过程：\n\n“一个不会画画的人，用鼠标在电脑上，一边乱画，一边顺手乱写。”\n\n关键要求：\n\n- 图像和文字属于同一次行为\n- 不是先设计图再加文字\n- 而是同时发生\n\n每个贴纸应像：\n- 随手画完\n- 临时想到一句话写上去\n- 有点敷衍甚至随意\n\n————————\n图文关系：\n\n图与文字必须形成：\n\n- 吐槽关系\n- 情绪强化\n- 自言自语\n- 或轻微不匹配（增强荒诞）\n\n允许：\n- 文案和表情不完全对应\n- 出现“跑题幽默”\n\n目标：\n不是精准，而是好笑\n\n————————\n美学风格DNA（核心驱动）：\n\n风格来源：极差手绘 + MS Paint鼠标乱画 + 失败模仿\n\n视觉特征：\n\n线条：\n- 抖动、不稳定、锯齿明显\n- 像鼠标画\n\n形态：\n- 比例失衡\n- 火柴人或极简结构\n- 可变形\n\n细节：\n- 极少细节\n- 呈现“不会画”\n\n质感：\n- 像素感\n- 边缘粗糙\n\n构图：\n- 单个贴纸允许混乱\n- 整体结构清晰\n\n情绪：\n- 笨拙、直接、荒诞、好笑\n\n还原：\n- 模糊像原图\n- 允许错误和误解\n- 类似失败临摹\n\n————————\n风格执行约束（极重要）：\n\n当冲突发生时：\n\n真实感 vs 风格 → 必须优先风格\n\n允许破坏：\n- 精细度\n- 比例\n- 结构\n- 干净程度\n\n禁止：\n- 精致画面\n- 正常比例\n- 干净线条\n- 强设计感\n\n判断标准：\n\n如果画面开始“好看”，说明失败  \n必须回到粗糙、混乱状态\n\n————————\n去模板化与随机生成机制（关键）：\n\n严禁：\n- 使用编号（1.2.3.）\n- 列表结构\n- 顺序生成内容\n\n必须：\n\n将16个贴纸视为：\n“16次独立、随机、临时表达”\n\n随机性要求：\n\n- 文案长度不一致（有长有短）\n- 语气不一致\n- 有的完整，有的碎片\n- 有的甚至很随意\n\n避免：\n- 重复句式\n- 固定套路\n- 常见模板（你好/哈哈/在吗等）\n\n允许：\n- 有些贴纸几乎没文字\n- 有些很密集\n- 有些很突兀\n\n生成方式：\n\n不要规划整体，\n而是模拟：\n\n“连续16次随手乱写+乱画”\n\n必须有：\n- 情绪波动\n- 表达不稳定\n- 随机感\n\n反复用要求：\n\n每次生成必须：\n- 避免复用旧表达\n- 避免固定组合\n- 像全新内容\n\n————————\n贴纸要求：\n\n- 每个贴纸清晰独立\n- 表情明确\n- 可用于聊天\n- 情绪强烈\n\n————————\n最终目标：\n\n生成16枚贴纸合集。\n\n效果必须像：\n\n“一个人不会画画，但用鼠标乱画了16次，\n每次顺手写了一句不同状态下的吐槽，\n结果意外很好笑。”\n\n而不是：\n\n“AI设计了一套统一风格的贴纸”"
+  },
+  {
+    "id": "style_1779180072956",
+    "tags": [
+      "Plog",
+      "可爱",
+      "涂鸦",
+      "剪贴"
+    ],
+    "image": "/style-previews/style_1779180072956/cover.jpg",
+    "prompt": "保留原图尺寸，在图片中的动物、食物和人物和有趣的元素周围用粗糙手绘描边，并点缀可爱的手写涂鸦和剪贴风格的注释（英文），还有俏皮的白色马克笔画、爱心、星星、蛋糕、笑脸和小型食物等图标，营造出一种可爱的Instagram美食氛围，8K画质。请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
   },
   {
     "id": "style_1779179914765",
@@ -149,16 +159,6 @@
     "prompt": "请把附上的图片，用最粗糙、最寒碜的线条重新画一遍。背景是白色。要画出那种用鼠标在画图工具里画的、看似对又不太对、有点神韵但又很微妙地跑偏的感觉，直接把像素感拉满。总之请全力表现那种“寒碜感”。哎呀算了，随便画吧。请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
   },
   {
-    "id": "style_1779179574408",
-    "tags": [
-      "丑萌",
-      "手绘",
-      "随意"
-    ],
-    "image": "/style-previews/style_1779179574408/cover.png",
-    "prompt": "把这 张照片改成画风笨拙又搞笑的涂鸦风插画 。 特点： - 营造出像是用平价马克笔、蜡笔随手画出来的潦草速写质感- 线条杂乱随性，充满孩子气画风- 透视扭曲失衡，整体构图比例不协调- 脸部五官稍作夸张处理，打造滑稽喜感 额外添加元素：- 简约漫画风背景（结合参考照片联想绘制即可）- 添上无意义的乱涂线条、细碎随性的小细节- 保留上色不均、涂色出界、明显的笔触痕迹 整体风格：- 透着敷衍潦草、毫无用心去画的随性感- 切勿画得太过精致完整- 沙雕搞笑的表情包趣味画风- 贴合网络轻松趣味的氛围 禁止要求：- 不要画得写实- 不要刻画得太过精致细腻- 不要做出专业规整的绘画效果。请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
-  },
-  {
     "id": "style_1779179490072",
     "tags": [
       "插画",
@@ -182,16 +182,6 @@
     "prompt": "把参考图中的主体转绘成矢量平面插画，放到复古漫画风格的海报中，半色调网点印刷纹理，波普艺术风格，\n复古漫画书艺术，怀旧儿童绘本插画，网点印刷风格,\n图形设计，可爱俏皮，清晰线条，点状纹理，粗糙印刷质感，\n2D平面设计，无真实阴影，通过半色调网点密度表现阴影，\n有限色彩方案，鲜艳饱和色彩，有限色彩选择，无渐变，\n无复杂细节，简洁造型，高对比度，粗黑轮廓线，\n儿童绘本风格，怀旧1950-60年代印刷艺术，画面无字，\n突出手绘质感，手工绘制不完善、不固定，\n整个画面背景是复古漫画海报风格，增加合适的文字和装饰\n请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
   },
   {
-    "id": "style_1779179392820",
-    "tags": [
-      "诡异",
-      "童话",
-      "猎奇"
-    ],
-    "image": "/style-previews/style_1779179392820/cover.jpg",
-    "prompt": "Turn this photo into a strange vintage Soviet children's book\nillustration with grotesque humorous cartoon energy. Use thin shaky\nblack ink lines, awkward anatomy, elongated limbs uncomfortable\nfacial expressions, chaotic movement， weird proportions, sparse\ncomposition, and intentionally clumsy drawing style. Make the\ncharacters look slightly absurd nervous. and ridiculous rather than\ncute.Use pale faded watercolor washes, dirty paper texture, uneven\ncoloring, washed-out muted colors, lots of empty space, careless\nsketchy linework, and rough old-print illustration texture Keep the\nbackground minimal and random, with small strange details and loose\ndoodies. The mood should feel weird, humorous, slightly unsettling,\nand authentically like an old Eastern European children's book\nillustration from the 19805. Do NOT make it polished, aesthetic,\nmodern, cute, detailed, or realistic. Write an absurd text in\nEnglish that is slightly related to the illustration, but not much,\nwith a confusing rhyme. The font is handwritten, clumsy as an\nillustration style\n请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
-  },
-  {
     "id": "style_1779179328013",
     "tags": [
       "卡通",
@@ -204,6 +194,18 @@
     ],
     "image": "/style-previews/style_1779179328013/cover.jpg",
     "prompt": "将照片转换成高饱和度复古旅行海报风格的平面卡通插画（flat cartoon poster illustration）。人物整体采用儿童绘本式的夸张卡通比例，脸部高度简化和平面化，使用圆润几何造型、大色块上色、极少面部细节、粗黑色描边，弱化真实皮肤纹理和真实五官结构，不要写实感。\n\n整体风格参考：retro travel poster、flat illustration、storybook art、vector cartoon、mid-century poster、bold colorful graphic design。画面使用强烈撞色、高饱和橙色、黄色、蓝绿色、深蓝色，带复古印刷颗粒感和手绘纹理。\n\n人物表情要阳光可爱，但采用二维动画式处理，眼睛、嘴巴、腮红、头发都尽量图形化和符号化，避免真实照片转绘效果。背景加入卡通城市、树木、蓝天、云朵、道路、旅行箱、路牌等元素，整体构图像儿童绘本封面和复古宣传海报。\n\n加入大面积手绘英文标语，例如 “HAPPY TRAVEL”、“DREAM BIG”、“VIBRANT ENERGY”、“SLOW DOWN”，字体夸张醒目。\n\n避免：realistic face、photo texture、real skin、3D render、cinematic lighting、high detail skin、semi-realistic illustration、AI photo style、complex shadow、photorealism。\n\nmake the face look more like a flat cartoon graphic than a painted realistic portrait\n请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
+  },
+  {
+    "id": "clay",
+    "tags": [
+      "手绘",
+      "儿童",
+      "可爱",
+      "随意",
+      "宠物"
+    ],
+    "image": "/style-previews/clay/cover.jpg",
+    "prompt": "把这张照片改成韩式稚拙扁平插画风格，保留场景里的物体和大致布局，粗糙抖动的黑色间断手绘轮廓，去掉照片里的光影、透视和细节纹理，全部改成纯色平涂。采用高饱和的红/黄/绿/白调色块，边缘圆润，整体背景用亮蓝色，左右两侧留出纯蓝色的背景，物体简化成简单的几何形状，整体是可爱的童趣感，上部手写文案“How are you today?”下部拼贴手写文案“Let the wind carry your worries away.”\n请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
   },
   {
     "id": "style_1779165306174",
@@ -253,16 +255,14 @@
     "prompt": "Turn this photo into indie cartoon illustration, neo-naive pop style, ugly cute characters, very thin black outlines, flat vibrant high-saturation colors, hand-drawn imperfect lines, lo-fi doodle aesthetic，quirky and absurd humor, exaggerated expressions, slightly grotesque but cute, minimal background,contemporary street art vibe, anti-polished illustration style.\n请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
   },
   {
-    "id": "clay",
+    "id": "style_1779179392820",
     "tags": [
-      "手绘",
-      "儿童",
-      "可爱",
-      "随意",
-      "宠物"
+      "诡异",
+      "童话",
+      "猎奇"
     ],
-    "image": "/style-previews/clay/cover.jpg",
-    "prompt": "把这张照片改成韩式稚拙扁平插画风格，保留场景里的物体和大致布局，粗糙抖动的黑色间断手绘轮廓，去掉照片里的光影、透视和细节纹理，全部改成纯色平涂。采用高饱和的红/黄/绿/白调色块，边缘圆润，整体背景用亮蓝色，左右两侧留出纯蓝色的背景，物体简化成简单的几何形状，整体是可爱的童趣感，上部手写文案“How are you today?”下部拼贴手写文案“Let the wind carry your worries away.”\n请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
+    "image": "/style-previews/style_1779179392820/cover.jpg",
+    "prompt": "Turn this photo into a strange vintage Soviet children's book\nillustration with grotesque humorous cartoon energy. Use thin shaky\nblack ink lines, awkward anatomy, elongated limbs uncomfortable\nfacial expressions, chaotic movement， weird proportions, sparse\ncomposition, and intentionally clumsy drawing style. Make the\ncharacters look slightly absurd nervous. and ridiculous rather than\ncute.Use pale faded watercolor washes, dirty paper texture, uneven\ncoloring, washed-out muted colors, lots of empty space, careless\nsketchy linework, and rough old-print illustration texture Keep the\nbackground minimal and random, with small strange details and loose\ndoodies. The mood should feel weird, humorous, slightly unsettling,\nand authentically like an old Eastern European children's book\nillustration from the 19805. Do NOT make it polished, aesthetic,\nmodern, cute, detailed, or realistic. Write an absurd text in\nEnglish that is slightly related to the illustration, but not much,\nwith a confusing rhyme. The font is handwritten, clumsy as an\nillustration style\n请根据上传图片的主体姿态、场景方向和视觉重心，自动选择最合适的画幅比例：横向构图使用 3:2，纵向构图使用 2:3。保持原图主要元素完整，不裁切主体，可自然扩展背景并微调元素位置，使画面更协调。"
   },
   {
     "id": "pencil",

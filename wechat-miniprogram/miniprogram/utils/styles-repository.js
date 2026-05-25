@@ -48,6 +48,7 @@ function ensureCloudReady() {
 function normalizeStyle(style) {
   return {
     id: style.id || style._id,
+    sort: Number.isFinite(Number(style.sort)) ? Number(style.sort) : 0,
     tags: Array.isArray(style.tags) ? style.tags : [],
     image: style.image || "",
     prompt: style.prompt || ""
