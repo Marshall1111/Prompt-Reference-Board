@@ -43,7 +43,7 @@ IMAGE_API_DUCKCODING_KEY=你的 DuckCoding 密钥
 IMAGE_API_DUCKCODING_MODEL=gpt-image-2
 ```
 
-未上传参考图时调用 `/images/generations`；上传参考图时会尝试调用 OpenAI 兼容的 `/images/edits`，该端点是否可用取决于中转站实际支持情况。中转站可能返回 Base64 图片数据，也可能返回图片 URL，页面会兼容两种结果。复杂图片可能耗时数分钟，`KUAIPAO_IMAGE_TIMEOUT_MS` 默认 300000 毫秒，可按需调大。
+未上传参考图时调用 `/images/generations`；上传参考图时会尝试调用 OpenAI 兼容的 `/images/edits`，该端点是否可用取决于中转站实际支持情况。中转站可能返回 Base64 图片数据，也可能返回图片 URL，页面会兼容两种结果。复杂图片可能耗时数分钟，`KUAIPAO_IMAGE_TIMEOUT_MS` 默认 500000 毫秒，可按需调大。
 
 如果配置了多个 `IMAGE_API_PROVIDERS`，AI 生图弹窗会显示“接口供应商”下拉框，可在生成前手动切换。
 

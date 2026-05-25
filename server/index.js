@@ -299,8 +299,8 @@ function normalizeOption(value, allowed, fallback) {
 }
 
 function normalizeTimeout(value) {
-  const timeout = Number(value || 300000);
-  if (!Number.isFinite(timeout)) return 300000;
+  const timeout = Number(value || 500000);
+  if (!Number.isFinite(timeout)) return 500000;
   return Math.min(Math.max(timeout, 60000), 900000);
 }
 
