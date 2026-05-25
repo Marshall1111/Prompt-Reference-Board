@@ -1,13 +1,24 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Check, Clipboard, Eye, Home, ImageUp, Plus, Save, Search, Settings, Trash2 } from "lucide-react";
+import { Check, Clipboard, Download, Eye, Home, ImageUp, LoaderCircle, Plus, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+
+const GENERATION_DEFAULTS = {
+  size: "1024x1024",
+  quality: "medium",
+  output_format: "png",
+  background: "auto",
+  moderation: "auto"
+};
+
+const GENERATION_STEPS = ["准备请求", "提交到中转站", "等待模型生成", "接收图片结果", "准备预览"];
 
 function App() {
   const [styles, setStyles] = useState([]);
   const [query, setQuery] = useState("");
   const [copiedId, setCopiedId] = useState("");
   const [activePrompt, setActivePrompt] = useState(null);
+  const [activeGenerator, setActiveGenerator] = useState(null);
   const [route, setRoute] = useState(() => (window.location.pathname === "/manage" ? "manage" : "home"));
 
   useEffect(() => {
@@ -31,6 +42,7 @@ function App() {
     window.history.pushState({}, "", path);
     setRoute(nextRoute);
     setActivePrompt(null);
+    setActiveGenerator(null);
   }
 
   async function copyPrompt(style) {
@@ -104,7 +116,7 @@ function App() {
             styles={filteredStyles}
           />
         ) : (
-          <GalleryPage copiedId={copiedId} onCopy={copyPrompt} onViewPrompt={setActivePrompt} styles={filteredStyles} />
+          <GalleryPage copiedId={copiedId} onCopy={copyPrompt} onGenerate={setActiveGenerator} onViewPrompt={setActivePrompt} styles={filteredStyles} />
         )}
       </section>
 
@@ -131,11 +143,13 @@ function App() {
           </section>
         </div>
       )}
+
+      {activeGenerator && <ImageGeneratorModal onClose={() => setActiveGenerator(null)} style={activeGenerator} />}
     </main>
   );
 }
 
-function GalleryPage({ copiedId, onCopy, onViewPrompt, styles }) {
+function GalleryPage({ copiedId, onCopy, onGenerate, onViewPrompt, styles }) {
   return (
     <section className="masonry-gallery" aria-label="风格提示词列表">
       {styles.map((style) => (
@@ -150,7 +164,7 @@ function GalleryPage({ copiedId, onCopy, onViewPrompt, styles }) {
               </span>
             ))}
           </div>
-          <div className="card-actions">
+          <div className="card-actions gallery-actions">
             <button className="copy-button" onClick={() => onCopy(style)} type="button">
               {copiedId === style.id ? <Check size={18} /> : <Clipboard size={18} />}
               <span>{copiedId === style.id ? "已复制" : "复制提示词"}</span>
@@ -159,11 +173,259 @@ function GalleryPage({ copiedId, onCopy, onViewPrompt, styles }) {
               <Eye size={18} />
               <span>查看提示词</span>
             </button>
+            <button className="generate-button" onClick={() => onGenerate(style)} type="button">
+              <Sparkles size={18} />
+              <span>AI 生图</span>
+            </button>
           </div>
         </article>
       ))}
     </section>
   );
+}
+
+function ImageGeneratorModal({ onClose, style }) {
+  const [prompt, setPrompt] = useState(style.prompt);
+  const [references, setReferences] = useState([]);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [progressStep, setProgressStep] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!isGenerating) return undefined;
+    const startedAt = Date.now();
+    setElapsedSeconds(0);
+    const timer = window.setInterval(() => {
+      const seconds = Math.floor((Date.now() - startedAt) / 1000);
+      setElapsedSeconds(seconds);
+      if (seconds >= 4) setProgressStep(2);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [isGenerating]);
+
+  useEffect(() => {
+    return () => {
+      references.forEach((reference) => URL.revokeObjectURL(reference.previewUrl));
+    };
+  }, [references]);
+
+  async function generateImage() {
+    setError("");
+    setResult(null);
+    setIsGenerating(true);
+    setProgressStep(0);
+
+    try {
+      const formData = new FormData();
+      formData.append("prompt", prompt);
+      Object.entries(GENERATION_DEFAULTS).forEach(([key, value]) => formData.append(key, value));
+      getOrderedReferences(references).forEach((reference) => formData.append("reference", reference.file));
+      setProgressStep(1);
+
+      const response = await fetch("/api/generate-image", {
+        method: "POST",
+        body: formData
+      });
+      setProgressStep(3);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || "生图失败，请稍后再试。");
+      setProgressStep(4);
+      setResult(payload);
+    } catch (nextError) {
+      setError(nextError.message);
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
+  function downloadResult() {
+    const source = result?.imageDataUrl || result?.imageUrl;
+    if (!source) return;
+    const link = document.createElement("a");
+    link.href = source;
+    link.download = `prompt-reference-${style.id}-${Date.now()}.png`;
+    link.target = "_blank";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  function addReferences(files) {
+    setReferences((current) => {
+      const availableSlots = Math.max(0, 10 - current.length);
+      const nextFiles = files.slice(0, availableSlots);
+      return [
+        ...current,
+        ...nextFiles.map((file, index) => ({
+          id: `${file.name}-${file.lastModified}-${file.size}-${Date.now()}-${index}`,
+          file,
+          order: current.length + index,
+          previewUrl: URL.createObjectURL(file)
+        }))
+      ];
+    });
+  }
+
+  function changeReferenceOrder(referenceId, nextOrder) {
+    setReferences((current) => {
+      const moved = current.find((reference) => reference.id === referenceId);
+      const swapped = current.find((reference) => reference.order === nextOrder);
+      if (!moved || moved.order === nextOrder) return current;
+
+      return current.map((reference) => {
+        if (reference.id === moved.id) return { ...reference, order: nextOrder };
+        if (swapped && reference.id === swapped.id) return { ...reference, order: moved.order };
+        return reference;
+      });
+    });
+  }
+
+  function removeReference(referenceId) {
+    setReferences((current) => {
+      const removed = current.find((reference) => reference.id === referenceId);
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return current
+        .filter((reference) => reference.id !== referenceId)
+        .sort((a, b) => a.order - b.order)
+        .map((reference, index) => ({ ...reference, order: index }));
+    });
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose} role="presentation">
+      <section className="prompt-modal generator-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+        <div className="modal-head">
+          <div>
+            <p className="eyebrow">gpt-image-2</p>
+            <h2>AI 生图</h2>
+            <div className="tag-row">
+              {style.tags.map((tag) => (
+                <span className="tag" key={tag}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+          <button className="icon-button" onClick={onClose} type="button" aria-label="关闭">
+            <X size={20} />
+          </button>
+        </div>
+
+        <label className="field-label">
+          提示词
+          <textarea onChange={(event) => setPrompt(event.target.value)} value={prompt} />
+        </label>
+
+        <label className="field-label">
+          参考图
+          <input
+            accept="image/png,image/jpeg,image/webp"
+            multiple
+            onChange={(event) => {
+              addReferences(Array.from(event.target.files || []));
+              event.target.value = "";
+            }}
+            type="file"
+          />
+        </label>
+
+        {references.length > 0 && (
+          <div className="reference-list">
+            <p className="storage-note">提示词里的“图一 / 图二”对应下面列表中的编号。</p>
+            {getOrderedReferences(references).map((reference) => (
+              <article className="reference-item" key={reference.id}>
+                <img alt={`${imageLabel(reference.order)}预览`} src={reference.previewUrl} />
+                <div className="reference-meta">
+                  <strong>{reference.file.name}</strong>
+                  <span>{formatFileSize(reference.file.size)}</span>
+                </div>
+                <label className="reference-order">
+                  <span>编号</span>
+                  <select onChange={(event) => changeReferenceOrder(reference.id, Number(event.target.value))} value={reference.order}>
+                    {references.map((_, index) => (
+                      <option key={index} value={index}>
+                        {imageLabel(index)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button className="icon-button" onClick={() => removeReference(reference.id)} type="button" aria-label={`删除${reference.file.name}`}>
+                  <Trash2 size={18} />
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+        {isGenerating && <GenerationProgress currentStep={progressStep} elapsedSeconds={elapsedSeconds} hasReference={references.length > 0} />}
+        {error && <p className="error-note">{error}</p>}
+
+        {(result?.imageDataUrl || result?.imageUrl) && (
+          <div className="generated-preview">
+            <img alt="AI 生成结果" src={result.imageDataUrl || result.imageUrl} />
+            <p className="storage-note">
+              生成模式：{result.mode === "edit" ? "参考图编辑" : "文生图"}
+              {result.usage?.total_tokens ? `，消耗 ${result.usage.total_tokens} tokens` : ""}
+            </p>
+          </div>
+        )}
+
+        <div className="card-actions generator-actions">
+          <button className="copy-button" disabled={isGenerating || !prompt.trim()} onClick={generateImage} type="button">
+            {isGenerating ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+            <span>{isGenerating ? "生成中" : "开始生成"}</span>
+          </button>
+          <button className="secondary-button" disabled={!(result?.imageDataUrl || result?.imageUrl)} onClick={downloadResult} type="button">
+            <Download size={18} />
+            <span>下载</span>
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function GenerationProgress({ currentStep, elapsedSeconds, hasReference }) {
+  return (
+    <div className="generation-progress" role="status" aria-live="polite">
+      <div className="progress-head">
+        <span>{GENERATION_STEPS[currentStep]}</span>
+        <span>{elapsedSeconds}s</span>
+      </div>
+      <div className="progress-track">
+        <span style={{ width: `${Math.max(12, ((currentStep + 1) / GENERATION_STEPS.length) * 100)}%` }} />
+      </div>
+      <ol className="progress-steps">
+        {GENERATION_STEPS.map((step, index) => (
+          <li className={index <= currentStep ? "active" : ""} key={step}>
+            {step}
+          </li>
+        ))}
+      </ol>
+      <p className="storage-note">
+        {currentStep < 2
+          ? hasReference
+            ? "正在打包提示词、参数和参考图。"
+            : "正在打包提示词和参数。"
+          : "图片生成通常需要几十秒，复杂提示词、参考图或高分辨率可能需要数分钟。"}
+      </p>
+    </div>
+  );
+}
+
+function imageLabel(index) {
+  const labels = ["图一", "图二", "图三", "图四", "图五", "图六", "图七", "图八", "图九", "图十"];
+  return labels[index] || `图${index + 1}`;
+}
+
+function getOrderedReferences(references) {
+  return [...references].sort((a, b) => a.order - b.order);
+}
+
+function formatFileSize(size) {
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function ManagePage({ onCreateStyle, onDeleteStyle, onStyleChange, onUploadImage, styles }) {

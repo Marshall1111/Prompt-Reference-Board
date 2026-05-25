@@ -22,6 +22,21 @@ npm start
 
 在维护页可以新增/删除风格、编辑标签、替换示例图、修改并保存提示词。上传后的图片会保存到对应风格目录，标签和提示词会写回 `data/styles.json`。
 
+## AI 生图
+
+首页每张风格卡片提供“AI 生图”按钮。它会使用当前风格提示词调用第三方中转 API 的 `gpt-image-2` 模型，支持上传多张 JPG、PNG 或 WebP 参考图；页面会按选择顺序标记为“图一、图二、图三”，方便在提示词里引用。生成成功后可预览并下载到浏览器默认下载位置，不会自动改动图库数据。
+
+使用前在项目根目录新建 `.env`，参考 `.env.example` 填写：
+
+```bash
+KUAIPAO_API_KEY=你的中转站密钥
+KUAIPAO_BASE_URL=https://kuaipao.pro/v1
+KUAIPAO_IMAGE_TIMEOUT_MS=300000
+OPENAI_IMAGE_MODEL=gpt-image-2
+```
+
+未上传参考图时调用 `/images/generations`；上传参考图时会尝试调用 OpenAI 兼容的 `/images/edits`，该端点是否可用取决于中转站实际支持情况。中转站可能返回 Base64 图片数据，也可能返回图片 URL，页面会兼容两种结果。复杂图片可能耗时数分钟，`KUAIPAO_IMAGE_TIMEOUT_MS` 默认 300000 毫秒，可按需调大。
+
 ## 同步微信小程序
 
 本地维护页现在会自动同步微信小程序文件：

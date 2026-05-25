@@ -1,6 +1,7 @@
 import express from "express";
 import multer from "multer";
 import path from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { access, copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
@@ -15,6 +16,8 @@ const miniDataPath = path.join(rootDir, "wechat-miniprogram", "miniprogram", "da
 const miniImageRoot = path.join(rootDir, "wechat-miniprogram", "miniprogram", "images-small");
 const miniCompressScript = path.join(rootDir, "tools", "compress_for_miniprogram.ps1");
 const execFileAsync = promisify(execFile);
+
+loadLocalEnv();
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -43,6 +46,35 @@ app.post("/api/sync-miniprogram", async (_req, res) => {
   const styles = await readStyles();
   await syncMiniProgram(styles);
   res.json({ ok: true, count: styles.length });
+});
+
+app.post("/api/generate-image", upload.array("reference", 10), async (req, res) => {
+  try {
+    const prompt = String(req.body.prompt || "").trim();
+    if (!prompt) return res.status(400).json({ message: "请先填写提示词。" });
+
+    const apiKey = process.env.KUAIPAO_API_KEY || process.env.OPENAI_API_KEY;
+    if (!apiKey || apiKey === "your_openai_api_key_here" || apiKey === "your_kuaipao_api_key_here") {
+      return res.status(400).json({ message: "请先在 .env 中配置 KUAIPAO_API_KEY 或 OPENAI_API_KEY。" });
+    }
+    const referenceFiles = req.files || [];
+    if (referenceFiles.some((file) => file.mimetype === "image/svg+xml")) {
+      return res.status(400).json({ message: "参考图仅支持 JPG、PNG 或 WebP 图片。" });
+    }
+
+    const outputFormat = normalizeOption(req.body.output_format, ["png", "jpeg", "webp"], "png");
+    const result = referenceFiles.length
+      ? await createImageEdit(referenceFiles, prompt, outputFormat, apiKey, req.body)
+      : await createImageGeneration(prompt, outputFormat, apiKey, req.body);
+
+    res.json(result);
+  } catch (error) {
+    if (error.message === "UNSUPPORTED_IMAGE_TYPE") {
+      return res.status(400).json({ message: "参考图仅支持 JPG、PNG 或 WebP 图片。" });
+    }
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "生图失败，请稍后再试。" });
+  }
 });
 
 app.post("/api/styles", async (req, res) => {
@@ -127,6 +159,132 @@ async function readStyles() {
     image: style.image || "/style-previews/default/cover.svg",
     prompt: String(style.prompt || "")
   }));
+}
+
+async function createImageGeneration(prompt, outputFormat, apiKey, body) {
+  const payload = {
+    model: getImageModel(),
+    prompt,
+    size: normalizeSize(body.size),
+    quality: normalizeOption(body.quality, ["low", "medium", "high", "auto"], "medium"),
+    n: 1,
+    output_format: outputFormat,
+    background: normalizeOption(body.background, ["auto", "opaque", "transparent"], "auto"),
+    moderation: normalizeOption(body.moderation, ["auto", "low"], "auto")
+  };
+
+  const response = await callKuaipaoImageApi("/images/generations", apiKey, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return formatImageResponse(response, outputFormat, "generation");
+}
+
+async function createImageEdit(files, prompt, outputFormat, apiKey, body) {
+  const formData = new FormData();
+  formData.append("model", getImageModel());
+  formData.append("prompt", prompt);
+  formData.append("size", normalizeSize(body.size));
+  formData.append("quality", normalizeOption(body.quality, ["low", "medium", "high", "auto"], "medium"));
+  formData.append("n", "1");
+  formData.append("output_format", outputFormat);
+  formData.append("background", normalizeOption(body.background, ["auto", "opaque", "transparent"], "auto"));
+  formData.append("moderation", normalizeOption(body.moderation, ["auto", "low"], "auto"));
+  files.forEach((file, index) => {
+    formData.append("image", new Blob([file.buffer], { type: file.mimetype }), file.originalname || `reference-${index + 1}.${extensionForMime(file.mimetype)}`);
+  });
+
+  const response = await callKuaipaoImageApi("/images/edits", apiKey, {
+    method: "POST",
+    body: formData
+  });
+  return formatImageResponse(response, outputFormat, "edit");
+}
+
+async function callKuaipaoImageApi(endpoint, apiKey, options) {
+  const baseUrl = String(process.env.KUAIPAO_BASE_URL || "https://kuaipao.pro/v1").replace(/\/+$/, "");
+  const controller = new AbortController();
+  const timeoutMs = normalizeTimeout(process.env.KUAIPAO_IMAGE_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${baseUrl}${endpoint}`, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        ...(options.headers || {})
+      },
+      signal: controller.signal
+    });
+    const text = await response.text();
+    const payload = text ? JSON.parse(text) : {};
+
+    if (!response.ok) {
+      const message = payload.error?.message || payload.message || `接口返回 ${response.status}`;
+      const error = new Error(message);
+      error.status = response.status;
+      error.publicMessage = endpoint === "/images/edits"
+        ? `参考图编辑接口调用失败：${message}`
+        : `生图接口调用失败：${message}`;
+      throw error;
+    }
+
+    return payload;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      error.publicMessage = `生图请求超过 ${Math.round(timeoutMs / 1000)} 秒仍未完成。可以降低尺寸/质量后重试，或在 .env 中调大 KUAIPAO_IMAGE_TIMEOUT_MS。`;
+      error.status = 504;
+    } else if (error instanceof SyntaxError) {
+      error.publicMessage = "中转接口返回了无法解析的结果。";
+      error.status = 502;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function formatImageResponse(payload, outputFormat, mode) {
+  const firstImage = payload.data?.[0];
+  const b64 = firstImage?.b64_json;
+  const url = firstImage?.url;
+  if (!b64 && !url) {
+    const error = new Error("Missing image data");
+    error.status = 502;
+    error.publicMessage = "中转接口没有返回图片数据。";
+    throw error;
+  }
+
+  const mimeType = outputFormat === "jpeg" ? "image/jpeg" : `image/${outputFormat}`;
+  return {
+    imageDataUrl: b64 ? `data:${mimeType};base64,${b64}` : "",
+    imageUrl: url || "",
+    mimeType,
+    usage: payload.usage || null,
+    mode
+  };
+}
+
+function getImageModel() {
+  return String(process.env.OPENAI_IMAGE_MODEL || "gpt-image-2").trim() || "gpt-image-2";
+}
+
+function normalizeSize(value) {
+  const size = String(value || "1024x1024").trim();
+  if (size === "auto") return "auto";
+  return /^\d{2,5}x\d{2,5}$/.test(size) ? size : "1024x1024";
+}
+
+function normalizeOption(value, allowed, fallback) {
+  const item = String(value || fallback).trim();
+  return allowed.includes(item) ? item : fallback;
+}
+
+function normalizeTimeout(value) {
+  const timeout = Number(value || 300000);
+  if (!Number.isFinite(timeout)) return 300000;
+  return Math.min(Math.max(timeout, 60000), 900000);
 }
 
 async function saveStyles(styles) {
@@ -250,4 +408,20 @@ function mimeForExtension(ext) {
   if (ext === ".webp") return "image/webp";
   if (ext === ".svg") return "image/svg+xml";
   return "";
+}
+
+function loadLocalEnv() {
+  const envPath = path.join(rootDir, ".env");
+  if (!existsSync(envPath)) return;
+
+  const lines = readFileSync(envPath, "utf-8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const separator = trimmed.indexOf("=");
+    if (separator === -1) continue;
+    const key = trimmed.slice(0, separator).trim();
+    const value = trimmed.slice(separator + 1).trim().replace(/^["']|["']$/g, "");
+    if (key && process.env[key] === undefined) process.env[key] = value;
+  }
 }

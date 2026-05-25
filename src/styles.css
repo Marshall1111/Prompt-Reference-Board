@@ -63,6 +63,7 @@ button:disabled {
 }
 
 h1,
+h2,
 p {
   margin: 0;
 }
@@ -71,6 +72,13 @@ h1 {
   color: #182022;
   font-size: clamp(2rem, 4vw, 4rem);
   line-height: 0.96;
+  letter-spacing: 0;
+}
+
+h2 {
+  color: #182022;
+  font-size: 1.55rem;
+  line-height: 1.1;
   letter-spacing: 0;
 }
 
@@ -174,7 +182,9 @@ h1 {
 .secondary-button,
 .nav-button,
 .danger-button,
-.add-button {
+.add-button,
+.generate-button,
+.icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -190,6 +200,11 @@ h1 {
 
 .copy-button {
   background: #115e59;
+  color: #fff;
+}
+
+.generate-button {
+  background: #6f3f1f;
   color: #fff;
 }
 
@@ -212,6 +227,15 @@ h1 {
 
 .copy-button.compact {
   min-width: 92px;
+}
+
+.icon-button {
+  width: 42px;
+  min-width: 42px;
+  padding: 0;
+  border: 1px solid #cbd5d0;
+  background: #fffdf9;
+  color: #263532;
 }
 
 .manage-list {
@@ -251,6 +275,17 @@ h1 {
   border: 1px solid #cbd5d0;
   border-radius: 8px;
   background: #fff;
+}
+
+select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #cbd5d0;
+  border-radius: 8px;
+  background: #fff;
+  color: #20252b;
+  outline-color: #0f766e;
 }
 
 textarea {
@@ -324,6 +359,169 @@ textarea {
   line-height: 1.7;
 }
 
+.gallery-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.generator-modal {
+  width: min(900px, 100%);
+  max-height: min(92vh, 920px);
+  overflow: auto;
+}
+
+.generator-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.generator-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+.generated-preview {
+  display: grid;
+  gap: 10px;
+}
+
+.reference-list {
+  display: grid;
+  gap: 10px;
+}
+
+.reference-item {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 132px 42px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #d6ddd8;
+  border-radius: 8px;
+  background: #fffdf9;
+}
+
+.reference-item img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border: 1px solid #d6ddd8;
+  border-radius: 8px;
+  background: #edf2ee;
+}
+
+.reference-meta {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.reference-meta strong,
+.reference-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reference-meta strong {
+  color: #263532;
+}
+
+.reference-meta span,
+.reference-order span {
+  color: #60706d;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.reference-order {
+  display: grid;
+  gap: 6px;
+}
+
+.generated-preview img {
+  width: min(520px, 100%);
+  justify-self: center;
+  border: 1px solid #d6ddd8;
+  border-radius: 8px;
+  background: #edf2ee;
+}
+
+.error-note {
+  padding: 12px;
+  border: 1px solid #f3b6ac;
+  border-radius: 8px;
+  background: #fff1ef;
+  color: #9f2418;
+  line-height: 1.5;
+}
+
+.generation-progress {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #cbd5d0;
+  border-radius: 8px;
+  background: #f7faf8;
+}
+
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #25413c;
+  font-weight: 800;
+}
+
+.progress-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dfe7e2;
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #115e59;
+  transition: width 180ms ease;
+}
+
+.progress-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.progress-steps li {
+  min-height: 30px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #e8eee9;
+  color: #64736e;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.progress-steps li.active {
+  background: #d4eee8;
+  color: #115e59;
+}
+
+.spin {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 1120px) {
   .masonry-gallery {
     column-count: 2;
@@ -359,7 +557,18 @@ textarea {
 
 @media (max-width: 560px) {
   .card-actions,
-  .manage-actions {
+  .manage-actions,
+  .gallery-actions,
+  .generator-grid,
+  .generator-actions,
+  .progress-steps,
+  .reference-item {
     grid-template-columns: 1fr;
+  }
+
+  .reference-item img {
+    width: 100%;
+    height: auto;
+    max-height: 220px;
   }
 }
