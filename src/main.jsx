@@ -187,11 +187,25 @@ function GalleryPage({ copiedId, onCopy, onGenerate, onViewPrompt, styles }) {
 function ImageGeneratorModal({ onClose, style }) {
   const [prompt, setPrompt] = useState(style.prompt);
   const [references, setReferences] = useState([]);
+  const [providers, setProviders] = useState([]);
+  const [selectedProvider, setSelectedProvider] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [progressStep, setProgressStep] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    refreshImageProviders()
+      .then((payload) => {
+        setProviders(payload.providers || []);
+        setSelectedProvider(payload.defaultProvider || payload.providers?.[0]?.id || "");
+      })
+      .catch(() => {
+        setProviders([]);
+        setSelectedProvider("");
+      });
+  }, []);
 
   useEffect(() => {
     if (!isGenerating) return undefined;
@@ -220,6 +234,7 @@ function ImageGeneratorModal({ onClose, style }) {
     try {
       const formData = new FormData();
       formData.append("prompt", prompt);
+      if (selectedProvider) formData.append("provider", selectedProvider);
       Object.entries(GENERATION_DEFAULTS).forEach(([key, value]) => formData.append(key, value));
       getOrderedReferences(references).forEach((reference) => formData.append("reference", reference.file));
       setProgressStep(1);
@@ -319,6 +334,17 @@ function ImageGeneratorModal({ onClose, style }) {
         </label>
 
         <label className="field-label">
+          接口供应商
+          <select onChange={(event) => setSelectedProvider(event.target.value)} value={selectedProvider}>
+            {providers.map((provider) => (
+              <option key={provider.id} value={provider.id}>
+                {provider.name} · {provider.model}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field-label">
           参考图
           <input
             accept="image/png,image/jpeg,image/webp"
@@ -366,6 +392,7 @@ function ImageGeneratorModal({ onClose, style }) {
             <img alt="AI 生成结果" src={result.imageDataUrl || result.imageUrl} />
             <p className="storage-note">
               生成模式：{result.mode === "edit" ? "参考图编辑" : "文生图"}
+              {result.provider?.name ? `，接口：${result.provider.name}` : ""}
               {result.usage?.total_tokens ? `，消耗 ${result.usage.total_tokens} tokens` : ""}
             </p>
           </div>
@@ -523,6 +550,12 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onStyleChange, onUploadImage
 
 async function refreshStyles() {
   const response = await fetch("/api/styles");
+  return response.json();
+}
+
+async function refreshImageProviders() {
+  const response = await fetch("/api/image-providers");
+  if (!response.ok) throw new Error("Failed to load image providers");
   return response.json();
 }
 

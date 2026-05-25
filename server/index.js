@@ -42,6 +42,18 @@ app.get("/api/styles", async (_req, res) => {
   res.json(await readStyles());
 });
 
+app.get("/api/image-providers", (_req, res) => {
+  const providers = getImageProviders();
+  res.json({
+    defaultProvider: getDefaultProviderId(providers),
+    providers: providers.map((provider) => ({
+      id: provider.id,
+      name: provider.name,
+      model: provider.model
+    }))
+  });
+});
+
 app.post("/api/sync-miniprogram", async (_req, res) => {
   const styles = await readStyles();
   await syncMiniProgram(styles);
@@ -53,10 +65,12 @@ app.post("/api/generate-image", upload.array("reference", 10), async (req, res) 
     const prompt = String(req.body.prompt || "").trim();
     if (!prompt) return res.status(400).json({ message: "请先填写提示词。" });
 
-    const apiKey = process.env.KUAIPAO_API_KEY || process.env.OPENAI_API_KEY;
-    if (!apiKey || apiKey === "your_openai_api_key_here" || apiKey === "your_kuaipao_api_key_here") {
-      return res.status(400).json({ message: "请先在 .env 中配置 KUAIPAO_API_KEY 或 OPENAI_API_KEY。" });
+    const providers = getImageProviders();
+    const provider = resolveImageProvider(req.body.provider, providers);
+    if (!provider) {
+      return res.status(400).json({ message: "请先在 .env 中配置至少一个可用的图片接口供应商。" });
     }
+
     const referenceFiles = req.files || [];
     if (referenceFiles.some((file) => file.mimetype === "image/svg+xml")) {
       return res.status(400).json({ message: "参考图仅支持 JPG、PNG 或 WebP 图片。" });
@@ -64,10 +78,17 @@ app.post("/api/generate-image", upload.array("reference", 10), async (req, res) 
 
     const outputFormat = normalizeOption(req.body.output_format, ["png", "jpeg", "webp"], "png");
     const result = referenceFiles.length
-      ? await createImageEdit(referenceFiles, prompt, outputFormat, apiKey, req.body)
-      : await createImageGeneration(prompt, outputFormat, apiKey, req.body);
+      ? await createImageEdit(referenceFiles, prompt, outputFormat, provider, req.body)
+      : await createImageGeneration(prompt, outputFormat, provider, req.body);
 
-    res.json(result);
+    res.json({
+      ...result,
+      provider: {
+        id: provider.id,
+        name: provider.name,
+        model: provider.model
+      }
+    });
   } catch (error) {
     if (error.message === "UNSUPPORTED_IMAGE_TYPE") {
       return res.status(400).json({ message: "参考图仅支持 JPG、PNG 或 WebP 图片。" });
@@ -161,9 +182,9 @@ async function readStyles() {
   }));
 }
 
-async function createImageGeneration(prompt, outputFormat, apiKey, body) {
+async function createImageGeneration(prompt, outputFormat, provider, body) {
   const payload = {
-    model: getImageModel(),
+    model: provider.model,
     prompt,
     size: normalizeSize(body.size),
     quality: normalizeOption(body.quality, ["low", "medium", "high", "auto"], "medium"),
@@ -173,7 +194,7 @@ async function createImageGeneration(prompt, outputFormat, apiKey, body) {
     moderation: normalizeOption(body.moderation, ["auto", "low"], "auto")
   };
 
-  const response = await callKuaipaoImageApi("/images/generations", apiKey, {
+  const response = await callImageProviderApi(provider, "/images/generations", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -181,9 +202,9 @@ async function createImageGeneration(prompt, outputFormat, apiKey, body) {
   return formatImageResponse(response, outputFormat, "generation");
 }
 
-async function createImageEdit(files, prompt, outputFormat, apiKey, body) {
+async function createImageEdit(files, prompt, outputFormat, provider, body) {
   const formData = new FormData();
-  formData.append("model", getImageModel());
+  formData.append("model", provider.model);
   formData.append("prompt", prompt);
   formData.append("size", normalizeSize(body.size));
   formData.append("quality", normalizeOption(body.quality, ["low", "medium", "high", "auto"], "medium"));
@@ -195,15 +216,15 @@ async function createImageEdit(files, prompt, outputFormat, apiKey, body) {
     formData.append("image", new Blob([file.buffer], { type: file.mimetype }), file.originalname || `reference-${index + 1}.${extensionForMime(file.mimetype)}`);
   });
 
-  const response = await callKuaipaoImageApi("/images/edits", apiKey, {
+  const response = await callImageProviderApi(provider, "/images/edits", {
     method: "POST",
     body: formData
   });
   return formatImageResponse(response, outputFormat, "edit");
 }
 
-async function callKuaipaoImageApi(endpoint, apiKey, options) {
-  const baseUrl = String(process.env.KUAIPAO_BASE_URL || "https://kuaipao.pro/v1").replace(/\/+$/, "");
+async function callImageProviderApi(provider, endpoint, options) {
+  const baseUrl = provider.baseUrl.replace(/\/+$/, "");
   const controller = new AbortController();
   const timeoutMs = normalizeTimeout(process.env.KUAIPAO_IMAGE_TIMEOUT_MS);
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -212,7 +233,7 @@ async function callKuaipaoImageApi(endpoint, apiKey, options) {
     const response = await fetch(`${baseUrl}${endpoint}`, {
       ...options,
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${provider.apiKey}`,
         ...(options.headers || {})
       },
       signal: controller.signal
@@ -225,8 +246,8 @@ async function callKuaipaoImageApi(endpoint, apiKey, options) {
       const error = new Error(message);
       error.status = response.status;
       error.publicMessage = endpoint === "/images/edits"
-        ? `参考图编辑接口调用失败：${message}`
-        : `生图接口调用失败：${message}`;
+        ? `${provider.name} 参考图编辑接口调用失败：${message}`
+        : `${provider.name} 生图接口调用失败：${message}`;
       throw error;
     }
 
@@ -266,10 +287,6 @@ function formatImageResponse(payload, outputFormat, mode) {
   };
 }
 
-function getImageModel() {
-  return String(process.env.OPENAI_IMAGE_MODEL || "gpt-image-2").trim() || "gpt-image-2";
-}
-
 function normalizeSize(value) {
   const size = String(value || "1024x1024").trim();
   if (size === "auto") return "auto";
@@ -285,6 +302,68 @@ function normalizeTimeout(value) {
   const timeout = Number(value || 300000);
   if (!Number.isFinite(timeout)) return 300000;
   return Math.min(Math.max(timeout, 60000), 900000);
+}
+
+function getImageProviders() {
+  const ids = String(process.env.IMAGE_API_PROVIDERS || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const providers = ids.map(readConfiguredProvider).filter(Boolean);
+  const legacy = readLegacyKuaipaoProvider();
+  if (legacy && !providers.some((provider) => provider.id === legacy.id)) providers.unshift(legacy);
+  return providers;
+}
+
+function readConfiguredProvider(id) {
+  const key = providerEnvKey(id);
+  const apiKey = process.env[`IMAGE_API_${key}_KEY`];
+  const baseUrl = process.env[`IMAGE_API_${key}_BASE_URL`];
+  if (!isUsableApiKey(apiKey) || !baseUrl) return null;
+  return {
+    id,
+    name: process.env[`IMAGE_API_${key}_NAME`] || id,
+    baseUrl,
+    apiKey,
+    model: process.env[`IMAGE_API_${key}_MODEL`] || process.env.OPENAI_IMAGE_MODEL || "gpt-image-2"
+  };
+}
+
+function readLegacyKuaipaoProvider() {
+  const apiKey = process.env.KUAIPAO_API_KEY || process.env.OPENAI_API_KEY;
+  if (!isUsableApiKey(apiKey)) return null;
+  return {
+    id: "kuaipao",
+    name: "快跑",
+    baseUrl: process.env.KUAIPAO_BASE_URL || "https://kuaipao.pro/v1",
+    apiKey,
+    model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2"
+  };
+}
+
+function resolveImageProvider(requestedId, providers) {
+  if (!providers.length) return null;
+  const id = String(requestedId || getDefaultProviderId(providers)).trim();
+  return providers.find((provider) => provider.id === id) || providers[0];
+}
+
+function getDefaultProviderId(providers) {
+  const configured = String(process.env.IMAGE_API_PROVIDER || "").trim();
+  if (configured && providers.some((provider) => provider.id === configured)) return configured;
+  return providers[0]?.id || "";
+}
+
+function providerEnvKey(id) {
+  return String(id || "").trim().replace(/[^a-zA-Z0-9]/g, "_").toUpperCase();
+}
+
+function isUsableApiKey(apiKey) {
+  return Boolean(
+    apiKey &&
+      apiKey !== "your_openai_api_key_here" &&
+      apiKey !== "your_kuaipao_api_key_here" &&
+      apiKey !== "your_duckcoding_api_key_here"
+  );
 }
 
 async function saveStyles(styles) {
