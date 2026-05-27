@@ -3,7 +3,8 @@ import multer from "multer";
 import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { access, copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { access, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -11,7 +12,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
 const dataPath = path.join(rootDir, "data", "styles.json");
+const imageJobRoot = path.join(rootDir, "data", "image-jobs");
 const previewRoot = path.join(rootDir, "public", "style-previews");
+const generatedImageRoot = path.join(rootDir, "public", "generated-images");
 const miniDataPath = path.join(rootDir, "wechat-miniprogram", "miniprogram", "data", "styles.js");
 const miniImageRoot = path.join(rootDir, "wechat-miniprogram", "miniprogram", "images-small");
 const miniCompressScript = path.join(rootDir, "tools", "compress_for_miniprogram.ps1");
@@ -31,6 +34,7 @@ const upload = multer({
     cb(ok ? null : new Error("UNSUPPORTED_IMAGE_TYPE"), ok);
   }
 });
+const activeImageJobs = new Map();
 
 app.use(express.json({ limit: "1mb" }));
 
@@ -62,11 +66,12 @@ app.post("/api/sync-miniprogram", async (_req, res) => {
 
 app.post("/api/generate-image", upload.array("reference", 10), async (req, res) => {
   try {
-    const prompt = String(req.body.prompt || "").trim();
+    const body = req.body || {};
+    const prompt = String(body.prompt || "").trim();
     if (!prompt) return res.status(400).json({ message: "请先填写提示词。" });
 
     const providers = getImageProviders();
-    const provider = resolveImageProvider(req.body.provider, providers);
+    const provider = resolveImageProvider(body.provider, providers);
     if (!provider) {
       return res.status(400).json({ message: "请先在 .env 中配置至少一个可用的图片接口供应商。" });
     }
@@ -76,10 +81,10 @@ app.post("/api/generate-image", upload.array("reference", 10), async (req, res) 
       return res.status(400).json({ message: "参考图仅支持 JPG、PNG 或 WebP 图片。" });
     }
 
-    const outputFormat = normalizeOption(req.body.output_format, ["png", "jpeg", "webp"], "png");
+    const outputFormat = normalizeOption(body.output_format, ["png", "jpeg", "webp"], "png");
     const result = referenceFiles.length
-      ? await createImageEdit(referenceFiles, prompt, outputFormat, provider, req.body)
-      : await createImageGeneration(prompt, outputFormat, provider, req.body);
+      ? await createImageEdit(referenceFiles, prompt, outputFormat, provider, body)
+      : await createImageGeneration(prompt, outputFormat, provider, body);
 
     res.json({
       ...result,
@@ -95,6 +100,129 @@ app.post("/api/generate-image", upload.array("reference", 10), async (req, res) 
     }
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "生图失败，请稍后再试。" });
+  }
+});
+
+app.post("/api/image-jobs", upload.array("reference", 10), async (req, res) => {
+  try {
+    const body = req.body || {};
+    const prompt = String(body.prompt || "").trim();
+    if (!prompt) return res.status(400).json({ message: "请先填写提示词。" });
+
+    const providers = getImageProviders();
+    const provider = resolveImageProvider(body.provider, providers);
+    if (!provider) {
+      return res.status(400).json({ message: "请先在 .env 中配置至少一个可用的图片接口供应商。" });
+    }
+
+    const referenceFiles = req.files || [];
+    if (referenceFiles.some((file) => file.mimetype === "image/svg+xml")) {
+      return res.status(400).json({ message: "参考图仅支持 JPG、PNG 或 WebP 图片。" });
+    }
+
+    const now = new Date().toISOString();
+    const job = {
+      jobId: randomUUID(),
+      status: "queued",
+      message: "任务已提交，等待生成。",
+      result: null,
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+      prompt,
+      referenceCount: referenceFiles.length,
+      provider: {
+        id: provider.id,
+        name: provider.name,
+        model: provider.model
+      },
+      mode: referenceFiles.length ? "edit" : "generation"
+    };
+
+    await saveImageJob(job);
+    res.status(202).json(toPublicImageJob(job));
+
+    runImageJob({
+      jobId: job.jobId,
+      body: { ...body },
+      files: referenceFiles.map((file) => ({ ...file, buffer: Buffer.from(file.buffer) })),
+      outputFormat: normalizeOption(body.output_format, ["png", "jpeg", "webp"], "png"),
+      prompt,
+      provider
+    }).catch((error) => {
+      console.error("Image job failed.", error);
+    });
+  } catch (error) {
+    if (error.message === "UNSUPPORTED_IMAGE_TYPE") {
+      return res.status(400).json({ message: "参考图仅支持 JPG、PNG 或 WebP 图片。" });
+    }
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "生图任务提交失败，请稍后再试。" });
+  }
+});
+
+app.get("/api/image-jobs", async (req, res) => {
+  try {
+    const jobs = await listImageJobs();
+    const limit = Math.min(Math.max(Number(req.query.limit || 80), 1), 200);
+    res.json({
+      jobs: jobs
+        .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+        .slice(0, limit)
+        .map(toPublicImageJob)
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取生图任务列表失败。" });
+  }
+});
+
+app.post("/api/image-jobs/:jobId/cancel", async (req, res) => {
+  try {
+    const job = await readImageJob(req.params.jobId);
+    if (!job) return res.status(404).json({ message: "生图任务不存在。" });
+    if (!["queued", "running"].includes(job.status)) {
+      return res.status(409).json({ message: "只有排队中或生成中的任务可以停止。" });
+    }
+
+    activeImageJobs.get(job.jobId)?.abortController.abort();
+    const now = new Date().toISOString();
+    const nextJob = await saveImageJob({
+      ...job,
+      status: "cancelled",
+      message: "任务已停止。",
+      updatedAt: now,
+      completedAt: now
+    });
+    res.json(toPublicImageJob(nextJob));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "停止生图任务失败。" });
+  }
+});
+
+app.get("/api/image-jobs/:jobId", async (req, res) => {
+  try {
+    const job = await readImageJob(req.params.jobId);
+    if (!job) return res.status(404).json({ message: "生图任务不存在。" });
+    res.json(toPublicImageJob(job));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取生图任务失败。" });
+  }
+});
+
+app.delete("/api/image-jobs/:jobId", async (req, res) => {
+  try {
+    const job = await readImageJob(req.params.jobId);
+    if (!job) return res.status(404).json({ message: "生图任务不存在。" });
+
+    activeImageJobs.get(job.jobId)?.abortController.abort();
+    await deleteImageJob(job);
+    res.status(204).end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "删除生图任务失败。" });
   }
 });
 
@@ -180,10 +308,11 @@ app.use((_req, res) => {
 
 app.listen(port, () => {
   console.log(`Prompt gallery listening on http://127.0.0.1:${port}`);
-  readStyles()
+  prepareImageJobStorage()
+    .then(readStyles)
     .then(syncMiniProgram)
     .then(() => console.log("Mini program files synced."))
-    .catch((error) => console.error("Mini program sync failed.", error));
+    .catch((error) => console.error("Startup tasks failed.", error));
 });
 
 async function readStyles() {
@@ -196,7 +325,195 @@ async function readStyles() {
   }));
 }
 
-async function createImageGeneration(prompt, outputFormat, provider, body) {
+async function prepareImageJobStorage() {
+  await mkdir(imageJobRoot, { recursive: true });
+  await mkdir(generatedImageRoot, { recursive: true });
+
+  const entries = await readdir(imageJobRoot, { withFileTypes: true });
+  await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .map(async (entry) => {
+        const job = await readImageJob(entry.name.replace(/\.json$/, ""));
+        if (!job || !["queued", "running"].includes(job.status)) return;
+        await saveImageJob({
+          ...job,
+          status: "failed",
+          message: "服务重启，任务已中断，请重新生成。",
+          updatedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString()
+        });
+      })
+  );
+}
+
+async function runImageJob({ jobId, body, files, outputFormat, prompt, provider }) {
+  let job = await readImageJob(jobId);
+  if (!job) return;
+  if (job.status === "cancelled") return;
+  const abortController = new AbortController();
+  activeImageJobs.set(jobId, { abortController });
+
+  job = await saveImageJob({
+    ...job,
+    status: "running",
+    message: "正在生成图片。",
+    updatedAt: new Date().toISOString()
+  });
+
+  try {
+    const result = files.length
+      ? await createImageEdit(files, prompt, outputFormat, provider, body, abortController.signal)
+      : await createImageGeneration(prompt, outputFormat, provider, body, abortController.signal);
+    const latestJob = await readImageJob(jobId);
+    if (!latestJob || latestJob.status === "cancelled") return;
+    const publicResult = await persistImageJobResult(jobId, result, outputFormat);
+    await saveImageJob({
+      ...latestJob,
+      status: "succeeded",
+      message: "生成完成。",
+      result: {
+        ...publicResult,
+        provider: latestJob.provider
+      },
+      updatedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    const latestJob = await readImageJob(jobId);
+    if (!latestJob || latestJob.status === "cancelled") return;
+    await saveImageJob({
+      ...latestJob,
+      status: "failed",
+      message: error.name === "AbortError" ? "任务已停止。" : error.publicMessage || error.message || "生图失败，请稍后再试。",
+      result: null,
+      updatedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString()
+    });
+  } finally {
+    activeImageJobs.delete(jobId);
+  }
+}
+
+async function persistImageJobResult(jobId, result, outputFormat) {
+  if (!result.imageDataUrl) return persistRemoteImageJobResult(jobId, result, outputFormat);
+
+  const match = result.imageDataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/);
+  if (!match) return persistRemoteImageJobResult(jobId, result, outputFormat);
+
+  const extension = extensionForMime(match[1] || `image/${outputFormat}`);
+  const filename = `${jobId}.${extension}`;
+  await mkdir(generatedImageRoot, { recursive: true });
+  await writeFile(path.join(generatedImageRoot, filename), Buffer.from(match[2], "base64"));
+
+  return {
+    ...result,
+    imageDataUrl: "",
+    imageUrl: `/generated-images/${filename}`,
+    mimeType: match[1]
+  };
+}
+
+async function persistRemoteImageJobResult(jobId, result, outputFormat) {
+  if (!result.imageUrl || !/^https?:\/\//i.test(result.imageUrl)) return result;
+
+  const response = await fetch(result.imageUrl);
+  if (!response.ok) return result;
+
+  const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() || result.mimeType || `image/${outputFormat}`;
+  if (!["image/jpeg", "image/png", "image/webp"].includes(contentType)) return result;
+
+  const extension = extensionForMime(contentType);
+  const filename = `${jobId}.${extension}`;
+  const bytes = Buffer.from(await response.arrayBuffer());
+  await mkdir(generatedImageRoot, { recursive: true });
+  await writeFile(path.join(generatedImageRoot, filename), bytes);
+
+  return {
+    ...result,
+    imageDataUrl: "",
+    imageUrl: `/generated-images/${filename}`,
+    mimeType: contentType,
+    originalImageUrl: result.imageUrl
+  };
+}
+
+async function readImageJob(jobId) {
+  if (!isSafeImageJobId(jobId)) return null;
+  try {
+    return JSON.parse(await readFile(getImageJobPath(jobId), "utf-8"));
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function listImageJobs() {
+  await mkdir(imageJobRoot, { recursive: true });
+  const entries = await readdir(imageJobRoot, { withFileTypes: true });
+  const jobs = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .map((entry) => readImageJob(entry.name.replace(/\.json$/, "")))
+  );
+  return jobs.filter(Boolean);
+}
+
+async function deleteImageJob(job) {
+  activeImageJobs.delete(job.jobId);
+  await deleteGeneratedImage(job);
+  await rm(getImageJobPath(job.jobId), { force: true });
+}
+
+async function deleteGeneratedImage(job) {
+  const imageUrl = job.result?.imageUrl;
+  if (!imageUrl || !imageUrl.startsWith("/generated-images/")) return;
+  const filename = path.basename(imageUrl);
+  await rm(path.join(generatedImageRoot, filename), { force: true });
+}
+
+async function saveImageJob(job) {
+  await mkdir(imageJobRoot, { recursive: true });
+  const safeJob = toPublicImageJob(job);
+  await writeFile(getImageJobPath(safeJob.jobId), `${JSON.stringify(safeJob, null, 2)}\n`);
+  return safeJob;
+}
+
+function toPublicImageJob(job) {
+  return {
+    jobId: String(job.jobId || ""),
+    status: job.status,
+    message: job.message || "",
+    result: job.result || null,
+    createdAt: job.createdAt || null,
+    updatedAt: job.updatedAt || null,
+    completedAt: job.completedAt || null,
+    prompt: String(job.prompt || ""),
+    referenceCount: Number(job.referenceCount || 0),
+    durationSeconds: computeDurationSeconds(job),
+    totalTokens: Number(job.result?.usage?.total_tokens || job.result?.usage?.totalTokens || 0),
+    provider: job.provider || null,
+    mode: job.mode || job.result?.mode || ""
+  };
+}
+
+function computeDurationSeconds(job) {
+  if (!job.createdAt || !job.completedAt) return null;
+  const startedAt = new Date(job.createdAt).getTime();
+  const completedAt = new Date(job.completedAt).getTime();
+  if (!Number.isFinite(startedAt) || !Number.isFinite(completedAt)) return null;
+  return Math.max(0, Math.round((completedAt - startedAt) / 1000));
+}
+
+function getImageJobPath(jobId) {
+  return path.join(imageJobRoot, `${jobId}.json`);
+}
+
+function isSafeImageJobId(jobId) {
+  return /^[a-f0-9-]{36}$/i.test(String(jobId || ""));
+}
+
+async function createImageGeneration(prompt, outputFormat, provider, body, signal) {
   const payload = {
     model: provider.model,
     prompt,
@@ -212,11 +529,11 @@ async function createImageGeneration(prompt, outputFormat, provider, body) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
-  });
+  }, signal);
   return formatImageResponse(response, outputFormat, "generation");
 }
 
-async function createImageEdit(files, prompt, outputFormat, provider, body) {
+async function createImageEdit(files, prompt, outputFormat, provider, body, signal) {
   const formData = new FormData();
   formData.append("model", provider.model);
   formData.append("prompt", prompt);
@@ -233,13 +550,18 @@ async function createImageEdit(files, prompt, outputFormat, provider, body) {
   const response = await callImageProviderApi(provider, "/images/edits", {
     method: "POST",
     body: formData
-  });
+  }, signal);
   return formatImageResponse(response, outputFormat, "edit");
 }
 
-async function callImageProviderApi(provider, endpoint, options) {
+async function callImageProviderApi(provider, endpoint, options, externalSignal) {
   const baseUrl = provider.baseUrl.replace(/\/+$/, "");
   const controller = new AbortController();
+  const abortFromExternalSignal = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort();
+    else externalSignal.addEventListener("abort", abortFromExternalSignal, { once: true });
+  }
   const timeoutMs = normalizeTimeout(process.env.KUAIPAO_IMAGE_TIMEOUT_MS);
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -276,6 +598,7 @@ async function callImageProviderApi(provider, endpoint, options) {
     }
     throw error;
   } finally {
+    externalSignal?.removeEventListener("abort", abortFromExternalSignal);
     clearTimeout(timeout);
   }
 }
@@ -313,9 +636,9 @@ function normalizeOption(value, allowed, fallback) {
 }
 
 function normalizeTimeout(value) {
-  const timeout = Number(value || 500000);
-  if (!Number.isFinite(timeout)) return 500000;
-  return Math.min(Math.max(timeout, 60000), 900000);
+  const timeout = Number(value || 1800000);
+  if (!Number.isFinite(timeout)) return 1800000;
+  return Math.min(Math.max(timeout, 60000), 3600000);
 }
 
 function getImageProviders() {

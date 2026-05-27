@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, Home, ImageUp, LoaderCircle, Plus, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, Home, ImageUp, ListTodo, LoaderCircle, Plus, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
@@ -19,20 +19,26 @@ const REFERENCE_UPLOAD_LIMITS = {
 
 const GENERATION_STEPS = ["准备请求", "提交到中转站", "等待模型生成", "接收图片结果", "准备预览"];
 
+function readRoute() {
+  if (window.location.pathname === "/manage") return "manage";
+  if (window.location.pathname === "/tasks") return "tasks";
+  return "home";
+}
+
 function App() {
   const [styles, setStyles] = useState([]);
   const [query, setQuery] = useState("");
   const [copiedId, setCopiedId] = useState("");
   const [activePrompt, setActivePrompt] = useState(null);
   const [activeGenerator, setActiveGenerator] = useState(null);
-  const [route, setRoute] = useState(() => (window.location.pathname === "/manage" ? "manage" : "home"));
+  const [route, setRoute] = useState(() => readRoute());
 
   useEffect(() => {
     refreshStyles().then(setStyles);
   }, []);
 
   useEffect(() => {
-    const onPopState = () => setRoute(window.location.pathname === "/manage" ? "manage" : "home");
+    const onPopState = () => setRoute(readRoute());
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
@@ -44,7 +50,7 @@ function App() {
   }, [query, styles]);
 
   function navigate(nextRoute) {
-    const path = nextRoute === "manage" ? "/manage" : "/";
+    const path = nextRoute === "manage" ? "/manage" : nextRoute === "tasks" ? "/tasks" : "/";
     window.history.pushState({}, "", path);
     setRoute(nextRoute);
     setActivePrompt(null);
@@ -137,10 +143,16 @@ function App() {
               {route === "manage" ? <Home size={18} /> : <Settings size={18} />}
               <span>{route === "manage" ? "返回主页" : "维护内容"}</span>
             </button>
+            <button className="nav-button" onClick={() => navigate(route === "tasks" ? "home" : "tasks")} type="button">
+              {route === "tasks" ? <Home size={18} /> : <ListTodo size={18} />}
+              <span>{route === "tasks" ? "返回主页" : "任务记录"}</span>
+            </button>
           </div>
         </header>
 
-        {route === "manage" ? (
+        {route === "tasks" ? (
+          <ImageJobsPage />
+        ) : route === "manage" ? (
           <ManagePage
             onCreateStyle={createStyle}
             onDeleteStyle={deleteStyle}
@@ -254,6 +266,7 @@ function splitStylesByColumns(styles, columnCount) {
 }
 
 function ImageGeneratorModal({ onClose, style }) {
+  const previewRef = useRef(null);
   const [prompt, setPrompt] = useState(style.prompt);
   const [references, setReferences] = useState([]);
   const [providers, setProviders] = useState([]);
@@ -261,6 +274,10 @@ function ImageGeneratorModal({ onClose, style }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [jobId, setJobId] = useState("");
+  const [jobStatus, setJobStatus] = useState("");
+  const [jobMessage, setJobMessage] = useState("");
   const [progressStep, setProgressStep] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
@@ -289,15 +306,74 @@ function ImageGeneratorModal({ onClose, style }) {
   }, [isGenerating]);
 
   useEffect(() => {
+    if (!jobId || !isGenerating) return undefined;
+
+    let isActive = true;
+    async function pollJob() {
+      try {
+        const payload = await fetchImageJob(jobId);
+        if (!isActive) return;
+
+        setJobStatus(payload.status || "");
+        setJobMessage(payload.message || "");
+
+        if (payload.status === "queued") {
+          setProgressStep(1);
+          return;
+        }
+
+        if (payload.status === "running") {
+          setProgressStep(2);
+          return;
+        }
+
+        if (payload.status === "succeeded") {
+          setProgressStep(4);
+          setResult(payload.result);
+          setIsGenerating(false);
+          return;
+        }
+
+        if (payload.status === "failed") {
+          setProgressStep(3);
+          setError(payload.message || "生图失败，请稍后再试。");
+          setIsGenerating(false);
+        }
+      } catch (nextError) {
+        if (!isActive) return;
+        setError(nextError.message);
+        setIsGenerating(false);
+      }
+    }
+
+    pollJob();
+    const timer = window.setInterval(pollJob, 2000);
+    return () => {
+      isActive = false;
+      window.clearInterval(timer);
+    };
+  }, [jobId, isGenerating]);
+
+  useEffect(() => {
     return () => {
       references.forEach((reference) => URL.revokeObjectURL(reference.previewUrl));
     };
   }, [references]);
 
+  useEffect(() => {
+    if (result?.imageDataUrl || result?.imageUrl) {
+      previewRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [result]);
+
   async function generateImage() {
     setError("");
     setResult(null);
+    setJobId("");
+    setJobStatus("");
+    setJobMessage("");
     setIsGenerating(true);
+    setIsSubmitting(true);
     setProgressStep(0);
 
     try {
@@ -309,19 +385,21 @@ function ImageGeneratorModal({ onClose, style }) {
       preparedReferences.forEach((reference) => formData.append("reference", reference.file));
       setProgressStep(1);
 
-      const response = await fetch("/api/generate-image", {
+      const response = await fetch("/api/image-jobs", {
         method: "POST",
         body: formData
       });
-      setProgressStep(3);
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.message || "生图失败，请稍后再试。");
-      setProgressStep(4);
-      setResult(payload);
+      if (!response.ok) throw new Error(payload.message || "生图任务提交失败，请稍后再试。");
+      if (!payload.jobId) throw new Error("生图任务提交成功，但没有返回任务编号。");
+      setJobId(payload.jobId || "");
+      setJobStatus(payload.status || "queued");
+      setJobMessage(payload.message || "任务已提交，等待生成。");
     } catch (nextError) {
       setError(nextError.message);
-    } finally {
       setIsGenerating(false);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -455,11 +533,19 @@ function ImageGeneratorModal({ onClose, style }) {
             ))}
           </div>
         )}
-        {isGenerating && <GenerationProgress currentStep={progressStep} elapsedSeconds={elapsedSeconds} hasReference={references.length > 0} />}
+        {isGenerating && (
+          <GenerationProgress
+            currentStep={progressStep}
+            elapsedSeconds={elapsedSeconds}
+            hasReference={references.length > 0}
+            jobMessage={jobMessage}
+            jobStatus={jobStatus}
+          />
+        )}
         {error && <p className="error-note">{error}</p>}
 
         {(result?.imageDataUrl || result?.imageUrl) && (
-          <div className="generated-preview">
+          <div className="generated-preview" ref={previewRef}>
             <img alt="AI 生成结果" src={result.imageDataUrl || result.imageUrl} />
             <p className="storage-note">
               生成模式：{result.mode === "edit" ? "参考图编辑" : "文生图"}
@@ -470,9 +556,9 @@ function ImageGeneratorModal({ onClose, style }) {
         )}
 
         <div className="card-actions generator-actions">
-          <button className="copy-button" disabled={isGenerating || !prompt.trim()} onClick={generateImage} type="button">
-            {isGenerating ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
-            <span>{isGenerating ? "生成中" : "开始生成"}</span>
+          <button className="copy-button" disabled={isSubmitting || !prompt.trim()} onClick={generateImage} type="button">
+            {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+            <span>{generationButtonLabel(isSubmitting, isGenerating, jobStatus, result)}</span>
           </button>
           <button className="secondary-button" disabled={!(result?.imageDataUrl || result?.imageUrl)} onClick={downloadResult} type="button">
             <Download size={18} />
@@ -484,11 +570,11 @@ function ImageGeneratorModal({ onClose, style }) {
   );
 }
 
-function GenerationProgress({ currentStep, elapsedSeconds, hasReference }) {
+function GenerationProgress({ currentStep, elapsedSeconds, hasReference, jobMessage, jobStatus }) {
   return (
     <div className="generation-progress" role="status" aria-live="polite">
       <div className="progress-head">
-        <span>{GENERATION_STEPS[currentStep]}</span>
+        <span>{jobMessage || GENERATION_STEPS[currentStep]}</span>
         <span>{elapsedSeconds}s</span>
       </div>
       <div className="progress-track">
@@ -502,14 +588,26 @@ function GenerationProgress({ currentStep, elapsedSeconds, hasReference }) {
         ))}
       </ol>
       <p className="storage-note">
-        {currentStep < 2
-          ? hasReference
-            ? "正在打包提示词、参数和参考图。"
-            : "正在打包提示词和参数。"
-          : "图片生成通常需要几十秒，复杂提示词、参考图或高分辨率可能需要数分钟。"}
+        {generationProgressNote(currentStep, hasReference, jobStatus)}
       </p>
     </div>
   );
+}
+
+function generationProgressNote(currentStep, hasReference, jobStatus) {
+  if (jobStatus === "queued") return "任务已提交，页面会每 2 秒自动检查一次结果。";
+  if (jobStatus === "running") return "后台正在请求模型，关闭弹窗后将停止本次页面轮询。";
+  if (currentStep < 2) {
+    return hasReference ? "正在打包提示词、参数和参考图。" : "正在打包提示词和参数。";
+  }
+  return "图片生成通常需要几十秒，复杂提示词、参考图或高分辨率可能需要数分钟。";
+}
+
+function generationButtonLabel(isSubmitting, isGenerating, jobStatus, result) {
+  if (isSubmitting) return "提交中";
+  if (isGenerating) return jobStatus === "queued" || jobStatus === "running" ? "再提交一个任务" : "继续生成";
+  if (!isGenerating && (result?.imageDataUrl || result?.imageUrl)) return "重新生成";
+  return "开始生成";
 }
 
 function imageLabel(index) {
@@ -565,6 +663,150 @@ async function prepareReferenceForUpload(reference) {
   } catch {
     return reference;
   }
+}
+
+function ImageJobsPage() {
+  const [jobs, setJobs] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function loadJobs() {
+    setIsLoading(true);
+    try {
+      const payload = await refreshImageJobs();
+      setJobs(payload.jobs || []);
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function cancelJob(jobId) {
+    try {
+      await updateImageJob(jobId, "cancel");
+      await loadJobs();
+    } catch (nextError) {
+      setError(nextError.message);
+    }
+  }
+
+  async function deleteJob(jobId) {
+    try {
+      await deleteImageJob(jobId);
+      setJobs((current) => current.filter((job) => job.jobId !== jobId));
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message);
+    }
+  }
+
+  useEffect(() => {
+    let isActive = true;
+    async function loadActiveJobs() {
+      try {
+        const payload = await refreshImageJobs();
+        if (!isActive) return;
+        setJobs(payload.jobs || []);
+        setError("");
+      } catch (nextError) {
+        if (!isActive) return;
+        setError(nextError.message);
+      } finally {
+        if (isActive) setIsLoading(false);
+      }
+    }
+
+    loadActiveJobs();
+    const timer = window.setInterval(loadActiveJobs, 2000);
+    return () => {
+      isActive = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const visibleJobs = jobs.filter((job) => statusFilter === "all" || job.status === statusFilter);
+  const activeCount = jobs.filter((job) => job.status === "queued" || job.status === "running").length;
+  const completedCount = jobs.filter((job) => job.status === "succeeded").length;
+
+  return (
+    <section className="task-page" aria-label="AI 生图任务记录">
+      <div className="task-toolbar">
+        <div>
+          <p className="eyebrow">Image jobs</p>
+          <h2>任务记录</h2>
+          <p className="storage-note">
+            {activeCount} 个进行中，{completedCount} 个已完成
+          </p>
+        </div>
+        <button className="secondary-button" onClick={loadJobs} type="button">
+          <RefreshCw size={18} />
+          <span>{isLoading ? "刷新中" : "刷新"}</span>
+        </button>
+      </div>
+
+      <div className="task-filters" role="tablist" aria-label="任务状态筛选">
+        {["all", "queued", "running", "succeeded", "failed", "cancelled"].map((status) => (
+          <button className={statusFilter === status ? "active" : ""} key={status} onClick={() => setStatusFilter(status)} type="button">
+            {statusLabel(status)}
+          </button>
+        ))}
+      </div>
+
+      {error && <p className="error-note">{error}</p>}
+      {!isLoading && !visibleJobs.length && <p className="empty-note">还没有符合条件的生图任务。</p>}
+
+      <div className="task-list">
+        {visibleJobs.map((job) => {
+          const imageSource = job.result?.imageDataUrl || job.result?.imageUrl;
+          return (
+            <article className="task-card" key={job.jobId}>
+              <div className={`task-status ${job.status}`}>{statusLabel(job.status)}</div>
+              <div className="task-preview">
+                {imageSource ? <img alt="AI 生成结果" src={imageSource} /> : <Sparkles size={24} />}
+              </div>
+              <div className="task-detail">
+                <div className="task-meta-row">
+                  <strong>{shortJobId(job.jobId)}</strong>
+                  <span>{modeLabel(job.mode)}</span>
+                  <span>{job.provider?.name || "未记录接口"}</span>
+                  <span>{formatDateTime(job.createdAt)}</span>
+                  {job.durationSeconds !== null && job.durationSeconds !== undefined ? <span>耗时 {formatDuration(job.durationSeconds)}</span> : null}
+                  {job.totalTokens ? <span>{job.totalTokens} tokens</span> : null}
+                </div>
+                <p className="task-prompt">{job.prompt || "未记录提示词"}</p>
+                <p className="storage-note">
+                  {job.message || statusLabel(job.status)}
+                  {job.referenceCount ? `，参考图 ${job.referenceCount} 张` : ""}
+                  {job.completedAt ? `，完成于 ${formatDateTime(job.completedAt)}` : ""}
+                </p>
+              </div>
+              <div className="task-actions">
+                <button className="secondary-button" disabled={!canCancelJob(job)} onClick={() => cancelJob(job.jobId)} type="button">
+                  <X size={18} />
+                  <span>停止</span>
+                </button>
+                <button className="secondary-button" disabled={!imageSource} onClick={() => openImageSource(imageSource)} type="button">
+                  <Eye size={18} />
+                  <span>查看</span>
+                </button>
+                <button className="copy-button" disabled={!imageSource} onClick={() => downloadImageSource(imageSource, job)} type="button">
+                  <Download size={18} />
+                  <span>下载</span>
+                </button>
+                <button className="danger-button" onClick={() => deleteJob(job.jobId)} type="button">
+                  <Trash2 size={18} />
+                  <span>删除</span>
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChange, onUploadImage, styles }) {
@@ -709,6 +951,96 @@ async function refreshImageProviders() {
   const response = await fetch("/api/image-providers");
   if (!response.ok) throw new Error("Failed to load image providers");
   return response.json();
+}
+
+async function fetchImageJob(jobId) {
+  const response = await fetch(`/api/image-jobs/${jobId}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取生图任务失败。");
+  return payload;
+}
+
+async function refreshImageJobs() {
+  const response = await fetch("/api/image-jobs");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取生图任务列表失败。");
+  return payload;
+}
+
+function statusLabel(status) {
+  const labels = {
+    all: "全部",
+    queued: "排队中",
+    running: "生成中",
+    succeeded: "已完成",
+    failed: "失败",
+    cancelled: "已停止"
+  };
+  return labels[status] || status || "未知";
+}
+
+function modeLabel(mode) {
+  return mode === "edit" ? "参考图编辑" : "文生图";
+}
+
+function shortJobId(jobId) {
+  return String(jobId || "").slice(0, 8);
+}
+
+function formatDateTime(value) {
+  if (!value) return "未记录时间";
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
+function formatDuration(seconds) {
+  const safeSeconds = Math.max(0, Number(seconds || 0));
+  if (safeSeconds < 60) return `${safeSeconds}s`;
+  const minutes = Math.floor(safeSeconds / 60);
+  const restSeconds = safeSeconds % 60;
+  if (minutes < 60) return restSeconds ? `${minutes}m ${restSeconds}s` : `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const restMinutes = minutes % 60;
+  return restMinutes ? `${hours}h ${restMinutes}m` : `${hours}h`;
+}
+
+function canCancelJob(job) {
+  return job.status === "queued" || job.status === "running";
+}
+
+async function updateImageJob(jobId, action) {
+  const response = await fetch(`/api/image-jobs/${jobId}/${action}`, { method: "POST" });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "更新生图任务失败。");
+  return payload;
+}
+
+async function deleteImageJob(jobId) {
+  const response = await fetch(`/api/image-jobs/${jobId}`, { method: "DELETE" });
+  if (!response.ok) {
+    const payload = await response.json();
+    throw new Error(payload.message || "删除生图任务失败。");
+  }
+}
+
+function openImageSource(source) {
+  if (!source) return;
+  window.open(source, "_blank", "noopener,noreferrer");
+}
+
+function downloadImageSource(source, job) {
+  if (!source) return;
+  const link = document.createElement("a");
+  link.href = source;
+  link.download = `prompt-reference-${job.jobId || Date.now()}.png`;
+  link.target = "_blank";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 async function copyText(text) {
