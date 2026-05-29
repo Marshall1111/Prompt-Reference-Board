@@ -102,8 +102,17 @@ const styles = [
     "prompt": "把参考图中的主体转绘成矢量平面插画，放到复古漫画风格的海报中，半色调网点印刷纹理，波普艺术风格，\n复古漫画书艺术，怀旧儿童绘本插画，网点印刷风格,\n图形设计，可爱俏皮，清晰线条，点状纹理，粗糙印刷质感，\n2D平面设计，无真实阴影，通过半色调网点密度表现阴影，\n有限色彩方案，鲜艳饱和色彩，有限色彩选择，无渐变，\n无复杂细节，简洁造型，高对比度，粗黑轮廓线，\n儿童绘本风格，怀旧1950-60年代印刷艺术，画面无字，\n突出手绘质感，手工绘制不完善、不固定，\n整个画面背景是复古漫画海报风格，增加合适的文字和装饰\n比例 2:3或3:2"
   },
   {
-    "id": "style_1779762562660",
+    "id": "style_1780029542441",
     "sort": 9,
+    "tags": [
+      "剪纸"
+    ],
+    "image": "/images-small/style_1780029542441.jpg",
+    "prompt": "convert this image into a soft, handcrafted paper-cut layered illustration style, inspired by papercraft diorama aesthetics. Use smooth rounded shapes, simplified cute character proportions, and minimal facial details (dot eyes, blush cheeks) to create a warm, charming look. Apply stacked paper layers with visible depth, subtle shadows between layers, and clean cut edges that resemble laser-cut cardstock"
+  },
+  {
+    "id": "style_1779762562660",
+    "sort": 10,
     "tags": [
       "潮流",
       "海报",
@@ -114,7 +123,7 @@ const styles = [
   },
   {
     "id": "style_1779931260825",
-    "sort": 10,
+    "sort": 11,
     "tags": [
       "表情包"
     ],
@@ -123,7 +132,7 @@ const styles = [
   },
   {
     "id": "style_1779961220177",
-    "sort": 11,
+    "sort": 12,
     "tags": [
       "Plog",
       "日常"
@@ -133,7 +142,7 @@ const styles = [
   },
   {
     "id": "style_1779845065374",
-    "sort": 12,
+    "sort": 13,
     "tags": [
       "剪纸",
       "旅行",
@@ -144,7 +153,7 @@ const styles = [
   },
   {
     "id": "style_1779844966340",
-    "sort": 13,
+    "sort": 14,
     "tags": [
       "剪纸",
       "简约"
@@ -154,7 +163,7 @@ const styles = [
   },
   {
     "id": "style_1779322951275",
-    "sort": 14,
+    "sort": 15,
     "tags": [
       "表情包"
     ],
@@ -163,7 +172,7 @@ const styles = [
   },
   {
     "id": "style_1779180072956",
-    "sort": 15,
+    "sort": 16,
     "tags": [
       "Plog",
       "可爱",
@@ -175,7 +184,7 @@ const styles = [
   },
   {
     "id": "style_1779179914765",
-    "sort": 16,
+    "sort": 17,
     "tags": [
       "儿童",
       "插画",
@@ -187,7 +196,7 @@ const styles = [
   },
   {
     "id": "style_1779179882103",
-    "sort": 17,
+    "sort": 18,
     "tags": [
       "艺术",
       "宠物"
@@ -197,7 +206,7 @@ const styles = [
   },
   {
     "id": "style_1779179828722",
-    "sort": 18,
+    "sort": 19,
     "tags": [
       "手绘",
       "插画",
@@ -208,7 +217,7 @@ const styles = [
   },
   {
     "id": "style_1779179773582",
-    "sort": 19,
+    "sort": 20,
     "tags": [
       "卡通"
     ],
@@ -217,7 +226,7 @@ const styles = [
   },
   {
     "id": "style_1779179722094",
-    "sort": 20,
+    "sort": 21,
     "tags": [
       "卡通",
       "丑萌",
@@ -229,7 +238,7 @@ const styles = [
   },
   {
     "id": "style_1779179665778",
-    "sort": 21,
+    "sort": 22,
     "tags": [
       "随意",
       "手绘",
@@ -241,7 +250,7 @@ const styles = [
   },
   {
     "id": "style_1779179649152",
-    "sort": 22,
+    "sort": 23,
     "tags": [
       "随意",
       "手绘",
@@ -252,7 +261,7 @@ const styles = [
   },
   {
     "id": "style_1779179490072",
-    "sort": 23,
+    "sort": 24,
     "tags": [
       "插画",
       "手绘",
@@ -265,7 +274,7 @@ const styles = [
   },
   {
     "id": "style_1779179328013",
-    "sort": 24,
+    "sort": 25,
     "tags": [
       "卡通",
       "插画",
@@ -280,7 +289,7 @@ const styles = [
   },
   {
     "id": "pencil",
-    "sort": 25,
+    "sort": 26,
     "tags": [
       "涂鸦",
       "速写",
@@ -293,7 +302,7 @@ const styles = [
   },
   {
     "id": "clay",
-    "sort": 26,
+    "sort": 27,
     "tags": [
       "手绘",
       "儿童",
@@ -306,7 +315,7 @@ const styles = [
   },
   {
     "id": "style_1779165306174",
-    "sort": 27,
+    "sort": 28,
     "tags": [
       "像素",
       "头像",
@@ -319,7 +328,7 @@ const styles = [
   },
   {
     "id": "oil_painting",
-    "sort": 28,
+    "sort": 29,
     "tags": [
       "宠物",
       "随意",
@@ -333,7 +342,7 @@ const styles = [
   },
   {
     "id": "cyberpunk",
-    "sort": 29,
+    "sort": 30,
     "tags": [
       "手绘",
       "蜡笔",
@@ -346,7 +355,7 @@ const styles = [
   },
   {
     "id": "pixel",
-    "sort": 30,
+    "sort": 31,
     "tags": [
       "丑萌",
       "插画",
@@ -357,7 +366,7 @@ const styles = [
   },
   {
     "id": "style_1779179392820",
-    "sort": 31,
+    "sort": 32,
     "tags": [
       "诡异",
       "童话",
@@ -368,7 +377,7 @@ const styles = [
   },
   {
     "id": "style_1779268159068",
-    "sort": 32,
+    "sort": 33,
     "tags": [
       "人物"
     ],
