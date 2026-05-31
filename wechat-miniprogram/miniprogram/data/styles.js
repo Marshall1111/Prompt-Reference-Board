@@ -1,7 +1,20 @@
 const styles = [
   {
-    "id": "style_1780183870275",
+    "id": "style_1780214860370",
     "sort": 0,
+    "tags": [
+      "宠物",
+      "油画",
+      "厚涂",
+      "肖像"
+    ],
+    "image": "/images-small/style_1780214860370.jpg",
+    "prompt": "A cute [animal] , centered head-and-shoulders pet portrait, looking at the viewer, charming and playful expression, bright high-key lighting, soft daylight, cheerful mood, impasto oil painting style, visible painterly brushstrokes, medium palette knife texture, fluffy soft fur, clean facial features, balanced composition, pastel blue and soft green background with gentle yellow accents, light creamy whites, low contrast shadows, airy and whimsical hand-painted feeling, simplified artistic background, polished pet portrait, bright and fresh overall color palette",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1780183870275",
+    "sort": 1,
     "tags": [
       "宠物",
       "角色卡"
@@ -12,7 +25,7 @@ const styles = [
   },
   {
     "id": "style_1780183785792",
-    "sort": 1,
+    "sort": 2,
     "tags": [
       "水墨肖像",
       "宠物"
@@ -23,7 +36,7 @@ const styles = [
   },
   {
     "id": "style_1779944352617",
-    "sort": 2,
+    "sort": 3,
     "tags": [
       "潮流",
       "宠物"
@@ -34,7 +47,7 @@ const styles = [
   },
   {
     "id": "style_1779931156452",
-    "sort": 3,
+    "sort": 4,
     "tags": [
       "莫奈",
       "印象派",
@@ -47,7 +60,7 @@ const styles = [
   },
   {
     "id": "style_1779179574408",
-    "sort": 4,
+    "sort": 5,
     "tags": [
       "丑萌",
       "手绘",
@@ -55,18 +68,6 @@ const styles = [
     ],
     "image": "/images-small/style_1779179574408.jpg",
     "prompt": "把这 张照片改成画风笨拙又搞笑的涂鸦风插画 。 特点： - 营造出像是用平价马克笔、蜡笔随手画出来的潦草速写质感- 线条杂乱随性，充满孩子气画风- 透视扭曲失衡，整体构图比例不协调- 脸部五官稍作夸张处理，打造滑稽喜感, 眼睛俏皮可爱 额外添加元素：- 简约漫画风背景（结合参考照片联想绘制即可）- 添上无意义的乱涂线条、细碎随性的小细节- 保留上色不均、涂色出界、明显的笔触痕迹 整体风格：- 透着敷衍潦草、毫无用心去画的随性感- 切勿画得太过精致完整- 沙雕搞笑的表情包趣味画风- 贴合网络轻松趣味的氛围 禁止要求：- 不要画得写实- 不要刻画得太过精致细腻- 不要做出专业规整的绘画效果。",
-    "useStyleImageAsReference": false
-  },
-  {
-    "id": "style_1779671305701",
-    "sort": 5,
-    "tags": [
-      "油画",
-      "厚涂",
-      "宠物"
-    ],
-    "image": "/images-small/style_1779671305701.jpg",
-    "prompt": "A cute 【animal】 wearing sunglasses, Van Gogh inspired impasto oil painting, heavy palette knife texture, thick expressive brush strokes, rich oil paint layers, highly textured canvas, vibrant complementary colors, artistic pet portrait, centered composition, painterly abstract background, bold expressive strokes, modern trendy aesthetic, handmade painting feeling, museum-quality oil painting.",
     "useStyleImageAsReference": false
   },
   {
