@@ -4,12 +4,20 @@ import { createRoot } from "react-dom/client";
 import "./styles.css";
 
 const GENERATION_DEFAULTS = {
-  size: "auto",
   quality: "medium",
   output_format: "png",
   background: "auto",
   moderation: "auto"
 };
+
+const DEFAULT_GENERATION_SIZE = "1024x1536";
+const GENERATION_SIZE_OPTIONS = [
+  { value: "1024x1536", label: "2:3" },
+  { value: "1536x1024", label: "3:2" },
+  { value: "1024x1024", label: "1:1" },
+  { value: "1024x1365", label: "3:4" },
+  { value: "1365x1024", label: "4:3" }
+];
 
 const REFERENCE_UPLOAD_LIMITS = {
   maxBytes: 4 * 1024 * 1024,
@@ -308,6 +316,7 @@ function splitStylesByColumns(styles, columnCount) {
 function ImageGeneratorModal({ onClose, style }) {
   const previewRef = useRef(null);
   const [prompt, setPrompt] = useState(style.prompt);
+  const [size, setSize] = useState(DEFAULT_GENERATION_SIZE);
   const [references, setReferences] = useState([]);
   const [providers, setProviders] = useState([]);
   const [selectedProvider, setSelectedProvider] = useState("");
@@ -470,6 +479,7 @@ function ImageGeneratorModal({ onClose, style }) {
     try {
       const formData = new FormData();
       formData.append("prompt", prompt);
+      formData.append("size", size);
       if (selectedProvider) formData.append("provider", selectedProvider);
       Object.entries(GENERATION_DEFAULTS).forEach(([key, value]) => formData.append(key, value));
       const preparedReferences = await Promise.all(getOrderedReferences(references).map(prepareReferenceForUpload));
@@ -578,6 +588,17 @@ function ImageGeneratorModal({ onClose, style }) {
             {providers.map((provider) => (
               <option key={provider.id} value={provider.id}>
                 {provider.name} · {provider.model}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field-label">
+          比例
+          <select onChange={(event) => setSize(event.target.value)} value={size}>
+            {GENERATION_SIZE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
@@ -909,6 +930,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
   const [groupName, setGroupName] = useState("");
   const [selectedStyleIds, setSelectedStyleIds] = useState([]);
   const [promptOverride, setPromptOverride] = useState("");
+  const [size, setSize] = useState(DEFAULT_GENERATION_SIZE);
   const [providers, setProviders] = useState([]);
   const [selectedProvider, setSelectedProvider] = useState("");
   const [references, setReferences] = useState([]);
@@ -1033,6 +1055,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
       for (const style of selectedStyles) {
         const formData = new FormData();
         formData.append("prompt", promptOverride.trim() || style.prompt);
+        formData.append("size", size);
         formData.append("provider", selectedProvider);
         formData.append("styleId", style.id);
         formData.append("styleName", style.tags.join(" / "));
@@ -1151,6 +1174,16 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
                 {providers.map((provider) => (
                   <option key={provider.id} value={provider.id}>
                     {provider.name} · {provider.model}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field-label">
+              比例
+              <select onChange={(event) => setSize(event.target.value)} value={size}>
+                {GENERATION_SIZE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>

@@ -7,7 +7,7 @@ const styles = [
       "角色卡"
     ],
     "image": "/images-small/style_1780183870275.jpg",
-    "prompt": "Use the uploaded pet photo as reference.\nPreserve the pet's exact fur pattern, colors, markings, face shape, ears and tail.\nTransform the pet into a charming anthropomorphic character.\nStanding upright like a human.\nRandomly generate profession, outfit and personality.\nThe character should look cute, elegant and memorable.\nSTYLE:\nstorybook illustration,\nstylized character design,\nflat illustration,\nsimple shapes,\nclean line art,\nminimal shading,\nminimal rendering,\ngraphic illustration,\nchildren's book artwork,\nvintage poster illustration,\n2D illustration,\nvector-like artwork,\nplayful and charming,\nfocus on character silhouette,\nlimited color palette,\nDESIGN:\nfull body portrait,\ncentered composition,\nsimple decorative card frame,\nminimal background,\nplain background,\ncharacter-focused layout,\nfashion illustration feeling,\ncollectible character card,\nNO realistic fur,\nNO cinematic lighting,\nNO fantasy visual effects,\nNO complex background,\nNO 3D rendering,\nNO photorealism,\nNO game concept art,\nNO hyper detail,\nNO magical particles,\nNO dramatic atmosphere\n比例2:3",
+    "prompt": "Use the uploaded pet photo as reference.\nPreserve the pet's exact fur pattern, colors, markings, face shape, ears and tail.\nTransform the pet into a charming anthropomorphic character.\nStanding upright like a human.\nRandomly generate profession, outfit and personality.\nThe character should look cute, elegant and memorable.\nSTYLE:\nstorybook illustration,\nstylized character design,\nflat illustration,\nsimple shapes,\nclean line art,\nminimal shading,\nminimal rendering,\ngraphic illustration,\nchildren's book artwork,\nvintage poster illustration,\n2D illustration,\nvector-like artwork,\nplayful and charming,\nfocus on character silhouette,\nlimited color palette,\nDESIGN:\nfull body portrait,\ncentered composition,\nsimple decorative card frame,\nminimal background,\nplain background,\ncharacter-focused layout,\nfashion illustration feeling,\ncollectible character card,\nNO realistic fur,\nNO cinematic lighting,\nNO fantasy visual effects,\nNO complex background,\nNO 3D rendering,\nNO photorealism,\nNO game concept art,\nNO hyper detail,\nNO magical particles,\nNO dramatic atmosphere",
     "useStyleImageAsReference": false
   },
   {
@@ -18,7 +18,7 @@ const styles = [
       "宠物"
     ],
     "image": "/images-small/style_1780183785792.jpg",
-    "prompt": "保留图二上传宠物的外貌特征和花纹，严格参考第一张图片的绘画风格、笔触、眼睛比例、表情设计和留白构图，生成同风格的原创水墨肖像。漫画夸张的表情，充满幽默感和生命力。不要文字。比例2:3",
+    "prompt": "保留图二上传宠物的外貌特征和花纹，严格参考第一张图片的绘画风格、笔触、眼睛比例、表情设计和留白构图，生成同风格的原创水墨肖像。漫画夸张的表情，充满幽默感和生命力。不要文字。",
     "useStyleImageAsReference": true
   },
   {
@@ -29,7 +29,7 @@ const styles = [
       "宠物"
     ],
     "image": "/images-small/style_1779944352617.jpg",
-    "prompt": "参考图中的萌宠，潮流宠物主题，萌宠躺平状态或运动状态，潮流漫画拼贴风格，适当结合一点涂鸦元素，结合潮流英文文字，创意字体，漫画风格，不要写实。比例 2:3。",
+    "prompt": "参考图中的萌宠，潮流宠物主题，萌宠躺平状态或运动状态，潮流漫画拼贴风格，适当结合一点涂鸦元素，结合潮流英文文字，创意字体，漫画风格，不要写实。",
     "useStyleImageAsReference": false
   },
   {
@@ -42,7 +42,7 @@ const styles = [
       "宠物"
     ],
     "image": "/images-small/style_1779931156452.jpg",
-    "prompt": "请将我上传的宠物照片转换成一幅莫奈印象派风格油画。\n保留宠物真实长相与毛色特征，尤其是眼睛、耳朵、毛发纹理。\n采用柔和细腻的油画笔触，毛发呈现蓬松发光质感。\n场景为莫奈花园般的池塘与花海，带有睡莲、水面倒影、粉色花朵与梦幻自然光。\n色调以奶白、浅粉、淡紫、浅绿、淡蓝为主。\n整体氛围唯美、安静、治愈、高级。\n欧洲古典宠物肖像构图，主体特写，背景柔焦。\n高细节，艺术馆收藏级油画质感。比例 2:3",
+    "prompt": "请将我上传的宠物照片转换成一幅莫奈印象派风格油画。\n保留宠物真实长相与毛色特征，尤其是眼睛、耳朵、毛发纹理。\n采用柔和细腻的油画笔触，毛发呈现蓬松发光质感。\n场景为莫奈花园般的池塘与花海，带有睡莲、水面倒影、粉色花朵与梦幻自然光。\n色调以奶白、浅粉、淡紫、浅绿、淡蓝为主。\n整体氛围唯美、安静、治愈、高级。\n欧洲古典宠物肖像构图，主体特写，背景柔焦。\n高细节，艺术馆收藏级油画质感。",
     "useStyleImageAsReference": false
   },
   {
@@ -54,7 +54,7 @@ const styles = [
       "随意"
     ],
     "image": "/images-small/style_1779179574408.jpg",
-    "prompt": "把这 张照片改成画风笨拙又搞笑的涂鸦风插画 。 特点： - 营造出像是用平价马克笔、蜡笔随手画出来的潦草速写质感- 线条杂乱随性，充满孩子气画风- 透视扭曲失衡，整体构图比例不协调- 脸部五官稍作夸张处理，打造滑稽喜感 额外添加元素：- 简约漫画风背景（结合参考照片联想绘制即可）- 添上无意义的乱涂线条、细碎随性的小细节- 保留上色不均、涂色出界、明显的笔触痕迹 整体风格：- 透着敷衍潦草、毫无用心去画的随性感- 切勿画得太过精致完整- 沙雕搞笑的表情包趣味画风- 贴合网络轻松趣味的氛围 禁止要求：- 不要画得写实- 不要刻画得太过精致细腻- 不要做出专业规整的绘画效果。比例 2:3。",
+    "prompt": "把这 张照片改成画风笨拙又搞笑的涂鸦风插画 。 特点： - 营造出像是用平价马克笔、蜡笔随手画出来的潦草速写质感- 线条杂乱随性，充满孩子气画风- 透视扭曲失衡，整体构图比例不协调- 脸部五官稍作夸张处理，打造滑稽喜感, 眼睛俏皮可爱 额外添加元素：- 简约漫画风背景（结合参考照片联想绘制即可）- 添上无意义的乱涂线条、细碎随性的小细节- 保留上色不均、涂色出界、明显的笔触痕迹 整体风格：- 透着敷衍潦草、毫无用心去画的随性感- 切勿画得太过精致完整- 沙雕搞笑的表情包趣味画风- 贴合网络轻松趣味的氛围 禁止要求：- 不要画得写实- 不要刻画得太过精致细腻- 不要做出专业规整的绘画效果。",
     "useStyleImageAsReference": false
   },
   {
@@ -66,7 +66,7 @@ const styles = [
       "宠物"
     ],
     "image": "/images-small/style_1779671305701.jpg",
-    "prompt": "A cute 【animal】 wearing sunglasses, Van Gogh inspired impasto oil painting, heavy palette knife texture, thick expressive brush strokes, rich oil paint layers, highly textured canvas, vibrant complementary colors, artistic pet portrait, centered composition, painterly abstract background, bold expressive strokes, modern trendy aesthetic, handmade painting feeling, museum-quality oil painting. 比例 2:3。",
+    "prompt": "A cute 【animal】 wearing sunglasses, Van Gogh inspired impasto oil painting, heavy palette knife texture, thick expressive brush strokes, rich oil paint layers, highly textured canvas, vibrant complementary colors, artistic pet portrait, centered composition, painterly abstract background, bold expressive strokes, modern trendy aesthetic, handmade painting feeling, museum-quality oil painting.",
     "useStyleImageAsReference": false
   },
   {
@@ -78,7 +78,7 @@ const styles = [
       "手绘"
     ],
     "image": "/images-small/style_1779180012171.jpg",
-    "prompt": "把参考图中的主体变成一个萌风Q版角色，凌乱粗糙的黑色线稿，幼态比例，像小孩随手涂鸦但极具设计感，粗笔触、水粉厚涂、蜡笔质感，边缘随意外扩，留白背景、可爱、手绘感极强，不精致，故意画歪，松散构图，低饱和奶油色调，艺术涂鸦插画。比例2:3。",
+    "prompt": "把参考图中的主体变成一个萌风Q版角色，凌乱粗糙的黑色线稿，幼态比例，像小孩随手涂鸦但极具设计感，粗笔触、水粉厚涂、蜡笔质感，边缘随意外扩，留白背景、可爱、手绘感极强，不精致，故意画歪，松散构图，低饱和奶油色调，艺术涂鸦插画。",
     "useStyleImageAsReference": false
   },
   {
@@ -92,7 +92,7 @@ const styles = [
       "儿童"
     ],
     "image": "/images-small/style_1779181030715.jpg",
-    "prompt": "将图片风格化为皮克斯动画风格，角色造型圆润可爱，光影层次分明，保留人物或宠物原有姿态和互动关系，画面明亮，背景换成纯色。比例 2:3。",
+    "prompt": "将图片风格化为皮克斯动画风格，角色造型圆润可爱，光影层次分明，保留人物或宠物原有姿态和互动关系，画面明亮，背景换成纯色。",
     "useStyleImageAsReference": false
   },
   {
@@ -106,7 +106,7 @@ const styles = [
       "宠物"
     ],
     "image": "/images-small/style_1779179958695.jpg",
-    "prompt": "请将整个图像转化为单一的装饰性民间平面插图，带有涂鸦元素。使用大胆而俏皮的色彩调色板，与原图像完全不同。\n将所有细节简化为干净、平面的形状，带有手工制作的、略显不完美感，仿佛绘制在一张白纸上。整体风格应显得可爱、童趣十足且异想天开。比例 2:3",
+    "prompt": "请将整个图像转化为单一的装饰性民间平面插图，带有涂鸦元素。使用大胆而俏皮的色彩调色板，与原图像完全不同。\n将所有细节简化为干净、平面的形状，带有手工制作的、略显不完美感，仿佛绘制在一张白纸上。整体风格应显得可爱、童趣十足且异想天开。",
     "useStyleImageAsReference": false
   },
   {
@@ -116,7 +116,7 @@ const styles = [
       "艺术"
     ],
     "image": "/images-small/style_1779323084946.jpg",
-    "prompt": "把图一中的猫咪换成图二中的宠物，比例改成2:3.",
+    "prompt": "把图一中的猫咪换成图二中的宠物",
     "useStyleImageAsReference": true
   },
   {
@@ -129,7 +129,7 @@ const styles = [
       "宠物"
     ],
     "image": "/images-small/style_1779179444790.jpg",
-    "prompt": "把参考图中的主体转绘成矢量平面插画，放到复古漫画风格的海报中，半色调网点印刷纹理，波普艺术风格，\n复古漫画书艺术，怀旧儿童绘本插画，网点印刷风格,\n图形设计，可爱俏皮，清晰线条，点状纹理，粗糙印刷质感，\n2D平面设计，无真实阴影，通过半色调网点密度表现阴影，\n有限色彩方案，鲜艳饱和色彩，有限色彩选择，无渐变，\n无复杂细节，简洁造型，高对比度，粗黑轮廓线，\n儿童绘本风格，怀旧1950-60年代印刷艺术，画面无字，\n突出手绘质感，手工绘制不完善、不固定，\n整个画面背景是复古漫画海报风格，增加合适的文字和装饰\n比例 2:3",
+    "prompt": "把参考图中的主体转绘成矢量平面插画，放到复古漫画风格的海报中，半色调网点印刷纹理，波普艺术风格，\n复古漫画书艺术，怀旧儿童绘本插画，网点印刷风格,\n图形设计，可爱俏皮，清晰线条，点状纹理，粗糙印刷质感，\n2D平面设计，无真实阴影，通过半色调网点密度表现阴影，\n有限色彩方案，鲜艳饱和色彩，有限色彩选择，无渐变，\n无复杂细节，简洁造型，高对比度，粗黑轮廓线，\n儿童绘本风格，怀旧1950-60年代印刷艺术，画面无字，\n突出手绘质感，手工绘制不完善、不固定，\n整个画面背景是复古漫画海报风格，增加合适的文字和装饰",
     "useStyleImageAsReference": false
   },
   {
@@ -139,7 +139,7 @@ const styles = [
       "剪纸"
     ],
     "image": "/images-small/style_1780029542441.jpg",
-    "prompt": "convert this image into a soft, handcrafted paper-cut layered illustration style, inspired by papercraft diorama aesthetics. Use smooth rounded shapes, simplified cute character proportions, and minimal facial details (dot eyes, blush cheeks) to create a warm, charming look. Apply stacked paper layers with visible depth, subtle shadows between layers, and clean cut edges that resemble laser-cut cardstock，比例2:3",
+    "prompt": "convert this image into a soft, handcrafted paper-cut layered illustration style, inspired by papercraft diorama aesthetics. Use smooth rounded shapes, simplified cute character proportions, and minimal facial details (dot eyes, blush cheeks) to create a warm, charming look. Apply stacked paper layers with visible depth, subtle shadows between layers, and clean cut edges that resemble laser-cut cardstock.",
     "useStyleImageAsReference": false
   },
   {
@@ -151,7 +151,7 @@ const styles = [
       "人物"
     ],
     "image": "/images-small/style_1779762562660.jpg",
-    "prompt": "将上传人物照片转化为一张完整的潮流角色海报。\n重点不是写实述原，而是提炼人物识别特征并进行角色化重构。保留原人物的发型、脸型气质、表情、穿搭颜色、姿势、鞋子和重要配饰，让人能看出原人物特点，但人物不能写实。\n人物风格要求：\n夸张潮流角色，街头少年感，松弛、自信、张扬，数字厚涂海报风格。\n人物比例要求：\n头部略大，但不要Q版;\n脖子稍长；\n躯干较小；\n身体瘦长；\n四胶明显拉长；\n手臂细长，手肘有明显折角；\n手腕纤细；\n手掌略大；\n手指细长，有明确关节和姿势;\n腿部细长，滕盖有清晰转折；\n脚踝纤细；\n鞋子必须明显放大，鞋底厚重，有潮流玩具感。\n如果人物没有穿鞋，或者穿拖鞋、凉鞋、赤脚:\n脚部也要图形化和夸张化处理。\n脚趾数量正确，脚掌结构清楚，脚蹀纤细，脚部轮廓有几何感和设计感。\n脚掌可以略微放大，脚趾结构清楚，脚背、脚踝和脚掌比例有设计感。\n脚部要像图形化角色设计，不要写实脚部，也不要出成模糊脚、畸形脚、多脚趾或粘连脚趾、\n人物形态要求：\n身体不要接近真实人类比例。\n四肢要有几何感、折线感和长条色块感。\n手肘、膝盖、手腕、脚踝都要有明确结构。\n关节可以夸张，但结构必须可信。\n人物姿态要松弛自然，可以蹲坐、半蹲、坐在地面、伸手比耶、张开手臂、侧身看镜头等。\n不要僵硬站姿。\n手部要求：\n手是画面重点之一。\n手指要细长、灵活、有清晰关节。\n手势要自然、有设计感、有街头感。\n如果是比耶手势，食指和中指要清楚分开，其他手指自然弯曲。\n不要多指，不要少指，不要粘连手指，不要模糊手，不要畸形手。\n五官处理:\n五官必须图形化、简化、夸张。\n不要真实皮肤纹理，不要真实眼球高光，不要真实肖像感。\n眉毛、眼睛、鼻子、嘴巴用设计感线条和人色块概括。\n表情可以比原照片更夸张、更自信、更有性格。\n背景处理：\n背景也必须和人物统一风格，不能写实。\n将原照片中的山、水、帐篷、石头、街景、房间、家具、物品等全部重构成图形化色块、厚涂笔触、拼贴碎片、涂鸦线条、半透明几何图形和抽象海报元素\n背景可以参考原照片的场景结构，但必须被压平、简化、符号化、海报化。\n不要出现人物风格化们背景写实的割裂感。\n画面海报感：\n画面不能只是白底人物。\n加入符合场景的涂鸦文字、手写标记、箭头、贴纸、胶带、粗糙笔刷、抽象符号和拼贴块。\n涂鸦文字要少量点缀，可以使用 FREE、VIBE、DAILY、CHILL、PLAY、SUMMER、WLD、GOOD VIBE，也可以加入中文短词如出街、松弛感、今日状态、自由一点。\n文字不要遮挡脸部和手势，不要变成正式标题，不要乱码\n整体风格：\nmodern urban charactor poster,\nstylized streetwear character design,\nexaggerated proportions , \nlong thin limbs,\nangular joints,\noversized shoes,\ngraphic facial features,\nexpressive hands,\nlong fingers,\ndigital gouache painting,\nrough brush strokes,\nblocky color shapes,\nloose  painterly edges,\nabstract poster background,\ncollage elements,\ngraffiti lines,\nhandwritten notes,\nurban art zine style,\nfashion editorial poster,\nlow saturation color palette ,\noff-white background,\nstrong poster composition\n最终效果：\n一张高级潮流人物海报。\n人物关节清楚、四肢修长、手指有细节、鞋子夸张、姿态松弛、表情有性格\n背景也要统一成厚涂、拼贴、涂鸦、图形化的海报语言。\n负面提示词：\n不要写实人物，不要真实肖像,不要正常真人比例，不要圆润Q版，不要儿童卡通，不要二次元动漫，不要3D渲染，不要蜘料感，不要真实皮肤纹理，不要真实眼球高光。\n不要短粗四肢，不要正常鞋子大小，不要僵硬站姿，不要无关节感，不要关节模糊，不要手指糊掉，不要多手指，不要少手指，不要粘连手指，不要畸形手。\n不要写实背景，不要真实照片背景，不要人物插画但背景写实的割裂感，不要复杂写实山水，不要真实摄影光影，不要正式广告标题，不要乱码文字，不要水印，不要logo。\n比例 2:3或3:2",
+    "prompt": "将上传人物照片转化为一张完整的潮流角色海报。\n重点不是写实述原，而是提炼人物识别特征并进行角色化重构。保留原人物的发型、脸型气质、表情、穿搭颜色、姿势、鞋子和重要配饰，让人能看出原人物特点，但人物不能写实。\n人物风格要求：\n夸张潮流角色，街头少年感，松弛、自信、张扬，数字厚涂海报风格。\n人物比例要求：\n头部略大，但不要Q版;\n脖子稍长；\n躯干较小；\n身体瘦长；\n四胶明显拉长；\n手臂细长，手肘有明显折角；\n手腕纤细；\n手掌略大；\n手指细长，有明确关节和姿势;\n腿部细长，滕盖有清晰转折；\n脚踝纤细；\n鞋子必须明显放大，鞋底厚重，有潮流玩具感。\n如果人物没有穿鞋，或者穿拖鞋、凉鞋、赤脚:\n脚部也要图形化和夸张化处理。\n脚趾数量正确，脚掌结构清楚，脚蹀纤细，脚部轮廓有几何感和设计感。\n脚掌可以略微放大，脚趾结构清楚，脚背、脚踝和脚掌比例有设计感。\n脚部要像图形化角色设计，不要写实脚部，也不要出成模糊脚、畸形脚、多脚趾或粘连脚趾、\n人物形态要求：\n身体不要接近真实人类比例。\n四肢要有几何感、折线感和长条色块感。\n手肘、膝盖、手腕、脚踝都要有明确结构。\n关节可以夸张，但结构必须可信。\n人物姿态要松弛自然，可以蹲坐、半蹲、坐在地面、伸手比耶、张开手臂、侧身看镜头等。\n不要僵硬站姿。\n手部要求：\n手是画面重点之一。\n手指要细长、灵活、有清晰关节。\n手势要自然、有设计感、有街头感。\n如果是比耶手势，食指和中指要清楚分开，其他手指自然弯曲。\n不要多指，不要少指，不要粘连手指，不要模糊手，不要畸形手。\n五官处理:\n五官必须图形化、简化、夸张。\n不要真实皮肤纹理，不要真实眼球高光，不要真实肖像感。\n眉毛、眼睛、鼻子、嘴巴用设计感线条和人色块概括。\n表情可以比原照片更夸张、更自信、更有性格。\n背景处理：\n背景也必须和人物统一风格，不能写实。\n将原照片中的山、水、帐篷、石头、街景、房间、家具、物品等全部重构成图形化色块、厚涂笔触、拼贴碎片、涂鸦线条、半透明几何图形和抽象海报元素\n背景可以参考原照片的场景结构，但必须被压平、简化、符号化、海报化。\n不要出现人物风格化们背景写实的割裂感。\n画面海报感：\n画面不能只是白底人物。\n加入符合场景的涂鸦文字、手写标记、箭头、贴纸、胶带、粗糙笔刷、抽象符号和拼贴块。\n涂鸦文字要少量点缀，可以使用 FREE、VIBE、DAILY、CHILL、PLAY、SUMMER、WLD、GOOD VIBE，也可以加入中文短词如出街、松弛感、今日状态、自由一点。\n文字不要遮挡脸部和手势，不要变成正式标题，不要乱码\n整体风格：\nmodern urban charactor poster,\nstylized streetwear character design,\nexaggerated proportions , \nlong thin limbs,\nangular joints,\noversized shoes,\ngraphic facial features,\nexpressive hands,\nlong fingers,\ndigital gouache painting,\nrough brush strokes,\nblocky color shapes,\nloose  painterly edges,\nabstract poster background,\ncollage elements,\ngraffiti lines,\nhandwritten notes,\nurban art zine style,\nfashion editorial poster,\nlow saturation color palette ,\noff-white background,\nstrong poster composition\n最终效果：\n一张高级潮流人物海报。\n人物关节清楚、四肢修长、手指有细节、鞋子夸张、姿态松弛、表情有性格\n背景也要统一成厚涂、拼贴、涂鸦、图形化的海报语言。\n负面提示词：\n不要写实人物，不要真实肖像,不要正常真人比例，不要圆润Q版，不要儿童卡通，不要二次元动漫，不要3D渲染，不要蜘料感，不要真实皮肤纹理，不要真实眼球高光。\n不要短粗四肢，不要正常鞋子大小，不要僵硬站姿，不要无关节感，不要关节模糊，不要手指糊掉，不要多手指，不要少手指，不要粘连手指，不要畸形手。\n不要写实背景，不要真实照片背景，不要人物插画但背景写实的割裂感，不要复杂写实山水，不要真实摄影光影，不要正式广告标题，不要乱码文字，不要水印，不要logo。",
     "useStyleImageAsReference": false
   },
   {
@@ -184,7 +184,7 @@ const styles = [
       "可爱"
     ],
     "image": "/images-small/style_1779845065374.jpg",
-    "prompt": "转绘成异想天开的可爱旅行立体模型，萌萌的剪纸艺术风格，层叠的手工纸纹理，3D剪贴簿美学，微缩场景，柔和的粉彩色调，温馨的灯光，细致的建筑，蓬松的纸云，风格化的树木和街道，迷人的手工纸板剪裁效果，微妙的阴影深度，梦幻般的氛围，高度精细的构图，电影般的画面感，温馨的旅行日记氛围，柔和的哑光色彩，极其简洁的构图，人物周围可爱的贴纸式白色轮廓，故事书美学，旅行摄影与手工纸艺的融合，竖构图，极其精细的纹理，温暖的怀旧氛围，Instagram风格的可爱美学，吉卜力工作室风格的可爱，移轴摄影般的微缩感，高级纸质立体模型艺术风格独特，细节丰富，8K分辨率，比例2:3或3:2",
+    "prompt": "转绘成异想天开的可爱旅行立体模型，萌萌的剪纸艺术风格，层叠的手工纸纹理，3D剪贴簿美学，微缩场景，柔和的粉彩色调，温馨的灯光，细致的建筑，蓬松的纸云，风格化的树木和街道，迷人的手工纸板剪裁效果，微妙的阴影深度，梦幻般的氛围，高度精细的构图，电影般的画面感，温馨的旅行日记氛围，柔和的哑光色彩，极其简洁的构图，人物周围可爱的贴纸式白色轮廓，故事书美学，旅行摄影与手工纸艺的融合，竖构图，极其精细的纹理，温暖的怀旧氛围，Instagram风格的可爱美学，吉卜力工作室风格的可爱，移轴摄影般的微缩感，高级纸质立体模型艺术风格独特，细节丰富，8K分辨率",
     "useStyleImageAsReference": false
   },
   {
@@ -195,7 +195,7 @@ const styles = [
       "简约"
     ],
     "image": "/images-small/style_1779844966340.jpg",
-    "prompt": "将上传图片转换为温暖、极简的杂志剪纸拼贴风插画。\n\t\n保持主体在画面中的位置、姿势、表情、服装和整体概念与上传图片一致。将人物重新诠释为可爱的简化韩系角色，拥有柔和圆润的比例、极简五官、轻松的小微笑，以及分层纸剪影轮廓。\n\t\n风格：手工感编辑拼贴、扁平纸张层次、柔和 pastel 纸张纹理、撕纸边缘、细微纸张阴影、干净黑色涂鸦点缀、手账 scrapbook 氛围、现代韩系杂志设计、简单可爱的构图、大面积干净白色留白。\n\t\n构图：竖版 3:4。保持主体位置与上传图片一致。画面通透、稀疏、不拥挤。\n\t\n只添加少量相关拼贴小道具：纸条、小爱心、植物、咖啡杯、窗户、胶带、简单涂鸦图标。\n\t\n在留白处添加一个优雅的手写英文标题，例如 “Soft little moment” 或 “Take a small break”。\n\t\n氛围：平静、舒适、温暖、可爱、柔和编辑感。\n\n比例：2:3或3:2\n\t\n避免：真实照片感、动漫风、水彩、3D 黏土、复杂背景、拥挤拼贴、深色、强硬阴影、凌乱或难以辨认的文字。",
+    "prompt": "将上传图片转换为温暖、极简的杂志剪纸拼贴风插画。\n\t\n保持主体在画面中的位置、姿势、表情、服装和整体概念与上传图片一致。将人物重新诠释为可爱的简化韩系角色，拥有柔和圆润的比例、极简五官、轻松的小微笑，以及分层纸剪影轮廓。\n\t\n风格：手工感编辑拼贴、扁平纸张层次、柔和 pastel 纸张纹理、撕纸边缘、细微纸张阴影、干净黑色涂鸦点缀、手账 scrapbook 氛围、现代韩系杂志设计、简单可爱的构图、大面积干净白色留白。\n\t\n构图：竖版 3:4。保持主体位置与上传图片一致。画面通透、稀疏、不拥挤。\n\t\n只添加少量相关拼贴小道具：纸条、小爱心、植物、咖啡杯、窗户、胶带、简单涂鸦图标。\n\t\n在留白处添加一个优雅的手写英文标题，例如 “Soft little moment” 或 “Take a small break”。\n\t\n氛围：平静、舒适、温暖、可爱、柔和编辑感。\n\t\n避免：真实照片感、动漫风、水彩、3D 黏土、复杂背景、拥挤拼贴、深色、强硬阴影、凌乱或难以辨认的文字。",
     "useStyleImageAsReference": false
   },
   {
@@ -218,7 +218,7 @@ const styles = [
       "剪贴"
     ],
     "image": "/images-small/style_1779180072956.jpg",
-    "prompt": "在图片中的动物、食物和人物和有趣的元素周围用粗糙手绘描边，并点缀可爱的手写涂鸦和剪贴风格的注释（英文），还有俏皮的白色马克笔画、爱心、星星、蛋糕、笑脸和小型食物等图标，营造出一种可爱的Instagram氛围，8K画质。比例 2:3",
+    "prompt": "在图片中的动物、食物和人物和有趣的元素周围用粗糙手绘描边，并点缀可爱的手写涂鸦和剪贴风格的注释（英文），还有俏皮的白色马克笔画、爱心、星星、蛋糕、笑脸和小型食物等图标，营造出一种可爱的Instagram氛围，8K画质。",
     "useStyleImageAsReference": false
   },
   {
@@ -231,7 +231,7 @@ const styles = [
       "卡通"
     ],
     "image": "/images-small/style_1779179914765.jpg",
-    "prompt": "Please transform the entire image into a single Decorative Folk Flat Illustration with Doodle elements. Use a bold and playful color palette, completely different from the original image. Simplify all details into clean, flat shapes with a handmade, slightly imperfect feel, as if drawn on a sheet of white paper. The overall style should look cute, childlike, and whimsical.比例 2:3",
+    "prompt": "Please transform the entire image into a single Decorative Folk Flat Illustration with Doodle elements. Use a bold and playful color palette, completely different from the original image. Simplify all details into clean, flat shapes with a handmade, slightly imperfect feel, as if drawn on a sheet of white paper. The overall style should look cute, childlike, and whimsical.",
     "useStyleImageAsReference": false
   },
   {
@@ -242,7 +242,7 @@ const styles = [
       "宠物"
     ],
     "image": "/images-small/style_1779179882103.jpg",
-    "prompt": "模仿梵高《戴草帽的自画像》风格，将主体替换为一只我上传的宠物。\n艺术风格： 严格遵循后印象派油画质感，使用标志性的粗犷、旋转笔触和厚涂法（Impasto）。背景采用原作中蓝灰色与橙色交织的短笔触。\n主体特征： 宠物呈现正面半身像，保留其面部花纹特征，眼神深邃。\n核心元素： 宠物必须戴着原作中那顶标志性的黄色草帽，穿着类似的蓝色粗线外套。\n氛围： 色彩协调，光影对比强烈，呈现出一种古典艺术史的质感。\n比例 2:3",
+    "prompt": "模仿梵高《戴草帽的自画像》风格，将主体替换为一只我上传的宠物。\n艺术风格： 严格遵循后印象派油画质感，使用标志性的粗犷、旋转笔触和厚涂法（Impasto）。背景采用原作中蓝灰色与橙色交织的短笔触。\n主体特征： 宠物呈现正面半身像，保留其面部花纹特征，眼神深邃。\n核心元素： 宠物必须戴着原作中那顶标志性的黄色草帽，穿着类似的蓝色粗线外套。\n氛围： 色彩协调，光影对比强烈，呈现出一种古典艺术史的质感。",
     "useStyleImageAsReference": false
   },
   {
@@ -254,7 +254,7 @@ const styles = [
       "卡通"
     ],
     "image": "/images-small/style_1779179828722.jpg",
-    "prompt": "Transform the subject from the uploaded image into a character in the style of Charlie and Lola (children’s cartoon). Match the official cartoon look — thin sketchy outlines, flat colors, childlike proportions, playful hand-drawn charm, and simple textures. Retain the subject’s original clothing, hairstyle, facial features, accessories, skin tone, pose, and expression - but reinterpret them as if they belong in the Charlie and Lola world.Clothing should be simplified into flat shapes and bright colors, while keeping the overall outfit recognizable. Background: plain white or transparent to keep the focus on the character.» Negative Prompt: «No realistic shading, no detailed rendering, no anime or manga style, no 3D modeling, no photographic textures.比例 2:3",
+    "prompt": "Transform the subject from the uploaded image into a character in the style of Charlie and Lola (children’s cartoon). Match the official cartoon look — thin sketchy outlines, flat colors, childlike proportions, playful hand-drawn charm, and simple textures. Retain the subject’s original clothing, hairstyle, facial features, accessories, skin tone, pose, and expression - but reinterpret them as if they belong in the Charlie and Lola world.Clothing should be simplified into flat shapes and bright colors, while keeping the overall outfit recognizable. Background: plain white or transparent to keep the focus on the character.» Negative Prompt: «No realistic shading, no detailed rendering, no anime or manga style, no 3D modeling, no photographic textures.",
     "useStyleImageAsReference": false
   },
   {
@@ -264,7 +264,7 @@ const styles = [
       "卡通"
     ],
     "image": "/images-small/style_1779179773582.jpg",
-    "prompt": "把照片生成いらすとや风格的图片。比例 2:3",
+    "prompt": "把照片生成いらすとや风格的图片。",
     "useStyleImageAsReference": false
   },
   {
@@ -277,7 +277,7 @@ const styles = [
       "宠物"
     ],
     "image": "/images-small/style_1779179722094.jpg",
-    "prompt": "转绘成独立卡通插画，新天真流行艺术风格，丑萌趣味人物，超细黑色轮廓线，高饱和度明快平涂色彩，手绘随性不规则线条，低保真涂鸦质感，怪诞无厘头趣味，夸张面部神态，微猎奇却软萌可爱，极简背景，现代街头艺术氛围，摒弃精致流水线画风。比例 2:3",
+    "prompt": "转绘成独立卡通插画，新天真流行艺术风格，丑萌趣味人物，超细黑色轮廓线，高饱和度明快平涂色彩，手绘随性不规则线条，低保真涂鸦质感，怪诞无厘头趣味，夸张面部神态，微猎奇却软萌可爱，极简背景，现代街头艺术氛围，摒弃精致流水线画风。",
     "useStyleImageAsReference": false
   },
   {
@@ -290,7 +290,7 @@ const styles = [
       "速写"
     ],
     "image": "/images-small/style_1779179665778.jpg",
-    "prompt": "给我生成一个照片，像灵魂画手在休息时间随便用中性笔勾勒几笔一样，线条简单利索，乍一看很随便甚至像用左手乱涂一样线条一抖一抖的，眼睛可以是豆豆眼也可以是一个横线条，反正不能展示一点画功，但该有的精髓都在，画面要带有莫名喜感和自信，有种越荒谬越搞笑越好，颜色要黑色线条，画面中只显示纸张和画就可以。比例 2:3",
+    "prompt": "给我生成一个照片，像灵魂画手在休息时间随便用中性笔勾勒几笔一样，线条简单利索，乍一看很随便甚至像用左手乱涂一样线条一抖一抖的，眼睛可以是豆豆眼也可以是一个横线条，反正不能展示一点画功，但该有的精髓都在，画面要带有莫名喜感和自信，有种越荒谬越搞笑越好，颜色要黑色线条，画面中只显示纸张和画就可以。",
     "useStyleImageAsReference": false
   },
   {
@@ -302,7 +302,7 @@ const styles = [
       "丑萌"
     ],
     "image": "/images-small/style_1779179649152.jpg",
-    "prompt": "请把附上的图片，用最粗糙、最寒碜的线条重新画一遍。背景是白色。要画出那种用鼠标在画图工具里画的、看似对又不太对、有点神韵但又很微妙地跑偏的感觉，直接把像素感拉满。总之请全力表现那种“寒碜感”。哎呀算了，随便画吧。比例 2:3",
+    "prompt": "请把附上的图片，用最粗糙、最寒碜的线条重新画一遍。背景是白色。要画出那种用鼠标在画图工具里画的、看似对又不太对、有点神韵但又很微妙地跑偏的感觉，直接把像素感拉满。总之请全力表现那种“寒碜感”。哎呀算了，随便画吧。",
     "useStyleImageAsReference": false
   },
   {
@@ -316,7 +316,7 @@ const styles = [
       "宠物"
     ],
     "image": "/images-small/style_1779179490072.jpg",
-    "prompt": "Turn this photo into a funny doodle drawing. Make it look like: a quick sketch using a cheap marker or crayon messy, rough, childlike style bad perspective and awkward proportions slightly exaggerated facial features Add: simple cartoon background (like buildings, trees, street) random sketchy lines and details uneven coloring and visible strokes Style: looks like a lazy drawing, not polished humorous and a bit stupid-looking meme-like, casual, internet style.人物脸部可以适当夸张，但不要丑化\n Do NOT: make it realistic。\n比例 2:3",
+    "prompt": "Turn this photo into a funny doodle drawing. Make it look like: a quick sketch using a cheap marker or crayon messy, rough, childlike style bad perspective and awkward proportions slightly exaggerated facial features Add: simple cartoon background (like buildings, trees, street) random sketchy lines and details uneven coloring and visible strokes Style: looks like a lazy drawing, not polished humorous and a bit stupid-looking meme-like, casual, internet style.人物脸部可以适当夸张，但不要丑化\n Do NOT: make it realistic。",
     "useStyleImageAsReference": false
   },
   {
@@ -332,7 +332,7 @@ const styles = [
       "旅行"
     ],
     "image": "/images-small/style_1779179328013.jpg",
-    "prompt": "将照片转换成高饱和度复古旅行海报风格的平面卡通插画（flat cartoon poster illustration）。人物整体采用儿童绘本式的夸张卡通比例，脸部高度简化和平面化，使用圆润几何造型、大色块上色、极少面部细节、粗黑色描边，弱化真实皮肤纹理和真实五官结构，不要写实感。\n\n整体风格参考：retro travel poster、flat illustration、storybook art、vector cartoon、mid-century poster、bold colorful graphic design。画面使用强烈撞色、高饱和橙色、黄色、蓝绿色、深蓝色，带复古印刷颗粒感和手绘纹理。\n\n人物表情要阳光可爱，但采用二维动画式处理，眼睛、嘴巴、腮红、头发都尽量图形化和符号化，避免真实照片转绘效果。背景加入卡通城市、树木、蓝天、云朵、道路、旅行箱、路牌等元素，整体构图像儿童绘本封面和复古宣传海报。\n\n加入大面积手绘英文标语，例如 “HAPPY TRAVEL”、“DREAM BIG”、“VIBRANT ENERGY”、“SLOW DOWN”，字体夸张醒目。\n\n避免：realistic face、photo texture、real skin、3D render、cinematic lighting、high detail skin、semi-realistic illustration、AI photo style、complex shadow、photorealism。\n\nmake the face look more like a flat cartoon graphic than a painted realistic portrait\n比例 2:3",
+    "prompt": "将照片转换成高饱和度复古旅行海报风格的平面卡通插画（flat cartoon poster illustration）。人物整体采用儿童绘本式的夸张卡通比例，脸部高度简化和平面化，使用圆润几何造型、大色块上色、极少面部细节、粗黑色描边，弱化真实皮肤纹理和真实五官结构，不要写实感。\n\n整体风格参考：retro travel poster、flat illustration、storybook art、vector cartoon、mid-century poster、bold colorful graphic design。画面使用强烈撞色、高饱和橙色、黄色、蓝绿色、深蓝色，带复古印刷颗粒感和手绘纹理。\n\n人物表情要阳光可爱，但采用二维动画式处理，眼睛、嘴巴、腮红、头发都尽量图形化和符号化，避免真实照片转绘效果。背景加入卡通城市、树木、蓝天、云朵、道路、旅行箱、路牌等元素，整体构图像儿童绘本封面和复古宣传海报。\n\n加入大面积手绘英文标语，例如 “HAPPY TRAVEL”、“DREAM BIG”、“VIBRANT ENERGY”、“SLOW DOWN”，字体夸张醒目。\n\n避免：realistic face、photo texture、real skin、3D render、cinematic lighting、high detail skin、semi-realistic illustration、AI photo style、complex shadow、photorealism。\n\nmake the face look more like a flat cartoon graphic than a painted realistic portrait",
     "useStyleImageAsReference": false
   },
   {
@@ -346,7 +346,7 @@ const styles = [
       "宠物"
     ],
     "image": "/images-small/pencil.jpg",
-    "prompt": "以涂鸦速写风表现【主题/主体】，整体呈现快速勾勒、自由变形、即兴手绘与草稿式的视觉效果。线条随手、夸张、可粗细不一，略显凌乱但具有节奏和表现力，强调概括、夸张、趣味和随性，而不是严谨写实或精细刻画。\n\n颜色采用粗糙、干刷感明显的块面表现，可保留不均匀的涂抹痕迹、刷痕、飞白与覆盖感，色彩根据【主题/主体】自动适配，但整体保持涂鸦式、速写式、概括式的表达。不要透明水彩晕染效果，不要细腻水彩过渡，不要纸纹理，不要柔和雾化，不要梦幻质感。\n\n背景以留白为主，保持简洁、轻松、未完成感和设计感，可加入少量辅助性符号、箭头、记号、圈画、重复线、随手写的文字或其他涂鸦元素，以增强速写本或随笔式视觉语言，但不可过于拥挤，不可破坏主体和留白气质。\n\n画面内容不需要预先写清楚，由【主题/主体】自动推演并生成最适合的主体形象、动作、相关元素、符号或简化场景，整体保持统一的涂鸦速写风和夸张概括的表现方式，避免复杂写实背景和过度铺陈。\n画面中需自然加入专属签名“Marshall”，作为画面的一部分，位置低调但清晰，可放在左下角、右下角或标题附近，风格需与整体版式统一，像作品署名或设计落款；签名字体精致、克制、高级，不可过大，不可破坏主体构图，不可显得突兀或廉价。\n比例 2:3",
+    "prompt": "以涂鸦速写风表现【主题/主体】，整体呈现快速勾勒、自由变形、即兴手绘与草稿式的视觉效果。线条随手、夸张、可粗细不一，略显凌乱但具有节奏和表现力，强调概括、夸张、趣味和随性，而不是严谨写实或精细刻画。\n\n颜色采用粗糙、干刷感明显的块面表现，可保留不均匀的涂抹痕迹、刷痕、飞白与覆盖感，色彩根据【主题/主体】自动适配，但整体保持涂鸦式、速写式、概括式的表达。不要透明水彩晕染效果，不要细腻水彩过渡，不要纸纹理，不要柔和雾化，不要梦幻质感。\n\n背景以留白为主，保持简洁、轻松、未完成感和设计感，可加入少量辅助性符号、箭头、记号、圈画、重复线、随手写的文字或其他涂鸦元素，以增强速写本或随笔式视觉语言，但不可过于拥挤，不可破坏主体和留白气质。\n\n画面内容不需要预先写清楚，由【主题/主体】自动推演并生成最适合的主体形象、动作、相关元素、符号或简化场景，整体保持统一的涂鸦速写风和夸张概括的表现方式，避免复杂写实背景和过度铺陈。\n画面中需自然加入专属签名“Marshall”，作为画面的一部分，位置低调但清晰，可放在左下角、右下角或标题附近，风格需与整体版式统一，像作品署名或设计落款；签名字体精致、克制、高级，不可过大，不可破坏主体构图，不可显得突兀或廉价。",
     "useStyleImageAsReference": false
   },
   {
@@ -360,7 +360,7 @@ const styles = [
       "宠物"
     ],
     "image": "/images-small/clay.jpg",
-    "prompt": "把这张照片改成韩式稚拙扁平插画风格，保留场景里的物体和大致布局，粗糙抖动的黑色间断手绘轮廓，去掉照片里的光影、透视和细节纹理，全部改成纯色平涂。采用高饱和的红/黄/绿/白调色块，边缘圆润，整体背景用亮蓝色，左右两侧留出纯蓝色的背景，物体简化成简单的几何形状，整体是可爱的童趣感，上部手写文案“How are you today?”下部拼贴手写文案“Let the wind carry your worries away.”\n比例 2:3",
+    "prompt": "把这张照片改成韩式稚拙扁平插画风格，保留场景里的物体和大致布局，粗糙抖动的黑色间断手绘轮廓，去掉照片里的光影、透视和细节纹理，全部改成纯色平涂。采用高饱和的红/黄/绿/白调色块，边缘圆润，整体背景用亮蓝色，左右两侧留出纯蓝色的背景，物体简化成简单的几何形状，整体是可爱的童趣感，上部手写文案“How are you today?”下部拼贴手写文案“Let the wind carry your worries away.”",
     "useStyleImageAsReference": false
   },
   {
@@ -374,7 +374,7 @@ const styles = [
       "卡通"
     ],
     "image": "/images-small/style_1779165306174.jpg",
-    "prompt": "提取图中人物头部的关键特点，以卡通像素风格画出来,像素艺术，精致，像素风格，下面用英语标注文字“STINGER”，只画人物的头，人物头的大小为整个图片的1/9，头像居中，正中间，背景为浅绿色，纯色背景。比例2:3。",
+    "prompt": "提取图中人物头部的关键特点，以卡通像素风格画出来,像素艺术，精致，像素风格，下面用英语标注文字“STINGER”，只画人物的头，人物头的大小为整个图片的1/9，头像居中，正中间，背景为浅绿色，纯色背景。",
     "useStyleImageAsReference": false
   },
   {
@@ -389,7 +389,7 @@ const styles = [
       "漫画"
     ],
     "image": "/images-small/oil_painting.jpg",
-    "prompt": "Turn this photo into a funny ugly doodle drawing. Make it look like: a quick sketch using a cheap marker or crayon messy, rough, childlike style bad perspective and awkward proportions slightly exaggerated facial features Add: simple cartoon background (like buildings, trees, street) random sketchy lines and details uneven coloring and visible strokes Style: looks like a lazy drawing, not polished humorous and a bit stupid-looking meme-like, casual, internet style Do NOT: make it realistic\n比例 2:3",
+    "prompt": "Turn this photo into a funny ugly doodle drawing. Make it look like: a quick sketch using a cheap marker or crayon messy, rough, childlike style bad perspective and awkward proportions slightly exaggerated facial features Add: simple cartoon background (like buildings, trees, street) random sketchy lines and details uneven coloring and visible strokes Style: looks like a lazy drawing, not polished humorous and a bit stupid-looking meme-like, casual, internet style Do NOT: make it realistic",
     "useStyleImageAsReference": false
   },
   {
@@ -403,7 +403,7 @@ const styles = [
       "可爱"
     ],
     "image": "/images-small/cyberpunk.jpg",
-    "prompt": "现在你是幼儿园小孩，请把整张图片用蜡笔画出来！不要模仿任何已有动漫、IP、艺术家风格！不要有太多的细节，复杂的地方可以一笔带过，带一点笨拙的感觉，颜色可以大胆一点，有些地方可以用完全不一样的颜色，但像草莓这种有固定颜色的一定要用那个颜色，并且要有一种画在白纸上的感觉。可以在空白处或者物品上面叠涂加点五颜六色的点缀，蜡笔的笔触可以不一致，像真实蜡笔一样可以有蜡笔屑，也可以有叠涂后稍微凸起来的效果，或者颜色蹭上去的感觉，构图不要太成熟，可以稍微无逻辑，线条随意不能笔直，比例不用一模一样，不要有照着图片画的感觉，也不能有大人帮忙画的感觉，稍微丑不拉几也可以，要的就是好奇怪但有点治愈这种丑萌丑萌的感觉～\n比例 2:3",
+    "prompt": "现在你是幼儿园小孩，请把整张图片用蜡笔画出来！不要模仿任何已有动漫、IP、艺术家风格！不要有太多的细节，复杂的地方可以一笔带过，带一点笨拙的感觉，颜色可以大胆一点，有些地方可以用完全不一样的颜色，但像草莓这种有固定颜色的一定要用那个颜色，并且要有一种画在白纸上的感觉。可以在空白处或者物品上面叠涂加点五颜六色的点缀，蜡笔的笔触可以不一致，像真实蜡笔一样可以有蜡笔屑，也可以有叠涂后稍微凸起来的效果，或者颜色蹭上去的感觉，构图不要太成熟，可以稍微无逻辑，线条随意不能笔直，比例不用一模一样，不要有照着图片画的感觉，也不能有大人帮忙画的感觉，稍微丑不拉几也可以，要的就是好奇怪但有点治愈这种丑萌丑萌的感觉～",
     "useStyleImageAsReference": false
   },
   {
@@ -415,7 +415,7 @@ const styles = [
       "宠物"
     ],
     "image": "/images-small/pixel.jpg",
-    "prompt": "Turn this photo into indie cartoon illustration, neo-naive pop style, ugly cute characters, very thin black outlines, flat vibrant high-saturation colors, hand-drawn imperfect lines, lo-fi doodle aesthetic，quirky and absurd humor, exaggerated expressions, slightly grotesque but cute, minimal background,contemporary street art vibe, anti-polished illustration style.\n比例 2:3",
+    "prompt": "Turn this photo into indie cartoon illustration, neo-naive pop style, ugly cute characters, very thin black outlines, flat vibrant high-saturation colors, hand-drawn imperfect lines, lo-fi doodle aesthetic，quirky and absurd humor, exaggerated expressions, slightly grotesque but cute, minimal background,contemporary street art vibe, anti-polished illustration style.",
     "useStyleImageAsReference": false
   },
   {
@@ -427,7 +427,7 @@ const styles = [
       "猎奇"
     ],
     "image": "/images-small/style_1779179392820.jpg",
-    "prompt": "Turn this photo into a strange vintage Soviet children's book\nillustration with grotesque humorous cartoon energy. Use thin shaky\nblack ink lines, awkward anatomy, elongated limbs uncomfortable\nfacial expressions, chaotic movement， weird proportions, sparse\ncomposition, and intentionally clumsy drawing style. Make the\ncharacters look slightly absurd nervous. and ridiculous rather than\ncute.Use pale faded watercolor washes, dirty paper texture, uneven\ncoloring, washed-out muted colors, lots of empty space, careless\nsketchy linework, and rough old-print illustration texture Keep the\nbackground minimal and random, with small strange details and loose\ndoodies. The mood should feel weird, humorous, slightly unsettling,\nand authentically like an old Eastern European children's book\nillustration from the 19805. Do NOT make it polished, aesthetic,\nmodern, cute, detailed, or realistic. Write an absurd text in\nEnglish that is slightly related to the illustration, but not much,\nwith a confusing rhyme. The font is handwritten, clumsy as an\nillustration style\n比例 2:3",
+    "prompt": "Turn this photo into a strange vintage Soviet children's book\nillustration with grotesque humorous cartoon energy. Use thin shaky\nblack ink lines, awkward anatomy, elongated limbs uncomfortable\nfacial expressions, chaotic movement， weird proportions, sparse\ncomposition, and intentionally clumsy drawing style. Make the\ncharacters look slightly absurd nervous. and ridiculous rather than\ncute.Use pale faded watercolor washes, dirty paper texture, uneven\ncoloring, washed-out muted colors, lots of empty space, careless\nsketchy linework, and rough old-print illustration texture Keep the\nbackground minimal and random, with small strange details and loose\ndoodies. The mood should feel weird, humorous, slightly unsettling,\nand authentically like an old Eastern European children's book\nillustration from the 19805. Do NOT make it polished, aesthetic,\nmodern, cute, detailed, or realistic. Write an absurd text in\nEnglish that is slightly related to the illustration, but not much,\nwith a confusing rhyme. The font is handwritten, clumsy as an\nillustration style",
     "useStyleImageAsReference": false
   },
   {
@@ -437,7 +437,7 @@ const styles = [
       "人物"
     ],
     "image": "/images-small/style_1779268159068.jpg",
-    "prompt": "Turn the person from the photo into a grotesque humorous fashion caricature sketch. Strongly exaggerated anatomy, elongated proportions, expressive crooked hands, dramatic face, awkward elegant posture, satirical fashion energy, messy ink lines, rough watercolor, sketchbook style, vintage magazine illustration on beige aged paper. Add handwritten Chinese notes, arrows, funny observations, doodles, and absurd personality analysis around the character. 比例 2:3",
+    "prompt": "Turn the person from the photo into a grotesque humorous fashion caricature sketch. Strongly exaggerated anatomy, elongated proportions, expressive crooked hands, dramatic face, awkward elegant posture, satirical fashion energy, messy ink lines, rough watercolor, sketchbook style, vintage magazine illustration on beige aged paper. Add handwritten Chinese notes, arrows, funny observations, doodles, and absurd personality analysis around the character.",
     "useStyleImageAsReference": false
   }
 ];
