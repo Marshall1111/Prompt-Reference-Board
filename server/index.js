@@ -16,6 +16,7 @@ const styleGroupsPath = path.join(rootDir, "data", "style-groups.json");
 const imageJobRoot = path.join(rootDir, "data", "image-jobs");
 const previewRoot = path.join(rootDir, "public", "style-previews");
 const generatedImageRoot = path.join(rootDir, "public", "generated-images");
+const jobReferenceRoot = path.join(rootDir, "public", "job-references");
 const miniDataPath = path.join(rootDir, "wechat-miniprogram", "miniprogram", "data", "styles.js");
 const miniImageRoot = path.join(rootDir, "wechat-miniprogram", "miniprogram", "images-small");
 const miniCompressScript = path.join(rootDir, "tools", "compress_for_miniprogram.ps1");
@@ -125,9 +126,11 @@ app.post("/api/image-jobs", upload.array("reference", 10), async (req, res) => {
       return res.status(400).json({ message: "参考图仅支持 JPG、PNG 或 WebP 图片。" });
     }
 
+    const jobId = randomUUID();
+    const originalReferences = await persistImageJobReferences(jobId, referenceFiles);
     const now = new Date().toISOString();
     const job = {
-      jobId: randomUUID(),
+      jobId,
       status: "queued",
       message: "任务已提交，等待生成。",
       result: null,
@@ -135,7 +138,9 @@ app.post("/api/image-jobs", upload.array("reference", 10), async (req, res) => {
       updatedAt: now,
       completedAt: null,
       prompt,
+      size: normalizeSize(body.size),
       referenceCount: referenceFiles.length,
+      originalReferences,
       styleId: String(body.styleId || ""),
       styleName: String(body.styleName || ""),
       styleGroupId: String(body.styleGroupId || ""),
@@ -426,6 +431,7 @@ async function removeStyleFromGroups(styleId) {
 async function prepareImageJobStorage() {
   await mkdir(imageJobRoot, { recursive: true });
   await mkdir(generatedImageRoot, { recursive: true });
+  await mkdir(jobReferenceRoot, { recursive: true });
 
   const entries = await readdir(imageJobRoot, { withFileTypes: true });
   await Promise.all(
@@ -560,6 +566,7 @@ async function listImageJobs() {
 async function deleteImageJob(job) {
   activeImageJobs.delete(job.jobId);
   await deleteGeneratedImage(job);
+  await deleteJobReferences(job);
   await rm(getImageJobPath(job.jobId), { force: true });
 }
 
@@ -570,11 +577,37 @@ async function deleteGeneratedImage(job) {
   await rm(path.join(generatedImageRoot, filename), { force: true });
 }
 
+async function deleteJobReferences(job) {
+  if (!job?.jobId) return;
+  await rm(path.join(jobReferenceRoot, String(job.jobId)), { recursive: true, force: true });
+}
+
 async function saveImageJob(job) {
   await mkdir(imageJobRoot, { recursive: true });
   const safeJob = toPublicImageJob(job);
   await writeFile(getImageJobPath(safeJob.jobId), `${JSON.stringify(safeJob, null, 2)}\n`);
   return safeJob;
+}
+
+async function persistImageJobReferences(jobId, referenceFiles) {
+  if (!referenceFiles.length) return [];
+
+  const jobDir = path.join(jobReferenceRoot, String(jobId));
+  await mkdir(jobDir, { recursive: true });
+
+  return Promise.all(
+    referenceFiles.map(async (file, index) => {
+      const extension = extensionForMime(file.mimetype);
+      const filename = `${index + 1}-${Date.now()}.${extension}`;
+      await writeFile(path.join(jobDir, filename), file.buffer);
+      return {
+        name: file.originalname || `reference-${index + 1}.${extension}`,
+        mimeType: file.mimetype,
+        order: index,
+        url: `/job-references/${jobId}/${filename}`
+      };
+    })
+  );
 }
 
 function toPublicImageJob(job) {
@@ -587,7 +620,9 @@ function toPublicImageJob(job) {
     updatedAt: job.updatedAt || null,
     completedAt: job.completedAt || null,
     prompt: String(job.prompt || ""),
+    size: String(job.size || ""),
     referenceCount: Number(job.referenceCount || 0),
+    originalReferences: Array.isArray(job.originalReferences) ? job.originalReferences : [],
     styleId: String(job.styleId || ""),
     styleName: String(job.styleName || ""),
     styleGroupId: String(job.styleGroupId || ""),

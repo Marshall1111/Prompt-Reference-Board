@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Plus, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
@@ -784,6 +784,7 @@ function ImageJobsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [editingJob, setEditingJob] = useState(null);
 
   async function loadJobs() {
     setIsLoading(true);
@@ -908,9 +909,9 @@ function ImageJobsPage() {
                   <Eye size={18} />
                   <span>查看</span>
                 </button>
-                <button className="copy-button" disabled={!imageSource} onClick={() => downloadImageSource(imageSource, job)} type="button">
-                  <Download size={18} />
-                  <span>下载</span>
+                <button className="copy-button" onClick={() => setEditingJob(job)} type="button">
+                  <Pencil size={18} />
+                  <span>修改</span>
                 </button>
                 <button className="danger-button" onClick={() => deleteJob(job.jobId)} type="button">
                   <Trash2 size={18} />
@@ -921,6 +922,7 @@ function ImageJobsPage() {
           );
         })}
       </div>
+      {editingJob && <JobEditModal job={editingJob} onClose={() => setEditingJob(null)} />}
     </section>
   );
 }
@@ -1239,6 +1241,255 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
   );
 }
 
+function JobEditModal({ job, onClose }) {
+  const [prompt, setPrompt] = useState(job.prompt || "");
+  const [size, setSize] = useState(job.size || DEFAULT_GENERATION_SIZE);
+  const [providers, setProviders] = useState([]);
+  const [selectedProvider, setSelectedProvider] = useState(job.provider?.id || "");
+  const [references, setReferences] = useState([]);
+  const [error, setError] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    refreshImageProviders()
+      .then((payload) => {
+        setProviders(payload.providers || []);
+        setSelectedProvider(job.provider?.id || payload.defaultProvider || payload.providers?.[0]?.id || "");
+      })
+      .catch(() => {
+        setProviders([]);
+      });
+  }, [job.provider?.id]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function preloadJobReferences() {
+      const originals = Array.isArray(job.originalReferences) ? [...job.originalReferences].sort((a, b) => Number(a.order || 0) - Number(b.order || 0)) : [];
+      if (!originals.length) return;
+
+      try {
+        const loaded = await Promise.all(
+          originals.map(async (reference, index) => {
+            const response = await fetch(cacheBust(reference.url));
+            if (!response.ok) throw new Error("Failed to fetch original reference");
+            const blob = await response.blob();
+            const mimeType = normalizeReferenceMimeType(blob.type || reference.mimeType, reference.url);
+            return {
+              id: `original-reference-${job.jobId}-${index}`,
+              file: new File([blob], reference.name || `reference-${index + 1}.${extensionFromMimeType(mimeType)}`, {
+                type: mimeType || reference.mimeType || "image/jpeg",
+                lastModified: Date.now()
+              }),
+              order: index,
+              previewUrl: URL.createObjectURL(blob),
+              source: "original"
+            };
+          })
+        );
+
+        if (!isActive) return;
+        setReferences(loaded);
+      } catch {
+        if (!isActive) return;
+        setError("原始参考图加载失败，请手动重新上传。");
+      }
+    }
+
+    preloadJobReferences();
+    return () => {
+      isActive = false;
+    };
+  }, [job.jobId, job.originalReferences]);
+
+  useEffect(() => {
+    return () => {
+      references.forEach((reference) => {
+        if (reference.previewUrl) URL.revokeObjectURL(reference.previewUrl);
+      });
+    };
+  }, [references]);
+
+  function addReferences(files) {
+    setReferences((current) => {
+      const availableSlots = Math.max(0, 10 - current.length);
+      const nextFiles = files.slice(0, availableSlots);
+      return [
+        ...current,
+        ...nextFiles.map((file, index) => ({
+          id: `${file.name}-${file.lastModified}-${file.size}-${Date.now()}-${index}`,
+          file,
+          order: current.length + index,
+          previewUrl: URL.createObjectURL(file),
+          source: "new"
+        }))
+      ];
+    });
+  }
+
+  function changeReferenceOrder(referenceId, nextOrder) {
+    setReferences((current) => {
+      const moved = current.find((reference) => reference.id === referenceId);
+      const swapped = current.find((reference) => reference.order === nextOrder);
+      if (!moved || moved.order === nextOrder) return current;
+
+      return current.map((reference) => {
+        if (reference.id === moved.id) return { ...reference, order: nextOrder };
+        if (swapped && reference.id === swapped.id) return { ...reference, order: moved.order };
+        return reference;
+      });
+    });
+  }
+
+  function removeReference(referenceId) {
+    setReferences((current) => {
+      const removed = current.find((reference) => reference.id === referenceId);
+      if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+      return current
+        .filter((reference) => reference.id !== referenceId)
+        .sort((a, b) => a.order - b.order)
+        .map((reference, index) => ({ ...reference, order: index }));
+    });
+  }
+
+  async function resubmitJob() {
+    if (!prompt.trim()) {
+      setError("请先填写提示词。");
+      return;
+    }
+    if (!selectedProvider) {
+      setError("请先选择接口供应商。");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+    setStatusMessage("");
+
+    try {
+      const preparedReferences = await Promise.all(getOrderedReferences(references).map(prepareReferenceForUpload));
+      const formData = new FormData();
+      formData.append("prompt", prompt);
+      formData.append("size", size);
+      formData.append("provider", selectedProvider);
+      if (job.styleId) formData.append("styleId", job.styleId);
+      if (job.styleName) formData.append("styleName", job.styleName);
+      if (job.styleGroupId) formData.append("styleGroupId", job.styleGroupId);
+      if (job.styleGroupName) formData.append("styleGroupName", job.styleGroupName);
+      Object.entries(GENERATION_DEFAULTS).forEach(([key, value]) => formData.append(key, value));
+      preparedReferences.forEach((reference) => formData.append("reference", reference.file));
+
+      const response = await fetch("/api/image-jobs", {
+        method: "POST",
+        body: formData
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || "重新提交任务失败。");
+      setStatusMessage("修改后的任务已重新提交。");
+    } catch (nextError) {
+      setError(nextError.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose} role="presentation">
+      <section className="prompt-modal generator-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+        <div className="modal-head">
+          <div>
+            <p className="eyebrow">Edit job</p>
+            <h2>修改任务</h2>
+            <p className="storage-note">基于原任务的提示词、比例和参考图修改后重新提交。</p>
+          </div>
+          <button className="icon-button" onClick={onClose} type="button" aria-label="关闭">
+            <X size={20} />
+          </button>
+        </div>
+
+        <label className="field-label">
+          提示词
+          <textarea onChange={(event) => setPrompt(event.target.value)} value={prompt} />
+        </label>
+
+        <label className="field-label">
+          接口供应商
+          <select onChange={(event) => setSelectedProvider(event.target.value)} value={selectedProvider}>
+            {providers.map((provider) => (
+              <option key={provider.id} value={provider.id}>
+                {provider.name} · {provider.model}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field-label">
+          比例
+          <select onChange={(event) => setSize(event.target.value)} value={size}>
+            {GENERATION_SIZE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field-label">
+          参考图
+          <input
+            accept="image/png,image/jpeg,image/webp"
+            multiple
+            onChange={(event) => {
+              addReferences(Array.from(event.target.files || []));
+              event.target.value = "";
+            }}
+            type="file"
+          />
+        </label>
+
+        {references.length > 0 && (
+          <div className="reference-list">
+            <p className="storage-note">可直接删除、补充或调整原始参考图顺序。</p>
+            {getOrderedReferences(references).map((reference) => (
+              <article className="reference-item" key={reference.id}>
+                <img alt={`${imageLabel(reference.order)}预览`} src={reference.previewUrl} />
+                <div className="reference-meta">
+                  <strong>{reference.file.name}</strong>
+                  <span>{reference.source === "original" ? "原任务参考图" : formatFileSize(reference.file.size)}</span>
+                </div>
+                <label className="reference-order">
+                  <span>编号</span>
+                  <select onChange={(event) => changeReferenceOrder(reference.id, Number(event.target.value))} value={reference.order}>
+                    {references.map((_, index) => (
+                      <option key={index} value={index}>
+                        {imageLabel(index)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button className="icon-button" onClick={() => removeReference(reference.id)} type="button" aria-label={`删除${reference.file.name}`}>
+                  <Trash2 size={18} />
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+
+        {statusMessage && <p className="storage-note">{statusMessage}</p>}
+        {error && <p className="error-note">{error}</p>}
+
+        <div className="card-actions generator-actions">
+          <button className="copy-button" disabled={isSubmitting || !prompt.trim()} onClick={resubmitJob} type="button">
+            {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+            <span>{isSubmitting ? "提交中" : "重新提交"}</span>
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChange, onUploadImage, styles }) {
   const [drafts, setDrafts] = useState({});
   const [savingId, setSavingId] = useState("");
@@ -1484,17 +1735,6 @@ async function deleteImageJob(jobId) {
 function openImageSource(source) {
   if (!source) return;
   window.open(source, "_blank", "noopener,noreferrer");
-}
-
-function downloadImageSource(source, job) {
-  if (!source) return;
-  const link = document.createElement("a");
-  link.href = source;
-  link.download = `prompt-reference-${job.jobId || Date.now()}.png`;
-  link.target = "_blank";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
 }
 
 function isUploadableReferenceImage(imagePath) {
