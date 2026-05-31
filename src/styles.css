@@ -248,6 +248,109 @@ h2 {
   gap: 16px;
 }
 
+.batch-page {
+  display: grid;
+  gap: 16px;
+}
+
+.batch-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 16px;
+}
+
+.batch-right-column {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.batch-panel,
+.group-card {
+  border: 1px solid #ded8ce;
+  border-radius: 8px;
+  background: rgba(255, 253, 249, 0.96);
+  box-shadow: 0 12px 32px rgba(33, 38, 40, 0.06);
+}
+
+.batch-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.style-picker-grid,
+.group-list {
+  display: grid;
+  gap: 12px;
+}
+
+.style-picker-section {
+  display: grid;
+  gap: 10px;
+}
+
+.compact-toolbar {
+  align-items: start;
+}
+
+.style-picker-scroll {
+  max-height: 56vh;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.style-picker-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.style-picker-card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 10px;
+  border: 1px solid #d6ddd8;
+  border-radius: 8px;
+  background: #fffdf9;
+  color: #25413c;
+  font-weight: 800;
+}
+
+.style-picker-card.active {
+  border-color: #115e59;
+  background: #eef8f5;
+}
+
+.style-picker-card input {
+  margin: 0;
+}
+
+.style-picker-card img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border: 1px solid #d6ddd8;
+  border-radius: 8px;
+  background: #edf2ee;
+}
+
+.group-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 184px;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+}
+
+.group-card.active {
+  border-color: #115e59;
+}
+
+.group-card-body {
+  display: grid;
+  gap: 8px;
+}
+
 .task-page,
 .task-list {
   display: grid;
@@ -751,6 +854,11 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .batch-layout,
+  .group-card {
+    grid-template-columns: 1fr;
+  }
+
   .task-card {
     grid-template-columns: 1fr;
   }
@@ -774,7 +882,8 @@ textarea {
   .generator-grid,
   .generator-actions,
   .progress-steps,
-  .reference-item {
+  .reference-item,
+  .style-picker-grid {
     grid-template-columns: 1fr;
   }
 

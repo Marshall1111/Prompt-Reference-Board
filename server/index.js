@@ -12,6 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
 const dataPath = path.join(rootDir, "data", "styles.json");
+const styleGroupsPath = path.join(rootDir, "data", "style-groups.json");
 const imageJobRoot = path.join(rootDir, "data", "image-jobs");
 const previewRoot = path.join(rootDir, "public", "style-previews");
 const generatedImageRoot = path.join(rootDir, "public", "generated-images");
@@ -44,6 +45,10 @@ app.get("/api/health", (_req, res) => {
 
 app.get("/api/styles", async (_req, res) => {
   res.json(await readStyles());
+});
+
+app.get("/api/style-groups", async (_req, res) => {
+  res.json(await readStyleGroups());
 });
 
 app.get("/api/image-providers", (_req, res) => {
@@ -131,6 +136,10 @@ app.post("/api/image-jobs", upload.array("reference", 10), async (req, res) => {
       completedAt: null,
       prompt,
       referenceCount: referenceFiles.length,
+      styleId: String(body.styleId || ""),
+      styleName: String(body.styleName || ""),
+      styleGroupId: String(body.styleGroupId || ""),
+      styleGroupName: String(body.styleGroupName || ""),
       provider: {
         id: provider.id,
         name: provider.name,
@@ -226,6 +235,52 @@ app.delete("/api/image-jobs/:jobId", async (req, res) => {
   }
 });
 
+app.post("/api/style-groups", async (req, res) => {
+  const styles = await readStyles();
+  const styleIds = new Set(styles.map((style) => style.id));
+  const groups = await readStyleGroups();
+  const group = normalizeStyleGroup(
+    {
+      id: `group_${Date.now()}`,
+      name: req.body.name,
+      styleIds: req.body.styleIds
+    },
+    styleIds
+  );
+
+  groups.unshift(group);
+  await saveStyleGroups(groups);
+  res.status(201).json(group);
+});
+
+app.put("/api/style-groups/:id", async (req, res) => {
+  const styles = await readStyles();
+  const styleIds = new Set(styles.map((style) => style.id));
+  const groups = await readStyleGroups();
+  const index = groups.findIndex((group) => group.id === req.params.id);
+  if (index < 0) return res.status(404).json({ message: "风格组不存在。" });
+
+  groups[index] = normalizeStyleGroup(
+    {
+      ...groups[index],
+      name: req.body.name,
+      styleIds: req.body.styleIds
+    },
+    styleIds
+  );
+  await saveStyleGroups(groups);
+  res.json(groups[index]);
+});
+
+app.delete("/api/style-groups/:id", async (req, res) => {
+  const groups = await readStyleGroups();
+  const nextGroups = groups.filter((group) => group.id !== req.params.id);
+  if (nextGroups.length === groups.length) return res.status(404).json({ message: "风格组不存在。" });
+
+  await saveStyleGroups(nextGroups);
+  res.status(204).end();
+});
+
 app.post("/api/styles", async (req, res) => {
   const styles = await readStyles();
   const style = {
@@ -272,6 +327,7 @@ app.delete("/api/styles/:id", async (req, res) => {
   if (nextStyles.length === styles.length) return res.status(404).json({ message: "风格不存在。" });
 
   await saveStyles(nextStyles);
+  await removeStyleFromGroups(req.params.id);
   await deleteMiniImage(req.params.id);
   res.status(204).end();
 });
@@ -326,6 +382,45 @@ async function readStyles() {
     prompt: String(style.prompt || ""),
     useStyleImageAsReference: Boolean(style.useStyleImageAsReference)
   }));
+}
+
+async function readStyleGroups() {
+  try {
+    const groups = JSON.parse(await readFile(styleGroupsPath, "utf-8"));
+    return groups.map((group) => normalizeStyleGroup(group));
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+async function saveStyleGroups(groups) {
+  await writeFile(styleGroupsPath, `${JSON.stringify(groups, null, 2)}\n`, "utf-8");
+}
+
+function normalizeStyleGroup(group, validStyleIds = null) {
+  const normalizedIds = Array.isArray(group?.styleIds)
+    ? group.styleIds
+        .map((styleId) => String(styleId || "").trim())
+        .filter(Boolean)
+        .filter((styleId, index, list) => list.indexOf(styleId) === index)
+    : [];
+  const nextStyleIds = validStyleIds ? normalizedIds.filter((styleId) => validStyleIds.has(styleId)) : normalizedIds;
+
+  return {
+    id: String(group?.id || `group_${Date.now()}`),
+    name: String(group?.name || "").trim() || "未命名风格组",
+    styleIds: nextStyleIds
+  };
+}
+
+async function removeStyleFromGroups(styleId) {
+  const groups = await readStyleGroups();
+  const nextGroups = groups.map((group) => ({
+    ...group,
+    styleIds: group.styleIds.filter((currentId) => currentId !== styleId)
+  }));
+  await saveStyleGroups(nextGroups);
 }
 
 async function prepareImageJobStorage() {
@@ -493,6 +588,10 @@ function toPublicImageJob(job) {
     completedAt: job.completedAt || null,
     prompt: String(job.prompt || ""),
     referenceCount: Number(job.referenceCount || 0),
+    styleId: String(job.styleId || ""),
+    styleName: String(job.styleName || ""),
+    styleGroupId: String(job.styleGroupId || ""),
+    styleGroupName: String(job.styleGroupName || ""),
     durationSeconds: computeDurationSeconds(job),
     totalTokens: Number(job.result?.usage?.total_tokens || job.result?.usage?.totalTokens || 0),
     provider: job.provider || null,

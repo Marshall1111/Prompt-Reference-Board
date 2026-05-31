@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, Home, ImageUp, ListTodo, LoaderCircle, Plus, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Plus, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
@@ -22,11 +22,13 @@ const GENERATION_STEPS = ["准备请求", "提交到中转站", "等待模型生
 function readRoute() {
   if (window.location.pathname === "/manage") return "manage";
   if (window.location.pathname === "/tasks") return "tasks";
+  if (window.location.pathname === "/batch") return "batch";
   return "home";
 }
 
 function App() {
   const [styles, setStyles] = useState([]);
+  const [styleGroups, setStyleGroups] = useState([]);
   const [query, setQuery] = useState("");
   const [copiedId, setCopiedId] = useState("");
   const [activePrompt, setActivePrompt] = useState(null);
@@ -35,6 +37,7 @@ function App() {
 
   useEffect(() => {
     refreshStyles().then(setStyles);
+    refreshStyleGroups().then(setStyleGroups);
   }, []);
 
   useEffect(() => {
@@ -50,7 +53,7 @@ function App() {
   }, [query, styles]);
 
   function navigate(nextRoute) {
-    const path = nextRoute === "manage" ? "/manage" : nextRoute === "tasks" ? "/tasks" : "/";
+    const path = nextRoute === "manage" ? "/manage" : nextRoute === "tasks" ? "/tasks" : nextRoute === "batch" ? "/batch" : "/";
     window.history.pushState({}, "", path);
     setRoute(nextRoute);
     setActivePrompt(null);
@@ -126,6 +129,31 @@ function App() {
     }
   }
 
+  async function createStyleGroup(payload) {
+    const response = await fetch("/api/style-groups", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const created = await response.json();
+    setStyleGroups((current) => [created, ...current]);
+  }
+
+  async function updateStyleGroup(groupId, payload) {
+    const response = await fetch(`/api/style-groups/${groupId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const updated = await response.json();
+    setStyleGroups((current) => current.map((group) => (group.id === groupId ? updated : group)));
+  }
+
+  async function deleteStyleGroup(groupId) {
+    await fetch(`/api/style-groups/${groupId}`, { method: "DELETE" });
+    setStyleGroups((current) => current.filter((group) => group.id !== groupId));
+  }
+
   return (
     <main className="app-shell">
       <section className="workspace">
@@ -147,11 +175,23 @@ function App() {
               {route === "tasks" ? <Home size={18} /> : <ListTodo size={18} />}
               <span>{route === "tasks" ? "返回主页" : "任务记录"}</span>
             </button>
+            <button className="nav-button" onClick={() => navigate(route === "batch" ? "home" : "batch")} type="button">
+              {route === "batch" ? <Home size={18} /> : <Layers3 size={18} />}
+              <span>{route === "batch" ? "返回主页" : "批量生成"}</span>
+            </button>
           </div>
         </header>
 
         {route === "tasks" ? (
           <ImageJobsPage />
+        ) : route === "batch" ? (
+          <BatchGeneratePage
+            groups={styleGroups}
+            onCreateGroup={createStyleGroup}
+            onDeleteGroup={deleteStyleGroup}
+            onUpdateGroup={updateStyleGroup}
+            styles={styles}
+          />
         ) : route === "manage" ? (
           <ManagePage
             onCreateStyle={createStyle}
@@ -823,6 +863,8 @@ function ImageJobsPage() {
               <div className="task-detail">
                 <div className="task-meta-row">
                   <strong>{shortJobId(job.jobId)}</strong>
+                  {job.styleName ? <span>{job.styleName}</span> : null}
+                  {job.styleGroupName ? <span>组：{job.styleGroupName}</span> : null}
                   <span>{modeLabel(job.mode)}</span>
                   <span>{job.provider?.name || "未记录接口"}</span>
                   <span>{formatDateTime(job.createdAt)}</span>
@@ -857,6 +899,308 @@ function ImageJobsPage() {
             </article>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup, styles }) {
+  const [selectedGroupId, setSelectedGroupId] = useState("");
+  const [groupName, setGroupName] = useState("");
+  const [selectedStyleIds, setSelectedStyleIds] = useState([]);
+  const [promptOverride, setPromptOverride] = useState("");
+  const [providers, setProviders] = useState([]);
+  const [selectedProvider, setSelectedProvider] = useState("");
+  const [references, setReferences] = useState([]);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const styleMap = useMemo(() => new Map(styles.map((style) => [style.id, style])), [styles]);
+  const selectedGroup = groups.find((group) => group.id === selectedGroupId) || null;
+  const selectedStyles = selectedStyleIds.map((styleId) => styleMap.get(styleId)).filter(Boolean);
+
+  useEffect(() => {
+    refreshImageProviders()
+      .then((payload) => {
+        setProviders(payload.providers || []);
+        setSelectedProvider(payload.defaultProvider || payload.providers?.[0]?.id || "");
+      })
+      .catch(() => {
+        setProviders([]);
+        setSelectedProvider("");
+      });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      references.forEach((reference) => URL.revokeObjectURL(reference.previewUrl));
+    };
+  }, [references]);
+
+  function toggleStyle(styleId) {
+    setSelectedStyleIds((current) => (current.includes(styleId) ? current.filter((id) => id !== styleId) : [...current, styleId]));
+  }
+
+  function loadGroup(group) {
+    setSelectedGroupId(group?.id || "");
+    setGroupName(group?.name || "");
+    setSelectedStyleIds(group?.styleIds || []);
+    setStatusMessage("");
+    setError("");
+  }
+
+  function resetGroupEditor() {
+    setSelectedGroupId("");
+    setGroupName("");
+    setSelectedStyleIds([]);
+    setStatusMessage("");
+    setError("");
+  }
+
+  async function saveGroup() {
+    if (!groupName.trim()) {
+      setError("请先填写风格组名称。");
+      return;
+    }
+    if (!selectedStyleIds.length) {
+      setError("请至少选择一个风格。");
+      return;
+    }
+
+    setError("");
+    const payload = { name: groupName.trim(), styleIds: selectedStyleIds };
+    if (selectedGroupId) {
+      await onUpdateGroup(selectedGroupId, payload);
+      setStatusMessage("风格组已更新。");
+      return;
+    }
+
+    await onCreateGroup(payload);
+    setStatusMessage("风格组已创建。");
+    resetGroupEditor();
+  }
+
+  function addReferences(files) {
+    setReferences((current) => {
+      const availableSlots = Math.max(0, 10 - current.length);
+      const nextFiles = files.slice(0, availableSlots);
+      return [
+        ...current,
+        ...nextFiles.map((file, index) => ({
+          id: `${file.name}-${file.lastModified}-${file.size}-${Date.now()}-${index}`,
+          file,
+          order: current.length + index,
+          previewUrl: URL.createObjectURL(file)
+        }))
+      ];
+    });
+  }
+
+  function removeReference(referenceId) {
+    setReferences((current) => {
+      const removed = current.find((reference) => reference.id === referenceId);
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return current
+        .filter((reference) => reference.id !== referenceId)
+        .sort((a, b) => a.order - b.order)
+        .map((reference, index) => ({ ...reference, order: index }));
+    });
+  }
+
+  async function submitBatchJobs() {
+    if (!selectedGroup) {
+      setError("请先选择一个风格组。");
+      return;
+    }
+    if (!selectedStyles.length) {
+      setError("当前风格组没有可用风格。");
+      return;
+    }
+    if (!selectedProvider) {
+      setError("请先选择接口供应商。");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+    setStatusMessage("正在提交批量任务…");
+
+    try {
+      const uploadedReferences = await Promise.all(getOrderedReferences(references).map(prepareReferenceForUpload));
+      let submitted = 0;
+
+      for (const style of selectedStyles) {
+        const formData = new FormData();
+        formData.append("prompt", promptOverride.trim() || style.prompt);
+        formData.append("provider", selectedProvider);
+        formData.append("styleId", style.id);
+        formData.append("styleName", style.tags.join(" / "));
+        formData.append("styleGroupId", selectedGroup.id);
+        formData.append("styleGroupName", selectedGroup.name);
+        Object.entries(GENERATION_DEFAULTS).forEach(([key, value]) => formData.append(key, value));
+
+        const mergedReferences = await buildBatchReferencesForStyle(style, uploadedReferences);
+        mergedReferences.forEach((reference) => formData.append("reference", reference.file));
+
+        const response = await fetch("/api/image-jobs", {
+          method: "POST",
+          body: formData
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message || `提交 ${style.tags.join(" / ")} 失败。`);
+        submitted += 1;
+      }
+
+      setStatusMessage(`批量任务已提交，共 ${submitted} 个风格。`);
+    } catch (nextError) {
+      setError(nextError.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <section className="batch-page" aria-label="批量生成">
+      <div className="batch-layout">
+        <section className="batch-panel">
+          <div className="task-toolbar">
+            <div>
+              <p className="eyebrow">Group editor</p>
+              <h2>编辑风格组</h2>
+            </div>
+          </div>
+          <label className="field-label">
+            风格组名称
+            <input onChange={(event) => setGroupName(event.target.value)} placeholder="例如：宠物海报组" value={groupName} />
+          </label>
+          <div className="style-picker-section">
+            <div className="task-toolbar compact-toolbar">
+              <div>
+                <p className="eyebrow">Style picker</p>
+                <p className="storage-note">在这里勾选要加入风格组的风格，列表可单独滚动。</p>
+              </div>
+            </div>
+            <div className="style-picker-scroll">
+              <div className="style-picker-grid">
+                {styles.map((style) => (
+                  <label className={`style-picker-card ${selectedStyleIds.includes(style.id) ? "active" : ""}`} key={style.id}>
+                    <input checked={selectedStyleIds.includes(style.id)} onChange={() => toggleStyle(style.id)} type="checkbox" />
+                    <img alt={style.tags.join("、")} src={cacheBust(style.image)} />
+                    <span>{style.tags.join("、") || style.id}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="card-actions">
+            <button className="copy-button" onClick={saveGroup} type="button">
+              <Save size={18} />
+              <span>{selectedGroupId ? "更新风格组" : "保存风格组"}</span>
+            </button>
+            <button className="secondary-button" onClick={resetGroupEditor} type="button">
+              <RefreshCw size={18} />
+              <span>清空选择</span>
+            </button>
+          </div>
+        </section>
+
+        <div className="batch-right-column">
+          <section className="batch-panel">
+            <div className="task-toolbar">
+              <div>
+                <p className="eyebrow">Saved groups</p>
+                <h2>已创建风格组</h2>
+              </div>
+            </div>
+            <div className="group-list">
+              {groups.map((group) => (
+                <article className={`group-card ${selectedGroupId === group.id ? "active" : ""}`} key={group.id}>
+                  <div className="group-card-body">
+                    <strong>{group.name}</strong>
+                    <p className="storage-note">{group.styleIds.map((styleId) => styleMap.get(styleId)?.tags.join("、") || styleId).join(" / ") || "暂无风格"}</p>
+                  </div>
+                  <div className="task-actions">
+                    <button className="secondary-button" onClick={() => loadGroup(group)} type="button">
+                      <Eye size={18} />
+                      <span>载入</span>
+                    </button>
+                    <button className="danger-button" onClick={() => onDeleteGroup(group.id)} type="button">
+                      <Trash2 size={18} />
+                      <span>删除</span>
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="batch-panel">
+            <div className="task-toolbar">
+              <div>
+                <p className="eyebrow">Batch submit</p>
+                <h2>批量提交</h2>
+                <p className="storage-note">
+                  已选风格组：{selectedGroup?.name || "未选择"}，共 {selectedStyles.length} 个风格
+                </p>
+              </div>
+            </div>
+            <label className="field-label">
+              接口供应商
+              <select onChange={(event) => setSelectedProvider(event.target.value)} value={selectedProvider}>
+                {providers.map((provider) => (
+                  <option key={provider.id} value={provider.id}>
+                    {provider.name} · {provider.model}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field-label">
+              覆盖提示词（可选）
+              <textarea onChange={(event) => setPromptOverride(event.target.value)} placeholder="留空则每个风格使用自己的提示词。" value={promptOverride} />
+            </label>
+            <label className="field-label">
+              上传参考图
+              <input
+                accept="image/png,image/jpeg,image/webp"
+                multiple
+                onChange={(event) => {
+                  addReferences(Array.from(event.target.files || []));
+                  event.target.value = "";
+                }}
+                type="file"
+              />
+            </label>
+            <p className="storage-note">批量规则：风格有自带参考图时，示例图会作为图一，你上传的参考图会从图二开始；没有自带参考图时，你上传的参考图会从图一开始。</p>
+            {references.length > 0 && (
+              <div className="reference-list">
+                {getOrderedReferences(references).map((reference) => (
+                  <article className="reference-item" key={reference.id}>
+                    <img alt={reference.file.name} src={reference.previewUrl} />
+                    <div className="reference-meta">
+                      <strong>{reference.file.name}</strong>
+                      <span>{formatFileSize(reference.file.size)}</span>
+                    </div>
+                    <div className="reference-order">
+                      <span>{imageLabel(reference.order)}</span>
+                    </div>
+                    <button className="icon-button" onClick={() => removeReference(reference.id)} type="button" aria-label={`删除${reference.file.name}`}>
+                      <Trash2 size={18} />
+                    </button>
+                  </article>
+                ))}
+              </div>
+            )}
+            {statusMessage && <p className="storage-note">{statusMessage}</p>}
+            {error && <p className="error-note">{error}</p>}
+            <div className="card-actions generator-actions">
+              <button className="copy-button" disabled={isSubmitting || !selectedGroupId} onClick={submitBatchJobs} type="button">
+                {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+                <span>{isSubmitting ? "提交中" : "提交整组任务"}</span>
+              </button>
+            </div>
+          </section>
+        </div>
       </div>
     </section>
   );
@@ -1017,6 +1361,13 @@ async function refreshStyles() {
   return response.json();
 }
 
+async function refreshStyleGroups() {
+  const response = await fetch("/api/style-groups");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取风格组失败。");
+  return payload;
+}
+
 async function refreshImageProviders() {
   const response = await fetch("/api/image-providers");
   if (!response.ok) throw new Error("Failed to load image providers");
@@ -1131,6 +1482,42 @@ function extensionFromMimeType(mimeType) {
   if (mimeType === "image/png") return "png";
   if (mimeType === "image/webp") return "webp";
   return "jpg";
+}
+
+async function buildBatchReferencesForStyle(style, uploadedReferences) {
+  const hasStyleReference = style.useStyleImageAsReference && isUploadableReferenceImage(style.image);
+  const preparedUploaded = uploadedReferences.map((reference, index) => ({
+    ...reference,
+    order: hasStyleReference ? index + 1 : index
+  }));
+
+  if (!hasStyleReference) return preparedUploaded;
+
+  const styleReference = await createStyleReference(style);
+  if (!styleReference) return uploadedReferences.map((reference, index) => ({ ...reference, order: index }));
+  return [styleReference, ...preparedUploaded];
+}
+
+async function createStyleReference(style) {
+  try {
+    const response = await fetch(cacheBust(style.image));
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    const mimeType = normalizeReferenceMimeType(blob.type, style.image);
+    if (!mimeType) return null;
+
+    return {
+      id: `batch-style-reference-${style.id}`,
+      order: 0,
+      file: new File([blob], `${style.id}-style-reference.${extensionFromMimeType(mimeType)}`, {
+        type: mimeType,
+        lastModified: Date.now()
+      }),
+      previewUrl: ""
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function copyText(text) {
