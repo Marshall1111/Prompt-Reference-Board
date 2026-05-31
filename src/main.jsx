@@ -273,6 +273,7 @@ function ImageGeneratorModal({ onClose, style }) {
   const [selectedProvider, setSelectedProvider] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [referenceNotice, setReferenceNotice] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [jobId, setJobId] = useState("");
@@ -292,6 +293,56 @@ function ImageGeneratorModal({ onClose, style }) {
         setSelectedProvider("");
       });
   }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function preloadStyleReference() {
+      if (!style.useStyleImageAsReference) return;
+      if (!isUploadableReferenceImage(style.image)) {
+        setReferenceNotice("当前示例图不是可直接作为参考图上传的位图格式，已跳过自动带入。");
+        return;
+      }
+
+      try {
+        const response = await fetch(cacheBust(style.image));
+        if (!response.ok) throw new Error("Failed to fetch style preview");
+
+        const blob = await response.blob();
+        if (!isActive) return;
+
+        const mimeType = normalizeReferenceMimeType(blob.type, style.image);
+        if (!mimeType) {
+          setReferenceNotice("当前示例图格式暂不支持作为参考图上传，已跳过自动带入。");
+          return;
+        }
+
+        const file = new File([blob], `${style.id}-style-reference.${extensionFromMimeType(mimeType)}`, {
+          type: mimeType,
+          lastModified: Date.now()
+        });
+
+        setReferences([
+          {
+            id: `style-reference-${style.id}`,
+            file,
+            order: 0,
+            previewUrl: URL.createObjectURL(file),
+            locked: true
+          }
+        ]);
+        setReferenceNotice("已自动将本风格示例图加入为图一。");
+      } catch {
+        if (!isActive) return;
+        setReferenceNotice("示例图自动带入失败，请手动上传参考图。");
+      }
+    }
+
+    preloadStyleReference();
+    return () => {
+      isActive = false;
+    };
+  }, [style.id, style.image, style.useStyleImageAsReference]);
 
   useEffect(() => {
     if (!isGenerating) return undefined;
@@ -435,7 +486,7 @@ function ImageGeneratorModal({ onClose, style }) {
     setReferences((current) => {
       const moved = current.find((reference) => reference.id === referenceId);
       const swapped = current.find((reference) => reference.order === nextOrder);
-      if (!moved || moved.order === nextOrder) return current;
+      if (!moved || moved.order === nextOrder || moved.locked || swapped?.locked) return current;
 
       return current.map((reference) => {
         if (reference.id === moved.id) return { ...reference, order: nextOrder };
@@ -505,6 +556,8 @@ function ImageGeneratorModal({ onClose, style }) {
           />
         </label>
 
+        {referenceNotice && <p className="storage-note">{referenceNotice}</p>}
+
         {references.length > 0 && (
           <div className="reference-list">
             <p className="storage-note">提示词里的“图一 / 图二”对应下面列表中的编号。</p>
@@ -518,7 +571,7 @@ function ImageGeneratorModal({ onClose, style }) {
                 </div>
                 <label className="reference-order">
                   <span>编号</span>
-                  <select onChange={(event) => changeReferenceOrder(reference.id, Number(event.target.value))} value={reference.order}>
+                  <select disabled={reference.locked} onChange={(event) => changeReferenceOrder(reference.id, Number(event.target.value))} value={reference.order}>
                     {references.map((_, index) => (
                       <option key={index} value={index}>
                         {imageLabel(index)}
@@ -526,7 +579,7 @@ function ImageGeneratorModal({ onClose, style }) {
                     ))}
                   </select>
                 </label>
-                <button className="icon-button" onClick={() => removeReference(reference.id)} type="button" aria-label={`删除${reference.file.name}`}>
+                <button className="icon-button" disabled={reference.locked} onClick={() => removeReference(reference.id)} type="button" aria-label={`删除${reference.file.name}`}>
                   <Trash2 size={18} />
                 </button>
               </article>
@@ -821,7 +874,8 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
           style.id,
           {
             tags: style.tags.join("，"),
-            prompt: style.prompt
+            prompt: style.prompt,
+            useStyleImageAsReference: Boolean(style.useStyleImageAsReference)
           }
         ])
       )
@@ -830,7 +884,7 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
 
   async function saveStyle(style) {
     setSavingId(style.id);
-    await onStyleChange(style.id, drafts[style.id] || { tags: "", prompt: "" });
+    await onStyleChange(style.id, drafts[style.id] || { tags: "", prompt: "", useStyleImageAsReference: false });
     setSavingId("");
   }
 
@@ -870,7 +924,7 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
       </button>
 
       {styles.map((style, index) => {
-        const draft = drafts[style.id] || { tags: "", prompt: "" };
+        const draft = drafts[style.id] || { tags: "", prompt: "", useStyleImageAsReference: false };
         return (
           <article
             className={`manage-card ${draggingId === style.id ? "is-dragging" : ""}`}
@@ -917,6 +971,22 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
                   }
                   value={draft.prompt}
                 />
+              </label>
+              <label className="field-label checkbox-field">
+                <span>是否将示例图作为生图参考图</span>
+                <div className="toggle-field">
+                  <input
+                    checked={Boolean(draft.useStyleImageAsReference)}
+                    onChange={(event) =>
+                      setDrafts((current) => ({
+                        ...current,
+                        [style.id]: { ...draft, useStyleImageAsReference: event.target.checked }
+                      }))
+                    }
+                    type="checkbox"
+                  />
+                  <span>{draft.useStyleImageAsReference ? "是" : "否"}</span>
+                </div>
               </label>
               <div className="card-actions manage-actions">
                 <label className="secondary-button file-button">
@@ -1041,6 +1111,26 @@ function downloadImageSource(source, job) {
   document.body.appendChild(link);
   link.click();
   link.remove();
+}
+
+function isUploadableReferenceImage(imagePath) {
+  return /\.(png|jpe?g|webp)(\?|$)/i.test(String(imagePath || ""));
+}
+
+function normalizeReferenceMimeType(mimeType, imagePath) {
+  if (["image/png", "image/jpeg", "image/webp"].includes(mimeType)) return mimeType;
+
+  const path = String(imagePath || "").toLowerCase();
+  if (path.endsWith(".png") || path.includes(".png?")) return "image/png";
+  if (path.endsWith(".jpg") || path.includes(".jpg?") || path.endsWith(".jpeg") || path.includes(".jpeg?")) return "image/jpeg";
+  if (path.endsWith(".webp") || path.includes(".webp?")) return "image/webp";
+  return "";
+}
+
+function extensionFromMimeType(mimeType) {
+  if (mimeType === "image/png") return "png";
+  if (mimeType === "image/webp") return "webp";
+  return "jpg";
 }
 
 async function copyText(text) {

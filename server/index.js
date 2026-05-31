@@ -232,7 +232,8 @@ app.post("/api/styles", async (req, res) => {
     id: `style_${Date.now()}`,
     tags: normalizeTags(req.body.tags).length ? normalizeTags(req.body.tags) : ["新风格"],
     image: "/style-previews/default/cover.svg",
-    prompt: String(req.body.prompt || "在这里填写这个风格对应的提示词。").trim()
+    prompt: String(req.body.prompt || "在这里填写这个风格对应的提示词。").trim(),
+    useStyleImageAsReference: Boolean(req.body.useStyleImageAsReference)
   };
   styles.unshift(style);
   await saveStyles(styles);
@@ -260,6 +261,7 @@ app.put("/api/styles/:id", async (req, res) => {
 
   style.tags = normalizeTags(req.body.tags);
   style.prompt = String(req.body.prompt || "").trim();
+  style.useStyleImageAsReference = Boolean(req.body.useStyleImageAsReference);
   await saveStyles(styles);
   res.json(style);
 });
@@ -321,7 +323,8 @@ async function readStyles() {
     id: style.id,
     tags: normalizeTags(style.tags?.length ? style.tags : [style.label, style.description]),
     image: style.image || "/style-previews/default/cover.svg",
-    prompt: String(style.prompt || "")
+    prompt: String(style.prompt || ""),
+    useStyleImageAsReference: Boolean(style.useStyleImageAsReference)
   }));
 }
 
@@ -719,7 +722,8 @@ async function syncMiniProgram(styles) {
         sort: index,
         tags: normalizeTags(style.tags),
         image: miniImage,
-        prompt: String(style.prompt || "")
+        prompt: String(style.prompt || ""),
+        useStyleImageAsReference: Boolean(style.useStyleImageAsReference)
       };
     })
   );
