@@ -1,9 +1,12 @@
 {
   "pages": [
-    "pages/index/index"
+    "pages/index/index",
+    "pages/generate/generate",
+    "pages/tasks/tasks",
+    "pages/task-detail/task-detail"
   ],
   "window": {
-    "navigationBarTitleText": "风格提示词图库",
+    "navigationBarTitleText": "Prompt Gallery",
     "navigationBarBackgroundColor": "#fffdf8",
     "navigationBarTextStyle": "black",
     "backgroundColor": "#f6f1e8"

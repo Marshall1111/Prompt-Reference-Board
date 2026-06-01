@@ -1,0 +1,60 @@
+<view class="page">
+  <view class="content" wx:if="{{job}}">
+    <view class="header">
+      <view class="header-copy">
+        <text class="eyebrow">Job Detail</text>
+        <text class="title">Task Detail</text>
+      </view>
+      <button bindtap="openTasks" class="back-button">Back</button>
+    </view>
+
+    <view class="summary-card">
+      <view class="meta-row">
+        <text class="status {{job.status}}">{{job.displayStatus}}</text>
+        <text class="meta">{{job.modeText}}</text>
+        <text class="meta">{{job.providerText}}</text>
+      </view>
+      <text class="meta">Job ID: {{job.jobId}}</text>
+      <text class="meta">Created: {{job.createdAtText}}</text>
+      <text class="meta" wx:if="{{job.completedAtText}}">Done: {{job.completedAtText}}</text>
+      <text class="meta" wx:if="{{job.durationText}}">Time: {{job.durationText}}</text>
+      <text class="message" wx:if="{{job.message}}">{{job.message}}</text>
+    </view>
+
+    <view class="panel">
+      <text class="field-label">Prompt</text>
+      <text class="prompt-text">{{job.promptText}}</text>
+      <view class="action-row">
+        <button bindtap="copyPrompt" class="ghost-button">Copy Prompt</button>
+        <button bindtap="cancelJob" class="danger-button" disabled="{{!job.canCancel || canceling}}" loading="{{canceling}}">Cancel</button>
+      </view>
+    </view>
+
+    <view class="panel" wx:if="{{referenceImages.length}}">
+      <text class="field-label">References</text>
+      <view class="reference-grid">
+        <view wx:for="{{referenceImages}}" wx:key="url" class="reference-card">
+          <image bindtap="previewReference" class="reference-image" data-url="{{item.previewUrl}}" mode="aspectFill" src="{{item.renderUrl}}" wx:if="{{item.renderUrl}}" />
+          <view class="reference-image" wx:else></view>
+          <text class="reference-name">{{item.name}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="panel" wx:if="{{resultImageUrl}}">
+      <text class="field-label">Result</text>
+      <image bindtap="previewResult" class="result-image" mode="widthFix" src="{{resultImageUrl}}" />
+      <view class="action-row single">
+        <button bindtap="previewResult" class="primary-button">Preview</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="content" wx:elif="{{errorMessage}}">
+    <view class="error-card">{{errorMessage}}</view>
+  </view>
+
+  <view class="content" wx:else>
+    <view class="loading-card">Loading task detail...</view>
+  </view>
+</view>

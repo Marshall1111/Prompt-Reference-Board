@@ -1,0 +1,287 @@
+.page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #fffdf8 0%, #f6f1e8 100%);
+}
+
+.content {
+  padding: 28rpx 22rpx 40rpx;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24rpx;
+}
+
+.header-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.header-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  align-items: stretch;
+}
+
+.eyebrow {
+  display: block;
+  color: #60706d;
+  font-size: 24rpx;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.title {
+  display: block;
+  margin-top: 8rpx;
+  color: #182022;
+  font-size: 52rpx;
+  font-weight: 900;
+  line-height: 1.05;
+}
+
+.summary {
+  display: block;
+  margin-top: 12rpx;
+  color: #60706d;
+  font-size: 24rpx;
+}
+
+.refresh-button,
+.back-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 156rpx;
+  min-height: 76rpx;
+  padding: 12rpx 22rpx;
+  border-radius: 18rpx;
+  font-size: 24rpx;
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.refresh-button {
+  background: #fff7f1;
+  color: #7c523a;
+  border: 2rpx solid #d6ddd8;
+}
+
+.back-button {
+  background: #182022;
+  color: #fff;
+}
+
+.filter-row {
+  width: 100%;
+  margin-top: 24rpx;
+  white-space: nowrap;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 132rpx;
+  min-height: 68rpx;
+  margin-right: 12rpx;
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  background: #eef2ed;
+  color: #32413c;
+  font-size: 24rpx;
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.filter-chip.active {
+  background: #182022;
+  color: #fff;
+}
+
+.notice {
+  margin-top: 24rpx;
+  padding: 24rpx;
+  border-radius: 18rpx;
+  background: rgba(255, 253, 249, 0.92);
+  color: #60706d;
+  font-size: 28rpx;
+}
+
+.notice.error {
+  background: #fdeceb;
+  color: #a63f37;
+}
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  margin-top: 24rpx;
+}
+
+.task-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 18rpx;
+  padding: 16rpx;
+  border: 2rpx solid #ded8ce;
+  border-radius: 18rpx;
+  background: rgba(255, 253, 249, 0.96);
+  box-shadow: 0 12rpx 30rpx rgba(33, 38, 40, 0.08);
+}
+
+.preview {
+  flex: 0 0 180rpx;
+  width: 180rpx;
+  height: 180rpx;
+  overflow: hidden;
+  border-radius: 14rpx;
+  background: #edf2ee;
+}
+
+.preview image {
+  width: 100%;
+  height: 100%;
+}
+
+.empty-preview {
+  border: 2rpx dashed #d1d8d3;
+}
+
+.preview-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 16rpx;
+  text-align: center;
+}
+
+.preview-fallback text {
+  color: #51615d;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.task-body {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  align-items: center;
+}
+
+.status {
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  background: #eef2ed;
+  color: #32413c;
+  font-size: 22rpx;
+  font-weight: 900;
+}
+
+.status.queued,
+.status.running {
+  background: #fff2e1;
+  color: #9a5b1f;
+}
+
+.status.succeeded {
+  background: #e7f5ee;
+  color: #1f7a49;
+}
+
+.status.failed,
+.status.cancelled {
+  background: #fdeceb;
+  color: #a63f37;
+}
+
+.meta,
+.provider,
+.message {
+  color: #60706d;
+  font-size: 22rpx;
+}
+
+.style-name {
+  display: block;
+  margin-top: 12rpx;
+  color: #182022;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.provider,
+.prompt,
+.message {
+  display: block;
+  margin-top: 8rpx;
+  line-height: 1.6;
+}
+
+.prompt {
+  color: #2b3432;
+  font-size: 24rpx;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 14rpx;
+}
+
+.ghost-button,
+.primary-button,
+.danger-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 64rpx;
+  padding: 10rpx 12rpx;
+  border-radius: 12rpx;
+  font-size: 22rpx;
+  font-weight: 800;
+  line-height: 1.3;
+  white-space: normal;
+  word-break: break-all;
+  text-align: center;
+}
+
+.actions .ghost-button,
+.actions .primary-button,
+.actions .danger-button {
+  flex: 0 0 calc((100% - 10rpx) / 2);
+  max-width: calc((100% - 10rpx) / 2);
+}
+
+.ghost-button {
+  border: 2rpx solid #d6ddd8;
+  background: #fffdf9;
+  color: #32413c;
+}
+
+.primary-button {
+  background: #115e59;
+  color: #fff;
+}
+
+.danger-button {
+  background: #c24f3d;
+  color: #fff;
+}

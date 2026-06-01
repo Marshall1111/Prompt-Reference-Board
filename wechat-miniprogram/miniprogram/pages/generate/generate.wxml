@@ -1,0 +1,103 @@
+<view class="page">
+  <view class="content" wx:if="{{style}}">
+    <view class="topbar">
+      <view class="hero-copy">
+        <text class="eyebrow">AI Image Generator</text>
+        <text class="title">Generate With This Style</text>
+      </view>
+      <button bindtap="openTasks" class="task-entry">Tasks</button>
+    </view>
+
+    <view class="tag-row top-tags">
+      <text wx:for="{{style.tags}}" wx:key="*this" class="tag">{{item}}</text>
+    </view>
+
+    <image class="hero-image" mode="widthFix" src="{{style.image}}" wx:if="{{style.image}}" />
+
+    <view class="panel">
+      <text class="field-label">Prompt</text>
+      <textarea auto-height class="prompt-input" maxlength="-1" placeholder="Describe what to generate" value="{{prompt}}" bindinput="onPromptInput" />
+      <view class="field-actions single-action">
+        <button bindtap="copyPrompt" class="ghost-button">Copy Prompt</button>
+      </view>
+    </view>
+
+    <view class="panel">
+      <text class="field-label">Size</text>
+      <picker bindchange="onSizeChange" range="{{sizeOptions}}" range-key="label" value="{{sizeIndex}}">
+        <view class="picker-field">
+          <text>{{sizeLabel}}</text>
+          <text class="picker-meta">{{size}}</text>
+        </view>
+      </picker>
+
+      <text class="field-label provider-label">Provider</text>
+      <picker bindchange="onProviderChange" range="{{providers}}" range-key="name" value="{{providerIndex}}">
+        <view class="picker-field">
+          <text>{{providerDisplayName}}</text>
+          <text class="picker-meta">{{selectedProviderModel}}</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="panel">
+      <text class="field-label">References</text>
+      <text class="helper-text">{{referenceHint}}</text>
+      <text class="notice-text" wx:if="{{referenceNotice}}">{{referenceNotice}}</text>
+
+      <view class="reference-grid" wx:if="{{referenceImages.length}}">
+        <view wx:for="{{referenceImages}}" wx:key="id" class="reference-card">
+          <image class="reference-image" mode="aspectFill" src="{{item.previewUrl}}" />
+          <view class="reference-meta-row">
+            <text class="reference-label">Ref {{index + 1}}</text>
+            <text class="reference-badge" wx:if="{{item.locked}}">Style Ref</text>
+          </view>
+          <button bindtap="removeReferenceImage" class="reference-remove locked" data-id="{{item.id}}" disabled="{{item.locked}}" wx:if="{{item.locked}}">
+            Locked
+          </button>
+          <button bindtap="removeReferenceImage" class="reference-remove" data-id="{{item.id}}" wx:else>
+            Remove
+          </button>
+        </view>
+      </view>
+
+      <view class="field-actions" wx:if="{{referenceImages.length}}">
+        <button bindtap="chooseReferenceImages" class="ghost-button" disabled="{{!canAddReference}}">Add More</button>
+        <button bindtap="clearReferenceImages" class="secondary-button">Clear Uploads</button>
+      </view>
+      <button bindtap="chooseReferenceImages" class="ghost-button" wx:else>Choose References</button>
+    </view>
+
+    <view class="panel" wx:if="{{showStatusPanel}}">
+      <text class="field-label">Task Status</text>
+      <view class="job-card {{jobStatusClass}}">
+        <text class="job-status">{{jobStatusText}}</text>
+        <text class="job-message" wx:if="{{statusMessage}}">{{statusMessage}}</text>
+        <text class="job-error" wx:if="{{errorMessage}}">{{errorMessage}}</text>
+        <text class="job-meta" wx:if="{{jobIdText}}">Job ID: {{jobIdText}}</text>
+      </view>
+      <view class="field-actions" wx:if="{{jobIdText}}">
+        <button bindtap="openTaskDetail" class="ghost-button">Details</button>
+        <button bindtap="openTasks" class="secondary-button">Task List</button>
+      </view>
+    </view>
+
+    <view class="panel" wx:if="{{resultImageUrl}}">
+      <text class="field-label">Result</text>
+      <image bindtap="previewResult" class="result-image" mode="widthFix" src="{{resultImageUrl}}" />
+      <view class="result-actions">
+        <button bindtap="previewResult" class="ghost-button">Preview</button>
+        <button bindtap="saveResult" class="primary-button">Save</button>
+      </view>
+    </view>
+
+    <button bindtap="submitJob" class="submit-button" loading="{{isSubmitting}}" disabled="{{submitDisabled}}">{{submitButtonText}}</button>
+  </view>
+
+  <view class="content" wx:else>
+    <view class="empty-card">
+      <text class="empty-title">Style Not Available</text>
+      <text class="empty-text">{{emptyMessage}}</text>
+    </view>
+  </view>
+</view>

@@ -1,5 +1,5 @@
 {
-  "description": "照片风格转绘提示词展示版小程序",
+  "description": "Prompt gallery mini program",
   "miniprogramRoot": "miniprogram/",
   "projectname": "prompt-gallery-mini",
   "setting": {

@@ -1,9 +1,10 @@
 module.exports = {
-  // 填入微信云开发环境 ID 后，小程序会优先读取云数据库 styles 集合。
-  // 例如：cloudEnvId: "prod-abc123"
-  cloudEnvId: "cloud1-d5gyjqja3dc0f5c84",
+  // Fill in your cloud environment ID if you want to load styles from cloud DB.
+  cloudEnvId: "",
 
-  // 你现在只用云存储放图片，提示词仍然读取 data/styles.js。
-  // 等以后建好云数据库 styles 集合，再改成 true。
-  useCloudDatabase: false
+  // Keep local built-in styles by default.
+  useCloudDatabase: false,
+
+  // Local backend root for mini program image generation debugging.
+  imageApiBaseUrl: "http://127.0.0.1:3000"
 };

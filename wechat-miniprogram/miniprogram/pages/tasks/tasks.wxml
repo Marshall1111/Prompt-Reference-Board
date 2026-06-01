@@ -1,0 +1,58 @@
+<view class="page">
+  <view class="content">
+    <view class="header">
+      <view class="header-copy">
+        <text class="eyebrow">Image Jobs</text>
+        <text class="title">Task List</text>
+        <text class="summary">{{queuedCount}} active, {{completedCount}} done</text>
+      </view>
+      <view class="header-actions">
+        <button bindtap="refreshButtonTap" class="refresh-button" loading="{{isRefreshing}}" disabled="{{isRefreshing}}">Refresh</button>
+        <button bindtap="openIndex" class="back-button">Gallery</button>
+      </view>
+    </view>
+
+    <scroll-view class="filter-row" scroll-x enable-flex>
+      <button wx:for="{{filters}}" wx:key="key" bindtap="setFilter" class="filter-chip {{statusFilter === item.key ? 'active' : ''}}" data-filter="{{item.key}}">
+        {{item.label}}
+      </button>
+    </scroll-view>
+
+    <view wx:if="{{errorMessage}}" class="notice error">{{errorMessage}}</view>
+    <view wx:if="{{!isLoading && !visibleJobs.length}}" class="notice">No matching jobs yet.</view>
+
+    <view class="task-list" wx:if="{{visibleJobs.length}}">
+      <view wx:for="{{visibleJobs}}" wx:key="jobId" class="task-card">
+        <view class="preview {{item.renderImageUrl ? '' : 'empty-preview'}}">
+          <image wx:if="{{item.renderImageUrl}}" mode="aspectFill" src="{{item.renderImageUrl}}" />
+          <view wx:else class="preview-fallback">
+            <text>{{item.displayStatus}}</text>
+          </view>
+        </view>
+
+        <view class="task-body">
+          <view class="meta-row">
+            <text class="status {{item.status}}">{{item.displayStatus}}</text>
+            <text class="meta">{{item.createdAtText}}</text>
+            <text class="meta" wx:if="{{item.durationText}}">{{item.durationText}}</text>
+          </view>
+
+          <text class="style-name">{{item.styleNameText}}</text>
+          <text class="provider">Provider: {{item.providerText}}</text>
+          <text class="prompt">{{item.promptPreview}}</text>
+          <text class="message" wx:if="{{item.message}}">{{item.message}}</text>
+          <text class="message" wx:if="{{item.completedAtText}}">Done at: {{item.completedAtText}}</text>
+
+          <view class="actions">
+            <button bindtap="openTaskDetail" class="ghost-button" data-jobid="{{item.jobId}}">Details</button>
+            <button bindtap="copyPrompt" class="ghost-button" data-prompt="{{item.prompt}}">Copy Prompt</button>
+            <button bindtap="previewResult" class="primary-button" data-url="{{item.previewImageUrl}}" disabled="{{!item.previewImageUrl}}">View Result</button>
+            <button bindtap="cancelJob" class="danger-button" data-jobid="{{item.jobId}}" disabled="{{!item.canCancel || cancelingJobId === item.jobId}}" loading="{{cancelingJobId === item.jobId}}">
+              Cancel
+            </button>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

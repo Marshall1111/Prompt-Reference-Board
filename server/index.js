@@ -14,6 +14,7 @@ const rootDir = path.resolve(__dirname, "..");
 const dataPath = path.join(rootDir, "data", "styles.json");
 const styleGroupsPath = path.join(rootDir, "data", "style-groups.json");
 const imageJobRoot = path.join(rootDir, "data", "image-jobs");
+const tempReferenceRoot = path.join(rootDir, "data", "temp-image-references");
 const previewRoot = path.join(rootDir, "public", "style-previews");
 const generatedImageRoot = path.join(rootDir, "public", "generated-images");
 const jobReferenceRoot = path.join(rootDir, "public", "job-references");
@@ -82,7 +83,11 @@ app.post("/api/generate-image", upload.array("reference", 10), async (req, res) 
       return res.status(400).json({ message: "请先在 .env 中配置至少一个可用的图片接口供应商。" });
     }
 
-    const referenceFiles = req.files || [];
+    const referenceIds = parseReferenceIds(body.referenceIds);
+    const referenceFiles = await collectReferenceFiles(req.files || [], referenceIds);
+    if (referenceFiles.length > 10) {
+      return res.status(400).json({ message: "At most 10 reference images are allowed." });
+    }
     if (referenceFiles.some((file) => file.mimetype === "image/svg+xml")) {
       return res.status(400).json({ message: "参考图仅支持 JPG、PNG 或 WebP 图片。" });
     }
@@ -109,6 +114,24 @@ app.post("/api/generate-image", upload.array("reference", 10), async (req, res) 
   }
 });
 
+app.post("/api/image-references", upload.single("reference"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "Please choose a reference image." });
+    if (req.file.mimetype === "image/svg+xml") {
+      return res.status(400).json({ message: "Reference images only support JPG, PNG, or WebP." });
+    }
+
+    const reference = await createTemporaryReference(req.file);
+    res.status(201).json({ reference });
+  } catch (error) {
+    if (error.message === "UNSUPPORTED_IMAGE_TYPE") {
+      return res.status(400).json({ message: "Reference images only support JPG, PNG, or WebP." });
+    }
+    console.error(error);
+    res.status(500).json({ message: "Failed to upload reference image." });
+  }
+});
+
 app.post("/api/image-jobs", upload.array("reference", 10), async (req, res) => {
   try {
     const body = req.body || {};
@@ -121,13 +144,19 @@ app.post("/api/image-jobs", upload.array("reference", 10), async (req, res) => {
       return res.status(400).json({ message: "请先在 .env 中配置至少一个可用的图片接口供应商。" });
     }
 
-    const referenceFiles = req.files || [];
+    const referenceIds = parseReferenceIds(body.referenceIds);
+    const referenceFiles = await collectReferenceFiles(req.files || [], referenceIds);
     if (referenceFiles.some((file) => file.mimetype === "image/svg+xml")) {
       return res.status(400).json({ message: "参考图仅支持 JPG、PNG 或 WebP 图片。" });
     }
 
+    if (referenceFiles.length > 10) {
+      return res.status(400).json({ message: "At most 10 reference images are allowed." });
+    }
+
     const jobId = randomUUID();
     const originalReferences = await persistImageJobReferences(jobId, referenceFiles);
+    await deleteTemporaryReferences(referenceIds);
     const now = new Date().toISOString();
     const job = {
       jobId,
@@ -430,6 +459,7 @@ async function removeStyleFromGroups(styleId) {
 
 async function prepareImageJobStorage() {
   await mkdir(imageJobRoot, { recursive: true });
+  await mkdir(tempReferenceRoot, { recursive: true });
   await mkdir(generatedImageRoot, { recursive: true });
   await mkdir(jobReferenceRoot, { recursive: true });
 
@@ -449,6 +479,100 @@ async function prepareImageJobStorage() {
         });
       })
   );
+}
+
+async function createTemporaryReference(file) {
+  const referenceId = randomUUID();
+  const dir = path.join(tempReferenceRoot, referenceId);
+  const extension = extensionForMime(file.mimetype);
+  const filename = `reference.${extension}`;
+  const metadata = {
+    referenceId,
+    name: file.originalname || `reference.${extension}`,
+    mimeType: file.mimetype,
+    size: Number(file.size || file.buffer?.length || 0),
+    filename,
+    createdAt: new Date().toISOString()
+  };
+
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, filename), file.buffer);
+  await writeFile(path.join(dir, "metadata.json"), `${JSON.stringify(metadata, null, 2)}\n`, "utf-8");
+
+  return metadata;
+}
+
+async function collectReferenceFiles(uploadedFiles, referenceIds) {
+  if (!referenceIds.length) return uploadedFiles;
+  const temporaryFiles = await Promise.all(referenceIds.map(readTemporaryReference));
+  return [...temporaryFiles, ...uploadedFiles];
+}
+
+function parseReferenceIds(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.map(String).map((item) => item.trim()).filter(Boolean);
+  }
+
+  const text = String(value).trim();
+  if (!text) return [];
+
+  if (text.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(text);
+      return Array.isArray(parsed) ? parsed.map(String).map((item) => item.trim()).filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return text
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+async function readTemporaryReference(referenceId) {
+  if (!isSafeReferenceId(referenceId)) {
+    const error = new Error("Reference not found");
+    error.status = 400;
+    error.publicMessage = "Reference image is missing or expired.";
+    throw error;
+  }
+
+  const dir = path.join(tempReferenceRoot, String(referenceId));
+  const metadataPath = path.join(dir, "metadata.json");
+  let metadata;
+
+  try {
+    metadata = JSON.parse(await readFile(metadataPath, "utf-8"));
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      const nextError = new Error("Reference not found");
+      nextError.status = 400;
+      nextError.publicMessage = "Reference image is missing or expired.";
+      throw nextError;
+    }
+    throw error;
+  }
+
+  const buffer = await readFile(path.join(dir, metadata.filename));
+  return {
+    originalname: metadata.name,
+    mimetype: metadata.mimeType,
+    size: metadata.size,
+    buffer
+  };
+}
+
+async function deleteTemporaryReferences(referenceIds) {
+  if (!referenceIds?.length) return;
+  await Promise.all(referenceIds.map((referenceId) => deleteTemporaryReference(referenceId)));
+}
+
+async function deleteTemporaryReference(referenceId) {
+  if (!isSafeReferenceId(referenceId)) return;
+  await rm(path.join(tempReferenceRoot, String(referenceId)), { recursive: true, force: true });
 }
 
 async function runImageJob({ jobId, body, files, outputFormat, prompt, provider }) {
@@ -648,6 +772,10 @@ function getImageJobPath(jobId) {
 
 function isSafeImageJobId(jobId) {
   return /^[a-f0-9-]{36}$/i.test(String(jobId || ""));
+}
+
+function isSafeReferenceId(referenceId) {
+  return /^[a-f0-9-]{36}$/i.test(String(referenceId || ""));
 }
 
 async function createImageGeneration(prompt, outputFormat, provider, body, signal) {

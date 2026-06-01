@@ -1,3 +1,4 @@
 {
-  "navigationBarTitleText": "风格提示词图库"
+  "navigationBarTitleText": "Prompt Gallery",
+  "enablePullDownRefresh": true
 }
