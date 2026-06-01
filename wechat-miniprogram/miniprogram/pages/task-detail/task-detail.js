@@ -47,27 +47,19 @@ Page({
     }
 
     imageJobs.fetchImageJob(this.data.jobId).then(function (job) {
-      var result = job && job.result ? job.result : null;
-      var resultImageUrl = imageJobs.toAbsoluteImageUrl((result && (result.imageUrl || result.originalImageUrl)) || "");
+      return hydrateJobAssets(job).then(function (assets) {
+        self.setData({
+          job: normalizeJob(job),
+          resultImageUrl: assets.resultImageUrl,
+          referenceImages: assets.referenceImages,
+          errorMessage: "",
+          isLoading: false
+        });
 
-      self.setData({
-        job: normalizeJob(job),
-        resultImageUrl: imageJobs.canRenderRemoteImage(resultImageUrl) ? resultImageUrl : "",
-        referenceImages: (job.originalReferences || []).map(function (item) {
-          var previewUrl = imageJobs.toAbsoluteImageUrl(item.url);
-          return {
-            name: item.name,
-            previewUrl: previewUrl,
-            renderUrl: imageJobs.canRenderRemoteImage(previewUrl) ? previewUrl : ""
-          };
-        }),
-        errorMessage: "",
-        isLoading: false
+        if (!isActiveJob(job.status)) {
+          self.stopPolling();
+        }
       });
-
-      if (!isActiveJob(job.status)) {
-        self.stopPolling();
-      }
     }).catch(function (error) {
       self.setData({
         errorMessage: (error && error.message) || "Failed to load task detail",
@@ -187,6 +179,46 @@ function normalizeJob(job) {
     canCancel: isActiveJob(job.status),
     promptText: String(job.prompt || "").trim() || "No prompt"
   };
+}
+
+function hydrateJobAssets(job) {
+  var result = job && job.result ? job.result : null;
+  var rawResultImageUrl = imageJobs.toAbsoluteImageUrl((result && (result.imageUrl || result.originalImageUrl)) || "");
+  var rawReferences = Array.isArray(job && job.originalReferences) ? job.originalReferences : [];
+
+  return Promise.all([
+    resolvePreviewUrl(rawResultImageUrl),
+    Promise.all(rawReferences.map(function (item) {
+      var absoluteUrl = imageJobs.toAbsoluteImageUrl(item.url);
+      return resolvePreviewUrl(absoluteUrl).then(function (resolvedUrl) {
+        return {
+          name: item.name || "Reference image",
+          previewUrl: resolvedUrl || absoluteUrl,
+          renderUrl: resolvedUrl || "",
+          originalUrl: absoluteUrl
+        };
+      });
+    }))
+  ]).then(function (results) {
+    return {
+      resultImageUrl: results[0],
+      referenceImages: results[1]
+    };
+  });
+}
+
+function resolvePreviewUrl(url) {
+  if (!url) {
+    return Promise.resolve("");
+  }
+
+  if (imageJobs.canRenderRemoteImage(url)) {
+    return Promise.resolve(url);
+  }
+
+  return imageJobs.resolveRenderableImageUrl(url).then(function (resolvedUrl) {
+    return resolvedUrl || "";
+  });
 }
 
 function isActiveJob(status) {

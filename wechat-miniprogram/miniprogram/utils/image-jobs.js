@@ -1,4 +1,6 @@
 const env = require("../env");
+const renderableImageTempCache = {};
+const renderableImagePromiseCache = {};
 
 function getImageApiBaseUrl() {
   return String(env.imageApiBaseUrl || "").trim().replace(/\/+$/, "");
@@ -45,6 +47,50 @@ function toAbsoluteImageUrl(pathOrUrl) {
 
 function canRenderRemoteImage(url) {
   return /^https:\/\//i.test(String(url || ""));
+}
+
+function resolveRenderableImageUrl(url) {
+  var safeUrl = String(url || "");
+
+  if (!safeUrl) {
+    return Promise.resolve("");
+  }
+
+  if (canRenderRemoteImage(safeUrl)) {
+    return Promise.resolve(safeUrl);
+  }
+
+  if (renderableImageTempCache[safeUrl]) {
+    return Promise.resolve(renderableImageTempCache[safeUrl]);
+  }
+
+  if (renderableImagePromiseCache[safeUrl]) {
+    return renderableImagePromiseCache[safeUrl];
+  }
+
+  renderableImagePromiseCache[safeUrl] = new Promise(function (resolve) {
+    wx.downloadFile({
+      url: safeUrl,
+      success: function (result) {
+        var ok = result.statusCode >= 200 && result.statusCode < 300;
+        var tempPath = ok ? result.tempFilePath : "";
+
+        if (tempPath) {
+          renderableImageTempCache[safeUrl] = tempPath;
+        }
+
+        resolve(tempPath || "");
+      },
+      fail: function () {
+        resolve("");
+      },
+      complete: function () {
+        delete renderableImagePromiseCache[safeUrl];
+      }
+    });
+  });
+
+  return renderableImagePromiseCache[safeUrl];
 }
 
 function request(options) {
@@ -194,6 +240,7 @@ module.exports = {
   fetchImageProviders: fetchImageProviders,
   fetchStyleGroups: fetchStyleGroups,
   getImageApiBaseUrl: getImageApiBaseUrl,
+  resolveRenderableImageUrl: resolveRenderableImageUrl,
   toAbsoluteImageUrl: toAbsoluteImageUrl,
   uploadReferenceImage: uploadReferenceImage
 };
