@@ -145,6 +145,26 @@
   line-height: 1.7;
 }
 
+.picker-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  width: 100%;
+  padding: 22rpx 20rpx;
+  box-sizing: border-box;
+  border: 2rpx solid #ead9cd;
+  border-radius: 20rpx;
+  background: #fffaf6;
+  color: #2b2320;
+  font-size: 28rpx;
+}
+
+.picker-meta {
+  color: #8d786d;
+  font-size: 22rpx;
+}
+
 .helper-text {
   margin-bottom: 12rpx;
 }

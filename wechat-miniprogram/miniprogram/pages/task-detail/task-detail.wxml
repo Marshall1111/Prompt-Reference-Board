@@ -16,6 +16,7 @@
       </view>
       <text class="meta" wx:if="{{job.styleNameText}}">Style: {{job.styleNameText}}</text>
       <text class="meta" wx:if="{{job.styleGroupNameText}}">Group: {{job.styleGroupNameText}}</text>
+      <text class="meta">Size: {{job.sizeText}}</text>
       <text class="meta">Job ID: {{job.jobId}}</text>
       <text class="meta">Created: {{job.createdAtText}}</text>
       <text class="meta" wx:if="{{job.completedAtText}}">Done: {{job.completedAtText}}</text>
@@ -32,6 +33,16 @@
           Regenerate
         </button>
       </view>
+    </view>
+
+    <view class="panel">
+      <text class="field-label">Size</text>
+      <picker bindchange="onSizeChange" range="{{sizeOptions}}" range-key="label" value="{{sizeIndex}}">
+        <view class="picker-field">
+          <text>{{sizeLabel}}</text>
+          <text class="picker-meta">{{size}}</text>
+        </view>
+      </picker>
     </view>
 
     <view class="panel">

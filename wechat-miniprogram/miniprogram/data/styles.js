@@ -121,8 +121,22 @@ const styles = [
     "useStyleImageAsReference": true
   },
   {
-    "id": "style_1779179444790",
+    "id": "pencil",
     "sort": 10,
+    "tags": [
+      "涂鸦",
+      "速写",
+      "儿童",
+      "插画",
+      "宠物"
+    ],
+    "image": "/images-small/pencil.jpg",
+    "prompt": "以涂鸦速写风表现【主题/主体】，整体呈现快速勾勒、自由变形、即兴手绘与草稿式的视觉效果。线条随手、夸张、可粗细不一，略显凌乱但具有节奏和表现力，强调概括、夸张、趣味和随性，而不是严谨写实或精细刻画。\n\n颜色采用粗糙、干刷感明显的块面表现，可保留不均匀的涂抹痕迹、刷痕、飞白与覆盖感，色彩根据【主题/主体】自动适配，但整体保持涂鸦式、速写式、概括式的表达。不要透明水彩晕染效果，不要细腻水彩过渡，不要纸纹理，不要柔和雾化，不要梦幻质感。\n\n背景以留白为主，保持简洁、轻松、未完成感和设计感，可加入少量辅助性符号、箭头、记号、圈画、重复线、随手写的文字或其他涂鸦元素，以增强速写本或随笔式视觉语言，但不可过于拥挤，不可破坏主体和留白气质。\n\n画面内容不需要预先写清楚，由【主题/主体】自动推演并生成最适合的主体形象、动作、相关元素、符号或简化场景，整体保持统一的涂鸦速写风和夸张概括的表现方式，避免复杂写实背景和过度铺陈。\n画面中需自然加入专属签名“Marshall”，作为画面的一部分，位置低调但清晰，可放在左下角、右下角或标题附近，风格需与整体版式统一，像作品署名或设计落款；签名字体精致、克制、高级，不可过大，不可破坏主体构图，不可显得突兀或廉价。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1779179444790",
+    "sort": 11,
     "tags": [
       "复古",
       "海报",
@@ -135,7 +149,7 @@ const styles = [
   },
   {
     "id": "style_1780029542441",
-    "sort": 11,
+    "sort": 12,
     "tags": [
       "剪纸"
     ],
@@ -145,7 +159,7 @@ const styles = [
   },
   {
     "id": "style_1779762562660",
-    "sort": 12,
+    "sort": 13,
     "tags": [
       "潮流",
       "海报",
@@ -157,7 +171,7 @@ const styles = [
   },
   {
     "id": "style_1779931260825",
-    "sort": 13,
+    "sort": 14,
     "tags": [
       "表情包"
     ],
@@ -167,7 +181,7 @@ const styles = [
   },
   {
     "id": "style_1779961220177",
-    "sort": 14,
+    "sort": 15,
     "tags": [
       "Plog",
       "日常"
@@ -178,7 +192,7 @@ const styles = [
   },
   {
     "id": "style_1779845065374",
-    "sort": 15,
+    "sort": 16,
     "tags": [
       "剪纸",
       "旅行",
@@ -190,7 +204,7 @@ const styles = [
   },
   {
     "id": "style_1779844966340",
-    "sort": 16,
+    "sort": 17,
     "tags": [
       "剪纸",
       "简约"
@@ -201,7 +215,7 @@ const styles = [
   },
   {
     "id": "style_1779322951275",
-    "sort": 17,
+    "sort": 18,
     "tags": [
       "表情包"
     ],
@@ -211,7 +225,7 @@ const styles = [
   },
   {
     "id": "style_1779180072956",
-    "sort": 18,
+    "sort": 19,
     "tags": [
       "Plog",
       "可爱",
@@ -224,7 +238,7 @@ const styles = [
   },
   {
     "id": "style_1779179914765",
-    "sort": 19,
+    "sort": 20,
     "tags": [
       "儿童",
       "插画",
@@ -237,7 +251,7 @@ const styles = [
   },
   {
     "id": "style_1779179882103",
-    "sort": 20,
+    "sort": 21,
     "tags": [
       "艺术",
       "宠物"
@@ -248,7 +262,7 @@ const styles = [
   },
   {
     "id": "style_1779179828722",
-    "sort": 21,
+    "sort": 22,
     "tags": [
       "手绘",
       "插画",
@@ -260,7 +274,7 @@ const styles = [
   },
   {
     "id": "style_1779179773582",
-    "sort": 22,
+    "sort": 23,
     "tags": [
       "卡通"
     ],
@@ -270,7 +284,7 @@ const styles = [
   },
   {
     "id": "style_1779179722094",
-    "sort": 23,
+    "sort": 24,
     "tags": [
       "卡通",
       "丑萌",
@@ -283,7 +297,7 @@ const styles = [
   },
   {
     "id": "style_1779179665778",
-    "sort": 24,
+    "sort": 25,
     "tags": [
       "随意",
       "手绘",
@@ -296,7 +310,7 @@ const styles = [
   },
   {
     "id": "style_1779179649152",
-    "sort": 25,
+    "sort": 26,
     "tags": [
       "随意",
       "手绘",
@@ -308,7 +322,7 @@ const styles = [
   },
   {
     "id": "style_1779179490072",
-    "sort": 26,
+    "sort": 27,
     "tags": [
       "插画",
       "手绘",
@@ -322,7 +336,7 @@ const styles = [
   },
   {
     "id": "style_1779179328013",
-    "sort": 27,
+    "sort": 28,
     "tags": [
       "卡通",
       "插画",
@@ -334,20 +348,6 @@ const styles = [
     ],
     "image": "/images-small/style_1779179328013.jpg",
     "prompt": "将照片转换成高饱和度复古旅行海报风格的平面卡通插画（flat cartoon poster illustration）。人物整体采用儿童绘本式的夸张卡通比例，脸部高度简化和平面化，使用圆润几何造型、大色块上色、极少面部细节、粗黑色描边，弱化真实皮肤纹理和真实五官结构，不要写实感。\n\n整体风格参考：retro travel poster、flat illustration、storybook art、vector cartoon、mid-century poster、bold colorful graphic design。画面使用强烈撞色、高饱和橙色、黄色、蓝绿色、深蓝色，带复古印刷颗粒感和手绘纹理。\n\n人物表情要阳光可爱，但采用二维动画式处理，眼睛、嘴巴、腮红、头发都尽量图形化和符号化，避免真实照片转绘效果。背景加入卡通城市、树木、蓝天、云朵、道路、旅行箱、路牌等元素，整体构图像儿童绘本封面和复古宣传海报。\n\n加入大面积手绘英文标语，例如 “HAPPY TRAVEL”、“DREAM BIG”、“VIBRANT ENERGY”、“SLOW DOWN”，字体夸张醒目。\n\n避免：realistic face、photo texture、real skin、3D render、cinematic lighting、high detail skin、semi-realistic illustration、AI photo style、complex shadow、photorealism。\n\nmake the face look more like a flat cartoon graphic than a painted realistic portrait",
-    "useStyleImageAsReference": false
-  },
-  {
-    "id": "pencil",
-    "sort": 28,
-    "tags": [
-      "涂鸦",
-      "速写",
-      "儿童",
-      "插画",
-      "宠物"
-    ],
-    "image": "/images-small/pencil.jpg",
-    "prompt": "以涂鸦速写风表现【主题/主体】，整体呈现快速勾勒、自由变形、即兴手绘与草稿式的视觉效果。线条随手、夸张、可粗细不一，略显凌乱但具有节奏和表现力，强调概括、夸张、趣味和随性，而不是严谨写实或精细刻画。\n\n颜色采用粗糙、干刷感明显的块面表现，可保留不均匀的涂抹痕迹、刷痕、飞白与覆盖感，色彩根据【主题/主体】自动适配，但整体保持涂鸦式、速写式、概括式的表达。不要透明水彩晕染效果，不要细腻水彩过渡，不要纸纹理，不要柔和雾化，不要梦幻质感。\n\n背景以留白为主，保持简洁、轻松、未完成感和设计感，可加入少量辅助性符号、箭头、记号、圈画、重复线、随手写的文字或其他涂鸦元素，以增强速写本或随笔式视觉语言，但不可过于拥挤，不可破坏主体和留白气质。\n\n画面内容不需要预先写清楚，由【主题/主体】自动推演并生成最适合的主体形象、动作、相关元素、符号或简化场景，整体保持统一的涂鸦速写风和夸张概括的表现方式，避免复杂写实背景和过度铺陈。\n画面中需自然加入专属签名“Marshall”，作为画面的一部分，位置低调但清晰，可放在左下角、右下角或标题附近，风格需与整体版式统一，像作品署名或设计落款；签名字体精致、克制、高级，不可过大，不可破坏主体构图，不可显得突兀或廉价。",
     "useStyleImageAsReference": false
   },
   {

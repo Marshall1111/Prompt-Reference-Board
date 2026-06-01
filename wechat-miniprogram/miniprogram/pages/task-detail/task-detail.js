@@ -1,12 +1,23 @@
 const imageJobs = require("../../utils/image-jobs");
 
 const MAX_REFERENCE_IMAGES = 10;
+const SIZE_OPTIONS = [
+  { value: "1024x1536", label: "2:3" },
+  { value: "1536x1024", label: "3:2" },
+  { value: "1024x1024", label: "1:1" },
+  { value: "1024x1365", label: "3:4" },
+  { value: "1365x1024", label: "4:3" }
+];
 
 Page({
   data: {
     jobId: "",
     job: null,
     prompt: "",
+    size: SIZE_OPTIONS[0].value,
+    sizeLabel: SIZE_OPTIONS[0].label,
+    sizeIndex: 0,
+    sizeOptions: SIZE_OPTIONS,
     resultImageUrl: "",
     referenceImages: [],
     referenceHint: buildReferenceHint(),
@@ -69,7 +80,13 @@ Page({
         };
 
         if (!preserveEditor) {
+          var sizeState = buildSizeState(normalizedJob.size);
+
           nextData.prompt = normalizedJob.prompt;
+          nextData.size = sizeState.size;
+          nextData.sizeLabel = sizeState.sizeLabel;
+          nextData.sizeIndex = sizeState.sizeIndex;
+          nextData.sizeOptions = sizeState.sizeOptions;
           nextData.referenceImages = assets.referenceImages;
           nextData.referenceHint = buildReferenceHint();
           nextData.referenceNotice = "";
@@ -117,6 +134,17 @@ Page({
   onPromptInput: function (event) {
     this.markEditorDirty({
       prompt: event.detail.value
+    });
+  },
+
+  onSizeChange: function (event) {
+    var sizeIndex = Number((event.detail && event.detail.value) || 0);
+    var option = this.data.sizeOptions[sizeIndex] || this.data.sizeOptions[0] || SIZE_OPTIONS[0];
+
+    this.markEditorDirty({
+      sizeIndex: sizeIndex,
+      size: option.value,
+      sizeLabel: option.label
     });
   },
 
@@ -205,6 +233,7 @@ Page({
     var self = this;
     var currentJob = this.data.job;
     var prompt = String(this.data.prompt || "").trim();
+    var selectedSize = String(this.data.size || "").trim() || SIZE_OPTIONS[0].value;
 
     if (!currentJob) {
       return;
@@ -245,7 +274,7 @@ Page({
     }).then(function (referenceIds) {
       return imageJobs.createImageJob({
         prompt: prompt,
-        size: currentJob.size,
+        size: selectedSize,
         provider: currentJob.providerId,
         styleId: currentJob.styleId,
         styleName: currentJob.styleNameText,
@@ -254,10 +283,17 @@ Page({
         referenceIds: referenceIds
       });
     }).then(function (job) {
+      var normalizedJob = normalizeJob(job);
+      var sizeState = buildSizeState(normalizedJob.size);
+
       self.setData({
         jobId: job.jobId || "",
-        job: normalizeJob(job),
+        job: normalizedJob,
         prompt: String(job.prompt || "").trim(),
+        size: sizeState.size,
+        sizeLabel: sizeState.sizeLabel,
+        sizeIndex: sizeState.sizeIndex,
+        sizeOptions: sizeState.sizeOptions,
         resultImageUrl: "",
         referenceNotice: "New task created.",
         errorMessage: "",
@@ -329,13 +365,15 @@ Page({
 
 function normalizeJob(job) {
   var provider = job && job.provider ? job.provider : null;
+  var rawSize = String(job.size || "").trim();
 
   return {
     jobId: String(job.jobId || ""),
     status: job.status,
     prompt: String(job.prompt || "").trim(),
     message: job.message,
-    size: String(job.size || "auto"),
+    size: rawSize || SIZE_OPTIONS[0].value,
+    sizeText: rawSize || SIZE_OPTIONS[0].value,
     styleId: String(job.styleId || ""),
     styleGroupId: String(job.styleGroupId || ""),
     displayStatus: formatJobStatus(job.status),
@@ -497,6 +535,45 @@ function downloadReferenceToTempFile(reference) {
 
 function buildReferenceHint() {
   return "Up to 10 refs. Add or remove references before regenerating.";
+}
+
+function buildSizeState(sizeValue) {
+  var safeSize = String(sizeValue || "").trim() || SIZE_OPTIONS[0].value;
+  var matchedIndex = findSizeOptionIndex(SIZE_OPTIONS, safeSize);
+  var sizeOptions = SIZE_OPTIONS.slice();
+  var sizeIndex = 0;
+  var selectedOption = null;
+
+  if (matchedIndex >= 0) {
+    sizeIndex = matchedIndex;
+    selectedOption = sizeOptions[sizeIndex];
+  } else {
+    sizeOptions = [{
+      value: safeSize,
+      label: "Current Size"
+    }].concat(sizeOptions);
+    sizeIndex = 0;
+    selectedOption = sizeOptions[0];
+  }
+
+  return {
+    size: selectedOption.value,
+    sizeLabel: selectedOption.label,
+    sizeIndex: sizeIndex,
+    sizeOptions: sizeOptions
+  };
+}
+
+function findSizeOptionIndex(options, sizeValue) {
+  var index;
+
+  for (index = 0; index < options.length; index += 1) {
+    if (options[index] && options[index].value === sizeValue) {
+      return index;
+    }
+  }
+
+  return -1;
 }
 
 function isLocalFilePath(value) {
