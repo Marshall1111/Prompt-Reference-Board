@@ -1,4 +1,5 @@
 const imageJobs = require("../../utils/image-jobs");
+const pageNav = require("../../utils/page-nav");
 
 const thumbnailTempCache = {};
 const thumbnailPromiseCache = {};
@@ -46,9 +47,7 @@ Page({
   },
 
   openIndex: function () {
-    wx.navigateTo({
-      url: "/pages/index/index"
-    });
+    pageNav.goToMainPage("index");
   },
 
   refreshButtonTap: function () {
@@ -233,6 +232,7 @@ function normalizeJob(job) {
     durationText: formatDuration(job.durationSeconds),
     promptPreview: formatPromptPreview(job.prompt),
     styleNameText: job.styleName || "Untitled Style",
+    styleGroupNameText: job.styleGroupName || "",
     providerText: (provider && provider.name) || "Unknown Provider",
     canCancel: isActiveJob(job.status)
   };
@@ -320,6 +320,7 @@ function attachTaskThumbnail(job) {
       durationText: job.durationText,
       promptPreview: job.promptPreview,
       styleNameText: job.styleNameText,
+      styleGroupNameText: job.styleGroupNameText,
       providerText: job.providerText,
       canCancel: job.canCancel
     };

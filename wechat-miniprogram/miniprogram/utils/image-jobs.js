@@ -56,10 +56,15 @@ function request(options) {
       data: options.data,
       success: function (response) {
         var ok = response.statusCode >= 200 && response.statusCode < 300;
-        var payload = response.data && typeof response.data === "object" ? response.data : {};
+        var payload = safeParseJson(response.data);
 
         if (ok) {
-          resolve(response.data);
+          if (response.data && typeof response.data === "string" && !isPlainObject(payload)) {
+            reject(new Error("API did not return JSON. Please restart the local backend and try again."));
+            return;
+          }
+
+          resolve(isPlainObject(payload) ? payload : response.data);
           return;
         }
 
@@ -79,9 +84,27 @@ function fetchImageProviders() {
   });
 }
 
+function fetchStyleGroups() {
+  return request({
+    url: buildApiUrl("/api/style-groups"),
+    method: "GET"
+  });
+}
+
 function createImageJob(payload) {
   return request({
     url: buildApiUrl("/api/image-jobs"),
+    method: "POST",
+    header: {
+      "Content-Type": "application/json"
+    },
+    data: payload
+  });
+}
+
+function createBatchImageJobs(payload) {
+  return request({
+    url: buildApiUrl("/api/image-jobs/batch"),
     method: "POST",
     header: {
       "Content-Type": "application/json"
@@ -157,13 +180,19 @@ function safeParseJson(text) {
   }
 }
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 module.exports = {
   canRenderRemoteImage: canRenderRemoteImage,
   cancelImageJob: cancelImageJob,
+  createBatchImageJobs: createBatchImageJobs,
   createImageJob: createImageJob,
   fetchImageJob: fetchImageJob,
   fetchImageJobs: fetchImageJobs,
   fetchImageProviders: fetchImageProviders,
+  fetchStyleGroups: fetchStyleGroups,
   getImageApiBaseUrl: getImageApiBaseUrl,
   toAbsoluteImageUrl: toAbsoluteImageUrl,
   uploadReferenceImage: uploadReferenceImage

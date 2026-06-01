@@ -1,4 +1,5 @@
 const stylesRepository = require("../../utils/styles-repository");
+const pageNav = require("../../utils/page-nav");
 
 Page({
   data: {
@@ -86,9 +87,11 @@ Page({
   },
 
   openTasks: function () {
-    wx.navigateTo({
-      url: "/pages/tasks/tasks"
-    });
+    pageNav.goToMainPage("tasks");
+  },
+
+  openBatch: function () {
+    pageNav.goToMainPage("batch");
   },
 
   previewStyleImage: function (event) {

@@ -204,6 +204,122 @@ app.post("/api/image-jobs", upload.array("reference", 10), async (req, res) => {
   }
 });
 
+app.post("/api/image-jobs/batch", async (req, res) => {
+  const body = req.body || {};
+  const referenceIds = parseReferenceIds(body.referenceIds);
+  let preparedJobs = [];
+
+  try {
+    const styleGroupId = String(body.styleGroupId || "").trim();
+    const promptOverride = String(body.promptOverride || "").trim();
+    const providers = getImageProviders();
+    const provider = resolveImageProvider(body.provider, providers);
+    let sharedReferenceFiles = [];
+    let groups = [];
+    let styles = [];
+    let group = null;
+    let styleMap = null;
+    let groupStyles = [];
+
+    if (!styleGroupId) {
+      return res.status(400).json({ message: "Please choose a style group first." });
+    }
+
+    if (!provider) {
+      return res.status(400).json({ message: "Please choose a valid provider first." });
+    }
+
+    [groups, styles] = await Promise.all([readStyleGroups(), readStyles()]);
+    group = groups.find((item) => item.id === styleGroupId) || null;
+    if (!group) {
+      return res.status(404).json({ message: "Style group not found." });
+    }
+
+    styleMap = new Map(styles.map((style) => [style.id, style]));
+    groupStyles = (group.styleIds || []).map((styleId) => styleMap.get(styleId)).filter(Boolean);
+    if (!groupStyles.length) {
+      return res.status(400).json({ message: "The selected style group has no valid styles." });
+    }
+
+    sharedReferenceFiles = await collectReferenceFiles([], referenceIds);
+    if (sharedReferenceFiles.some((file) => file.mimetype === "image/svg+xml")) {
+      return res.status(400).json({ message: "Reference images only support JPG, PNG, or WebP." });
+    }
+
+    for (const style of groupStyles) {
+      const prompt = promptOverride || String(style.prompt || "").trim();
+      const referenceFiles = await buildBatchReferenceFiles(style, sharedReferenceFiles);
+      const now = new Date().toISOString();
+      const jobId = randomUUID();
+      const styleName = formatStyleName(style);
+      const originalReferences = await persistImageJobReferences(jobId, referenceFiles);
+      const job = {
+        jobId,
+        status: "queued",
+        message: "Batch job submitted. Waiting to run.",
+        result: null,
+        createdAt: now,
+        updatedAt: now,
+        completedAt: null,
+        prompt,
+        size: normalizeSize(body.size),
+        referenceCount: referenceFiles.length,
+        originalReferences,
+        styleId: String(style.id || ""),
+        styleName,
+        styleGroupId: group.id,
+        styleGroupName: group.name,
+        provider: {
+          id: provider.id,
+          name: provider.name,
+          model: provider.model
+        },
+        mode: referenceFiles.length ? "edit" : "generation"
+      };
+
+      preparedJobs.push({
+        job: job,
+        runArgs: {
+          jobId: jobId,
+          body: { ...body, styleId: style.id, styleName: styleName, styleGroupId: group.id, styleGroupName: group.name },
+          files: referenceFiles.map(cloneReferenceFile),
+          outputFormat: normalizeOption(body.output_format, ["png", "jpeg", "webp"], "png"),
+          prompt: prompt,
+          provider: provider
+        }
+      });
+    }
+
+    await Promise.all(preparedJobs.map((item) => saveImageJob(item.job)));
+
+    res.status(202).json({
+      group: group,
+      submittedCount: preparedJobs.length,
+      jobs: preparedJobs.map((item) => toPublicImageJob(item.job))
+    });
+
+    preparedJobs.forEach((item) => {
+      runImageJob(item.runArgs).catch((error) => {
+        console.error("Batch image job failed.", error);
+      });
+    });
+  } catch (error) {
+    if (error.message === "UNSUPPORTED_IMAGE_TYPE") {
+      return res.status(400).json({ message: "Reference images only support JPG, PNG, or WebP." });
+    }
+    await Promise.all(preparedJobs.map(async (item) => {
+      await deleteJobReferences(item.job);
+      await rm(getImageJobPath(item.job.jobId), { force: true });
+    }));
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "Failed to submit batch jobs." });
+  } finally {
+    if (referenceIds.length) {
+      await deleteTemporaryReferences(referenceIds);
+    }
+  }
+});
+
 app.get("/api/image-jobs", async (req, res) => {
   try {
     const jobs = await listImageJobs();
@@ -734,6 +850,59 @@ async function persistImageJobReferences(jobId, referenceFiles) {
   );
 }
 
+async function buildBatchReferenceFiles(style, sharedReferenceFiles) {
+  const styleReference = await createStyleReferenceFile(style);
+  const files = styleReference
+    ? [styleReference].concat(sharedReferenceFiles.map(cloneReferenceFile))
+    : sharedReferenceFiles.map(cloneReferenceFile);
+
+  if (files.length > 10) {
+    const error = new Error(styleReference ? "Styles with an auto reference can use at most 9 shared reference images." : "At most 10 reference images are allowed.");
+    error.status = 400;
+    error.publicMessage = error.message;
+    throw error;
+  }
+
+  return files;
+}
+
+async function createStyleReferenceFile(style) {
+  const previewPath = getPreviewFilePath(style?.image);
+  const ext = path.extname(String(previewPath || "")).toLowerCase();
+  const mimeType = mimeForExtension(ext);
+  let buffer = null;
+
+  if (!style || !style.useStyleImageAsReference || !previewPath || !mimeType || mimeType === "image/svg+xml") {
+    return null;
+  }
+
+  if (!(await fileExists(previewPath))) {
+    return null;
+  }
+
+  buffer = await readFile(previewPath);
+  return {
+    originalname: `${String(style.id || "style")}-style-reference.${extensionForMime(mimeType)}`,
+    mimetype: mimeType,
+    size: buffer.length,
+    buffer: buffer
+  };
+}
+
+function cloneReferenceFile(file) {
+  return {
+    originalname: file.originalname,
+    mimetype: file.mimetype,
+    size: file.size,
+    buffer: Buffer.from(file.buffer)
+  };
+}
+
+function formatStyleName(style) {
+  const tags = Array.isArray(style?.tags) ? style.tags.filter(Boolean) : [];
+  return tags.length ? tags.join(" / ") : String(style?.id || "");
+}
+
 function toPublicImageJob(job) {
   return {
     jobId: String(job.jobId || ""),
@@ -1053,9 +1222,13 @@ async function compressMiniImage(styleId, sourcePath, mimeType) {
 }
 
 function getPreviewFilePath(imagePath) {
-  if (!imagePath || !imagePath.startsWith("/style-previews/")) return "";
-  const relative = imagePath.replace(/^\/+/, "");
-  return path.join(rootDir, "public", relative);
+  const normalized = String(imagePath || "");
+  const relative = normalized.replace(/^\/+/, "");
+
+  if (!normalized) return "";
+  if (normalized.startsWith("/style-previews/")) return path.join(rootDir, "public", relative);
+  if (normalized.startsWith("/images-small/")) return path.join(rootDir, "wechat-miniprogram", "miniprogram", relative);
+  return "";
 }
 
 async function deleteMiniImage(styleId) {

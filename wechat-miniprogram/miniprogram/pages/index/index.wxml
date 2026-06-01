@@ -6,7 +6,10 @@
         <text class="title">Choose a style and start generating</text>
         <text class="subtitle">Search styles, copy prompts, open the generator, or jump straight to your task list.</text>
       </view>
-      <button bindtap="openTasks" class="tasks-button">Task List</button>
+      <view class="hero-actions">
+        <button bindtap="openBatch" class="batch-button">Batch Generate</button>
+        <button bindtap="openTasks" class="tasks-button">Task List</button>
+      </view>
     </view>
 
     <view class="search-card">
@@ -16,7 +19,7 @@
       </view>
       <view class="stats-row">
         <text class="stat-text">Total {{totalCount}}</text>
-        <text class="stat-dot">•</text>
+        <text class="stat-dot">|</text>
         <text class="stat-text">Showing {{visibleCount}}</text>
       </view>
     </view>

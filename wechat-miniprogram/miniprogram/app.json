@@ -2,6 +2,7 @@
   "pages": [
     "pages/index/index",
     "pages/generate/generate",
+    "pages/batch/batch",
     "pages/tasks/tasks",
     "pages/task-detail/task-detail"
   ],

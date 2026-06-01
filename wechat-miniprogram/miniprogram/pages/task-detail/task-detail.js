@@ -181,6 +181,8 @@ function normalizeJob(job) {
     completedAtText: formatDateTime(job.completedAt),
     durationText: formatDuration(job.durationSeconds),
     providerText: (provider && provider.name) || "Unknown Provider",
+    styleNameText: String(job.styleName || "").trim(),
+    styleGroupNameText: String(job.styleGroupName || "").trim(),
     modeText: job.mode === "edit" ? "Image Edit" : "Text To Image",
     canCancel: isActiveJob(job.status),
     promptText: String(job.prompt || "").trim() || "No prompt"

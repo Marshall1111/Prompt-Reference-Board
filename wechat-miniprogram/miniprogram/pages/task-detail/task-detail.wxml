@@ -14,6 +14,8 @@
         <text class="meta">{{job.modeText}}</text>
         <text class="meta">{{job.providerText}}</text>
       </view>
+      <text class="meta" wx:if="{{job.styleNameText}}">Style: {{job.styleNameText}}</text>
+      <text class="meta" wx:if="{{job.styleGroupNameText}}">Group: {{job.styleGroupNameText}}</text>
       <text class="meta">Job ID: {{job.jobId}}</text>
       <text class="meta">Created: {{job.createdAtText}}</text>
       <text class="meta" wx:if="{{job.completedAtText}}">Done: {{job.completedAtText}}</text>

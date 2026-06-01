@@ -38,6 +38,7 @@
           </view>
 
           <text class="style-name">{{item.styleNameText}}</text>
+          <text class="provider" wx:if="{{item.styleGroupNameText}}">Group: {{item.styleGroupNameText}}</text>
           <text class="provider">Provider: {{item.providerText}}</text>
           <text class="prompt">{{item.promptPreview}}</text>
           <text class="message" wx:if="{{item.message}}">{{item.message}}</text>

@@ -1,0 +1,116 @@
+<view class="page">
+  <view class="content">
+    <view class="header">
+      <view class="header-copy">
+        <text class="eyebrow">Batch Generate</text>
+        <text class="title">Submit a whole style group</text>
+        <text class="summary">Phase 1 reads existing style groups from the web/backend and submits one task per style.</text>
+      </view>
+      <view class="header-actions">
+        <button bindtap="openTasks" class="ghost-nav-button">Task List</button>
+        <button bindtap="openIndex" class="back-button">Gallery</button>
+      </view>
+    </view>
+
+    <view class="notice error" wx:if="{{errorMessage}}">{{errorMessage}}</view>
+    <view class="notice" wx:if="{{isLoading}}">Loading groups and providers...</view>
+    <view class="notice" wx:if="{{!isLoading && !groups.length}}">No style groups yet. Phase 1 can only read existing groups, so please create them on the web first.</view>
+
+    <view class="panel" wx:if="{{groups.length}}">
+      <text class="field-label">Saved Groups</text>
+      <text class="helper-text">Choose one existing group, then batch-submit all styles in that group.</text>
+
+      <view class="group-list">
+        <view wx:for="{{groups}}" wx:key="id" bindtap="selectGroup" class="group-card {{activeGroupId === item.id ? 'active' : ''}}" data-id="{{item.id}}">
+          <view class="group-top">
+            <text class="group-name">{{item.name}}</text>
+            <text class="group-count">{{item.styleCount}} styles</text>
+          </view>
+          <text class="group-summary">{{item.summaryText}}</text>
+          <view class="chip-row" wx:if="{{item.usesAutoReference}}">
+            <text class="chip accent">Auto Ref 1 inside group</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="panel" wx:if="{{groups.length}}">
+      <text class="field-label">Batch Submit</text>
+      <text class="helper-text" wx:if="{{activeGroupId}}">Selected group: {{activeGroupName}}. {{selectedStyleCount}} styles will be submitted.</text>
+      <text class="helper-text" wx:if="{{activeGroupSummary}}">{{activeGroupSummary}}</text>
+
+      <text class="field-label top-gap">Provider</text>
+      <picker bindchange="onProviderChange" range="{{providers}}" range-key="name" value="{{providerIndex}}">
+        <view class="picker-field">
+          <text>{{providerDisplayName}}</text>
+          <text class="picker-meta">{{selectedProviderModel}}</text>
+        </view>
+      </picker>
+
+      <text class="field-label top-gap">Size</text>
+      <picker bindchange="onSizeChange" range="{{sizeOptions}}" range-key="label" value="{{sizeIndex}}">
+        <view class="picker-field">
+          <text>{{sizeLabel}}</text>
+          <text class="picker-meta">{{size}}</text>
+        </view>
+      </picker>
+
+      <text class="field-label top-gap">Prompt Override</text>
+      <textarea auto-height bindinput="onPromptOverrideInput" class="prompt-input" maxlength="-1" placeholder="Leave empty to keep each style's own prompt." value="{{promptOverride}}" />
+
+      <text class="field-label top-gap">Shared References</text>
+      <text class="helper-text">{{referenceHint}}</text>
+
+      <view class="reference-list" wx:if="{{referenceImages.length}}">
+        <view wx:for="{{referenceImages}}" wx:key="id" class="reference-card">
+          <image class="reference-image" mode="aspectFill" src="{{item.previewUrl}}" />
+          <text class="reference-name">{{item.name}}</text>
+          <button bindtap="removeReferenceImage" class="remove-button" data-id="{{item.id}}">Remove</button>
+        </view>
+      </view>
+
+      <view class="action-row" wx:if="{{referenceImages.length}}">
+        <button bindtap="chooseReferenceImages" class="ghost-button" disabled="{{!canAddReference}}">Add More</button>
+        <button bindtap="clearReferenceImages" class="secondary-button">Clear Refs</button>
+      </view>
+      <button bindtap="chooseReferenceImages" class="ghost-button full-button" wx:else>Choose Shared References</button>
+
+      <button bindtap="submitBatchJobs" class="submit-button" loading="{{isSubmitting}}" disabled="{{submitDisabled}}">Submit Group Jobs</button>
+    </view>
+
+    <view class="panel" wx:if="{{statusMessage}}">
+      <text class="field-label">Submit Status</text>
+      <text class="status-text">{{statusMessage}}</text>
+      <text class="helper-text" wx:if="{{submittedCount}}">Submitted {{submittedCount}} jobs for {{activeGroupName}}.</text>
+
+      <view class="submitted-list" wx:if="{{submittedJobs.length}}">
+        <view wx:for="{{submittedJobs}}" wx:key="jobId" class="submitted-card">
+          <text class="submitted-title">{{item.styleNameText}}</text>
+          <text class="submitted-meta">Job ID: {{item.jobId}}</text>
+          <text class="submitted-meta">{{item.promptPreview}}</text>
+        </view>
+      </view>
+
+      <view class="action-row" wx:if="{{submittedCount}}">
+        <button bindtap="openTasks" class="ghost-button">Open Task List</button>
+        <button bindtap="openIndex" class="secondary-button">Back To Gallery</button>
+      </view>
+    </view>
+
+    <view class="panel" wx:if="{{selectedStyles.length}}">
+      <text class="field-label">Styles In Selected Group</text>
+      <view class="style-list">
+        <view wx:for="{{selectedStyles}}" wx:key="id" class="style-row">
+          <image class="style-thumb" mode="aspectFill" src="{{item.image}}" wx:if="{{item.image}}" />
+          <view class="style-meta">
+            <text class="style-title">{{item.title}}</text>
+            <view class="chip-row" wx:if="{{item.tags.length}}">
+              <text wx:for="{{item.tags}}" wx:key="*this" class="chip">{{item}}</text>
+            </view>
+            <text class="style-note" wx:if="{{item.useStyleImageAsReference}}">This style auto-uses its preview as ref 1.</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
