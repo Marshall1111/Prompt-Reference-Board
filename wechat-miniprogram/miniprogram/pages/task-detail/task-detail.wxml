@@ -25,22 +25,37 @@
 
     <view class="panel">
       <text class="field-label">Prompt</text>
-      <text class="prompt-text">{{job.promptText}}</text>
+      <textarea auto-height class="prompt-input" maxlength="-1" placeholder="Describe what to generate" value="{{prompt}}" bindinput="onPromptInput" />
       <view class="action-row">
         <button bindtap="copyPrompt" class="ghost-button">Copy Prompt</button>
-        <button bindtap="cancelJob" class="danger-button" disabled="{{!job.canCancel || canceling}}" loading="{{canceling}}">Cancel</button>
+        <button bindtap="regenerateJob" class="primary-button" loading="{{isRegenerating}}" disabled="{{isRegenerating}}">
+          Regenerate
+        </button>
       </view>
     </view>
 
-    <view class="panel" wx:if="{{referenceImages.length}}">
+    <view class="panel">
       <text class="field-label">References</text>
-      <view class="reference-grid">
-        <view wx:for="{{referenceImages}}" wx:key="url" class="reference-card">
+      <text class="helper-text">{{referenceHint}}</text>
+      <text class="notice-text" wx:if="{{referenceNotice}}">{{referenceNotice}}</text>
+      <text class="empty-text" wx:if="{{!referenceImages.length}}">No references selected.</text>
+
+      <view class="reference-grid" wx:if="{{referenceImages.length}}">
+        <view wx:for="{{referenceImages}}" wx:key="id" class="reference-card">
           <image bindtap="previewReference" class="reference-image" data-url="{{item.previewUrl}}" mode="aspectFill" src="{{item.renderUrl}}" wx:if="{{item.renderUrl}}" />
-          <view class="reference-image" wx:else></view>
+          <view class="reference-image reference-placeholder" wx:else>
+            <text>No Preview</text>
+          </view>
           <text class="reference-name">{{item.name}}</text>
+          <button bindtap="removeReferenceImage" class="reference-remove" data-id="{{item.id}}">Remove</button>
         </view>
       </view>
+
+      <view class="action-row" wx:if="{{referenceImages.length}}">
+        <button bindtap="chooseReferenceImages" class="ghost-button" disabled="{{!canAddReference}}">Add More</button>
+        <button bindtap="clearReferenceImages" class="secondary-button">Clear All</button>
+      </view>
+      <button bindtap="chooseReferenceImages" class="ghost-button single-button" wx:else>Choose References</button>
     </view>
 
     <view class="panel" wx:if="{{resultImageUrl}}">
@@ -50,6 +65,8 @@
         <button bindtap="previewResult" class="primary-button">Preview</button>
       </view>
     </view>
+
+    <view class="error-card inline-error" wx:if="{{errorMessage}}">{{errorMessage}}</view>
   </view>
 
   <view class="content" wx:elif="{{errorMessage}}">

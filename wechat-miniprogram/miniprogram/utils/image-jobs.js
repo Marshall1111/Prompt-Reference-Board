@@ -210,6 +210,13 @@ function cancelImageJob(jobId) {
   });
 }
 
+function deleteImageJob(jobId) {
+  return request({
+    url: buildApiUrl("/api/image-jobs/" + encodeURIComponent(jobId)),
+    method: "DELETE"
+  });
+}
+
 function safeParseJson(text) {
   if (!text) {
     return {};
@@ -235,6 +242,7 @@ module.exports = {
   cancelImageJob: cancelImageJob,
   createBatchImageJobs: createBatchImageJobs,
   createImageJob: createImageJob,
+  deleteImageJob: deleteImageJob,
   fetchImageJob: fetchImageJob,
   fetchImageJobs: fetchImageJobs,
   fetchImageProviders: fetchImageProviders,

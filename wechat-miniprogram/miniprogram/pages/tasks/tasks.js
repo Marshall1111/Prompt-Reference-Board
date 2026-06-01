@@ -23,15 +23,13 @@ Page({
     errorMessage: "",
     isLoading: true,
     isRefreshing: false,
-    cancelingJobId: ""
+    deletingJobId: ""
   },
 
-  onLoad: function () {
-    this.loadJobs();
-  },
+  onLoad: function () {},
 
   onShow: function () {
-    this.startPolling();
+    this.refreshJobs({ showLoading: !this.data.jobs.length });
   },
 
   onPullDownRefresh: function () {
@@ -99,15 +97,19 @@ Page({
 
       return Promise.all(rawJobs.map(attachTaskThumbnail));
     }).then(function (jobs) {
+      var activeCount = jobs.filter(function (job) {
+        return isActiveJob(job.status);
+      }).length;
 
       self.setData({
         jobs: jobs,
         visibleJobs: filterJobs(jobs, self.data.statusFilter),
-        queuedCount: jobs.filter(function (job) { return isActiveJob(job.status); }).length,
+        queuedCount: activeCount,
         completedCount: jobs.filter(function (job) { return job.status === "succeeded"; }).length,
         errorMessage: "",
         isLoading: false
       });
+      self.syncPolling(jobs);
     }).catch(function (error) {
       self.setData({
         errorMessage: (error && error.message) || "Failed to load tasks",
@@ -121,11 +123,18 @@ Page({
     });
   },
 
-  startPolling: function () {
+  syncPolling: function (jobs) {
     var self = this;
 
-    this.stopPolling();
-    this.refreshJobs({ showLoading: true });
+    if (!hasActiveJobs(jobs)) {
+      this.stopPolling();
+      return;
+    }
+
+    if (this.pollingTimer) {
+      return;
+    }
+
     this.pollingTimer = setInterval(function () {
       self.refreshJobs({ showLoading: false });
     }, 3000);
@@ -139,28 +148,45 @@ Page({
     this.pollingTimer = null;
   },
 
-  cancelJob: function (event) {
+  deleteJob: function (event) {
     var self = this;
     var jobId = event.currentTarget.dataset.jobid;
+    var job = findJobById(this.data.jobs, jobId);
+    var actionText = job && isActiveJob(job.status) ? "delete and stop" : "delete";
+    var content = job && isActiveJob(job.status)
+      ? "This task is still running. Deleting it will stop the task and remove it from the list."
+      : "This task will be removed from the list. This action cannot be undone.";
 
-    if (!jobId) {
+    if (!jobId || this.data.deletingJobId) {
       return;
     }
 
-    this.setData({ cancelingJobId: jobId });
-    imageJobs.cancelImageJob(jobId).then(function () {
-      wx.showToast({
-        title: "Cancelled",
-        icon: "success"
-      });
-      return self.loadJobs();
-    }).catch(function (error) {
-      wx.showToast({
-        title: (error && error.message) || "Cancel failed",
-        icon: "none"
-      });
-    }).finally(function () {
-      self.setData({ cancelingJobId: "" });
+    wx.showModal({
+      title: "Delete Task",
+      content: content,
+      confirmText: "Delete",
+      confirmColor: "#c24f3d",
+      success: function (result) {
+        if (!result.confirm) {
+          return;
+        }
+
+        self.setData({ deletingJobId: jobId });
+        imageJobs.deleteImageJob(jobId).then(function () {
+          wx.showToast({
+            title: "Deleted",
+            icon: "success"
+          });
+          return self.loadJobs();
+        }).catch(function (error) {
+          wx.showToast({
+            title: (error && error.message) || ("Failed to " + actionText + " task"),
+            icon: "none"
+          });
+        }).finally(function () {
+          self.setData({ deletingJobId: "" });
+        });
+      }
     });
   },
 
@@ -212,6 +238,12 @@ function filterJobs(jobs, statusFilter) {
 
 function isActiveJob(status) {
   return status === "queued" || status === "running";
+}
+
+function hasActiveJobs(jobs) {
+  return (jobs || []).some(function (job) {
+    return isActiveJob(job.status);
+  });
 }
 
 function normalizeJob(job) {
@@ -299,6 +331,12 @@ function formatPromptPreview(prompt) {
 
 function pad2(value) {
   return String(value).padStart(2, "0");
+}
+
+function findJobById(jobs, jobId) {
+  return (jobs || []).find(function (job) {
+    return job.jobId === jobId;
+  }) || null;
 }
 
 function attachTaskThumbnail(job) {

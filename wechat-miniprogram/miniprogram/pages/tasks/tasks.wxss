@@ -246,7 +246,7 @@
 
 .ghost-button,
 .primary-button,
-.danger-button {
+.delete-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -265,7 +265,7 @@
 
 .actions .ghost-button,
 .actions .primary-button,
-.actions .danger-button {
+.actions .delete-button {
   flex: 0 0 calc((100% - 10rpx) / 2);
   max-width: calc((100% - 10rpx) / 2);
 }
@@ -281,7 +281,7 @@
   color: #fff;
 }
 
-.danger-button {
-  background: #c24f3d;
+.delete-button {
+  background: #8a2f27;
   color: #fff;
 }

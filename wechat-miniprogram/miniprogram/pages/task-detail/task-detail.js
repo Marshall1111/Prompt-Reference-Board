@@ -1,24 +1,34 @@
 const imageJobs = require("../../utils/image-jobs");
 
+const MAX_REFERENCE_IMAGES = 10;
+
 Page({
   data: {
     jobId: "",
     job: null,
+    prompt: "",
     resultImageUrl: "",
     referenceImages: [],
+    referenceHint: buildReferenceHint(),
+    referenceNotice: "",
+    canAddReference: true,
     errorMessage: "",
     isLoading: true,
-    canceling: false
+    isRegenerating: false,
+    editorDirty: false
   },
 
   onLoad: function (options) {
     var jobId = decodeURIComponent((options && options.jobId) || "");
     this.setData({ jobId: jobId });
-    this.loadJob();
   },
 
   onShow: function () {
-    this.startPolling();
+    if (!this.data.jobId) {
+      return;
+    }
+
+    this.loadJob();
   },
 
   onHide: function () {
@@ -43,20 +53,35 @@ Page({
         errorMessage: "Missing job id",
         isLoading: false
       });
-      return;
+      return Promise.resolve();
     }
 
-    imageJobs.fetchImageJob(this.data.jobId).then(function (job) {
+    return imageJobs.fetchImageJob(this.data.jobId).then(function (job) {
       return hydrateJobAssets(job).then(function (assets) {
-        self.setData({
-          job: normalizeJob(job),
+        var normalizedJob = normalizeJob(job);
+        var sameJob = self.data.job && self.data.job.jobId === normalizedJob.jobId;
+        var preserveEditor = Boolean(sameJob && self.data.editorDirty);
+        var nextData = {
+          job: normalizedJob,
           resultImageUrl: assets.resultImageUrl,
-          referenceImages: assets.referenceImages,
           errorMessage: "",
           isLoading: false
-        });
+        };
 
-        if (!isActiveJob(job.status)) {
+        if (!preserveEditor) {
+          nextData.prompt = normalizedJob.prompt;
+          nextData.referenceImages = assets.referenceImages;
+          nextData.referenceHint = buildReferenceHint();
+          nextData.referenceNotice = "";
+          nextData.canAddReference = assets.referenceImages.length < MAX_REFERENCE_IMAGES;
+          nextData.editorDirty = false;
+        }
+
+        self.setData(nextData);
+
+        if (isActiveJob(normalizedJob.status) && !preserveEditor && !self.data.isRegenerating) {
+          self.ensurePolling();
+        } else {
           self.stopPolling();
         }
       });
@@ -69,11 +94,10 @@ Page({
     });
   },
 
-  startPolling: function () {
+  ensurePolling: function () {
     var self = this;
 
-    this.stopPolling();
-    if (!this.data.jobId) {
+    if (this.pollingTimer || !this.data.jobId) {
       return;
     }
 
@@ -90,27 +114,170 @@ Page({
     this.pollingTimer = null;
   },
 
-  cancelJob: function () {
+  onPromptInput: function (event) {
+    this.markEditorDirty({
+      prompt: event.detail.value
+    });
+  },
+
+  chooseReferenceImages: function () {
+    var remaining = MAX_REFERENCE_IMAGES - this.data.referenceImages.length;
     var self = this;
 
-    if (!this.data.job || !isActiveJob(this.data.job.status)) {
+    if (remaining <= 0) {
+      wx.showToast({
+        title: "Max 10 refs",
+        icon: "none"
+      });
       return;
     }
 
-    this.setData({ canceling: true });
-    imageJobs.cancelImageJob(this.data.jobId).then(function () {
+    wx.chooseImage({
+      count: remaining,
+      sizeType: ["compressed", "original"],
+      sourceType: ["album", "camera"],
+      success: function (result) {
+        var tempFiles = Array.isArray(result.tempFiles) ? result.tempFiles : [];
+        var currentTime = Date.now();
+        var nextImages = [];
+
+        if (!tempFiles.length) {
+          return;
+        }
+
+        nextImages = tempFiles.map(function (file, index) {
+          return {
+            id: "detail-reference-" + currentTime + "-" + index + "-" + Number(file.size || 0),
+            filePath: file.path,
+            tempFilePath: file.path,
+            name: file.name || ("reference-" + currentTime + "-" + (index + 1) + ".jpg"),
+            size: Number(file.size || 0),
+            previewUrl: file.path,
+            renderUrl: file.path,
+            originalUrl: "",
+            sourceType: "local"
+          };
+        });
+
+        self.setReferenceImages(self.data.referenceImages.concat(nextImages).slice(0, MAX_REFERENCE_IMAGES), "");
+      }
+    });
+  },
+
+  removeReferenceImage: function (event) {
+    var imageId = event.currentTarget.dataset.id;
+    var nextImages = [];
+
+    if (!imageId) {
+      return;
+    }
+
+    nextImages = this.data.referenceImages.filter(function (item) {
+      return item.id !== imageId;
+    });
+
+    this.setReferenceImages(nextImages, "");
+  },
+
+  clearReferenceImages: function () {
+    this.setReferenceImages([], "");
+  },
+
+  setReferenceImages: function (referenceImages, notice) {
+    this.stopPolling();
+    this.setData({
+      referenceImages: referenceImages,
+      referenceHint: buildReferenceHint(),
+      referenceNotice: notice || "",
+      canAddReference: referenceImages.length < MAX_REFERENCE_IMAGES,
+      editorDirty: true
+    });
+  },
+
+  markEditorDirty: function (nextData) {
+    this.stopPolling();
+    this.setData(Object.assign({
+      editorDirty: true
+    }, nextData || {}));
+  },
+
+  regenerateJob: function () {
+    var self = this;
+    var currentJob = this.data.job;
+    var prompt = String(this.data.prompt || "").trim();
+
+    if (!currentJob) {
+      return;
+    }
+
+    if (!imageJobs.getImageApiBaseUrl()) {
+      this.setData({
+        errorMessage: "Please set imageApiBaseUrl in miniprogram/env.js first."
+      });
+      return;
+    }
+
+    if (!prompt) {
+      this.setData({
+        errorMessage: "Please enter a prompt."
+      });
+      return;
+    }
+
+    if (!currentJob.providerId) {
+      this.setData({
+        errorMessage: "The original task provider is missing."
+      });
+      return;
+    }
+
+    this.stopPolling();
+    this.setData({
+      isRegenerating: true,
+      errorMessage: "",
+      referenceNotice: this.data.referenceImages.length ? "Uploading references..." : "Creating image job..."
+    });
+
+    uploadSelectedReferences(this.data.referenceImages, function (current, total) {
+      self.setData({
+        referenceNotice: "Uploading refs " + current + "/" + total + "..."
+      });
+    }).then(function (referenceIds) {
+      return imageJobs.createImageJob({
+        prompt: prompt,
+        size: currentJob.size,
+        provider: currentJob.providerId,
+        styleId: currentJob.styleId,
+        styleName: currentJob.styleNameText,
+        styleGroupId: currentJob.styleGroupId,
+        styleGroupName: currentJob.styleGroupNameText,
+        referenceIds: referenceIds
+      });
+    }).then(function (job) {
+      self.setData({
+        jobId: job.jobId || "",
+        job: normalizeJob(job),
+        prompt: String(job.prompt || "").trim(),
+        resultImageUrl: "",
+        referenceNotice: "New task created.",
+        errorMessage: "",
+        editorDirty: false
+      });
+
       wx.showToast({
-        title: "Cancelled",
+        title: "Regenerated",
         icon: "success"
       });
-      self.loadJob();
+
+      return self.loadJob();
     }).catch(function (error) {
-      wx.showToast({
-        title: (error && error.message) || "Cancel failed",
-        icon: "none"
+      self.setData({
+        errorMessage: (error && error.message) || "Failed to regenerate task"
       });
     }).finally(function () {
-      self.setData({ canceling: false });
+      self.setData({
+        isRegenerating: false
+      });
     });
   },
 
@@ -128,7 +295,7 @@ Page({
   previewReference: function (event) {
     var imageUrl = event.currentTarget.dataset.url;
     var urls = this.data.referenceImages.map(function (item) {
-      return item.previewUrl;
+      return item.previewUrl || item.originalUrl || item.renderUrl;
     }).filter(Boolean);
 
     if (!imageUrl) {
@@ -142,7 +309,7 @@ Page({
   },
 
   copyPrompt: function () {
-    var prompt = (this.data.job && this.data.job.prompt) || "";
+    var prompt = String(this.data.prompt || "").trim();
 
     if (!prompt) {
       return;
@@ -164,20 +331,22 @@ function normalizeJob(job) {
   var provider = job && job.provider ? job.provider : null;
 
   return {
-    jobId: job.jobId,
+    jobId: String(job.jobId || ""),
     status: job.status,
-    prompt: job.prompt,
+    prompt: String(job.prompt || "").trim(),
     message: job.message,
+    size: String(job.size || "auto"),
+    styleId: String(job.styleId || ""),
+    styleGroupId: String(job.styleGroupId || ""),
     displayStatus: formatJobStatus(job.status),
     createdAtText: formatDateTime(job.createdAt),
     completedAtText: formatDateTime(job.completedAt),
     durationText: formatDuration(job.durationSeconds),
+    providerId: (provider && provider.id) || "",
     providerText: (provider && provider.name) || "Unknown Provider",
     styleNameText: String(job.styleName || "").trim(),
     styleGroupNameText: String(job.styleGroupName || "").trim(),
-    modeText: job.mode === "edit" ? "Image Edit" : "Text To Image",
-    canCancel: isActiveJob(job.status),
-    promptText: String(job.prompt || "").trim() || "No prompt"
+    modeText: job.mode === "edit" ? "Image Edit" : "Text To Image"
   };
 }
 
@@ -187,38 +356,153 @@ function hydrateJobAssets(job) {
   var rawReferences = Array.isArray(job && job.originalReferences) ? job.originalReferences : [];
 
   return Promise.all([
-    resolvePreviewUrl(rawResultImageUrl),
-    Promise.all(rawReferences.map(function (item) {
+    resolvePreviewAsset(rawResultImageUrl),
+    Promise.all(rawReferences.map(function (item, index) {
       var absoluteUrl = imageJobs.toAbsoluteImageUrl(item.url);
-      return resolvePreviewUrl(absoluteUrl).then(function (resolvedUrl) {
+
+      return resolvePreviewAsset(absoluteUrl).then(function (asset) {
         return {
-          name: item.name || "Reference image",
-          previewUrl: resolvedUrl || absoluteUrl,
-          renderUrl: resolvedUrl || "",
-          originalUrl: absoluteUrl
+          id: "job-reference-" + index + "-" + String(item.order || index),
+          name: item.name || ("Reference " + (index + 1)),
+          previewUrl: asset.previewUrl || absoluteUrl,
+          renderUrl: asset.renderUrl || "",
+          originalUrl: absoluteUrl,
+          tempFilePath: asset.tempFilePath || "",
+          filePath: asset.tempFilePath || "",
+          sourceType: "job"
         };
       });
     }))
   ]).then(function (results) {
     return {
-      resultImageUrl: results[0],
+      resultImageUrl: results[0].previewUrl || "",
       referenceImages: results[1]
     };
   });
 }
 
-function resolvePreviewUrl(url) {
+function resolvePreviewAsset(url) {
   if (!url) {
-    return Promise.resolve("");
+    return Promise.resolve({
+      previewUrl: "",
+      renderUrl: "",
+      tempFilePath: ""
+    });
   }
 
   if (imageJobs.canRenderRemoteImage(url)) {
-    return Promise.resolve(url);
+    return Promise.resolve({
+      previewUrl: url,
+      renderUrl: url,
+      tempFilePath: ""
+    });
   }
 
   return imageJobs.resolveRenderableImageUrl(url).then(function (resolvedUrl) {
-    return resolvedUrl || "";
+    return {
+      previewUrl: resolvedUrl || url,
+      renderUrl: resolvedUrl || "",
+      tempFilePath: isLocalFilePath(resolvedUrl) ? resolvedUrl : ""
+    };
   });
+}
+
+function uploadSelectedReferences(referenceImages, onProgress) {
+  var referenceIds = [];
+  var chain = Promise.resolve();
+
+  referenceImages.forEach(function (reference, index) {
+    chain = chain.then(function () {
+      if (typeof onProgress === "function") {
+        onProgress(index + 1, referenceImages.length);
+      }
+
+      return ensureReferenceFilePath(reference).then(function (uploadableReference) {
+        return imageJobs.uploadReferenceImage(uploadableReference);
+      }).then(function (uploaded) {
+        if (uploaded && uploaded.referenceId) {
+          referenceIds.push(uploaded.referenceId);
+        }
+      });
+    });
+  });
+
+  return chain.then(function () {
+    return referenceIds;
+  });
+}
+
+function ensureReferenceFilePath(reference) {
+  if (reference && reference.sourceType === "job" && reference.originalUrl) {
+    return downloadReferenceToTempFile(reference);
+  }
+
+  if (reference && isLocalFilePath(reference.filePath)) {
+    return Promise.resolve(reference);
+  }
+
+  if (reference && isLocalFilePath(reference.tempFilePath)) {
+    return Promise.resolve({
+      id: reference.id,
+      filePath: reference.tempFilePath,
+      tempFilePath: reference.tempFilePath,
+      name: reference.name,
+      size: Number(reference.size || 0),
+      previewUrl: reference.previewUrl,
+      renderUrl: reference.renderUrl,
+      originalUrl: reference.originalUrl
+    });
+  }
+
+  return downloadReferenceToTempFile(reference);
+}
+
+function downloadReferenceToTempFile(reference) {
+  var sourceUrl = String((reference && (reference.originalUrl || reference.previewUrl || reference.renderUrl)) || "");
+
+  return new Promise(function (resolve, reject) {
+    if (!sourceUrl) {
+      reject(new Error("Reference image is missing."));
+      return;
+    }
+
+    wx.downloadFile({
+      url: sourceUrl,
+      success: function (result) {
+        var ok = result.statusCode >= 200 && result.statusCode < 300;
+
+        if (!ok || !result.tempFilePath) {
+          reject(new Error("Failed to download a reference image."));
+          return;
+        }
+
+        resolve({
+          id: reference.id,
+          filePath: result.tempFilePath,
+          tempFilePath: result.tempFilePath,
+          name: reference.name,
+          size: Number(reference.size || 0),
+          previewUrl: result.tempFilePath,
+          renderUrl: result.tempFilePath,
+          originalUrl: sourceUrl,
+          sourceType: reference.sourceType || "job"
+        });
+      },
+      fail: function () {
+        reject(new Error("Failed to download a reference image."));
+      }
+    });
+  });
+}
+
+function buildReferenceHint() {
+  return "Up to 10 refs. Add or remove references before regenerating.";
+}
+
+function isLocalFilePath(value) {
+  var text = String(value || "");
+
+  return Boolean(text) && !/^https?:\/\//i.test(text);
 }
 
 function isActiveJob(status) {

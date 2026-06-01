@@ -102,11 +102,21 @@
 .message,
 .reference-name,
 .loading-card,
-.error-card {
+.error-card,
+.helper-text,
+.notice-text,
+.empty-text {
   display: block;
-  color: #60706d;
   font-size: 24rpx;
   line-height: 1.6;
+}
+
+.meta,
+.reference-name,
+.loading-card,
+.helper-text,
+.empty-text {
+  color: #60706d;
 }
 
 .message {
@@ -122,14 +132,29 @@
   font-weight: 800;
 }
 
-.prompt-text {
-  display: block;
-  padding: 22rpx;
-  border-radius: 18rpx;
-  background: #f3f6f4;
+.prompt-input {
+  width: 100%;
+  min-height: 240rpx;
+  padding: 22rpx 20rpx;
+  box-sizing: border-box;
+  border: 2rpx solid #ead9cd;
+  border-radius: 20rpx;
+  background: #fffaf6;
   color: #263532;
   font-size: 28rpx;
-  line-height: 1.75;
+  line-height: 1.7;
+}
+
+.helper-text {
+  margin-bottom: 12rpx;
+}
+
+.notice-text {
+  margin-bottom: 16rpx;
+  padding: 14rpx 16rpx;
+  border-radius: 16rpx;
+  background: #fff1e2;
+  color: #8a4b2f;
 }
 
 .action-row {
@@ -147,6 +172,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 14rpx;
+  margin-top: 16rpx;
 }
 
 .reference-card {
@@ -169,9 +195,18 @@
   height: 220rpx;
 }
 
+.reference-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8d7f74;
+  font-size: 24rpx;
+}
+
 .ghost-button,
 .primary-button,
-.danger-button {
+.secondary-button,
+.reference-remove {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -179,6 +214,7 @@
   min-width: 0;
   min-height: 76rpx;
   padding: 12rpx 16rpx;
+  box-sizing: border-box;
   border-radius: 14rpx;
   font-size: 26rpx;
   font-weight: 800;
@@ -186,7 +222,11 @@
   white-space: nowrap;
   word-break: keep-all;
   text-align: center;
-  box-sizing: border-box;
+}
+
+.ghost-button,
+.primary-button,
+.secondary-button {
   flex: 1 1 0;
 }
 
@@ -201,17 +241,28 @@
   color: #fff;
 }
 
-.danger-button {
-  background: #c24f3d;
+.secondary-button {
+  background: #2c2019;
   color: #fff;
 }
 
+.reference-remove {
+  min-height: 60rpx;
+  background: #fff0eb;
+  color: #a34737;
+}
+
+.single-button,
 .action-row.single .primary-button {
   flex: none;
 }
 
 .reference-name {
   word-break: break-all;
+}
+
+.inline-error {
+  margin-top: 24rpx;
 }
 
 .error-card {
