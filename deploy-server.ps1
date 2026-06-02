@@ -59,6 +59,7 @@ $remoteCommand = @(
   "set -e",
   "mkdir -p '$RemoteAppPath'",
   "tar -xzf '$RemoteArchivePath' -C '$RemoteAppPath'",
+  "sudo chown -R '$RemoteUser':'$RemoteUser' '$RemoteAppPath'",
   "cd '$RemoteAppPath'",
   "npm install",
   "if grep -q '""backfill:thumbnails""' package.json; then npm run backfill:thumbnails; fi",
