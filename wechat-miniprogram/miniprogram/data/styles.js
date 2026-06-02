@@ -1,7 +1,17 @@
 const styles = [
   {
-    "id": "style_1780214860370",
+    "id": "style_1780359249273",
     "sort": 0,
+    "tags": [
+      "治愈系插画"
+    ],
+    "image": "/images-small/style_1780359249273.jpg",
+    "prompt": "变换整个图片风格，变成复杂画风治愈系插画，童趣涂鸦风格，意识流，大色块，颗粒感，增加肌理，抽象插画，扁平插画。采用大色块填充和颗粒质感，色彩鲜艳饱和，具有童趣涂鸦的随意感和意识流的自由表达。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1780214860370",
+    "sort": 1,
     "tags": [
       "宠物",
       "油画",
@@ -14,7 +24,7 @@ const styles = [
   },
   {
     "id": "style_1780183870275",
-    "sort": 1,
+    "sort": 2,
     "tags": [
       "宠物",
       "角色卡"
@@ -25,7 +35,7 @@ const styles = [
   },
   {
     "id": "style_1780183785792",
-    "sort": 2,
+    "sort": 3,
     "tags": [
       "水墨肖像",
       "宠物"
@@ -36,7 +46,7 @@ const styles = [
   },
   {
     "id": "style_1779944352617",
-    "sort": 3,
+    "sort": 4,
     "tags": [
       "潮流",
       "宠物"
@@ -47,7 +57,7 @@ const styles = [
   },
   {
     "id": "style_1779931156452",
-    "sort": 4,
+    "sort": 5,
     "tags": [
       "莫奈",
       "印象派",
@@ -60,7 +70,7 @@ const styles = [
   },
   {
     "id": "style_1779179574408",
-    "sort": 5,
+    "sort": 6,
     "tags": [
       "丑萌",
       "手绘",
@@ -72,7 +82,7 @@ const styles = [
   },
   {
     "id": "style_1779180012171",
-    "sort": 6,
+    "sort": 7,
     "tags": [
       "可爱",
       "宠物",
@@ -84,7 +94,7 @@ const styles = [
   },
   {
     "id": "style_1779181030715",
-    "sort": 7,
+    "sort": 8,
     "tags": [
       "皮克斯",
       "可爱",
@@ -98,7 +108,7 @@ const styles = [
   },
   {
     "id": "style_1779179958695",
-    "sort": 8,
+    "sort": 9,
     "tags": [
       "平面",
       "插画",
@@ -109,16 +119,6 @@ const styles = [
     "image": "/images-small/style_1779179958695.jpg",
     "prompt": "请将整个图像转化为单一的装饰性民间平面插图，带有涂鸦元素。使用大胆而俏皮的色彩调色板，与原图像完全不同。\n将所有细节简化为干净、平面的形状，带有手工制作的、略显不完美感，仿佛绘制在一张白纸上。整体风格应显得可爱、童趣十足且异想天开。",
     "useStyleImageAsReference": false
-  },
-  {
-    "id": "style_1779323084946",
-    "sort": 9,
-    "tags": [
-      "艺术"
-    ],
-    "image": "/images-small/style_1779323084946.jpg",
-    "prompt": "把图一中的猫咪换成图二中的宠物",
-    "useStyleImageAsReference": true
   },
   {
     "id": "pencil",
@@ -135,8 +135,18 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1779179444790",
+    "id": "style_1779323084946",
     "sort": 11,
+    "tags": [
+      "艺术"
+    ],
+    "image": "/images-small/style_1779323084946.jpg",
+    "prompt": "把图一中的猫咪换成图二中的宠物",
+    "useStyleImageAsReference": true
+  },
+  {
+    "id": "style_1779179444790",
+    "sort": 12,
     "tags": [
       "复古",
       "海报",
@@ -149,7 +159,7 @@ const styles = [
   },
   {
     "id": "style_1780029542441",
-    "sort": 12,
+    "sort": 13,
     "tags": [
       "剪纸"
     ],
@@ -159,7 +169,7 @@ const styles = [
   },
   {
     "id": "style_1779762562660",
-    "sort": 13,
+    "sort": 14,
     "tags": [
       "潮流",
       "海报",
@@ -167,16 +177,6 @@ const styles = [
     ],
     "image": "/images-small/style_1779762562660.jpg",
     "prompt": "将上传人物照片转化为一张完整的潮流角色海报。\n重点不是写实述原，而是提炼人物识别特征并进行角色化重构。保留原人物的发型、脸型气质、表情、穿搭颜色、姿势、鞋子和重要配饰，让人能看出原人物特点，但人物不能写实。\n人物风格要求：\n夸张潮流角色，街头少年感，松弛、自信、张扬，数字厚涂海报风格。\n人物比例要求：\n头部略大，但不要Q版;\n脖子稍长；\n躯干较小；\n身体瘦长；\n四胶明显拉长；\n手臂细长，手肘有明显折角；\n手腕纤细；\n手掌略大；\n手指细长，有明确关节和姿势;\n腿部细长，滕盖有清晰转折；\n脚踝纤细；\n鞋子必须明显放大，鞋底厚重，有潮流玩具感。\n如果人物没有穿鞋，或者穿拖鞋、凉鞋、赤脚:\n脚部也要图形化和夸张化处理。\n脚趾数量正确，脚掌结构清楚，脚蹀纤细，脚部轮廓有几何感和设计感。\n脚掌可以略微放大，脚趾结构清楚，脚背、脚踝和脚掌比例有设计感。\n脚部要像图形化角色设计，不要写实脚部，也不要出成模糊脚、畸形脚、多脚趾或粘连脚趾、\n人物形态要求：\n身体不要接近真实人类比例。\n四肢要有几何感、折线感和长条色块感。\n手肘、膝盖、手腕、脚踝都要有明确结构。\n关节可以夸张，但结构必须可信。\n人物姿态要松弛自然，可以蹲坐、半蹲、坐在地面、伸手比耶、张开手臂、侧身看镜头等。\n不要僵硬站姿。\n手部要求：\n手是画面重点之一。\n手指要细长、灵活、有清晰关节。\n手势要自然、有设计感、有街头感。\n如果是比耶手势，食指和中指要清楚分开，其他手指自然弯曲。\n不要多指，不要少指，不要粘连手指，不要模糊手，不要畸形手。\n五官处理:\n五官必须图形化、简化、夸张。\n不要真实皮肤纹理，不要真实眼球高光，不要真实肖像感。\n眉毛、眼睛、鼻子、嘴巴用设计感线条和人色块概括。\n表情可以比原照片更夸张、更自信、更有性格。\n背景处理：\n背景也必须和人物统一风格，不能写实。\n将原照片中的山、水、帐篷、石头、街景、房间、家具、物品等全部重构成图形化色块、厚涂笔触、拼贴碎片、涂鸦线条、半透明几何图形和抽象海报元素\n背景可以参考原照片的场景结构，但必须被压平、简化、符号化、海报化。\n不要出现人物风格化们背景写实的割裂感。\n画面海报感：\n画面不能只是白底人物。\n加入符合场景的涂鸦文字、手写标记、箭头、贴纸、胶带、粗糙笔刷、抽象符号和拼贴块。\n涂鸦文字要少量点缀，可以使用 FREE、VIBE、DAILY、CHILL、PLAY、SUMMER、WLD、GOOD VIBE，也可以加入中文短词如出街、松弛感、今日状态、自由一点。\n文字不要遮挡脸部和手势，不要变成正式标题，不要乱码\n整体风格：\nmodern urban charactor poster,\nstylized streetwear character design,\nexaggerated proportions , \nlong thin limbs,\nangular joints,\noversized shoes,\ngraphic facial features,\nexpressive hands,\nlong fingers,\ndigital gouache painting,\nrough brush strokes,\nblocky color shapes,\nloose  painterly edges,\nabstract poster background,\ncollage elements,\ngraffiti lines,\nhandwritten notes,\nurban art zine style,\nfashion editorial poster,\nlow saturation color palette ,\noff-white background,\nstrong poster composition\n最终效果：\n一张高级潮流人物海报。\n人物关节清楚、四肢修长、手指有细节、鞋子夸张、姿态松弛、表情有性格\n背景也要统一成厚涂、拼贴、涂鸦、图形化的海报语言。\n负面提示词：\n不要写实人物，不要真实肖像,不要正常真人比例，不要圆润Q版，不要儿童卡通，不要二次元动漫，不要3D渲染，不要蜘料感，不要真实皮肤纹理，不要真实眼球高光。\n不要短粗四肢，不要正常鞋子大小，不要僵硬站姿，不要无关节感，不要关节模糊，不要手指糊掉，不要多手指，不要少手指，不要粘连手指，不要畸形手。\n不要写实背景，不要真实照片背景，不要人物插画但背景写实的割裂感，不要复杂写实山水，不要真实摄影光影，不要正式广告标题，不要乱码文字，不要水印，不要logo。",
-    "useStyleImageAsReference": false
-  },
-  {
-    "id": "style_1779931260825",
-    "sort": 14,
-    "tags": [
-      "表情包"
-    ],
-    "image": "/images-small/style_1779931260825.jpg",
-    "prompt": "参照上传图片里的主体形象，将其改编成可爱的卡通萌系造型。设计16款各不相同的LINE风格表情包贴纸。搭配丰富多变的动作姿势与文字排版，组成款式多样的贴纸套装，确保任意两款贴纸外观都不重复。所有对话文案均使用中文，选用时下热门潮流话术。背景统一设置为纯白色。打造一套适配日常各类聊天场景、日常使用便捷的贴纸套装。",
     "useStyleImageAsReference": false
   },
   {
@@ -191,8 +191,21 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1779845065374",
+    "id": "style_1779179665778",
     "sort": 16,
+    "tags": [
+      "随意",
+      "手绘",
+      "丑萌",
+      "速写"
+    ],
+    "image": "/images-small/style_1779179665778.jpg",
+    "prompt": "给我生成一个照片，像灵魂画手在休息时间随便用中性笔勾勒几笔一样，线条简单利索，乍一看很随便甚至像用左手乱涂一样线条一抖一抖的，眼睛可以是豆豆眼也可以是一个横线条，反正不能展示一点画功，但该有的精髓都在，画面要带有莫名喜感和自信，有种越荒谬越搞笑越好，颜色要黑色线条，画面中只显示纸张和画就可以。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1779845065374",
+    "sort": 17,
     "tags": [
       "剪纸",
       "旅行",
@@ -204,7 +217,7 @@ const styles = [
   },
   {
     "id": "style_1779844966340",
-    "sort": 17,
+    "sort": 18,
     "tags": [
       "剪纸",
       "简约"
@@ -214,8 +227,18 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
+    "id": "style_1779931260825",
+    "sort": 19,
+    "tags": [
+      "表情包"
+    ],
+    "image": "/images-small/style_1779931260825.jpg",
+    "prompt": "参照上传图片里的主体形象，将其改编成可爱的卡通萌系造型。设计16款各不相同的LINE风格表情包贴纸。搭配丰富多变的动作姿势与文字排版，组成款式多样的贴纸套装，确保任意两款贴纸外观都不重复。所有对话文案均使用中文，选用时下热门潮流话术。背景统一设置为纯白色。打造一套适配日常各类聊天场景、日常使用便捷的贴纸套装。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1779322951275",
-    "sort": 18,
+    "sort": 20,
     "tags": [
       "表情包"
     ],
@@ -225,7 +248,7 @@ const styles = [
   },
   {
     "id": "style_1779180072956",
-    "sort": 19,
+    "sort": 21,
     "tags": [
       "Plog",
       "可爱",
@@ -238,7 +261,7 @@ const styles = [
   },
   {
     "id": "style_1779179914765",
-    "sort": 20,
+    "sort": 22,
     "tags": [
       "儿童",
       "插画",
@@ -251,7 +274,7 @@ const styles = [
   },
   {
     "id": "style_1779179882103",
-    "sort": 21,
+    "sort": 23,
     "tags": [
       "艺术",
       "宠物"
@@ -262,7 +285,7 @@ const styles = [
   },
   {
     "id": "style_1779179828722",
-    "sort": 22,
+    "sort": 24,
     "tags": [
       "手绘",
       "插画",
@@ -274,7 +297,7 @@ const styles = [
   },
   {
     "id": "style_1779179773582",
-    "sort": 23,
+    "sort": 25,
     "tags": [
       "卡通"
     ],
@@ -284,7 +307,7 @@ const styles = [
   },
   {
     "id": "style_1779179722094",
-    "sort": 24,
+    "sort": 26,
     "tags": [
       "卡通",
       "丑萌",
@@ -296,21 +319,8 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1779179665778",
-    "sort": 25,
-    "tags": [
-      "随意",
-      "手绘",
-      "丑萌",
-      "速写"
-    ],
-    "image": "/images-small/style_1779179665778.jpg",
-    "prompt": "给我生成一个照片，像灵魂画手在休息时间随便用中性笔勾勒几笔一样，线条简单利索，乍一看很随便甚至像用左手乱涂一样线条一抖一抖的，眼睛可以是豆豆眼也可以是一个横线条，反正不能展示一点画功，但该有的精髓都在，画面要带有莫名喜感和自信，有种越荒谬越搞笑越好，颜色要黑色线条，画面中只显示纸张和画就可以。",
-    "useStyleImageAsReference": false
-  },
-  {
     "id": "style_1779179649152",
-    "sort": 26,
+    "sort": 27,
     "tags": [
       "随意",
       "手绘",
@@ -322,7 +332,7 @@ const styles = [
   },
   {
     "id": "style_1779179490072",
-    "sort": 27,
+    "sort": 28,
     "tags": [
       "插画",
       "手绘",
@@ -336,7 +346,7 @@ const styles = [
   },
   {
     "id": "style_1779179328013",
-    "sort": 28,
+    "sort": 29,
     "tags": [
       "卡通",
       "插画",
@@ -352,7 +362,7 @@ const styles = [
   },
   {
     "id": "clay",
-    "sort": 29,
+    "sort": 30,
     "tags": [
       "手绘",
       "儿童",
@@ -366,7 +376,7 @@ const styles = [
   },
   {
     "id": "style_1779165306174",
-    "sort": 30,
+    "sort": 31,
     "tags": [
       "像素",
       "头像",
@@ -380,7 +390,7 @@ const styles = [
   },
   {
     "id": "oil_painting",
-    "sort": 31,
+    "sort": 32,
     "tags": [
       "宠物",
       "随意",
@@ -394,8 +404,18 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
+    "id": "style_1780359396127",
+    "sort": 33,
+    "tags": [
+      "艺术肖像海报"
+    ],
+    "image": "/images-small/style_1780359396127.jpg",
+    "prompt": "参考图一的视觉风格、色彩气质与印刷质感，保留图二真实照片中主体的面部神态、五官比例、表情特征、发型轮廓、身体姿态与主体识别度，将其转换为一张艺术印刷海报。\n整体采用：\nretro art poster、editorial portrait poster、grain printed texture、risograph-inspired photo treatment、screen print grain、vintage magazine cover aesthetic、stylized photographic poster 风格。\n无任何文字，主体保持清晰可识别，\n必须保留原照片中的真实面部神态、眼神方向、嘴部表情、头部角度、发型轮廓和身体姿态。\n在构图上可以进行轻微艺术化调整：\n增加更干净的背景留白，\n强化主体与背景之间的色彩对比，\n让画面更像一张独立杂志封面或艺术展览海报。\n但整体仍需基于原始照片的核心构图关系\n而是保留照片骨架和主体真实感，\n在照片基础上进行艺术化平面处理：\n轻微色块化、\n轻微边缘简化、\n轻微轮廓强化、\n轻微印刷套色偏移、\n局部半调网点、\n粗颗粒纸张纹理、\n复古印刷噪点、\n高饱和复古印刷色调，\n可使用 bright red、warm yellow、deep cobalt blue、vivid green、soft pink、cream white…\n整体鲜明、快乐、图形化，\n背景纯色、浅色留白或简洁色面，\n画面质感：\ncoarse paper grain、\nrisograph grain、\nscreen printing texture、\nhalftone dots、\nslight ink bleeding、\nslight color misregistration、\nvintage print noise、\nscanned magazine texture。\n应该像真实照片经过艺术印刷与复古杂志处理，\n最终画面气质像：\n复古艺术杂志封面、\n独立影像海报、\n带有印刷颗粒的时尚肖像摄影、\n轻微图形化处理的真实照片。",
+    "useStyleImageAsReference": true
+  },
+  {
     "id": "cyberpunk",
-    "sort": 32,
+    "sort": 34,
     "tags": [
       "手绘",
       "蜡笔",
@@ -409,7 +429,7 @@ const styles = [
   },
   {
     "id": "pixel",
-    "sort": 33,
+    "sort": 35,
     "tags": [
       "丑萌",
       "插画",
@@ -421,7 +441,7 @@ const styles = [
   },
   {
     "id": "style_1779179392820",
-    "sort": 34,
+    "sort": 36,
     "tags": [
       "诡异",
       "童话",
@@ -433,7 +453,7 @@ const styles = [
   },
   {
     "id": "style_1779268159068",
-    "sort": 35,
+    "sort": 37,
     "tags": [
       "人物"
     ],

@@ -1,5 +1,14 @@
 [
   {
+    "id": "style_1780359249273",
+    "tags": [
+      "治愈系插画"
+    ],
+    "image": "/style-previews/style_1780359249273/cover.jpg",
+    "prompt": "变换整个图片风格，变成复杂画风治愈系插画，童趣涂鸦风格，意识流，大色块，颗粒感，增加肌理，抽象插画，扁平插画。采用大色块填充和颗粒质感，色彩鲜艳饱和，具有童趣涂鸦的随意感和意识流的自由表达。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1780214860370",
     "tags": [
       "宠物",
@@ -102,15 +111,6 @@
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1779323084946",
-    "tags": [
-      "艺术"
-    ],
-    "image": "/style-previews/style_1779323084946/cover.jpg",
-    "prompt": "把图一中的猫咪换成图二中的宠物",
-    "useStyleImageAsReference": true
-  },
-  {
     "id": "pencil",
     "tags": [
       "涂鸦",
@@ -122,6 +122,15 @@
     "image": "/style-previews/pencil/cover.png",
     "prompt": "以涂鸦速写风表现【主题/主体】，整体呈现快速勾勒、自由变形、即兴手绘与草稿式的视觉效果。线条随手、夸张、可粗细不一，略显凌乱但具有节奏和表现力，强调概括、夸张、趣味和随性，而不是严谨写实或精细刻画。\n\n颜色采用粗糙、干刷感明显的块面表现，可保留不均匀的涂抹痕迹、刷痕、飞白与覆盖感，色彩根据【主题/主体】自动适配，但整体保持涂鸦式、速写式、概括式的表达。不要透明水彩晕染效果，不要细腻水彩过渡，不要纸纹理，不要柔和雾化，不要梦幻质感。\n\n背景以留白为主，保持简洁、轻松、未完成感和设计感，可加入少量辅助性符号、箭头、记号、圈画、重复线、随手写的文字或其他涂鸦元素，以增强速写本或随笔式视觉语言，但不可过于拥挤，不可破坏主体和留白气质。\n\n画面内容不需要预先写清楚，由【主题/主体】自动推演并生成最适合的主体形象、动作、相关元素、符号或简化场景，整体保持统一的涂鸦速写风和夸张概括的表现方式，避免复杂写实背景和过度铺陈。\n画面中需自然加入专属签名“Marshall”，作为画面的一部分，位置低调但清晰，可放在左下角、右下角或标题附近，风格需与整体版式统一，像作品署名或设计落款；签名字体精致、克制、高级，不可过大，不可破坏主体构图，不可显得突兀或廉价。",
     "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1779323084946",
+    "tags": [
+      "艺术"
+    ],
+    "image": "/style-previews/style_1779323084946/cover.jpg",
+    "prompt": "把图一中的猫咪换成图二中的宠物",
+    "useStyleImageAsReference": true
   },
   {
     "id": "style_1779179444790",
@@ -156,15 +165,6 @@
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1779931260825",
-    "tags": [
-      "表情包"
-    ],
-    "image": "/style-previews/style_1779931260825/cover.png",
-    "prompt": "参照上传图片里的主体形象，将其改编成可爱的卡通萌系造型。设计16款各不相同的LINE风格表情包贴纸。搭配丰富多变的动作姿势与文字排版，组成款式多样的贴纸套装，确保任意两款贴纸外观都不重复。所有对话文案均使用中文，选用时下热门潮流话术。背景统一设置为纯白色。打造一套适配日常各类聊天场景、日常使用便捷的贴纸套装。",
-    "useStyleImageAsReference": false
-  },
-  {
     "id": "style_1779961220177",
     "tags": [
       "Plog",
@@ -172,6 +172,18 @@
     ],
     "image": "/style-previews/style_1779961220177/cover.jpg",
     "prompt": "请观察照片中的元素，并为每个元素添加有意义的手绘注释。 \n【画面里的东西】 把照片里的物品简单列出来（比如：冰美式、面包、窗边、阳光） \n【画法要求】 ・用白色细线，像手绘笔一样 ・一笔画风格，线条随意一点，不要太工整 ・沿着物体边缘轻轻描一圈轮廓 ・适当加箭头 / 虚线，引导视线 【文字风格】 ・中文手写感，偏口语一点 ・句子要短，像随手写的 ・语气像日常碎碎念 / 小情绪 【\n内容怎么写】 ・饮品 → 味道 / 温度 / 当下感觉（例：冰冰的，好清爽） ・食物 → 口感 / 好不好吃（例：软软的，有点惊喜） ・环境 → 氛围（例：有点安静，很适合发呆） ・整体 → 一句总结（例：今天也算被治愈了） \n【小装饰】 ・可以加一点点：热气、小星星、爱心、简单表情（比如：:)） ・不要太多，留一点空白更好看 \n【整体感觉】 ・像小红书日常分享 / 随手记录 ・自然、不用太精致，有点松弛感",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1779179665778",
+    "tags": [
+      "随意",
+      "手绘",
+      "丑萌",
+      "速写"
+    ],
+    "image": "/style-previews/style_1779179665778/cover.jpg",
+    "prompt": "给我生成一个照片，像灵魂画手在休息时间随便用中性笔勾勒几笔一样，线条简单利索，乍一看很随便甚至像用左手乱涂一样线条一抖一抖的，眼睛可以是豆豆眼也可以是一个横线条，反正不能展示一点画功，但该有的精髓都在，画面要带有莫名喜感和自信，有种越荒谬越搞笑越好，颜色要黑色线条，画面中只显示纸张和画就可以。",
     "useStyleImageAsReference": false
   },
   {
@@ -193,6 +205,15 @@
     ],
     "image": "/style-previews/style_1779844966340/cover.png",
     "prompt": "将上传图片转换为温暖、极简的杂志剪纸拼贴风插画。\n\t\n保持主体在画面中的位置、姿势、表情、服装和整体概念与上传图片一致。将人物重新诠释为可爱的简化韩系角色，拥有柔和圆润的比例、极简五官、轻松的小微笑，以及分层纸剪影轮廓。\n\t\n风格：手工感编辑拼贴、扁平纸张层次、柔和 pastel 纸张纹理、撕纸边缘、细微纸张阴影、干净黑色涂鸦点缀、手账 scrapbook 氛围、现代韩系杂志设计、简单可爱的构图、大面积干净白色留白。\n\t\n构图：竖版 3:4。保持主体位置与上传图片一致。画面通透、稀疏、不拥挤。\n\t\n只添加少量相关拼贴小道具：纸条、小爱心、植物、咖啡杯、窗户、胶带、简单涂鸦图标。\n\t\n在留白处添加一个优雅的手写英文标题，例如 “Soft little moment” 或 “Take a small break”。\n\t\n氛围：平静、舒适、温暖、可爱、柔和编辑感。\n\t\n避免：真实照片感、动漫风、水彩、3D 黏土、复杂背景、拥挤拼贴、深色、强硬阴影、凌乱或难以辨认的文字。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1779931260825",
+    "tags": [
+      "表情包"
+    ],
+    "image": "/style-previews/style_1779931260825/cover.png",
+    "prompt": "参照上传图片里的主体形象，将其改编成可爱的卡通萌系造型。设计16款各不相同的LINE风格表情包贴纸。搭配丰富多变的动作姿势与文字排版，组成款式多样的贴纸套装，确保任意两款贴纸外观都不重复。所有对话文案均使用中文，选用时下热门潮流话术。背景统一设置为纯白色。打造一套适配日常各类聊天场景、日常使用便捷的贴纸套装。",
     "useStyleImageAsReference": false
   },
   {
@@ -268,18 +289,6 @@
     ],
     "image": "/style-previews/style_1779179722094/cover.jpg",
     "prompt": "转绘成独立卡通插画，新天真流行艺术风格，丑萌趣味人物，超细黑色轮廓线，高饱和度明快平涂色彩，手绘随性不规则线条，低保真涂鸦质感，怪诞无厘头趣味，夸张面部神态，微猎奇却软萌可爱，极简背景，现代街头艺术氛围，摒弃精致流水线画风。",
-    "useStyleImageAsReference": false
-  },
-  {
-    "id": "style_1779179665778",
-    "tags": [
-      "随意",
-      "手绘",
-      "丑萌",
-      "速写"
-    ],
-    "image": "/style-previews/style_1779179665778/cover.jpg",
-    "prompt": "给我生成一个照片，像灵魂画手在休息时间随便用中性笔勾勒几笔一样，线条简单利索，乍一看很随便甚至像用左手乱涂一样线条一抖一抖的，眼睛可以是豆豆眼也可以是一个横线条，反正不能展示一点画功，但该有的精髓都在，画面要带有莫名喜感和自信，有种越荒谬越搞笑越好，颜色要黑色线条，画面中只显示纸张和画就可以。",
     "useStyleImageAsReference": false
   },
   {
@@ -360,6 +369,15 @@
     "image": "/style-previews/oil_painting/cover.jpg",
     "prompt": "Turn this photo into a funny ugly doodle drawing. Make it look like: a quick sketch using a cheap marker or crayon messy, rough, childlike style bad perspective and awkward proportions slightly exaggerated facial features Add: simple cartoon background (like buildings, trees, street) random sketchy lines and details uneven coloring and visible strokes Style: looks like a lazy drawing, not polished humorous and a bit stupid-looking meme-like, casual, internet style Do NOT: make it realistic",
     "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1780359396127",
+    "tags": [
+      "艺术肖像海报"
+    ],
+    "image": "/style-previews/style_1780359396127/cover.jpg",
+    "prompt": "参考图一的视觉风格、色彩气质与印刷质感，保留图二真实照片中主体的面部神态、五官比例、表情特征、发型轮廓、身体姿态与主体识别度，将其转换为一张艺术印刷海报。\n整体采用：\nretro art poster、editorial portrait poster、grain printed texture、risograph-inspired photo treatment、screen print grain、vintage magazine cover aesthetic、stylized photographic poster 风格。\n无任何文字，主体保持清晰可识别，\n必须保留原照片中的真实面部神态、眼神方向、嘴部表情、头部角度、发型轮廓和身体姿态。\n在构图上可以进行轻微艺术化调整：\n增加更干净的背景留白，\n强化主体与背景之间的色彩对比，\n让画面更像一张独立杂志封面或艺术展览海报。\n但整体仍需基于原始照片的核心构图关系\n而是保留照片骨架和主体真实感，\n在照片基础上进行艺术化平面处理：\n轻微色块化、\n轻微边缘简化、\n轻微轮廓强化、\n轻微印刷套色偏移、\n局部半调网点、\n粗颗粒纸张纹理、\n复古印刷噪点、\n高饱和复古印刷色调，\n可使用 bright red、warm yellow、deep cobalt blue、vivid green、soft pink、cream white…\n整体鲜明、快乐、图形化，\n背景纯色、浅色留白或简洁色面，\n画面质感：\ncoarse paper grain、\nrisograph grain、\nscreen printing texture、\nhalftone dots、\nslight ink bleeding、\nslight color misregistration、\nvintage print noise、\nscanned magazine texture。\n应该像真实照片经过艺术印刷与复古杂志处理，\n最终画面气质像：\n复古艺术杂志封面、\n独立影像海报、\n带有印刷颗粒的时尚肖像摄影、\n轻微图形化处理的真实照片。",
+    "useStyleImageAsReference": true
   },
   {
     "id": "cyberpunk",

@@ -1,0 +1,16 @@
+[Unit]
+Description=Prompt Gallery Node Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/srv/prompt-gallery
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /srv/prompt-gallery/server/index.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
