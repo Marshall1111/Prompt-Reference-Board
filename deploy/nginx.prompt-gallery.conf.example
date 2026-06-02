@@ -20,6 +20,54 @@ server {
   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
   proxy_set_header X-Forwarded-Proto $scheme;
 
+  location /style-previews/ {
+    alias /srv/prompt-gallery/public/style-previews/;
+    access_log off;
+    expires 30d;
+    add_header Cache-Control "public, max-age=2592000";
+    try_files $uri =404;
+  }
+
+  location /images-small/ {
+    alias /srv/prompt-gallery/wechat-miniprogram/miniprogram/images-small/;
+    access_log off;
+    expires 30d;
+    add_header Cache-Control "public, max-age=2592000";
+    try_files $uri =404;
+  }
+
+  location /generated-images/ {
+    alias /srv/prompt-gallery/public/generated-images/;
+    access_log off;
+    expires 30d;
+    add_header Cache-Control "public, max-age=2592000";
+    try_files $uri =404;
+  }
+
+  location /generated-thumbnails/ {
+    alias /srv/prompt-gallery/public/generated-thumbnails/;
+    access_log off;
+    expires 30d;
+    add_header Cache-Control "public, max-age=2592000";
+    try_files $uri =404;
+  }
+
+  location /job-references/ {
+    alias /srv/prompt-gallery/public/job-references/;
+    access_log off;
+    expires 30d;
+    add_header Cache-Control "public, max-age=2592000";
+    try_files $uri =404;
+  }
+
+  location /job-reference-thumbnails/ {
+    alias /srv/prompt-gallery/public/job-reference-thumbnails/;
+    access_log off;
+    expires 30d;
+    add_header Cache-Control "public, max-age=2592000";
+    try_files $uri =404;
+  }
+
   location = /manage {
     auth_basic "Prompt Gallery Manage";
     auth_basic_user_file /etc/nginx/.prompt-gallery-manage.htpasswd;

@@ -249,7 +249,8 @@ function hasActiveJobs(jobs) {
 function normalizeJob(job) {
   var result = job && job.result ? job.result : null;
   var provider = job && job.provider ? job.provider : null;
-  var previewImageUrl = imageJobs.toAbsoluteImageUrl((result && (result.imageUrl || result.originalImageUrl)) || "");
+  var previewImageUrl = imageJobs.toAbsoluteImageUrl((result && (result.thumbnailUrl || result.imageUrl || result.originalImageUrl)) || "");
+  var fullImageUrl = imageJobs.toAbsoluteImageUrl((result && (result.imageUrl || result.originalImageUrl || result.thumbnailUrl)) || "");
 
   return {
     jobId: job.jobId,
@@ -266,7 +267,8 @@ function normalizeJob(job) {
     styleNameText: job.styleName || "Untitled Style",
     styleGroupNameText: job.styleGroupName || "",
     providerText: (provider && provider.name) || "Unknown Provider",
-    canCancel: isActiveJob(job.status)
+    canCancel: isActiveJob(job.status),
+    fullImageUrl: fullImageUrl
   };
 }
 
@@ -360,7 +362,8 @@ function attachTaskThumbnail(job) {
       styleNameText: job.styleNameText,
       styleGroupNameText: job.styleGroupNameText,
       providerText: job.providerText,
-      canCancel: job.canCancel
+      canCancel: job.canCancel,
+      fullImageUrl: job.fullImageUrl
     };
   }).catch(function () {
     return job;

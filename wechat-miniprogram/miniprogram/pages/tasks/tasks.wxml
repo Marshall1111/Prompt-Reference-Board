@@ -47,7 +47,7 @@
           <view class="actions">
             <button bindtap="openTaskDetail" class="ghost-button" data-jobid="{{item.jobId}}">Details</button>
             <button bindtap="copyPrompt" class="ghost-button" data-prompt="{{item.prompt}}">Copy Prompt</button>
-            <button bindtap="previewResult" class="primary-button" data-url="{{item.previewImageUrl}}" disabled="{{!item.previewImageUrl}}">View Result</button>
+            <button bindtap="previewResult" class="primary-button" data-url="{{item.fullImageUrl || item.previewImageUrl}}" disabled="{{!(item.fullImageUrl || item.previewImageUrl)}}">View Result</button>
             <button bindtap="deleteJob" class="delete-button" data-jobid="{{item.jobId}}" disabled="{{deletingJobId === item.jobId}}" loading="{{deletingJobId === item.jobId}}">
               Delete
             </button>

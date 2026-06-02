@@ -18,6 +18,10 @@ const GENERATION_SIZE_OPTIONS = [
   { value: "1024x1365", label: "3:4" },
   { value: "1365x1024", label: "4:3" }
 ];
+const GALLERY_INITIAL_BATCH = 18;
+const GALLERY_BATCH_STEP = 12;
+const MANAGE_INITIAL_BATCH = 12;
+const MANAGE_BATCH_STEP = 8;
 
 const REFERENCE_UPLOAD_LIMITS = {
   maxBytes: 4 * 1024 * 1024,
@@ -245,7 +249,11 @@ function App() {
 
 function GalleryPage({ copiedId, onCopy, onGenerate, onViewPrompt, styles }) {
   const columnCount = useResponsiveColumnCount();
-  const columns = useMemo(() => splitStylesByColumns(styles, columnCount), [styles, columnCount]);
+  const { visibleItems, canLoadMore, sentinelRef, loadMore } = useProgressiveItems(styles, {
+    initialCount: GALLERY_INITIAL_BATCH,
+    step: GALLERY_BATCH_STEP
+  });
+  const columns = useMemo(() => splitStylesByColumns(visibleItems, columnCount), [visibleItems, columnCount]);
 
   return (
     <section className="masonry-gallery" aria-label="风格提示词列表">
@@ -254,7 +262,7 @@ function GalleryPage({ copiedId, onCopy, onGenerate, onViewPrompt, styles }) {
           {column.map((style) => (
         <article className="style-card" key={style.id}>
           <div className="image-frame">
-            <img alt={`${style.tags.join("、")}示例图`} src={cacheBust(style.image)} />
+            <img alt={`${style.tags.join("、")}示例图`} decoding="async" loading="lazy" src={cacheBust(style.galleryImage || style.image)} />
           </div>
           <div className="tag-row">
             {style.tags.map((tag) => (
@@ -281,6 +289,7 @@ function GalleryPage({ copiedId, onCopy, onGenerate, onViewPrompt, styles }) {
           ))}
         </div>
       ))}
+      {canLoadMore ? <button className="progressive-loader" onClick={loadMore} ref={sentinelRef} type="button">Load more styles</button> : null}
     </section>
   );
 }
@@ -311,6 +320,41 @@ function splitStylesByColumns(styles, columnCount) {
     },
     Array.from({ length: columnCount }, () => [])
   );
+}
+
+function useProgressiveItems(items, { initialCount, step }) {
+  const [visibleCount, setVisibleCount] = useState(() => Math.min(initialCount, items.length));
+  const sentinelRef = useRef(null);
+  const canLoadMore = visibleCount < items.length;
+  const loadMore = () => setVisibleCount((current) => Math.min(current + step, items.length));
+
+  useEffect(() => {
+    setVisibleCount(Math.min(initialCount, items.length));
+  }, [items, initialCount]);
+
+  useEffect(() => {
+    if (!canLoadMore || !sentinelRef.current || typeof window === "undefined" || !("IntersectionObserver" in window)) {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        loadMore();
+      },
+      { rootMargin: "320px 0px" }
+    );
+
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [canLoadMore, items.length, step]);
+
+  return {
+    visibleItems: items.slice(0, visibleCount),
+    canLoadMore,
+    sentinelRef,
+    loadMore
+  };
 }
 
 function ImageGeneratorModal({ onClose, style }) {
@@ -875,7 +919,8 @@ function ImageJobsPage() {
 
       <div className="task-list">
         {visibleJobs.map((job) => {
-          const imageSource = job.result?.imageDataUrl || job.result?.imageUrl;
+          const imageSource = job.result?.thumbnailUrl || job.result?.imageDataUrl || job.result?.imageUrl;
+          const fullImageSource = job.result?.imageDataUrl || job.result?.imageUrl || imageSource;
           return (
             <article className="task-card" key={job.jobId}>
               <div className={`task-status ${job.status}`}>{statusLabel(job.status)}</div>
@@ -905,7 +950,7 @@ function ImageJobsPage() {
                   <X size={18} />
                   <span>停止</span>
                 </button>
-                <button className="secondary-button" disabled={!imageSource} onClick={() => openImageSource(imageSource)} type="button">
+                <button className="secondary-button" disabled={!fullImageSource} onClick={() => openImageSource(fullImageSource)} type="button">
                   <Eye size={18} />
                   <span>查看</span>
                 </button>
@@ -1111,7 +1156,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
                 {styles.map((style) => (
                   <label className={`style-picker-card ${selectedStyleIds.includes(style.id) ? "active" : ""}`} key={style.id}>
                     <input checked={selectedStyleIds.includes(style.id)} onChange={() => toggleStyle(style.id)} type="checkbox" />
-                    <img alt={style.tags.join("、")} src={cacheBust(style.image)} />
+                    <img alt={style.tags.join("、")} decoding="async" loading="lazy" src={cacheBust(style.galleryImage || style.image)} />
                     <span>{style.tags.join("、") || style.id}</span>
                   </label>
                 ))}
@@ -1494,6 +1539,10 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
   const [drafts, setDrafts] = useState({});
   const [savingId, setSavingId] = useState("");
   const [draggingId, setDraggingId] = useState("");
+  const { visibleItems, canLoadMore, sentinelRef, loadMore } = useProgressiveItems(styles, {
+    initialCount: MANAGE_INITIAL_BATCH,
+    step: MANAGE_BATCH_STEP
+  });
 
   useEffect(() => {
     setDrafts(
@@ -1551,7 +1600,7 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
         <span>新增风格</span>
       </button>
 
-      {styles.map((style, index) => {
+      {visibleItems.map((style, index) => {
         const draft = drafts[style.id] || { tags: "", prompt: "", useStyleImageAsReference: false };
         return (
           <article
@@ -1573,7 +1622,7 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
                 <ArrowDown size={18} />
               </button>
             </div>
-            <img alt="当前示例图" src={cacheBust(style.image)} />
+            <img alt="当前示例图" decoding="async" loading="lazy" src={cacheBust(style.galleryImage || style.image)} />
             <div className="manage-body">
               <label className="field-label">
                 标签
@@ -1636,6 +1685,7 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
           </article>
         );
       })}
+      {canLoadMore ? <button className="progressive-loader" onClick={loadMore} ref={sentinelRef} type="button">Load more styles</button> : null}
     </section>
   );
 }

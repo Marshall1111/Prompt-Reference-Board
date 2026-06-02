@@ -30,7 +30,10 @@
 - `data/`
 - `public/style-previews/`
 - `public/generated-images/`
+- `public/generated-thumbnails/`
 - `public/job-references/`
+- `public/job-reference-thumbnails/`
+- `wechat-miniprogram/miniprogram/images-small/`
 
 其中：
 
@@ -39,7 +42,10 @@
 - `data/image-jobs/`：任务记录
 - `public/style-previews/`：示例图
 - `public/generated-images/`：生成结果图
+- `public/generated-thumbnails/`：生成结果缩略图
 - `public/job-references/`：任务参考图副本
+- `public/job-reference-thumbnails/`：任务参考图缩略图
+- `wechat-miniprogram/miniprogram/images-small/`：风格图库小图
 
 这次上线默认单实例运行，不做多机共享文件系统。
 
@@ -87,6 +93,13 @@ npm run build
 
 ```bash
 npm start
+```
+
+如果这是首次部署缩略图版本，建议在服务启动前补一次历史任务缩略图：
+
+```bash
+npm install
+npm run backfill:thumbnails
 ```
 
 确认以下接口能通：

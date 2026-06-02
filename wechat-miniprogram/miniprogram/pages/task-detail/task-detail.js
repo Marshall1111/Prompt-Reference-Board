@@ -397,13 +397,14 @@ function hydrateJobAssets(job) {
     resolvePreviewAsset(rawResultImageUrl),
     Promise.all(rawReferences.map(function (item, index) {
       var absoluteUrl = imageJobs.toAbsoluteImageUrl(item.url);
+      var thumbnailUrl = imageJobs.toAbsoluteImageUrl(item.thumbnailUrl || item.url);
 
-      return resolvePreviewAsset(absoluteUrl).then(function (asset) {
+      return resolvePreviewAsset(thumbnailUrl).then(function (asset) {
         return {
           id: "job-reference-" + index + "-" + String(item.order || index),
           name: item.name || ("Reference " + (index + 1)),
-          previewUrl: asset.previewUrl || absoluteUrl,
-          renderUrl: asset.renderUrl || "",
+          previewUrl: absoluteUrl,
+          renderUrl: asset.renderUrl || asset.previewUrl || "",
           originalUrl: absoluteUrl,
           tempFilePath: asset.tempFilePath || "",
           filePath: asset.tempFilePath || "",

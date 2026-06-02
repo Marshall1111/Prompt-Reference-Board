@@ -17,11 +17,17 @@ const imageJobRoot = path.join(rootDir, "data", "image-jobs");
 const tempReferenceRoot = path.join(rootDir, "data", "temp-image-references");
 const previewRoot = path.join(rootDir, "public", "style-previews");
 const generatedImageRoot = path.join(rootDir, "public", "generated-images");
+const generatedThumbnailRoot = path.join(rootDir, "public", "generated-thumbnails");
 const jobReferenceRoot = path.join(rootDir, "public", "job-references");
+const jobReferenceThumbnailRoot = path.join(rootDir, "public", "job-reference-thumbnails");
 const miniDataPath = path.join(rootDir, "wechat-miniprogram", "miniprogram", "data", "styles.js");
 const miniImageRoot = path.join(rootDir, "wechat-miniprogram", "miniprogram", "images-small");
 const miniCompressScript = path.join(rootDir, "tools", "compress_for_miniprogram.ps1");
 const execFileAsync = promisify(execFile);
+const RESULT_THUMBNAIL_MAX_EDGE = 384;
+const REFERENCE_THUMBNAIL_MAX_EDGE = 240;
+
+let sharpModulePromise;
 
 loadLocalEnv();
 
@@ -508,6 +514,7 @@ app.post("/api/styles/:id/image", upload.single("image"), async (req, res) => {
 });
 
 app.use(express.static(path.join(rootDir, "public")));
+app.use("/images-small", express.static(miniImageRoot));
 app.use(express.static(path.join(rootDir, "dist")));
 
 app.use((_req, res) => {
@@ -525,13 +532,16 @@ app.listen(port, () => {
 
 async function readStyles() {
   const styles = JSON.parse(await readFile(dataPath, "utf-8"));
-  return styles.map((style) => ({
-    id: style.id,
-    tags: normalizeTags(style.tags?.length ? style.tags : [style.label, style.description]),
-    image: style.image || "/style-previews/default/cover.svg",
-    prompt: String(style.prompt || ""),
-    useStyleImageAsReference: Boolean(style.useStyleImageAsReference)
-  }));
+  return Promise.all(
+    styles.map(async (style) => ({
+      id: style.id,
+      tags: normalizeTags(style.tags?.length ? style.tags : [style.label, style.description]),
+      image: style.image || "/style-previews/default/cover.svg",
+      galleryImage: await getWebGalleryImage(style),
+      prompt: String(style.prompt || ""),
+      useStyleImageAsReference: Boolean(style.useStyleImageAsReference)
+    }))
+  );
 }
 
 async function readStyleGroups() {
@@ -577,7 +587,9 @@ async function prepareImageJobStorage() {
   await mkdir(imageJobRoot, { recursive: true });
   await mkdir(tempReferenceRoot, { recursive: true });
   await mkdir(generatedImageRoot, { recursive: true });
+  await mkdir(generatedThumbnailRoot, { recursive: true });
   await mkdir(jobReferenceRoot, { recursive: true });
+  await mkdir(jobReferenceThumbnailRoot, { recursive: true });
 
   const entries = await readdir(imageJobRoot, { withFileTypes: true });
   await Promise.all(
@@ -747,14 +759,19 @@ async function persistImageJobResult(jobId, result, outputFormat) {
 
   const extension = extensionForMime(match[1] || `image/${outputFormat}`);
   const filename = `${jobId}.${extension}`;
+  const bytes = Buffer.from(match[2], "base64");
   await mkdir(generatedImageRoot, { recursive: true });
-  await writeFile(path.join(generatedImageRoot, filename), Buffer.from(match[2], "base64"));
+  await writeFile(path.join(generatedImageRoot, filename), bytes);
+  const thumbnail = await createGeneratedImageThumbnail(jobId, bytes);
 
   return {
     ...result,
     imageDataUrl: "",
     imageUrl: `/generated-images/${filename}`,
-    mimeType: match[1]
+    mimeType: match[1],
+    thumbnailUrl: thumbnail?.url || "",
+    thumbnailWidth: thumbnail?.width || null,
+    thumbnailHeight: thumbnail?.height || null
   };
 }
 
@@ -772,13 +789,17 @@ async function persistRemoteImageJobResult(jobId, result, outputFormat) {
   const bytes = Buffer.from(await response.arrayBuffer());
   await mkdir(generatedImageRoot, { recursive: true });
   await writeFile(path.join(generatedImageRoot, filename), bytes);
+  const thumbnail = await createGeneratedImageThumbnail(jobId, bytes);
 
   return {
     ...result,
     imageDataUrl: "",
     imageUrl: `/generated-images/${filename}`,
     mimeType: contentType,
-    originalImageUrl: result.imageUrl
+    originalImageUrl: result.imageUrl,
+    thumbnailUrl: thumbnail?.url || "",
+    thumbnailWidth: thumbnail?.width || null,
+    thumbnailHeight: thumbnail?.height || null
   };
 }
 
@@ -811,6 +832,10 @@ async function deleteImageJob(job) {
 }
 
 async function deleteGeneratedImage(job) {
+  if (job?.jobId) {
+    await rm(path.join(generatedThumbnailRoot, `${job.jobId}.webp`), { force: true });
+  }
+
   const imageUrl = job.result?.imageUrl;
   if (!imageUrl || !imageUrl.startsWith("/generated-images/")) return;
   const filename = path.basename(imageUrl);
@@ -820,6 +845,7 @@ async function deleteGeneratedImage(job) {
 async function deleteJobReferences(job) {
   if (!job?.jobId) return;
   await rm(path.join(jobReferenceRoot, String(job.jobId)), { recursive: true, force: true });
+  await rm(path.join(jobReferenceThumbnailRoot, String(job.jobId)), { recursive: true, force: true });
 }
 
 async function saveImageJob(job) {
@@ -840,11 +866,15 @@ async function persistImageJobReferences(jobId, referenceFiles) {
       const extension = extensionForMime(file.mimetype);
       const filename = `${index + 1}-${Date.now()}.${extension}`;
       await writeFile(path.join(jobDir, filename), file.buffer);
+      const thumbnail = await createReferenceThumbnail(jobId, filename, file.buffer, file.mimetype);
       return {
         name: file.originalname || `reference-${index + 1}.${extension}`,
         mimeType: file.mimetype,
         order: index,
-        url: `/job-references/${jobId}/${filename}`
+        url: `/job-references/${jobId}/${filename}`,
+        thumbnailUrl: thumbnail?.url || "",
+        thumbnailWidth: thumbnail?.width || null,
+        thumbnailHeight: thumbnail?.height || null
       };
     })
   );
@@ -904,27 +934,130 @@ function formatStyleName(style) {
 }
 
 function toPublicImageJob(job) {
+  const result = normalizeJobResult(job.result);
   return {
     jobId: String(job.jobId || ""),
     status: job.status,
     message: job.message || "",
-    result: job.result || null,
+    result,
     createdAt: job.createdAt || null,
     updatedAt: job.updatedAt || null,
     completedAt: job.completedAt || null,
     prompt: String(job.prompt || ""),
     size: String(job.size || ""),
     referenceCount: Number(job.referenceCount || 0),
-    originalReferences: Array.isArray(job.originalReferences) ? job.originalReferences : [],
+    originalReferences: normalizeJobReferences(job.originalReferences),
     styleId: String(job.styleId || ""),
     styleName: String(job.styleName || ""),
     styleGroupId: String(job.styleGroupId || ""),
     styleGroupName: String(job.styleGroupName || ""),
     durationSeconds: computeDurationSeconds(job),
-    totalTokens: Number(job.result?.usage?.total_tokens || job.result?.usage?.totalTokens || 0),
+    totalTokens: Number(result?.usage?.total_tokens || result?.usage?.totalTokens || 0),
     provider: job.provider || null,
-    mode: job.mode || job.result?.mode || ""
+    mode: job.mode || result?.mode || ""
   };
+}
+
+function normalizeJobResult(result) {
+  if (!result || typeof result !== "object") return null;
+  return {
+    ...result,
+    imageDataUrl: String(result.imageDataUrl || ""),
+    imageUrl: String(result.imageUrl || ""),
+    originalImageUrl: String(result.originalImageUrl || ""),
+    thumbnailUrl: String(result.thumbnailUrl || ""),
+    thumbnailWidth: Number(result.thumbnailWidth || 0) || null,
+    thumbnailHeight: Number(result.thumbnailHeight || 0) || null
+  };
+}
+
+function normalizeJobReferences(references) {
+  return Array.isArray(references)
+    ? references.map((reference) => ({
+        ...reference,
+        name: String(reference?.name || ""),
+        mimeType: String(reference?.mimeType || ""),
+        order: Number(reference?.order || 0),
+        url: String(reference?.url || ""),
+        thumbnailUrl: String(reference?.thumbnailUrl || ""),
+        thumbnailWidth: Number(reference?.thumbnailWidth || 0) || null,
+        thumbnailHeight: Number(reference?.thumbnailHeight || 0) || null
+      }))
+    : [];
+}
+
+async function createGeneratedImageThumbnail(jobId, bytes) {
+  return createImageThumbnail({
+    buffer: bytes,
+    outputRoot: generatedThumbnailRoot,
+    outputName: String(jobId || ""),
+    urlPrefix: "/generated-thumbnails",
+    maxEdge: RESULT_THUMBNAIL_MAX_EDGE
+  });
+}
+
+async function createReferenceThumbnail(jobId, filename, bytes, mimeType) {
+  if (mimeType === "image/svg+xml") return null;
+  const baseName = path.basename(filename, path.extname(filename));
+  return createImageThumbnail({
+    buffer: bytes,
+    outputRoot: path.join(jobReferenceThumbnailRoot, String(jobId)),
+    outputName: baseName,
+    urlPrefix: `/job-reference-thumbnails/${jobId}`,
+    maxEdge: REFERENCE_THUMBNAIL_MAX_EDGE
+  });
+}
+
+async function createImageThumbnail({ buffer, outputRoot, outputName, urlPrefix, maxEdge }) {
+  const sharp = await loadSharpModule();
+  let transformed = null;
+  let outputPath = "";
+
+  if (!sharp || !buffer?.length || !outputName || !urlPrefix) {
+    return null;
+  }
+
+  try {
+    transformed = await sharp(buffer, { animated: false })
+      .rotate()
+      .resize({
+        width: maxEdge,
+        height: maxEdge,
+        fit: "inside",
+        withoutEnlargement: true
+      })
+      .webp({ quality: 78 })
+      .toBuffer({ resolveWithObject: true });
+
+    outputPath = path.join(outputRoot, `${outputName}.webp`);
+    await mkdir(outputRoot, { recursive: true });
+    await writeFile(outputPath, transformed.data);
+
+    return {
+      url: `${urlPrefix}/${outputName}.webp`,
+      width: Number(transformed.info?.width || 0) || null,
+      height: Number(transformed.info?.height || 0) || null,
+      mimeType: "image/webp"
+    };
+  } catch (error) {
+    console.warn("Thumbnail generation skipped.", error?.message || error);
+    return null;
+  }
+}
+
+async function loadSharpModule() {
+  if (sharpModulePromise !== undefined) {
+    return sharpModulePromise;
+  }
+
+  sharpModulePromise = import("sharp")
+    .then((module) => module.default || module)
+    .catch((error) => {
+      console.warn("sharp is not installed. Thumbnail generation is disabled until dependencies are updated.", error?.message || error);
+      return null;
+    });
+
+  return sharpModulePromise;
 }
 
 function computeDurationSeconds(job) {
@@ -1192,6 +1325,25 @@ async function ensureMiniImage(style) {
 
   await compressMiniImage(style.id, previewPath, mimeType);
   return `/images-small/${style.id}.jpg`;
+}
+
+async function getWebGalleryImage(style) {
+  const safeId = String(style?.id || "").trim();
+  const originalImage = String(style?.image || "").trim() || "/style-previews/default/cover.svg";
+
+  if (!safeId) {
+    return originalImage;
+  }
+
+  if (await fileExists(path.join(miniImageRoot, `${safeId}.jpg`))) {
+    return `/images-small/${safeId}.jpg`;
+  }
+
+  if (await fileExists(path.join(miniImageRoot, `${safeId}.svg`))) {
+    return `/images-small/${safeId}.svg`;
+  }
+
+  return originalImage;
 }
 
 async function shouldCompressMiniImage(sourcePath, targetPath) {

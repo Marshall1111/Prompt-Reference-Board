@@ -8,7 +8,8 @@
     "client": "vite --host 127.0.0.1",
     "server": "node server/index.js",
     "build": "vite build",
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "backfill:thumbnails": "node tools/backfill-image-thumbnails.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.1.1",
@@ -18,7 +19,8 @@
     "multer": "^2.0.2",
     "vite": "^7.2.5",
     "react": "^19.2.1",
-    "react-dom": "^19.2.1"
+    "react-dom": "^19.2.1",
+    "sharp": "^0.34.2"
   },
   "devDependencies": {}
 }
