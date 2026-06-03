@@ -272,6 +272,7 @@ function LuckDrawCardPage() {
   const [waitingStage, setWaitingStage] = useState("offering");
   const [activeResultIndex, setActiveResultIndex] = useState(-1);
   const [activeClipPreview, setActiveClipPreview] = useState(null);
+  const [pendingRemoval, setPendingRemoval] = useState(null);
   const [flyingCard, setFlyingCard] = useState(null);
   const [clipReceiving, setClipReceiving] = useState(false);
   const resultMediaRefs = useRef(new Map());
@@ -582,6 +583,21 @@ function LuckDrawCardPage() {
     setActiveClipPreview(null);
   }
 
+  function isCurrentSessionResult(jobId) {
+    return results.some((item) => item.jobId === jobId);
+  }
+
+  function requestRemoveFromClip(result) {
+    if (!result?.jobId || !result.isLiked) return;
+
+    if (isCurrentSessionResult(result.jobId)) {
+      removeFromClip(result);
+      return;
+    }
+
+    setPendingRemoval(result);
+  }
+
   function renderClipPanel() {
     return (
       <aside className={`draw-card-clip-panel ${clipReceiving ? "is-receiving" : ""}`} ref={cardClipPanelRef}>
@@ -602,7 +618,7 @@ function LuckDrawCardPage() {
                 </button>
                 <div className="draw-card-clip-meta">
                   <strong>{item.styleName || `卡片 ${index + 1}`}</strong>
-                  <button className="draw-card-clip-remove" onClick={() => removeFromClip(item)} type="button">
+                  <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(item)} type="button">
                     移出卡夹
                   </button>
                 </div>
@@ -780,7 +796,7 @@ function LuckDrawCardPage() {
             <div className="draw-card-lightbox-meta">
               <span>{activeResult.styleName || "抽卡结果"}</span>
               {activeResult.isLiked ? (
-                <button className="draw-card-clip-remove" onClick={() => removeFromClip(activeResult)} type="button">
+                <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(activeResult)} type="button">
                   移出卡夹
                 </button>
               ) : (
@@ -820,6 +836,31 @@ function LuckDrawCardPage() {
           }}
         >
           <img alt="" src={flyingCard.src} />
+        </div>
+      ) : null}
+
+      {pendingRemoval ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => setPendingRemoval(null)} role="presentation">
+          <section className="draw-card-confirm-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <p className="draw-card-kicker">Card clip</p>
+            <h2>移出后不可恢复。</h2>
+            <p className="storage-note">这张图片不属于本次生成结果，移出卡夹后将无法在当前抽卡页再次加入。确认移出吗？</p>
+            <div className="draw-card-confirm-actions">
+              <button className="draw-card-secondary" onClick={() => setPendingRemoval(null)} type="button">
+                取消
+              </button>
+              <button
+                className="draw-card-clip-remove"
+                onClick={() => {
+                  removeFromClip(pendingRemoval);
+                  setPendingRemoval(null);
+                }}
+                type="button"
+              >
+                确认移出
+              </button>
+            </div>
+          </section>
         </div>
       ) : null}
     </main>
@@ -1408,6 +1449,7 @@ function ImageJobsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [editingJob, setEditingJob] = useState(null);
+  const [updatingClipJobId, setUpdatingClipJobId] = useState("");
 
   async function loadJobs() {
     setIsLoading(true);
@@ -1438,6 +1480,21 @@ function ImageJobsPage() {
       setError("");
     } catch (nextError) {
       setError(nextError.message);
+    }
+  }
+
+  async function toggleClip(job) {
+    if (!job?.jobId) return;
+
+    setUpdatingClipJobId(job.jobId);
+    try {
+      const nextJob = job.isLiked ? await unlikeImageJob(job.jobId) : await likeImageJob(job.jobId);
+      setJobs((current) => current.map((item) => (item.jobId === job.jobId ? nextJob : item)));
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message);
+    } finally {
+      setUpdatingClipJobId("");
     }
   }
 
@@ -1533,6 +1590,10 @@ function ImageJobsPage() {
                 <button className="secondary-button" disabled={!fullImageSource} onClick={() => openImageSource(fullImageSource)} type="button">
                   <Eye size={18} />
                   <span>查看</span>
+                </button>
+                <button className={job.isLiked ? "secondary-button" : "copy-button"} disabled={updatingClipJobId === job.jobId} onClick={() => toggleClip(job)} type="button">
+                  {updatingClipJobId === job.jobId ? <LoaderCircle className="spin" size={18} /> : job.isLiked ? <X size={18} /> : <Sparkles size={18} />}
+                  <span>{updatingClipJobId === job.jobId ? "处理中" : job.isLiked ? "移出卡夹" : "加入卡夹"}</span>
                 </button>
                 <button className="copy-button" onClick={() => setEditingJob(job)} type="button">
                   <Pencil size={18} />
