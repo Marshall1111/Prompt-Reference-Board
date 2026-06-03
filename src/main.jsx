@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
@@ -32,6 +32,7 @@ const REFERENCE_UPLOAD_LIMITS = {
 const GENERATION_STEPS = ["准备请求", "提交到中转站", "等待模型生成", "接收图片结果", "准备预览"];
 
 function readRoute() {
+  if (window.location.pathname === "/luck") return "luck";
   if (window.location.pathname === "/manage") return "manage";
   if (window.location.pathname === "/tasks") return "tasks";
   if (window.location.pathname === "/batch") return "batch";
@@ -65,7 +66,7 @@ function App() {
   }, [query, styles]);
 
   function navigate(nextRoute) {
-    const path = nextRoute === "manage" ? "/manage" : nextRoute === "tasks" ? "/tasks" : nextRoute === "batch" ? "/batch" : "/";
+    const path = nextRoute === "luck" ? "/luck" : nextRoute === "manage" ? "/manage" : nextRoute === "tasks" ? "/tasks" : nextRoute === "batch" ? "/batch" : "/";
     window.history.pushState({}, "", path);
     setRoute(nextRoute);
     setActivePrompt(null);
@@ -166,12 +167,21 @@ function App() {
     setStyleGroups((current) => current.filter((group) => group.id !== groupId));
   }
 
+  if (route === "luck") {
+    return <LuckDrawCardPage />;
+  }
+
   return (
     <main className="app-shell">
       <section className="workspace">
         <header className="topbar">
           <div>
             <p className="eyebrow">Prompt reference board</p>
+            {route === "home" ? (
+              <button className="luck-entry" onClick={() => navigate("luck")} type="button">
+                Luck
+              </button>
+            ) : null}
             <h1>风格提示词图库</h1>
           </div>
           <div className="top-actions">
@@ -243,6 +253,575 @@ function App() {
       )}
 
       {activeGenerator && <ImageGeneratorModal onClose={() => setActiveGenerator(null)} style={activeGenerator} />}
+    </main>
+  );
+}
+
+function LuckDrawCardPage() {
+  const waitingLines = ["静候片刻，结果正在成形。", "光影已经落座，仪式仍在继续。", "请稍候，整组结果即将揭晓。"];
+  const [phase, setPhase] = useState("idle");
+  const [referenceFile, setReferenceFile] = useState(null);
+  const [referencePreviewUrl, setReferencePreviewUrl] = useState("");
+  const [sessionId, setSessionId] = useState("");
+  const [session, setSession] = useState(null);
+  const [results, setResults] = useState([]);
+  const [clipItems, setClipItems] = useState([]);
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [waitingLineIndex, setWaitingLineIndex] = useState(0);
+  const [waitingStage, setWaitingStage] = useState("offering");
+  const [activeResultIndex, setActiveResultIndex] = useState(-1);
+  const [activeClipPreview, setActiveClipPreview] = useState(null);
+  const [flyingCard, setFlyingCard] = useState(null);
+  const [clipReceiving, setClipReceiving] = useState(false);
+  const resultMediaRefs = useRef(new Map());
+  const cardClipPanelRef = useRef(null);
+  const flightTimeoutRef = useRef(null);
+  const clipPulseTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    if (!referenceFile) {
+      if (referencePreviewUrl) URL.revokeObjectURL(referencePreviewUrl);
+      setReferencePreviewUrl("");
+      return undefined;
+    }
+
+    const nextPreviewUrl = URL.createObjectURL(referenceFile);
+    setReferencePreviewUrl(nextPreviewUrl);
+    return () => URL.revokeObjectURL(nextPreviewUrl);
+  }, [referenceFile, referencePreviewUrl]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadClipItems() {
+      try {
+        const payload = await refreshImageJobs();
+        if (!isActive) return;
+        const nextClipItems = (payload.jobs || [])
+          .filter((job) => job.isLiked && (job.result?.thumbnailUrl || job.result?.imageDataUrl || job.result?.imageUrl))
+          .sort((left, right) => new Date(right.likedAt || right.updatedAt || right.createdAt || 0).getTime() - new Date(left.likedAt || left.updatedAt || left.createdAt || 0).getTime())
+          .map((job) => ({
+            jobId: job.jobId,
+            styleId: job.styleId || "",
+            styleName: job.styleName || "",
+            imageUrl: job.result?.imageDataUrl || job.result?.imageUrl || "",
+            thumbnailUrl: job.result?.thumbnailUrl || job.result?.imageDataUrl || job.result?.imageUrl || "",
+            originalImageUrl: job.result?.originalImageUrl || "",
+            isLiked: Boolean(job.isLiked),
+            likedAt: job.likedAt || null
+          }));
+        setClipItems(nextClipItems);
+      } catch (nextError) {
+        if (!isActive) return;
+        setError((current) => current || nextError.message || "读取卡夹失败，请稍后再试。");
+      }
+    }
+
+    loadClipItems();
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "waiting") return undefined;
+
+    setWaitingStage("offering");
+    const revealTimer = window.setTimeout(() => setWaitingStage("floating"), 1200);
+    const copyTimer = window.setInterval(() => {
+      setWaitingLineIndex((current) => (current + 1) % waitingLines.length);
+    }, 2400);
+
+    return () => {
+      window.clearTimeout(revealTimer);
+      window.clearInterval(copyTimer);
+    };
+  }, [phase, waitingLines.length]);
+
+  useEffect(() => {
+    if (!sessionId || phase !== "waiting") return undefined;
+
+    let isActive = true;
+    async function pollSession() {
+      try {
+        const payload = await fetchDrawCardSession(sessionId);
+        if (!isActive) return;
+
+        setSession(payload);
+        if (payload.status === "failed") {
+          setError(payload.failedReason || payload.message || "这一轮未能顺利完成，请重新开始。");
+          setPhase("error");
+          return;
+        }
+
+        if (payload.status === "succeeded") {
+          setResults(payload.results || []);
+          setPhase("revealing");
+        }
+      } catch (nextError) {
+        if (!isActive) return;
+        setError(nextError.message || "读取抽卡状态失败，请稍后再试。");
+        setPhase("error");
+      }
+    }
+
+    pollSession();
+    const timer = window.setInterval(pollSession, 2200);
+    return () => {
+      isActive = false;
+      window.clearInterval(timer);
+    };
+  }, [phase, sessionId]);
+
+  useEffect(() => {
+    if (phase !== "revealing") return undefined;
+
+    const timer = window.setTimeout(() => setPhase("results"), 1400);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
+
+  useEffect(() => {
+    return () => {
+      if (flightTimeoutRef.current) window.clearTimeout(flightTimeoutRef.current);
+      if (clipPulseTimeoutRef.current) window.clearTimeout(clipPulseTimeoutRef.current);
+    };
+  }, []);
+
+  const canStart = Boolean(referenceFile) && !isSubmitting;
+  const waitingCopy = waitingLines[waitingLineIndex];
+  const activeResult = activeResultIndex >= 0 ? results[activeResultIndex] : activeResultIndex === -3 ? activeClipPreview : null;
+  const isOriginalPreview = activeResultIndex === -2;
+
+  function resetDrawCard() {
+    setPhase("idle");
+    setReferenceFile(null);
+    setSessionId("");
+    setSession(null);
+    setResults([]);
+    setError("");
+    setIsSubmitting(false);
+    setWaitingLineIndex(0);
+    setWaitingStage("offering");
+    setActiveResultIndex(-1);
+    setActiveClipPreview(null);
+    setFlyingCard(null);
+    setClipReceiving(false);
+    resultMediaRefs.current.clear();
+  }
+
+  function handleFileChange(file) {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setError("请上传 JPG、PNG 或 WebP 图片。");
+      setPhase("error");
+      return;
+    }
+
+    setReferenceFile(file);
+    setSessionId("");
+    setSession(null);
+    setResults([]);
+    setError("");
+    setPhase("ready");
+  }
+
+  function updateResultCardState(jobId, patch) {
+    setResults((current) => current.map((item) => (item.jobId === jobId ? { ...item, ...patch } : item)));
+    setSession((current) =>
+      current
+        ? {
+            ...current,
+            results: Array.isArray(current.results) ? current.results.map((item) => (item.jobId === jobId ? { ...item, ...patch } : item)) : current.results
+          }
+        : current
+    );
+  }
+
+  function upsertClipItem(item) {
+    setClipItems((current) => {
+      const next = [item, ...current.filter((entry) => entry.jobId !== item.jobId)];
+      return next.sort((left, right) => new Date(right.likedAt || 0).getTime() - new Date(left.likedAt || 0).getTime());
+    });
+  }
+
+  function triggerClipPulse() {
+    setClipReceiving(true);
+    if (clipPulseTimeoutRef.current) window.clearTimeout(clipPulseTimeoutRef.current);
+    clipPulseTimeoutRef.current = window.setTimeout(() => setClipReceiving(false), 900);
+  }
+
+  function animateIntoClip(result) {
+    const sourceNode = resultMediaRefs.current.get(result.jobId);
+    const clipNode = cardClipPanelRef.current;
+    if (!sourceNode || !clipNode || !(result.imageUrl || result.thumbnailUrl)) {
+      triggerClipPulse();
+      return;
+    }
+
+    const startRect = sourceNode.getBoundingClientRect();
+    const clipRect = clipNode.getBoundingClientRect();
+    const endWidth = Math.min(112, Math.max(84, clipRect.width - 48));
+    const endHeight = Math.round(endWidth * 1.5);
+    const nextKey = `${result.jobId}-${Date.now()}`;
+
+    if (flightTimeoutRef.current) window.clearTimeout(flightTimeoutRef.current);
+    setFlyingCard({
+      key: nextKey,
+      src: result.thumbnailUrl || result.imageUrl,
+      active: false,
+      start: { top: startRect.top, left: startRect.left, width: startRect.width, height: startRect.height },
+      end: {
+        top: clipRect.top + 96,
+        left: clipRect.left + clipRect.width / 2 - endWidth / 2,
+        width: endWidth,
+        height: endHeight
+      }
+    });
+
+    window.requestAnimationFrame(() => {
+      setFlyingCard((current) => (current?.key === nextKey ? { ...current, active: true } : current));
+      triggerClipPulse();
+    });
+
+    flightTimeoutRef.current = window.setTimeout(() => {
+      setFlyingCard((current) => (current?.key === nextKey ? null : current));
+    }, 820);
+  }
+
+  function setResultMediaRef(jobId, node) {
+    if (!jobId) return;
+    if (node) resultMediaRefs.current.set(jobId, node);
+    else resultMediaRefs.current.delete(jobId);
+  }
+
+  async function startDrawCard() {
+    if (!referenceFile) return;
+
+    setIsSubmitting(true);
+    setError("");
+    try {
+      const preparedReference = await prepareReferenceForUpload({ id: "draw-card-reference", file: referenceFile });
+      const formData = new FormData();
+      formData.append("image", preparedReference.file);
+
+      const response = await fetch("/api/draw-card/sessions", { method: "POST", body: formData });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || "抽卡暂时不可用，请稍后再试。");
+
+      setSession(payload);
+      setSessionId(payload.sessionId || "");
+      setPhase("waiting");
+    } catch (nextError) {
+      setError(nextError.message || "抽卡暂时不可用，请稍后再试。");
+      setPhase("error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function addToClip(result) {
+    if (!result?.jobId || result.isLiked) return;
+
+    try {
+      const payload = await likeImageJob(result.jobId);
+      const likedAt = payload.likedAt || new Date().toISOString();
+
+      updateResultCardState(result.jobId, { isLiked: true, likedAt });
+      upsertClipItem({
+        jobId: payload.jobId,
+        styleId: payload.styleId || result.styleId || "",
+        styleName: payload.styleName || result.styleName || "",
+        imageUrl: payload.result?.imageDataUrl || payload.result?.imageUrl || result.imageUrl || "",
+        thumbnailUrl: payload.result?.thumbnailUrl || payload.result?.imageDataUrl || payload.result?.imageUrl || result.thumbnailUrl || result.imageUrl || "",
+        originalImageUrl: payload.result?.originalImageUrl || result.originalImageUrl || "",
+        isLiked: true,
+        likedAt
+      });
+      animateIntoClip(result);
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "加入卡夹失败，请稍后再试。");
+    }
+  }
+
+  async function removeFromClip(result) {
+    if (!result?.jobId || !result.isLiked) return;
+
+    try {
+      const payload = await unlikeImageJob(result.jobId);
+      updateResultCardState(result.jobId, { isLiked: Boolean(payload.isLiked), likedAt: payload.likedAt || null });
+      setClipItems((current) => current.filter((item) => item.jobId !== result.jobId));
+      setActiveClipPreview((current) => (current?.jobId === result.jobId ? null : current));
+      if (activeResultIndex === -3 && activeClipPreview?.jobId === result.jobId) {
+        setActiveResultIndex(-1);
+      }
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "移出卡夹失败，请稍后再试。");
+    }
+  }
+
+  function openClipPreview(jobId) {
+    const targetIndex = results.findIndex((item) => item.jobId === jobId);
+    if (targetIndex >= 0) {
+      setActiveClipPreview(null);
+      setActiveResultIndex(targetIndex);
+      return;
+    }
+
+    const clipItem = clipItems.find((item) => item.jobId === jobId);
+    if (clipItem) {
+      setActiveClipPreview(clipItem);
+      setActiveResultIndex(-3);
+    }
+  }
+
+  function closeActivePreview() {
+    setActiveResultIndex(-1);
+    setActiveClipPreview(null);
+  }
+
+  function renderClipPanel() {
+    return (
+      <aside className={`draw-card-clip-panel ${clipReceiving ? "is-receiving" : ""}`} ref={cardClipPanelRef}>
+        <div className="draw-card-clip-head">
+          <div>
+            <p className="draw-card-kicker">Card clip</p>
+            <h3>卡夹</h3>
+          </div>
+          <span className="draw-card-clip-count">{clipItems.length}</span>
+        </div>
+
+        {clipItems.length ? (
+          <div className="draw-card-clip-list">
+            {clipItems.map((item, index) => (
+              <article className="draw-card-clip-item" key={`clip-${item.jobId}-${index}`}>
+                <button className="draw-card-clip-preview" onClick={() => openClipPreview(item.jobId)} type="button">
+                  <img alt={item.styleName || `卡夹图片 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
+                </button>
+                <div className="draw-card-clip-meta">
+                  <strong>{item.styleName || `卡片 ${index + 1}`}</strong>
+                  <button className="draw-card-clip-remove" onClick={() => removeFromClip(item)} type="button">
+                    移出卡夹
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="draw-card-clip-empty">
+            <Sparkles size={18} />
+            <p>挑中想保留的结果后，它会被收进这里，并在你下次回来时继续保留。</p>
+          </div>
+        )}
+      </aside>
+    );
+  }
+
+  return (
+    <main className={`draw-card-shell phase-${phase}`}>
+      <div className="draw-card-ambient draw-card-ambient-a" />
+      <div className="draw-card-ambient draw-card-ambient-b" />
+
+      {(phase === "idle" || phase === "ready") && (
+        <section className="draw-card-stage">
+          <div className="draw-card-stage-layout">
+            <div className="draw-card-stage-main">
+              <div className="draw-card-hero">
+                <p className="draw-card-kicker">Draw card ritual</p>
+                <h1 className="draw-card-title">上传一张图片，静候整组结果揭晓。</h1>
+                <p className="draw-card-subtitle">无需任何额外设置，只保留一次上传与一次开始，其余流程都会自动完成。</p>
+              </div>
+
+              <section className={`draw-card-upload-panel ${referenceFile ? "has-image" : ""}`}>
+                <label className="draw-card-upload" htmlFor="draw-card-input">
+                  {referencePreviewUrl ? (
+                    <img alt="待抽卡图片预览" className="draw-card-upload-preview" src={referencePreviewUrl} />
+                  ) : (
+                    <div className="draw-card-upload-empty">
+                      <ImageUp size={22} />
+                      <strong>上传 1 张图片</strong>
+                      <span>支持 JPG、PNG、WebP</span>
+                    </div>
+                  )}
+                  <input
+                    accept="image/png,image/jpeg,image/webp"
+                    id="draw-card-input"
+                    onChange={(event) => {
+                      handleFileChange(event.target.files?.[0] || null);
+                      event.target.value = "";
+                    }}
+                    type="file"
+                  />
+                </label>
+
+                <div className="draw-card-actions">
+                  <button className="draw-card-primary" disabled={!canStart} onClick={startDrawCard} type="button">
+                    {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+                    <span>{isSubmitting ? "仪式开启中" : "开始抽卡"}</span>
+                  </button>
+                  {referenceFile ? (
+                    <button className="draw-card-secondary" onClick={resetDrawCard} type="button">
+                      <RefreshCw size={18} />
+                      <span>重新选择</span>
+                    </button>
+                  ) : null}
+                </div>
+              </section>
+            </div>
+
+            {renderClipPanel()}
+          </div>
+        </section>
+      )}
+
+      {phase === "waiting" && (
+        <section className="draw-card-stage draw-card-stage-waiting">
+          <div className={`draw-card-offering ${waitingStage}`}>
+            {referencePreviewUrl ? <img alt="正在抽卡的原图" src={referencePreviewUrl} /> : null}
+          </div>
+          <div className="draw-card-deck" aria-hidden="true">
+            <span className="draw-card-card draw-card-card-1" />
+            <span className="draw-card-card draw-card-card-2" />
+            <span className="draw-card-card draw-card-card-3" />
+            <span className="draw-card-card draw-card-card-4" />
+          </div>
+          <div className="draw-card-waiting-copy">
+            <p className="draw-card-kicker">In progress</p>
+            <h2>{waitingCopy}</h2>
+            <p>{session?.message || "请保持当前页面开启，结果会在全部完成后一次性揭晓。"}</p>
+          </div>
+        </section>
+      )}
+
+      {phase === "revealing" && (
+        <section className="draw-card-stage draw-card-stage-revealing">
+          <div className="draw-card-reveal-ring" />
+          <div className="draw-card-reveal-copy">
+            <p className="draw-card-kicker">Reveal</p>
+            <h2>结果即将揭晓。</h2>
+          </div>
+        </section>
+      )}
+
+      {phase === "results" && (
+        <section className="draw-card-stage draw-card-stage-results">
+          <div className="draw-card-results-head">
+            <div>
+              <p className="draw-card-kicker">Collection</p>
+              <h2>这一轮结果已经全部抵达。</h2>
+              <p className="draw-card-subtitle">右侧卡夹会收纳你选中的结果。点击结果可放大查看，加入时会直接飞入卡夹。</p>
+            </div>
+            <button className="draw-card-secondary" onClick={resetDrawCard} type="button">
+              <RefreshCw size={18} />
+              <span>重新开始</span>
+            </button>
+          </div>
+
+          {error ? <p className="error-note draw-card-inline-error">{error}</p> : null}
+
+          <div className="draw-card-results-layout">
+            <div className="draw-card-results-grid">
+              {referencePreviewUrl ? (
+                <article className="draw-card-result-card draw-card-result-card-original" key="draw-card-original">
+                  <button className="draw-card-result-media draw-card-result-media-original" onClick={() => setActiveResultIndex(-2)} type="button">
+                    <img alt="抽卡原图" src={referencePreviewUrl} />
+                  </button>
+                  <div className="draw-card-result-meta">
+                    <span>原图</span>
+                    <span className="draw-card-meta-note">保持原比例</span>
+                  </div>
+                </article>
+              ) : null}
+
+              {results.map((result, index) => (
+                <article className={`draw-card-result-card ${result.isLiked ? "is-in-clip" : ""}`} key={`${result.styleId}-${result.jobId || index}`}>
+                  <button className="draw-card-result-media" onClick={() => setActiveResultIndex(index)} ref={(node) => setResultMediaRef(result.jobId, node)} type="button">
+                    <img alt={`抽卡结果 ${index + 1}`} src={result.imageUrl || result.thumbnailUrl} />
+                  </button>
+                  <div className="draw-card-result-meta">
+                    <span>{result.styleName || `结果 ${index + 1}`}</span>
+                    <button className={`draw-card-save-button ${result.isLiked ? "is-liked" : ""}`} disabled={Boolean(result.isLiked)} onClick={() => addToClip(result)} type="button">
+                      {result.isLiked ? <Check size={16} /> : <Sparkles size={16} />}
+                      <span>{result.isLiked ? "已加入卡夹" : "加入卡夹"}</span>
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {renderClipPanel()}
+          </div>
+        </section>
+      )}
+
+      {phase === "error" && (
+        <section className="draw-card-stage draw-card-stage-error">
+          <div className="draw-card-error-panel">
+            <p className="draw-card-kicker">Unavailable</p>
+            <h2>这一轮没有顺利完成。</h2>
+            <p>{error || "请稍后重新开始。"}</p>
+            <button className="draw-card-primary" onClick={resetDrawCard} type="button">
+              <RefreshCw size={18} />
+              <span>重新开始</span>
+            </button>
+          </div>
+        </section>
+      )}
+
+      {activeResult && (
+        <div className="modal-backdrop draw-card-lightbox" onClick={closeActivePreview} role="presentation">
+          <section className="draw-card-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <button className="icon-button" onClick={closeActivePreview} type="button" aria-label="关闭预览">
+              <X size={18} />
+            </button>
+            <img alt={activeResult.styleName || "抽卡结果大图"} src={activeResult.imageUrl || activeResult.thumbnailUrl} />
+            <div className="draw-card-lightbox-meta">
+              <span>{activeResult.styleName || "抽卡结果"}</span>
+              {activeResult.isLiked ? (
+                <button className="draw-card-clip-remove" onClick={() => removeFromClip(activeResult)} type="button">
+                  移出卡夹
+                </button>
+              ) : (
+                <button className="draw-card-save-button" onClick={() => addToClip(activeResult)} type="button">
+                  <Sparkles size={16} />
+                  <span>加入卡夹</span>
+                </button>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {isOriginalPreview && (
+        <div className="modal-backdrop draw-card-lightbox" onClick={closeActivePreview} role="presentation">
+          <section className="draw-card-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <button className="icon-button" onClick={closeActivePreview} type="button" aria-label="关闭预览">
+              <X size={18} />
+            </button>
+            <img alt="抽卡原图大图" src={referencePreviewUrl} />
+            <div className="draw-card-lightbox-meta">
+              <span>原图</span>
+              <span className="draw-card-meta-note">保持原比例展示</span>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {flyingCard ? (
+        <div
+          className={`draw-card-fly-card ${flyingCard.active ? "is-active" : ""}`}
+          style={{
+            top: `${flyingCard.active ? flyingCard.end.top : flyingCard.start.top}px`,
+            left: `${flyingCard.active ? flyingCard.end.left : flyingCard.start.left}px`,
+            width: `${flyingCard.active ? flyingCard.end.width : flyingCard.start.width}px`,
+            height: `${flyingCard.active ? flyingCard.end.height : flyingCard.start.height}px`
+          }}
+        >
+          <img alt="" src={flyingCard.src} />
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -922,7 +1501,7 @@ function ImageJobsPage() {
           const imageSource = job.result?.thumbnailUrl || job.result?.imageDataUrl || job.result?.imageUrl;
           const fullImageSource = job.result?.imageDataUrl || job.result?.imageUrl || imageSource;
           return (
-            <article className="task-card" key={job.jobId}>
+            <article className={`task-card ${job.isLiked ? "is-liked" : ""}`} key={job.jobId}>
               <div className={`task-status ${job.status}`}>{statusLabel(job.status)}</div>
               <div className="task-preview">
                 {imageSource ? <img alt="AI 生成结果" src={imageSource} /> : <Sparkles size={24} />}
@@ -930,6 +1509,7 @@ function ImageJobsPage() {
               <div className="task-detail">
                 <div className="task-meta-row">
                   <strong>{shortJobId(job.jobId)}</strong>
+                  {job.isLiked ? <span className="task-like-badge">已加入卡夹</span> : null}
                   {job.styleName ? <span>{job.styleName}</span> : null}
                   {job.styleGroupName ? <span>组：{job.styleGroupName}</span> : null}
                   <span>{modeLabel(job.mode)}</span>
@@ -1719,6 +2299,27 @@ async function refreshImageJobs() {
   const response = await fetch("/api/image-jobs");
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取生图任务列表失败。");
+  return payload;
+}
+
+async function fetchDrawCardSession(sessionId) {
+  const response = await fetch(`/api/draw-card/sessions/${sessionId}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取抽卡状态失败，请稍后再试。");
+  return payload;
+}
+
+async function likeImageJob(jobId) {
+  const response = await fetch(`/api/image-jobs/${jobId}/like`, { method: "POST" });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "加入卡夹失败，请稍后再试。");
+  return payload;
+}
+
+async function unlikeImageJob(jobId) {
+  const response = await fetch(`/api/image-jobs/${jobId}/unlike`, { method: "POST" });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "移出卡夹失败，请稍后再试。");
   return payload;
 }
 

@@ -1,4 +1,4 @@
-import express from "express";
+﻿import express from "express";
 import multer from "multer";
 import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
@@ -14,6 +14,7 @@ const rootDir = path.resolve(__dirname, "..");
 const dataPath = path.join(rootDir, "data", "styles.json");
 const styleGroupsPath = path.join(rootDir, "data", "style-groups.json");
 const imageJobRoot = path.join(rootDir, "data", "image-jobs");
+const drawCardSessionRoot = path.join(rootDir, "data", "draw-card-sessions");
 const tempReferenceRoot = path.join(rootDir, "data", "temp-image-references");
 const previewRoot = path.join(rootDir, "public", "style-previews");
 const generatedImageRoot = path.join(rootDir, "public", "generated-images");
@@ -26,6 +27,11 @@ const miniCompressScript = path.join(rootDir, "tools", "compress_for_miniprogram
 const execFileAsync = promisify(execFile);
 const RESULT_THUMBNAIL_MAX_EDGE = 384;
 const REFERENCE_THUMBNAIL_MAX_EDGE = 240;
+const DRAW_CARD_GROUP_NAME = "抽卡";
+const DRAW_CARD_DEFAULT_SIZE = "1024x1536";
+const DRAW_CARD_WAITING_MESSAGE = "仪式正在进行，请稍候。";
+const DRAW_CARD_SUCCESS_MESSAGE = "结果已准备好。";
+const DRAW_CARD_FAILURE_MESSAGE = "这一轮未能顺利完成，请重新开始。";
 
 let sharpModulePromise;
 
@@ -71,6 +77,41 @@ app.get("/api/image-providers", (_req, res) => {
   });
 });
 
+app.post("/api/draw-card/sessions", upload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "请先上传一张图片。" });
+    }
+    if (req.file.mimetype === "image/svg+xml") {
+      return res.status(400).json({ message: "请上传 JPG、PNG 或 WebP 图片。" });
+    }
+
+    const session = await createDrawCardSession(req.file);
+    res.status(202).json(toPublicDrawCardSession(session));
+  } catch (error) {
+    if (error.message === "UNSUPPORTED_IMAGE_TYPE") {
+      return res.status(400).json({ message: "请上传 JPG、PNG 或 WebP 图片。" });
+    }
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "抽卡暂时不可用，请稍后再试。" });
+  }
+});
+
+app.get("/api/draw-card/sessions/:sessionId", async (req, res) => {
+  try {
+    const session = await readDrawCardSession(req.params.sessionId);
+    if (!session) {
+      return res.status(404).json({ message: "本次抽卡记录不存在或已失效。" });
+    }
+
+    const syncedSession = await synchronizeDrawCardSession(session);
+    res.json(toPublicDrawCardSession(syncedSession));
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "读取抽卡状态失败，请稍后再试。" });
+  }
+});
+
 app.post("/api/sync-miniprogram", async (_req, res) => {
   const styles = await readStyles();
   await syncMiniProgram(styles);
@@ -85,6 +126,7 @@ app.post("/api/generate-image", upload.array("reference", 10), async (req, res) 
 
     const providers = getImageProviders();
     const provider = resolveImageProvider(body.provider, providers);
+    const providerChain = getProviderFallbackChain(body.provider, providers);
     if (!provider) {
       return res.status(400).json({ message: "请先在 .env 中配置至少一个可用的图片接口供应商。" });
     }
@@ -197,7 +239,8 @@ app.post("/api/image-jobs", upload.array("reference", 10), async (req, res) => {
       files: referenceFiles.map((file) => ({ ...file, buffer: Buffer.from(file.buffer) })),
       outputFormat: normalizeOption(body.output_format, ["png", "jpeg", "webp"], "png"),
       prompt,
-      provider
+      provider,
+      providers: providerChain
     }).catch((error) => {
       console.error("Image job failed.", error);
     });
@@ -220,6 +263,7 @@ app.post("/api/image-jobs/batch", async (req, res) => {
     const promptOverride = String(body.promptOverride || "").trim();
     const providers = getImageProviders();
     const provider = resolveImageProvider(body.provider, providers);
+    const providerChain = getProviderFallbackChain(body.provider, providers);
     let sharedReferenceFiles = [];
     let groups = [];
     let styles = [];
@@ -291,7 +335,8 @@ app.post("/api/image-jobs/batch", async (req, res) => {
           files: referenceFiles.map(cloneReferenceFile),
           outputFormat: normalizeOption(body.output_format, ["png", "jpeg", "webp"], "png"),
           prompt: prompt,
-          provider: provider
+          provider: provider,
+          providers: providerChain
         }
       });
     }
@@ -363,6 +408,43 @@ app.post("/api/image-jobs/:jobId/cancel", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "停止生图任务失败。" });
+  }
+});
+
+app.post("/api/image-jobs/:jobId/like", async (req, res) => {
+  try {
+    const job = await readImageJob(req.params.jobId);
+    if (!job) return res.status(404).json({ message: "生图任务不存在。" });
+
+    const now = new Date().toISOString();
+    const nextJob = await saveImageJob({
+      ...job,
+      isLiked: true,
+      likedAt: job.likedAt || now,
+      updatedAt: now
+    });
+    res.json(toPublicImageJob(nextJob));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "标记喜欢失败，请稍后再试。" });
+  }
+});
+
+app.post("/api/image-jobs/:jobId/unlike", async (req, res) => {
+  try {
+    const job = await readImageJob(req.params.jobId);
+    if (!job) return res.status(404).json({ message: "生图任务不存在。" });
+
+    const nextJob = await saveImageJob({
+      ...job,
+      isLiked: false,
+      likedAt: null,
+      updatedAt: new Date().toISOString()
+    });
+    res.json(toPublicImageJob(nextJob));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "移出卡夹失败，请稍后再试。" });
   }
 });
 
@@ -569,7 +651,7 @@ function normalizeStyleGroup(group, validStyleIds = null) {
 
   return {
     id: String(group?.id || `group_${Date.now()}`),
-    name: String(group?.name || "").trim() || "未命名风格组",
+    name: String(group?.name || "").trim() || "鏈懡鍚嶉鏍肩粍",
     styleIds: nextStyleIds
   };
 }
@@ -583,8 +665,294 @@ async function removeStyleFromGroups(styleId) {
   await saveStyleGroups(nextGroups);
 }
 
+async function createDrawCardSession(file) {
+  const [groups, styles] = await Promise.all([readStyleGroups(), readStyles()]);
+  const group = groups.find((item) => String(item.name || "").trim() === DRAW_CARD_GROUP_NAME);
+  if (!group) {
+    const error = new Error("Draw card group not found");
+    error.status = 503;
+    error.publicMessage = "抽卡暂时不可用，请稍后再试。";
+    throw error;
+  }
+
+  const styleMap = new Map(styles.map((style) => [style.id, style]));
+  const groupStyles = (group.styleIds || []).map((styleId) => styleMap.get(styleId)).filter(Boolean);
+  if (!groupStyles.length) {
+    const error = new Error("Draw card group is empty");
+    error.status = 503;
+    error.publicMessage = "抽卡暂时不可用，请稍后再试。";
+    throw error;
+  }
+
+  const providers = getImageProviders();
+  const provider = resolveImageProvider("", providers);
+  if (!provider) {
+    const error = new Error("No image providers configured");
+    error.status = 503;
+    error.publicMessage = "抽卡暂时不可用，请稍后再试。";
+    throw error;
+  }
+
+  const sessionId = randomUUID();
+  const now = new Date().toISOString();
+  const sharedReferenceFiles = [
+    {
+      originalname: file.originalname || "draw-card-reference",
+      mimetype: file.mimetype,
+      size: Number(file.size || file.buffer?.length || 0),
+      buffer: Buffer.from(file.buffer)
+    }
+  ];
+  const providerChain = getProviderFallbackChain(provider.id, providers);
+  const preparedJobs = [];
+  const sessionItems = [];
+
+  try {
+    for (const [order, style] of groupStyles.entries()) {
+      const prompt = String(style.prompt || "").trim();
+      const referenceFiles = await buildBatchReferenceFiles(style, sharedReferenceFiles);
+      const jobId = randomUUID();
+      const styleName = formatStyleName(style);
+      const originalReferences = await persistImageJobReferences(jobId, referenceFiles);
+      const job = {
+        jobId,
+        status: "queued",
+        message: "任务已提交，等待生成。",
+        result: null,
+        createdAt: now,
+        updatedAt: now,
+        completedAt: null,
+        prompt,
+        size: DRAW_CARD_DEFAULT_SIZE,
+        referenceCount: referenceFiles.length,
+        originalReferences,
+        styleId: String(style.id || ""),
+        styleName,
+        styleGroupId: group.id,
+        styleGroupName: group.name,
+        provider: {
+          id: provider.id,
+          name: provider.name,
+          model: provider.model
+        },
+        mode: referenceFiles.length ? "edit" : "generation"
+      };
+
+      preparedJobs.push({
+        job,
+        runArgs: {
+          jobId,
+          body: {
+            size: DRAW_CARD_DEFAULT_SIZE,
+            quality: "medium",
+            output_format: "png",
+            background: "auto",
+            moderation: "auto",
+            styleId: style.id,
+            styleName,
+            styleGroupId: group.id,
+            styleGroupName: group.name
+          },
+          files: referenceFiles.map(cloneReferenceFile),
+          outputFormat: "png",
+          prompt,
+          provider,
+          providers: providerChain
+        }
+      });
+      sessionItems.push({
+        order,
+        jobId,
+        styleId: String(style.id || ""),
+        styleName
+      });
+    }
+
+    await Promise.all(preparedJobs.map((item) => saveImageJob(item.job)));
+
+    const session = await saveDrawCardSession({
+      sessionId,
+      status: "queued",
+      message: DRAW_CARD_WAITING_MESSAGE,
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+      failedReason: "",
+      results: [],
+      items: sessionItems
+    });
+
+    preparedJobs.forEach((item) => {
+      runImageJob(item.runArgs).catch((error) => {
+        console.error("Draw card image job failed.", error);
+      });
+    });
+
+    return session;
+  } catch (error) {
+    await Promise.all(
+      preparedJobs.map(async (item) => {
+        await deleteJobReferences(item.job);
+        await rm(getImageJobPath(item.job.jobId), { force: true });
+      })
+    );
+    await rm(getDrawCardSessionPath(sessionId), { force: true });
+    throw error;
+  }
+}
+
+async function readDrawCardSession(sessionId) {
+  if (!isSafeDrawCardSessionId(sessionId)) return null;
+  try {
+    return normalizeDrawCardSession(JSON.parse(await readFile(getDrawCardSessionPath(sessionId), "utf-8")));
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function saveDrawCardSession(session) {
+  await mkdir(drawCardSessionRoot, { recursive: true });
+  const safeSession = normalizeDrawCardSession(session);
+  await writeFile(getDrawCardSessionPath(safeSession.sessionId), `${JSON.stringify(safeSession, null, 2)}\n`, "utf-8");
+  return safeSession;
+}
+
+async function synchronizeDrawCardSession(session) {
+  const current = normalizeDrawCardSession(session);
+  const jobs = await Promise.all(current.items.map((item) => readImageJob(item.jobId)));
+  const normalizedItems = current.items.map((item, index) => {
+    const job = jobs[index];
+    return {
+      ...item,
+      status: job?.status || "failed"
+    };
+  });
+
+  const failedJob = jobs.find((job) => !job || job.status === "failed");
+  let nextStatus = "queued";
+  let nextMessage = DRAW_CARD_WAITING_MESSAGE;
+  let completedAt = current.completedAt || null;
+  let failedReason = "";
+  let results = [];
+
+  if (failedJob) {
+    nextStatus = "failed";
+    nextMessage = DRAW_CARD_FAILURE_MESSAGE;
+    completedAt = completedAt || new Date().toISOString();
+    failedReason = DRAW_CARD_FAILURE_MESSAGE;
+    await cancelDrawCardSiblingJobs(jobs);
+  } else if (jobs.length && jobs.every((job) => job?.status === "succeeded")) {
+    nextStatus = "succeeded";
+    nextMessage = DRAW_CARD_SUCCESS_MESSAGE;
+    completedAt = completedAt || new Date().toISOString();
+    results = normalizedItems
+      .map((item) => {
+        const job = jobs.find((currentJob) => currentJob?.jobId === item.jobId);
+        return {
+          order: item.order,
+          jobId: item.jobId,
+          styleId: item.styleId,
+          styleName: item.styleName,
+          imageUrl: String(job?.result?.imageUrl || ""),
+          thumbnailUrl: String(job?.result?.thumbnailUrl || ""),
+          originalImageUrl: String(job?.result?.originalImageUrl || ""),
+          isLiked: Boolean(job?.isLiked),
+          likedAt: job?.likedAt || null
+        };
+      })
+      .sort((a, b) => a.order - b.order);
+  } else if (jobs.some((job) => job?.status === "running")) {
+    nextStatus = "running";
+    nextMessage = DRAW_CARD_WAITING_MESSAGE;
+  } else {
+    nextStatus = "queued";
+    nextMessage = DRAW_CARD_WAITING_MESSAGE;
+  }
+
+  return saveDrawCardSession({
+    ...current,
+    status: nextStatus,
+    message: nextMessage,
+    updatedAt: new Date().toISOString(),
+    completedAt,
+    failedReason,
+    results,
+    items: normalizedItems
+  });
+}
+
+async function cancelDrawCardSiblingJobs(jobs) {
+  const cancellableJobs = jobs.filter((job) => job && ["queued", "running"].includes(job.status));
+  await Promise.all(
+    cancellableJobs.map(async (job) => {
+      activeImageJobs.get(job.jobId)?.abortController.abort();
+      await saveImageJob({
+        ...job,
+        status: "cancelled",
+        message: "任务已停止。",
+        updatedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString()
+      });
+    })
+  );
+}
+
+function normalizeDrawCardSession(session) {
+  return {
+    sessionId: String(session?.sessionId || ""),
+    status: String(session?.status || "queued"),
+    message: String(session?.message || DRAW_CARD_WAITING_MESSAGE),
+    createdAt: session?.createdAt || null,
+    updatedAt: session?.updatedAt || null,
+    completedAt: session?.completedAt || null,
+    failedReason: String(session?.failedReason || ""),
+    results: Array.isArray(session?.results)
+      ? session.results
+          .map((result, index) => ({
+            order: Number(result?.order ?? index),
+            jobId: String(result?.jobId || ""),
+            styleId: String(result?.styleId || ""),
+            styleName: String(result?.styleName || ""),
+            imageUrl: String(result?.imageUrl || ""),
+            thumbnailUrl: String(result?.thumbnailUrl || ""),
+            originalImageUrl: String(result?.originalImageUrl || ""),
+            isLiked: Boolean(result?.isLiked),
+            likedAt: result?.likedAt || null
+          }))
+          .sort((a, b) => a.order - b.order)
+      : [],
+    items: Array.isArray(session?.items)
+      ? session.items
+          .map((item, index) => ({
+            order: Number(item?.order ?? index),
+            jobId: String(item?.jobId || ""),
+            styleId: String(item?.styleId || ""),
+            styleName: String(item?.styleName || ""),
+            status: String(item?.status || "queued")
+          }))
+          .sort((a, b) => a.order - b.order)
+      : []
+  };
+}
+
+function toPublicDrawCardSession(session) {
+  const current = normalizeDrawCardSession(session);
+  return {
+    sessionId: current.sessionId,
+    status: current.status,
+    message: current.message,
+    createdAt: current.createdAt,
+    updatedAt: current.updatedAt,
+    completedAt: current.completedAt,
+    failedReason: current.failedReason,
+    results: current.results
+  };
+}
+
 async function prepareImageJobStorage() {
   await mkdir(imageJobRoot, { recursive: true });
+  await mkdir(drawCardSessionRoot, { recursive: true });
   await mkdir(tempReferenceRoot, { recursive: true });
   await mkdir(generatedImageRoot, { recursive: true });
   await mkdir(generatedThumbnailRoot, { recursive: true });
@@ -703,7 +1071,7 @@ async function deleteTemporaryReference(referenceId) {
   await rm(path.join(tempReferenceRoot, String(referenceId)), { recursive: true, force: true });
 }
 
-async function runImageJob({ jobId, body, files, outputFormat, prompt, provider }) {
+async function runImageJob({ jobId, body, files, outputFormat, prompt, provider, providers }) {
   let job = await readImageJob(jobId);
   if (!job) return;
   if (job.status === "cancelled") return;
@@ -718,9 +1086,16 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider 
   });
 
   try {
-    const result = files.length
-      ? await createImageEdit(files, prompt, outputFormat, provider, body, abortController.signal)
-      : await createImageGeneration(prompt, outputFormat, provider, body, abortController.signal);
+    const execution = await executeImageJobWithFailover({
+      body,
+      files,
+      outputFormat,
+      prompt,
+      provider,
+      providers,
+      signal: abortController.signal
+    });
+    const result = execution.result;
     const latestJob = await readImageJob(jobId);
     if (!latestJob || latestJob.status === "cancelled") return;
     const publicResult = await persistImageJobResult(jobId, result, outputFormat);
@@ -730,8 +1105,9 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider 
       message: "生成完成。",
       result: {
         ...publicResult,
-        provider: latestJob.provider
+        provider: execution.provider
       },
+      provider: execution.provider,
       updatedAt: new Date().toISOString(),
       completedAt: new Date().toISOString()
     });
@@ -954,7 +1330,9 @@ function toPublicImageJob(job) {
     durationSeconds: computeDurationSeconds(job),
     totalTokens: Number(result?.usage?.total_tokens || result?.usage?.totalTokens || 0),
     provider: job.provider || null,
-    mode: job.mode || result?.mode || ""
+    mode: job.mode || result?.mode || "",
+    isLiked: Boolean(job.isLiked),
+    likedAt: job.likedAt || null
   };
 }
 
@@ -1068,8 +1446,16 @@ function computeDurationSeconds(job) {
   return Math.max(0, Math.round((completedAt - startedAt) / 1000));
 }
 
+function getDrawCardSessionPath(sessionId) {
+  return path.join(drawCardSessionRoot, `${sessionId}.json`);
+}
+
 function getImageJobPath(jobId) {
   return path.join(imageJobRoot, `${jobId}.json`);
+}
+
+function isSafeDrawCardSessionId(sessionId) {
+  return /^[a-f0-9-]{36}$/i.test(String(sessionId || ""));
 }
 
 function isSafeImageJobId(jobId) {
@@ -1121,6 +1507,38 @@ async function createImageEdit(files, prompt, outputFormat, provider, body, sign
   return formatImageResponse(response, outputFormat, "edit");
 }
 
+async function executeImageJobWithFailover({ body, files, outputFormat, prompt, provider, providers, signal }) {
+  const providerChain = Array.isArray(providers) && providers.length ? providers : provider ? [provider] : [];
+  if (!providerChain.length) {
+    const error = new Error("No image providers configured");
+    error.publicMessage = "暂无可用的生图服务，请稍后再试。";
+    error.status = 503;
+    throw error;
+  }
+
+  let lastError = null;
+  for (const currentProvider of providerChain) {
+    try {
+      const result = files.length
+        ? await createImageEdit(files, prompt, outputFormat, currentProvider, body, signal)
+        : await createImageGeneration(prompt, outputFormat, currentProvider, body, signal);
+      return {
+        result,
+        provider: {
+          id: currentProvider.id,
+          name: currentProvider.name,
+          model: currentProvider.model
+        }
+      };
+    } catch (error) {
+      if (error.name === "AbortError") throw error;
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("Image generation failed");
+}
+
 async function callImageProviderApi(provider, endpoint, options, externalSignal) {
   const baseUrl = provider.baseUrl.replace(/\/+$/, "");
   const controller = new AbortController();
@@ -1145,19 +1563,19 @@ async function callImageProviderApi(provider, endpoint, options, externalSignal)
     const payload = text ? JSON.parse(text) : {};
 
     if (!response.ok) {
-      const message = payload.error?.message || payload.message || `接口返回 ${response.status}`;
+      const message = payload.error?.message || payload.message || `鎺ュ彛杩斿洖 ${response.status}`;
       const error = new Error(message);
       error.status = response.status;
       error.publicMessage = endpoint === "/images/edits"
-        ? `${provider.name} 参考图编辑接口调用失败：${message}`
-        : `${provider.name} 生图接口调用失败：${message}`;
+        ? `${provider.name} 鍙傝€冨浘缂栬緫鎺ュ彛璋冪敤澶辫触锛?{message}`
+        : `${provider.name} 鐢熷浘鎺ュ彛璋冪敤澶辫触锛?{message}`;
       throw error;
     }
 
     return payload;
   } catch (error) {
     if (error.name === "AbortError") {
-      error.publicMessage = `生图请求超过 ${Math.round(timeoutMs / 1000)} 秒仍未完成。可以降低尺寸/质量后重试，或在 .env 中调大 KUAIPAO_IMAGE_TIMEOUT_MS。`;
+      error.publicMessage = `生图请求超过 ${Math.round(timeoutMs / 1000)} 秒仍未完成。可以降低尺寸或质量后重试，或在 .env 中调大 KUAIPAO_IMAGE_TIMEOUT_MS。`;
       error.status = 504;
     } else if (error instanceof SyntaxError) {
       error.publicMessage = "中转接口返回了无法解析的结果。";
@@ -1238,7 +1656,7 @@ function readLegacyKuaipaoProvider() {
   if (!isUsableApiKey(apiKey)) return null;
   return {
     id: "kuaipao",
-    name: "快跑",
+    name: "蹇窇",
     baseUrl: process.env.KUAIPAO_BASE_URL || "https://kuaipao.pro/v1",
     apiKey,
     model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2"
@@ -1249,6 +1667,15 @@ function resolveImageProvider(requestedId, providers) {
   if (!providers.length) return null;
   const id = String(requestedId || getDefaultProviderId(providers)).trim();
   return providers.find((provider) => provider.id === id) || providers[0];
+}
+
+function getProviderFallbackChain(requestedId, providers) {
+  const selected = resolveImageProvider(requestedId, providers);
+  if (!selected) return [];
+
+  return [selected]
+    .concat(providers.filter((provider) => provider.id !== selected.id))
+    .filter((provider, index, list) => list.findIndex((item) => item.id === provider.id) === index);
 }
 
 function getDefaultProviderId(providers) {
@@ -1398,7 +1825,7 @@ async function fileExists(filePath) {
 }
 
 function normalizeTags(value) {
-  const raw = Array.isArray(value) ? value : String(value || "").split(/[,，、\n]/);
+  const raw = Array.isArray(value) ? value : String(value || "").split(/[,锛屻€乗n]/);
   return [...new Set(raw.map((item) => String(item).trim()).filter(Boolean))];
 }
 

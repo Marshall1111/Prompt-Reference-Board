@@ -1,0 +1,49 @@
+{
+  "sessionId": "e8ab8a34-515d-425a-9128-5449993a23b1",
+  "status": "succeeded",
+  "message": "结果已准备好。",
+  "createdAt": "2026-06-03T11:38:22.748Z",
+  "updatedAt": "2026-06-03T11:39:59.860Z",
+  "completedAt": "2026-06-03T11:39:59.860Z",
+  "failedReason": "",
+  "results": [
+    {
+      "order": 0,
+      "jobId": "a0f795d4-0d4d-43ce-8eba-f2725d692f93",
+      "styleId": "style_1780183870275",
+      "styleName": "宠物 / 角色卡",
+      "imageUrl": "/generated-images/a0f795d4-0d4d-43ce-8eba-f2725d692f93.png",
+      "thumbnailUrl": "/generated-thumbnails/a0f795d4-0d4d-43ce-8eba-f2725d692f93.webp",
+      "originalImageUrl": "https://oss.filenest.top/uploads/6ed883ee-c865-447b-90d8-c3b56b694d62.png",
+      "isLiked": false,
+      "likedAt": null
+    },
+    {
+      "order": 1,
+      "jobId": "4ace6cef-4228-4268-8573-8733274ed39c",
+      "styleId": "style_1780183785792",
+      "styleName": "水墨肖像 / 宠物",
+      "imageUrl": "/generated-images/4ace6cef-4228-4268-8573-8733274ed39c.png",
+      "thumbnailUrl": "/generated-thumbnails/4ace6cef-4228-4268-8573-8733274ed39c.webp",
+      "originalImageUrl": "https://oss.filenest.top/uploads/c351fe83-3542-4602-9959-f0613215a743.png",
+      "isLiked": false,
+      "likedAt": null
+    }
+  ],
+  "items": [
+    {
+      "order": 0,
+      "jobId": "a0f795d4-0d4d-43ce-8eba-f2725d692f93",
+      "styleId": "style_1780183870275",
+      "styleName": "宠物 / 角色卡",
+      "status": "succeeded"
+    },
+    {
+      "order": 1,
+      "jobId": "4ace6cef-4228-4268-8573-8733274ed39c",
+      "styleId": "style_1780183785792",
+      "styleName": "水墨肖像 / 宠物",
+      "status": "succeeded"
+    }
+  ]
+}

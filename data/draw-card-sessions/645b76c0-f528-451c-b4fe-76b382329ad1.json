@@ -1,0 +1,26 @@
+{
+  "sessionId": "645b76c0-f528-451c-b4fe-76b382329ad1",
+  "status": "queued",
+  "message": "仪式正在进行，请稍候。",
+  "createdAt": "2026-06-03T10:26:25.579Z",
+  "updatedAt": "2026-06-03T10:26:38.847Z",
+  "completedAt": null,
+  "failedReason": "",
+  "results": [],
+  "items": [
+    {
+      "order": 0,
+      "jobId": "e08f7027-314d-45f0-b7fa-8438d69d32db",
+      "styleId": "style_1780359249273",
+      "styleName": "治愈系插画",
+      "status": "failed"
+    },
+    {
+      "order": 1,
+      "jobId": "49240849-d809-4bab-8d90-0ae1388a5556",
+      "styleId": "style_1780214860370",
+      "styleName": "宠物 / 油画 / 厚涂 / 肖像",
+      "status": "failed"
+    }
+  ]
+}

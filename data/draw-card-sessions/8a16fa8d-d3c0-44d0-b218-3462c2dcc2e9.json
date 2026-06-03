@@ -1,0 +1,61 @@
+{
+  "sessionId": "8a16fa8d-d3c0-44d0-b218-3462c2dcc2e9",
+  "status": "succeeded",
+  "message": "结果已准备好。",
+  "createdAt": "2026-06-03T09:36:59.814Z",
+  "updatedAt": "2026-06-03T09:37:52.978Z",
+  "completedAt": "2026-06-03T09:37:52.978Z",
+  "failedReason": "",
+  "results": [
+    {
+      "order": 0,
+      "jobId": "7923a5f2-91e2-42c8-b5c5-8a490ae47bd2",
+      "styleId": "style_1780359249273",
+      "styleName": "治愈系插画",
+      "imageUrl": "/generated-images/7923a5f2-91e2-42c8-b5c5-8a490ae47bd2.png",
+      "thumbnailUrl": "/generated-thumbnails/7923a5f2-91e2-42c8-b5c5-8a490ae47bd2.webp",
+      "originalImageUrl": "https://oss.filenest.top/uploads/cea7bd4b-e93c-4156-abdb-5eca2a8db39c.png"
+    },
+    {
+      "order": 1,
+      "jobId": "92d38e86-1d10-449d-a648-303445f5b58d",
+      "styleId": "style_1780214860370",
+      "styleName": "宠物 / 油画 / 厚涂 / 肖像",
+      "imageUrl": "/generated-images/92d38e86-1d10-449d-a648-303445f5b58d.png",
+      "thumbnailUrl": "/generated-thumbnails/92d38e86-1d10-449d-a648-303445f5b58d.webp",
+      "originalImageUrl": "https://oss.filenest.top/uploads/467485ea-fdf9-4d0a-9ff3-bfd11b810253.png"
+    },
+    {
+      "order": 2,
+      "jobId": "b256d6dc-7df8-4827-ab10-9dffda9c4ee2",
+      "styleId": "style_1780183870275",
+      "styleName": "宠物 / 角色卡",
+      "imageUrl": "/generated-images/b256d6dc-7df8-4827-ab10-9dffda9c4ee2.png",
+      "thumbnailUrl": "/generated-thumbnails/b256d6dc-7df8-4827-ab10-9dffda9c4ee2.webp",
+      "originalImageUrl": "https://oss.filenest.top/uploads/aa21355e-515f-4615-bfa6-bcd41b0f99c6.png"
+    }
+  ],
+  "items": [
+    {
+      "order": 0,
+      "jobId": "7923a5f2-91e2-42c8-b5c5-8a490ae47bd2",
+      "styleId": "style_1780359249273",
+      "styleName": "治愈系插画",
+      "status": "succeeded"
+    },
+    {
+      "order": 1,
+      "jobId": "92d38e86-1d10-449d-a648-303445f5b58d",
+      "styleId": "style_1780214860370",
+      "styleName": "宠物 / 油画 / 厚涂 / 肖像",
+      "status": "succeeded"
+    },
+    {
+      "order": 2,
+      "jobId": "b256d6dc-7df8-4827-ab10-9dffda9c4ee2",
+      "styleId": "style_1780183870275",
+      "styleName": "宠物 / 角色卡",
+      "status": "succeeded"
+    }
+  ]
+}
