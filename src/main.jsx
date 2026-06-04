@@ -2468,20 +2468,23 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
 
 async function refreshStyles() {
   const response = await fetch("/api/styles");
-  return response.json();
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取风格失败。");
+  return Array.isArray(payload) ? payload : [];
 }
 
 async function refreshStyleGroups() {
   const response = await fetch("/api/style-groups");
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取风格组失败。");
-  return payload;
+  return Array.isArray(payload) ? payload : [];
 }
 
 async function refreshImageProviders() {
   const response = await fetch("/api/image-providers");
-  if (!response.ok) throw new Error("Failed to load image providers");
-  return response.json();
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取图片供应商失败。");
+  return payload;
 }
 
 async function fetchVisitorState() {

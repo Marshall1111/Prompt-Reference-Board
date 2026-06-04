@@ -117,7 +117,7 @@ app.post("/api/admin/login", async (req, res) => {
     const password = String(req.body?.password || "");
     await verifyAdminCredentials(username, password);
     const session = await createAdminSession();
-    setAdminCookie(res, session.sessionId);
+    setAdminCookie(req, res, session.sessionId);
     res.json({ ok: true, session: toPublicAdminSession(session) });
   } catch (error) {
     res.status(error.status || 401).json({ message: error.publicMessage || "登录失败。" });
@@ -129,7 +129,7 @@ app.post("/api/admin/logout", async (req, res) => {
     if (req.adminSession?.sessionId) {
       await deleteAdminSession(req.adminSession.sessionId);
     }
-    clearAdminCookie(res);
+    clearAdminCookie(req, res);
     res.json({ ok: true });
   } catch (error) {
     console.error(error);
@@ -1018,7 +1018,7 @@ function serializeCookie(name, value, options = {}) {
   if (options.httpOnly !== false) parts.push("HttpOnly");
   parts.push(`SameSite=${options.sameSite || "Lax"}`);
   if (options.maxAge !== undefined) parts.push(`Max-Age=${Math.max(0, Math.floor(options.maxAge))}`);
-  if (process.env.NODE_ENV === "production") parts.push("Secure");
+  if (options.secure) parts.push("Secure");
   return parts.join("; ");
 }
 
@@ -1032,20 +1032,25 @@ function appendSetCookie(res, cookie) {
   res.setHeader("Set-Cookie", Array.isArray(current) ? current.concat(cookie) : [current, cookie]);
 }
 
-function setVisitorCookie(res, visitorId) {
+function setVisitorCookie(req, res, visitorId) {
   appendSetCookie(res, serializeCookie(VISITOR_COOKIE_NAME, visitorId, {
-    maxAge: 60 * 60 * 24 * 365
+    maxAge: 60 * 60 * 24 * 365,
+    secure: shouldUseSecureCookies(req)
   }));
 }
 
-function setAdminCookie(res, sessionId) {
+function setAdminCookie(req, res, sessionId) {
   appendSetCookie(res, serializeCookie(ADMIN_COOKIE_NAME, sessionId, {
-    maxAge: ADMIN_SESSION_TTL_MS / 1000
+    maxAge: ADMIN_SESSION_TTL_MS / 1000,
+    secure: shouldUseSecureCookies(req)
   }));
 }
 
-function clearAdminCookie(res) {
-  appendSetCookie(res, serializeCookie(ADMIN_COOKIE_NAME, "", { maxAge: 0 }));
+function clearAdminCookie(req, res) {
+  appendSetCookie(res, serializeCookie(ADMIN_COOKIE_NAME, "", {
+    maxAge: 0,
+    secure: shouldUseSecureCookies(req)
+  }));
 }
 
 async function visitorSessionMiddleware(req, res, next) {
@@ -1054,11 +1059,19 @@ async function visitorSessionMiddleware(req, res, next) {
     const current = cookies[VISITOR_COOKIE_NAME];
     const visitorId = isSafeVisitorId(current) ? current : randomUUID();
     req.visitorId = visitorId;
-    if (visitorId !== current) setVisitorCookie(res, visitorId);
+    if (visitorId !== current) setVisitorCookie(req, res, visitorId);
     next();
   } catch (error) {
     next(error);
   }
+}
+
+function shouldUseSecureCookies(req) {
+  const forwardedProto = String(req?.headers?.["x-forwarded-proto"] || "").split(",")[0].trim().toLowerCase();
+  if (forwardedProto === "https") return true;
+  if (req?.secure) return true;
+  if (req?.socket?.encrypted) return true;
+  return false;
 }
 
 async function adminSessionMiddleware(req, _res, next) {
