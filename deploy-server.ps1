@@ -49,6 +49,7 @@ $tarArgs = @(
   "--exclude=public/job-references",
   "--exclude=public/job-reference-thumbnails",
   "--exclude=data/image-jobs",
+  "--exclude=data/draw-card-sessions",
   "--exclude=data/temp-image-references",
   "--exclude=*.log",
   "-C", $repoRoot,
