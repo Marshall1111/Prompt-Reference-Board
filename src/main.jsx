@@ -32,26 +32,19 @@ const REFERENCE_UPLOAD_LIMITS = {
 const GENERATION_STEPS = ["准备请求", "提交到中转站", "等待模型生成", "接收图片结果", "准备预览"];
 
 function readRoute() {
-  if (window.location.pathname === "/luck") return "luck";
-  if (window.location.pathname === "/manage") return "manage";
-  if (window.location.pathname === "/tasks") return "tasks";
-  if (window.location.pathname === "/batch") return "batch";
-  return "home";
+  const pathname = window.location.pathname;
+  if (pathname === "/gallery") return "admin-gallery";
+  if (pathname === "/admin" || pathname === "/admin/") return "admin-styles";
+  if (pathname === "/admin/login") return "admin-login";
+  if (pathname === "/admin/styles") return "admin-styles";
+  if (pathname === "/admin/tasks") return "admin-tasks";
+  if (pathname === "/admin/batch") return "admin-batch";
+  if (pathname === "/admin/invites") return "admin-invites";
+  return "public-draw";
 }
 
 function App() {
-  const [styles, setStyles] = useState([]);
-  const [styleGroups, setStyleGroups] = useState([]);
-  const [query, setQuery] = useState("");
-  const [copiedId, setCopiedId] = useState("");
-  const [activePrompt, setActivePrompt] = useState(null);
-  const [activeGenerator, setActiveGenerator] = useState(null);
   const [route, setRoute] = useState(() => readRoute());
-
-  useEffect(() => {
-    refreshStyles().then(setStyles);
-    refreshStyleGroups().then(setStyleGroups);
-  }, []);
 
   useEffect(() => {
     const onPopState = () => setRoute(readRoute());
@@ -59,19 +52,77 @@ function App() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
+  function navigate(nextRoute) {
+    const pathByRoute = {
+      "public-draw": "/",
+      "admin-gallery": "/gallery",
+      "admin-login": "/admin/login",
+      "admin-styles": "/admin/styles",
+      "admin-tasks": "/admin/tasks",
+      "admin-batch": "/admin/batch",
+      "admin-invites": "/admin/invites"
+    };
+    const path = pathByRoute[nextRoute] || "/";
+    window.history.pushState({}, "", path);
+    setRoute(nextRoute);
+  }
+
+  if (route === "public-draw") {
+    return <LuckDrawCardPage />;
+  }
+
+  return <AdminApp navigate={navigate} route={route} />;
+}
+
+function AdminApp({ navigate, route }) {
+  const [styles, setStyles] = useState([]);
+  const [styleGroups, setStyleGroups] = useState([]);
+  const [inviteCodes, setInviteCodes] = useState([]);
+  const [visitors, setVisitors] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [query, setQuery] = useState("");
+  const [copiedId, setCopiedId] = useState("");
+  const [activePrompt, setActivePrompt] = useState(null);
+  const [activeGenerator, setActiveGenerator] = useState(null);
+  const [adminReady, setAdminReady] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadAdminSession() {
+      try {
+        const payload = await fetchAdminSession();
+        if (!isActive) return;
+        setIsAuthenticated(Boolean(payload?.ok));
+      } catch {
+        if (!isActive) return;
+        setIsAuthenticated(false);
+      } finally {
+        if (isActive) setAdminReady(true);
+      }
+    }
+
+    loadAdminSession();
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!adminReady || !isAuthenticated) return;
+    refreshStyles().then(setStyles).catch(() => setStyles([]));
+    refreshStyleGroups().then(setStyleGroups).catch(() => setStyleGroups([]));
+    refreshInviteCodes().then(setInviteCodes).catch(() => setInviteCodes([]));
+    refreshVisitors().then(setVisitors).catch(() => setVisitors([]));
+    refreshAdminSettings().then(setSettings).catch(() => setSettings(null));
+  }, [adminReady, isAuthenticated]);
+
   const filteredStyles = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     if (!keyword) return styles;
     return styles.filter((style) => `${style.tags.join(" ")} ${style.prompt}`.toLowerCase().includes(keyword));
   }, [query, styles]);
-
-  function navigate(nextRoute) {
-    const path = nextRoute === "luck" ? "/luck" : nextRoute === "manage" ? "/manage" : nextRoute === "tasks" ? "/tasks" : nextRoute === "batch" ? "/batch" : "/";
-    window.history.pushState({}, "", path);
-    setRoute(nextRoute);
-    setActivePrompt(null);
-    setActiveGenerator(null);
-  }
 
   async function copyPrompt(style) {
     await copyText(style.prompt);
@@ -167,8 +218,31 @@ function App() {
     setStyleGroups((current) => current.filter((group) => group.id !== groupId));
   }
 
-  if (route === "luck") {
-    return <LuckDrawCardPage />;
+  async function handleLogin(username, password) {
+    const payload = await adminLogin(username, password);
+    setIsAuthenticated(Boolean(payload?.ok));
+      await Promise.all([
+        refreshStyles().then(setStyles),
+        refreshStyleGroups().then(setStyleGroups),
+        refreshInviteCodes().then(setInviteCodes),
+        refreshVisitors().then(setVisitors),
+        refreshAdminSettings().then(setSettings)
+      ]);
+    navigate("admin-styles");
+  }
+
+  async function handleLogout() {
+    await adminLogout();
+    setIsAuthenticated(false);
+    navigate("admin-login");
+  }
+
+  if (!adminReady) {
+    return <main className="app-shell"><section className="workspace"><p className="storage-note">正在检查后台登录状态...</p></section></main>;
+  }
+
+  if (!isAuthenticated) {
+    return <AdminLoginPage onLogin={handleLogin} />;
   }
 
   return (
@@ -177,36 +251,45 @@ function App() {
         <header className="topbar">
           <div>
             <p className="eyebrow">Prompt reference board</p>
-            {route === "home" ? (
-              <button className="luck-entry" onClick={() => navigate("luck")} type="button">
-                Luck
-              </button>
-            ) : null}
-            <h1>风格提示词图库</h1>
+            <h1>后台管理</h1>
           </div>
           <div className="top-actions">
             <label className="search-box">
               <Search size={18} />
               <input aria-label="搜索标签或提示词" onChange={(event) => setQuery(event.target.value)} placeholder="搜索标签" value={query} />
             </label>
-            <button className="nav-button" onClick={() => navigate(route === "manage" ? "home" : "manage")} type="button">
-              {route === "manage" ? <Home size={18} /> : <Settings size={18} />}
-              <span>{route === "manage" ? "返回主页" : "维护内容"}</span>
+            <button className="nav-button" onClick={() => navigate("admin-styles")} type="button">
+              <Settings size={18} />
+              <span>风格维护</span>
             </button>
-            <button className="nav-button" onClick={() => navigate(route === "tasks" ? "home" : "tasks")} type="button">
-              {route === "tasks" ? <Home size={18} /> : <ListTodo size={18} />}
-              <span>{route === "tasks" ? "返回主页" : "任务记录"}</span>
+            <button className="nav-button" onClick={() => navigate("admin-gallery")} type="button">
+              <Home size={18} />
+              <span>图库</span>
             </button>
-            <button className="nav-button" onClick={() => navigate(route === "batch" ? "home" : "batch")} type="button">
-              {route === "batch" ? <Home size={18} /> : <Layers3 size={18} />}
-              <span>{route === "batch" ? "返回主页" : "批量生成"}</span>
+            <button className="nav-button" onClick={() => navigate("admin-tasks")} type="button">
+              <ListTodo size={18} />
+              <span>任务记录</span>
+            </button>
+            <button className="nav-button" onClick={() => navigate("admin-batch")} type="button">
+              <Layers3 size={18} />
+              <span>批量生成</span>
+            </button>
+            <button className="nav-button" onClick={() => navigate("admin-invites")} type="button">
+              <Sparkles size={18} />
+              <span>邀请码</span>
+            </button>
+            <button className="nav-button" onClick={handleLogout} type="button">
+              <Home size={18} />
+              <span>退出登录</span>
             </button>
           </div>
         </header>
 
-        {route === "tasks" ? (
+        {route === "admin-gallery" ? (
+          <GalleryPage copiedId={copiedId} onCopy={copyPrompt} onGenerate={setActiveGenerator} onViewPrompt={setActivePrompt} styles={filteredStyles} />
+        ) : route === "admin-tasks" ? (
           <ImageJobsPage />
-        ) : route === "batch" ? (
+        ) : route === "admin-batch" ? (
           <BatchGeneratePage
             groups={styleGroups}
             onCreateGroup={createStyleGroup}
@@ -214,7 +297,16 @@ function App() {
             onUpdateGroup={updateStyleGroup}
             styles={styles}
           />
-        ) : route === "manage" ? (
+        ) : route === "admin-invites" ? (
+          <InviteAdminPage
+            inviteCodes={inviteCodes}
+            onRefreshInviteCodes={() => refreshInviteCodes().then(setInviteCodes)}
+            onRefreshVisitors={() => refreshVisitors().then(setVisitors)}
+            onRefreshSettings={() => refreshAdminSettings().then(setSettings)}
+            settings={settings}
+            visitors={visitors}
+          />
+        ) : route === "admin-styles" ? (
           <ManagePage
             onCreateStyle={createStyle}
             onDeleteStyle={deleteStyle}
@@ -224,7 +316,14 @@ function App() {
             styles={filteredStyles}
           />
         ) : (
-          <GalleryPage copiedId={copiedId} onCopy={copyPrompt} onGenerate={setActiveGenerator} onViewPrompt={setActivePrompt} styles={filteredStyles} />
+          <ManagePage
+            onCreateStyle={createStyle}
+            onDeleteStyle={deleteStyle}
+            onReorderStyles={reorderVisibleStyles}
+            onStyleChange={updateStyle}
+            onUploadImage={uploadStyleImage}
+            styles={filteredStyles}
+          />
         )}
       </section>
 
@@ -275,6 +374,8 @@ function LuckDrawCardPage() {
   const [pendingRemoval, setPendingRemoval] = useState(null);
   const [flyingCard, setFlyingCard] = useState(null);
   const [clipReceiving, setClipReceiving] = useState(false);
+  const [visitorState, setVisitorState] = useState(null);
+  const [inviteCode, setInviteCode] = useState("");
   const resultMediaRefs = useRef(new Map());
   const cardClipPanelRef = useRef(null);
   const flightTimeoutRef = useRef(null);
@@ -295,24 +396,19 @@ function LuckDrawCardPage() {
   useEffect(() => {
     let isActive = true;
 
+    fetchVisitorState()
+      .then((payload) => {
+        if (isActive) setVisitorState(payload);
+      })
+      .catch(() => {
+        if (isActive) setVisitorState(null);
+      });
+
     async function loadClipItems() {
       try {
-        const payload = await refreshImageJobs();
+        const payload = await fetchPublicClipItems();
         if (!isActive) return;
-        const nextClipItems = (payload.jobs || [])
-          .filter((job) => job.isLiked && (job.result?.thumbnailUrl || job.result?.imageDataUrl || job.result?.imageUrl))
-          .sort((left, right) => new Date(right.likedAt || right.updatedAt || right.createdAt || 0).getTime() - new Date(left.likedAt || left.updatedAt || left.createdAt || 0).getTime())
-          .map((job) => ({
-            jobId: job.jobId,
-            styleId: job.styleId || "",
-            styleName: job.styleName || "",
-            imageUrl: job.result?.imageDataUrl || job.result?.imageUrl || "",
-            thumbnailUrl: job.result?.thumbnailUrl || job.result?.imageDataUrl || job.result?.imageUrl || "",
-            originalImageUrl: job.result?.originalImageUrl || "",
-            isLiked: Boolean(job.isLiked),
-            likedAt: job.likedAt || null
-          }));
-        setClipItems(nextClipItems);
+        setClipItems(payload.items || []);
       } catch (nextError) {
         if (!isActive) return;
         setError((current) => current || nextError.message || "读取卡夹失败，请稍后再试。");
@@ -512,6 +608,7 @@ function LuckDrawCardPage() {
 
       setSession(payload);
       setSessionId(payload.sessionId || "");
+      fetchVisitorState().then(setVisitorState).catch(() => {});
       setPhase("waiting");
     } catch (nextError) {
       setError(nextError.message || "抽卡暂时不可用，请稍后再试。");
@@ -533,9 +630,8 @@ function LuckDrawCardPage() {
         jobId: payload.jobId,
         styleId: payload.styleId || result.styleId || "",
         styleName: payload.styleName || result.styleName || "",
-        imageUrl: payload.result?.imageDataUrl || payload.result?.imageUrl || result.imageUrl || "",
-        thumbnailUrl: payload.result?.thumbnailUrl || payload.result?.imageDataUrl || payload.result?.imageUrl || result.thumbnailUrl || result.imageUrl || "",
-        originalImageUrl: payload.result?.originalImageUrl || result.originalImageUrl || "",
+        imageUrl: payload.result?.previewUrl || payload.result?.thumbnailUrl || result.imageUrl || "",
+        thumbnailUrl: payload.result?.thumbnailUrl || payload.result?.previewUrl || result.thumbnailUrl || result.imageUrl || "",
         isLiked: true,
         likedAt
       });
@@ -631,6 +727,28 @@ function LuckDrawCardPage() {
             <p>挑中想保留的结果后，它会被收进这里，并在你下次回来时继续保留。</p>
           </div>
         )}
+
+        <div className="draw-card-clip-empty">
+          <p>剩余次数：{visitorState ? `${visitorState.quotaRemaining}/${visitorState.quotaLimit}` : "--/--"}</p>
+          <input className="field-inline-input" onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} />
+          <button
+            className="draw-card-secondary"
+            onClick={async () => {
+              try {
+                const payload = await redeemInviteCode(inviteCode);
+                setVisitorState(payload);
+                setInviteCode("");
+                setError("");
+              } catch (nextError) {
+                setError(nextError.message || "邀请码兑换失败，请稍后再试。");
+              }
+            }}
+            type="button"
+          >
+            <span>兑换邀请码</span>
+          </button>
+          <p>{visitorState?.contactMessage || "如需更多生图机会，请联系客服填写邀请码。"}</p>
+        </div>
       </aside>
     );
   }
@@ -1555,8 +1673,7 @@ function ImageJobsPage() {
 
       <div className="task-list">
         {visibleJobs.map((job) => {
-          const imageSource = job.result?.thumbnailUrl || job.result?.imageDataUrl || job.result?.imageUrl;
-          const fullImageSource = job.result?.imageDataUrl || job.result?.imageUrl || imageSource;
+          const imageSource = job.result?.previewUrl || job.result?.thumbnailUrl || job.result?.imageDataUrl || job.result?.imageUrl;
           return (
             <article className={`task-card ${job.isLiked ? "is-liked" : ""}`} key={job.jobId}>
               <div className={`task-status ${job.status}`}>{statusLabel(job.status)}</div>
@@ -1587,9 +1704,13 @@ function ImageJobsPage() {
                   <X size={18} />
                   <span>停止</span>
                 </button>
-                <button className="secondary-button" disabled={!fullImageSource} onClick={() => openImageSource(fullImageSource)} type="button">
+                <button className="secondary-button" disabled={!job.result?.imageUrl} onClick={() => openAdminJobResult(job.jobId)} type="button">
                   <Eye size={18} />
                   <span>查看</span>
+                </button>
+                <button className="secondary-button" disabled={!job.result?.imageUrl} onClick={() => downloadAdminJobResult(job.jobId)} type="button">
+                  <Download size={18} />
+                  <span>下载</span>
                 </button>
                 <button className={job.isLiked ? "secondary-button" : "copy-button"} disabled={updatingClipJobId === job.jobId} onClick={() => toggleClip(job)} type="button">
                   {updatingClipJobId === job.jobId ? <LoaderCircle className="spin" size={18} /> : job.isLiked ? <X size={18} /> : <Sparkles size={18} />}
@@ -1958,10 +2079,10 @@ function JobEditModal({ job, onClose }) {
       try {
         const loaded = await Promise.all(
           originals.map(async (reference, index) => {
-            const response = await fetch(cacheBust(reference.url));
+            const response = await fetch(`/api/admin/image-jobs/${job.jobId}/references/${index}`);
             if (!response.ok) throw new Error("Failed to fetch original reference");
             const blob = await response.blob();
-            const mimeType = normalizeReferenceMimeType(blob.type || reference.mimeType, reference.url);
+            const mimeType = normalizeReferenceMimeType(blob.type || reference.mimeType, reference.url || "");
             return {
               id: `original-reference-${job.jobId}-${index}`,
               file: new File([blob], reference.name || `reference-${index + 1}.${extensionFromMimeType(mimeType)}`, {
@@ -2349,6 +2470,110 @@ async function refreshImageProviders() {
   return response.json();
 }
 
+async function fetchVisitorState() {
+  const response = await fetch("/api/visitor-state");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取访客状态失败。");
+  return payload;
+}
+
+async function redeemInviteCode(code) {
+  const response = await fetch("/api/invite-codes/redeem", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "邀请码兑换失败。");
+  return payload;
+}
+
+async function fetchPublicClipItems() {
+  const response = await fetch("/api/public/clip-items");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取卡夹失败。");
+  return payload;
+}
+
+async function fetchAdminSession() {
+  const response = await fetch("/api/admin/session");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取后台登录状态失败。");
+  return payload;
+}
+
+async function adminLogin(username, password) {
+  const response = await fetch("/api/admin/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "登录失败。");
+  return payload;
+}
+
+async function adminLogout() {
+  const response = await fetch("/api/admin/logout", { method: "POST" });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "退出登录失败。");
+  return payload;
+}
+
+async function refreshInviteCodes() {
+  const response = await fetch("/api/admin/invite-codes");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取邀请码失败。");
+  return payload.inviteCodes || [];
+}
+
+async function createInviteCodesRequest(payload) {
+  const response = await fetch("/api/admin/invite-codes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "创建邀请码失败。");
+  return data;
+}
+
+async function updateInviteCodeRequest(id, payload) {
+  const response = await fetch(`/api/admin/invite-codes/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "更新邀请码失败。");
+  return data;
+}
+
+async function refreshVisitors() {
+  const response = await fetch("/api/admin/visitors");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取访客额度失败。");
+  return payload.visitors || [];
+}
+
+async function refreshAdminSettings() {
+  const response = await fetch("/api/admin/settings");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取系统设置失败。");
+  return payload.settings;
+}
+
+async function updateAdminSettings(payload) {
+  const response = await fetch("/api/admin/settings", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "更新系统设置失败。");
+  return data.settings;
+}
+
 async function fetchImageJob(jobId) {
   const response = await fetch(`/api/image-jobs/${jobId}`);
   const payload = await response.json();
@@ -2361,6 +2586,231 @@ async function refreshImageJobs() {
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取生图任务列表失败。");
   return payload;
+}
+
+function AdminLoginPage({ onLogin }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setError("");
+    try {
+      await onLogin(username, password);
+    } catch (nextError) {
+      setError(nextError.message || "登录失败，请稍后再试。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="app-shell">
+      <section className="workspace">
+        <form className="prompt-modal generator-modal" onSubmit={handleSubmit}>
+          <div className="modal-head">
+            <div>
+              <p className="eyebrow">Admin</p>
+              <h2>后台登录</h2>
+            </div>
+          </div>
+          <label className="field-label">
+            用户名
+            <input onChange={(event) => setUsername(event.target.value)} type="text" value={username} />
+          </label>
+          <label className="field-label">
+            密码
+            <input onChange={(event) => setPassword(event.target.value)} type="password" value={password} />
+          </label>
+          {error ? <p className="error-note">{error}</p> : null}
+          <div className="card-actions generator-actions">
+            <button className="copy-button" disabled={isSubmitting || !username.trim() || !password} type="submit">
+              {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Settings size={18} />}
+              <span>{isSubmitting ? "登录中" : "登录"}</span>
+            </button>
+          </div>
+        </form>
+      </section>
+    </main>
+  );
+}
+
+function InviteAdminPage({ inviteCodes, visitors, settings, onRefreshInviteCodes, onRefreshVisitors, onRefreshSettings }) {
+  const [count, setCount] = useState(5);
+  const [prefix, setPrefix] = useState("");
+  const [anonymousQuotaLimit, setAnonymousQuotaLimit] = useState(settings?.anonymousQuotaLimit || 5);
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showUsedInviteCodes, setShowUsedInviteCodes] = useState(false);
+  const availableInviteCodes = useMemo(
+    () => inviteCodes.filter((inviteCode) => Number(inviteCode.remainingRedemptions || 0) > 0),
+    [inviteCodes]
+  );
+  const usedInviteCodes = useMemo(
+    () => inviteCodes.filter((inviteCode) => Number(inviteCode.remainingRedemptions || 0) <= 0),
+    [inviteCodes]
+  );
+
+  useEffect(() => {
+    setAnonymousQuotaLimit(settings?.anonymousQuotaLimit || 5);
+  }, [settings]);
+
+  async function createCodes() {
+    setIsSubmitting(true);
+    setError("");
+    try {
+      await createInviteCodesRequest({ count, prefix });
+      await Promise.all([onRefreshInviteCodes(), onRefreshVisitors()]);
+      setPrefix("");
+    } catch (nextError) {
+      setError(nextError.message || "创建邀请码失败。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function saveSettings() {
+    setIsSubmitting(true);
+    setError("");
+    try {
+      await updateAdminSettings({ anonymousQuotaLimit });
+      await Promise.all([onRefreshSettings(), onRefreshVisitors()]);
+    } catch (nextError) {
+      setError(nextError.message || "更新系统设置失败。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function toggleInvite(inviteCode) {
+    setError("");
+    try {
+      await updateInviteCodeRequest(inviteCode.id, { enabled: !inviteCode.enabled });
+      await onRefreshInviteCodes();
+    } catch (nextError) {
+      setError(nextError.message || "更新邀请码失败。");
+    }
+  }
+
+  return (
+    <section className="task-page" aria-label="邀请码与访客额度">
+      <div className="task-toolbar">
+        <div>
+          <p className="eyebrow">Invites</p>
+          <h2>邀请码与访客额度</h2>
+          <p className="storage-note">创建邀请码、停用邀请码，并查看访客额度消耗情况。</p>
+        </div>
+        <button className="secondary-button" onClick={() => Promise.all([onRefreshInviteCodes(), onRefreshVisitors()])} type="button">
+          <RefreshCw size={18} />
+          <span>刷新</span>
+        </button>
+      </div>
+
+      <div className="draw-card-upload-panel">
+        <label className="field-label">
+          匿名访客默认免费次数
+          <input max="50" min="1" onChange={(event) => setAnonymousQuotaLimit(Number(event.target.value) || 1)} type="number" value={anonymousQuotaLimit} />
+        </label>
+        <div className="card-actions generator-actions">
+          <button className="secondary-button" disabled={isSubmitting} onClick={saveSettings} type="button">
+            <Save size={18} />
+            <span>保存免费次数设置</span>
+          </button>
+        </div>
+        <label className="field-label">
+          一次创建数量
+          <input max="20" min="1" onChange={(event) => setCount(Number(event.target.value) || 1)} type="number" value={count} />
+        </label>
+        <label className="field-label">
+          前缀
+          <input onChange={(event) => setPrefix(event.target.value.toUpperCase())} placeholder="例如 VIP" type="text" value={prefix} />
+        </label>
+        <div className="card-actions generator-actions">
+          <button className="copy-button" disabled={isSubmitting} onClick={createCodes} type="button">
+            {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Plus size={18} />}
+            <span>{isSubmitting ? "创建中" : "创建邀请码"}</span>
+          </button>
+        </div>
+        {error ? <p className="error-note">{error}</p> : null}
+      </div>
+
+      <div className="task-list">
+        {availableInviteCodes.map((inviteCode) => (
+          <article className="task-card" key={inviteCode.id}>
+            <div className={`task-status ${inviteCode.enabled ? "succeeded" : "cancelled"}`}>{inviteCode.enabled ? "启用中" : "已停用"}</div>
+            <div className="task-detail">
+              <div className="task-meta-row">
+                <strong>{inviteCode.code}</strong>
+                <span>已兑换 {inviteCode.redeemedCount}</span>
+                <span>剩余 {inviteCode.remainingRedemptions}</span>
+              </div>
+              <p className="storage-note">创建于 {formatDateTime(inviteCode.createdAt)}</p>
+            </div>
+            <div className="task-actions">
+              <button className="secondary-button" onClick={() => toggleInvite(inviteCode)} type="button">
+                <span>{inviteCode.enabled ? "停用" : "启用"}</span>
+              </button>
+            </div>
+          </article>
+        ))}
+        {!availableInviteCodes.length ? <p className="empty-note">当前没有可继续兑换的邀请码。</p> : null}
+      </div>
+
+      <div className="card-actions generator-actions">
+        <button className="secondary-button" onClick={() => setShowUsedInviteCodes((current) => !current)} type="button">
+          <Eye size={18} />
+          <span>{showUsedInviteCodes ? "隐藏历史已用邀请码" : `查看历史已用邀请码 (${usedInviteCodes.length})`}</span>
+        </button>
+      </div>
+
+      {showUsedInviteCodes ? (
+        <div className="task-list">
+          {usedInviteCodes.map((inviteCode) => (
+            <article className="task-card" key={`used-${inviteCode.id}`}>
+              <div className="task-status failed">已用完</div>
+              <div className="task-detail">
+                <div className="task-meta-row">
+                  <strong>{inviteCode.code}</strong>
+                  <span>已兑换 {inviteCode.redeemedCount}</span>
+                  <span>剩余 {inviteCode.remainingRedemptions}</span>
+                </div>
+                <p className="storage-note">更新于 {formatDateTime(inviteCode.updatedAt)}</p>
+              </div>
+            </article>
+          ))}
+          {!usedInviteCodes.length ? <p className="empty-note">还没有历史已用邀请码。</p> : null}
+        </div>
+      ) : null}
+
+      <section className="task-page" aria-label="访客额度列表">
+        <div className="task-toolbar">
+          <div>
+            <p className="eyebrow">Visitors</p>
+            <h2>访客额度</h2>
+          </div>
+        </div>
+        <div className="task-list">
+          {visitors.map((visitor) => (
+            <article className="task-card" key={visitor.visitorId}>
+              <div className={`task-status ${visitor.tier === "invited" ? "succeeded" : "queued"}`}>{visitor.tier === "invited" ? "已提权" : "匿名"}</div>
+              <div className="task-detail">
+                <div className="task-meta-row">
+                  <strong>{shortJobId(visitor.visitorId)}</strong>
+                  <span>已用 {visitor.quotaUsed}</span>
+                  <span>剩余 {visitor.quotaRemaining}</span>
+                  <span>上限 {visitor.quotaLimit}</span>
+                </div>
+                <p className="storage-note">最近更新 {formatDateTime(visitor.updatedAt)}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </section>
+  );
 }
 
 async function fetchDrawCardSession(sessionId) {
@@ -2447,6 +2897,16 @@ async function deleteImageJob(jobId) {
 function openImageSource(source) {
   if (!source) return;
   window.open(source, "_blank", "noopener,noreferrer");
+}
+
+function openAdminJobResult(jobId) {
+  if (!jobId) return;
+  openImageSource(`/api/admin/image-jobs/${jobId}/result`);
+}
+
+function downloadAdminJobResult(jobId) {
+  if (!jobId) return;
+  openImageSource(`/api/admin/image-jobs/${jobId}/download`);
 }
 
 function isUploadableReferenceImage(imagePath) {

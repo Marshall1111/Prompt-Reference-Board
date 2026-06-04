@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { access, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -16,24 +16,44 @@ const styleGroupsPath = path.join(rootDir, "data", "style-groups.json");
 const imageJobRoot = path.join(rootDir, "data", "image-jobs");
 const drawCardSessionRoot = path.join(rootDir, "data", "draw-card-sessions");
 const tempReferenceRoot = path.join(rootDir, "data", "temp-image-references");
+const visitorStateRoot = path.join(rootDir, "data", "visitor-states");
+const inviteCodePath = path.join(rootDir, "data", "invite-codes.json");
+const adminSessionRoot = path.join(rootDir, "data", "admin-sessions");
+const appSettingsPath = path.join(rootDir, "data", "app-settings.json");
 const previewRoot = path.join(rootDir, "public", "style-previews");
-const generatedImageRoot = path.join(rootDir, "public", "generated-images");
+const generatedImageRoot = path.join(rootDir, "data", "private-generated-images");
+const generatedPreviewRoot = path.join(rootDir, "public", "generated-previews");
 const generatedThumbnailRoot = path.join(rootDir, "public", "generated-thumbnails");
-const jobReferenceRoot = path.join(rootDir, "public", "job-references");
+const jobReferenceRoot = path.join(rootDir, "data", "private-job-references");
 const jobReferenceThumbnailRoot = path.join(rootDir, "public", "job-reference-thumbnails");
 const miniDataPath = path.join(rootDir, "wechat-miniprogram", "miniprogram", "data", "styles.js");
 const miniImageRoot = path.join(rootDir, "wechat-miniprogram", "miniprogram", "images-small");
 const miniCompressScript = path.join(rootDir, "tools", "compress_for_miniprogram.ps1");
 const execFileAsync = promisify(execFile);
 const RESULT_THUMBNAIL_MAX_EDGE = 384;
+const PUBLIC_PREVIEW_MAX_EDGE = 512;
 const REFERENCE_THUMBNAIL_MAX_EDGE = 240;
 const DRAW_CARD_GROUP_NAME = "抽卡";
 const DRAW_CARD_DEFAULT_SIZE = "1024x1536";
 const DRAW_CARD_WAITING_MESSAGE = "仪式正在进行，请稍候。";
 const DRAW_CARD_SUCCESS_MESSAGE = "结果已准备好。";
 const DRAW_CARD_FAILURE_MESSAGE = "这一轮未能顺利完成，请重新开始。";
+const VISITOR_COOKIE_NAME = "pg_visitor";
+const ADMIN_COOKIE_NAME = "pg_admin";
+const VISITOR_INVITED_LIMIT = 20;
+const VISITOR_RUNNING_JOB_LIMIT = 1;
+const VISITOR_RATE_WINDOW_MS = 10 * 60 * 1000;
+const VISITOR_RATE_LIMIT = 3;
+const IP_RATE_WINDOW_MS = 10 * 60 * 1000;
+const IP_RATE_LIMIT = 8;
+const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+const INVITE_DEFAULT_MAX_REDEMPTIONS = 1;
+const DEFAULT_CONTACT_MESSAGE = "如需更多生图机会，请联系客服填写邀请码。";
+const DEFAULT_VISITOR_ANONYMOUS_LIMIT = 5;
 
 let sharpModulePromise;
+const visitorRequestLog = new Map();
+const ipRequestLog = new Map();
 
 loadLocalEnv();
 
@@ -52,20 +72,77 @@ const upload = multer({
 const activeImageJobs = new Map();
 
 app.use(express.json({ limit: "1mb" }));
+app.use(visitorSessionMiddleware);
+app.use(adminSessionMiddleware);
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, app: "prompt-gallery" });
 });
 
-app.get("/api/styles", async (_req, res) => {
+app.get("/api/visitor-state", async (req, res) => {
+  try {
+    const visitor = await getVisitorState(req);
+    res.json(toPublicVisitorState(visitor));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取访客状态失败，请稍后再试。" });
+  }
+});
+
+app.post("/api/invite-codes/redeem", async (req, res) => {
+  try {
+    const code = String(req.body?.code || "").trim();
+    if (!code) {
+      return res.status(400).json({ message: "请输入邀请码。" });
+    }
+
+    const visitor = await redeemInviteCode(req, code);
+    res.json(toPublicVisitorState(visitor));
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 400).json({ message: error.publicMessage || "邀请码兑换失败，请稍后再试。" });
+  }
+});
+
+app.post("/api/admin/login", async (req, res) => {
+  try {
+    const username = String(req.body?.username || "").trim();
+    const password = String(req.body?.password || "");
+    await verifyAdminCredentials(username, password);
+    const session = await createAdminSession();
+    setAdminCookie(res, session.sessionId);
+    res.json({ ok: true, session: toPublicAdminSession(session) });
+  } catch (error) {
+    res.status(error.status || 401).json({ message: error.publicMessage || "登录失败。" });
+  }
+});
+
+app.post("/api/admin/logout", async (req, res) => {
+  try {
+    if (req.adminSession?.sessionId) {
+      await deleteAdminSession(req.adminSession.sessionId);
+    }
+    clearAdminCookie(res);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "退出登录失败。" });
+  }
+});
+
+app.get("/api/admin/session", requireAdmin, async (req, res) => {
+  res.json({ ok: true, session: toPublicAdminSession(req.adminSession) });
+});
+
+app.get("/api/styles", requireAdmin, async (_req, res) => {
   res.json(await readStyles());
 });
 
-app.get("/api/style-groups", async (_req, res) => {
+app.get("/api/style-groups", requireAdmin, async (_req, res) => {
   res.json(await readStyleGroups());
 });
 
-app.get("/api/image-providers", (_req, res) => {
+app.get("/api/image-providers", requireAdmin, (_req, res) => {
   const providers = getImageProviders();
   res.json({
     defaultProvider: getDefaultProviderId(providers),
@@ -79,6 +156,7 @@ app.get("/api/image-providers", (_req, res) => {
 
 app.post("/api/draw-card/sessions", upload.single("image"), async (req, res) => {
   try {
+    const visitor = await getVisitorState(req);
     if (!req.file) {
       return res.status(400).json({ message: "请先上传一张图片。" });
     }
@@ -86,7 +164,12 @@ app.post("/api/draw-card/sessions", upload.single("image"), async (req, res) => 
       return res.status(400).json({ message: "请上传 JPG、PNG 或 WebP 图片。" });
     }
 
-    const session = await createDrawCardSession(req.file);
+    const estimatedCost = await estimateDrawCardQuotaCost();
+    enforcePublicRateLimits(req);
+    enforceVisitorQuota(visitor, estimatedCost);
+    await enforceVisitorRunningJobLimit(visitor.visitorId);
+
+    const session = await createDrawCardSession(req.file, visitor);
     res.status(202).json(toPublicDrawCardSession(session));
   } catch (error) {
     if (error.message === "UNSUPPORTED_IMAGE_TYPE") {
@@ -103,6 +186,7 @@ app.get("/api/draw-card/sessions/:sessionId", async (req, res) => {
     if (!session) {
       return res.status(404).json({ message: "本次抽卡记录不存在或已失效。" });
     }
+    assertVisitorOwnsSession(req, session);
 
     const syncedSession = await synchronizeDrawCardSession(session);
     res.json(toPublicDrawCardSession(syncedSession));
@@ -112,13 +196,13 @@ app.get("/api/draw-card/sessions/:sessionId", async (req, res) => {
   }
 });
 
-app.post("/api/sync-miniprogram", async (_req, res) => {
+app.post("/api/sync-miniprogram", requireAdmin, async (_req, res) => {
   const styles = await readStyles();
   await syncMiniProgram(styles);
   res.json({ ok: true, count: styles.length });
 });
 
-app.post("/api/generate-image", upload.array("reference", 10), async (req, res) => {
+app.post("/api/generate-image", requireAdmin, upload.array("reference", 10), async (req, res) => {
   try {
     const body = req.body || {};
     const prompt = String(body.prompt || "").trim();
@@ -162,7 +246,7 @@ app.post("/api/generate-image", upload.array("reference", 10), async (req, res) 
   }
 });
 
-app.post("/api/image-references", upload.single("reference"), async (req, res) => {
+app.post("/api/image-references", requireAdmin, upload.single("reference"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "Please choose a reference image." });
     if (req.file.mimetype === "image/svg+xml") {
@@ -180,7 +264,7 @@ app.post("/api/image-references", upload.single("reference"), async (req, res) =
   }
 });
 
-app.post("/api/image-jobs", upload.array("reference", 10), async (req, res) => {
+app.post("/api/image-jobs", requireAdmin, upload.array("reference", 10), async (req, res) => {
   try {
     const body = req.body || {};
     const prompt = String(body.prompt || "").trim();
@@ -188,6 +272,7 @@ app.post("/api/image-jobs", upload.array("reference", 10), async (req, res) => {
 
     const providers = getImageProviders();
     const provider = resolveImageProvider(body.provider, providers);
+    const providerChain = getProviderFallbackChain(body.provider, providers);
     if (!provider) {
       return res.status(400).json({ message: "请先在 .env 中配置至少一个可用的图片接口供应商。" });
     }
@@ -227,7 +312,9 @@ app.post("/api/image-jobs", upload.array("reference", 10), async (req, res) => {
         name: provider.name,
         model: provider.model
       },
-      mode: referenceFiles.length ? "edit" : "generation"
+      mode: referenceFiles.length ? "edit" : "generation",
+      ownerVisitorId: "",
+      visibility: "admin"
     };
 
     await saveImageJob(job);
@@ -253,7 +340,7 @@ app.post("/api/image-jobs", upload.array("reference", 10), async (req, res) => {
   }
 });
 
-app.post("/api/image-jobs/batch", async (req, res) => {
+app.post("/api/image-jobs/batch", requireAdmin, async (req, res) => {
   const body = req.body || {};
   const referenceIds = parseReferenceIds(body.referenceIds);
   let preparedJobs = [];
@@ -371,7 +458,21 @@ app.post("/api/image-jobs/batch", async (req, res) => {
   }
 });
 
-app.get("/api/image-jobs", async (req, res) => {
+app.get("/api/public/clip-items", async (req, res) => {
+  try {
+    const jobs = await listImageJobs();
+    const items = jobs
+      .filter((job) => job.visibility === "public" && job.ownerVisitorId === req.visitorId && job.isLiked)
+      .sort((a, b) => String(b.likedAt || b.updatedAt || b.createdAt || "").localeCompare(String(a.likedAt || a.updatedAt || a.createdAt || "")))
+      .map((job) => toPublicClipItem(job));
+    res.json({ items });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取卡夹失败，请稍后再试。" });
+  }
+});
+
+app.get("/api/image-jobs", requireAdmin, async (req, res) => {
   try {
     const jobs = await listImageJobs();
     const limit = Math.min(Math.max(Number(req.query.limit || 80), 1), 200);
@@ -387,7 +488,7 @@ app.get("/api/image-jobs", async (req, res) => {
   }
 });
 
-app.post("/api/image-jobs/:jobId/cancel", async (req, res) => {
+app.post("/api/image-jobs/:jobId/cancel", requireAdmin, async (req, res) => {
   try {
     const job = await readImageJob(req.params.jobId);
     if (!job) return res.status(404).json({ message: "生图任务不存在。" });
@@ -415,6 +516,7 @@ app.post("/api/image-jobs/:jobId/like", async (req, res) => {
   try {
     const job = await readImageJob(req.params.jobId);
     if (!job) return res.status(404).json({ message: "生图任务不存在。" });
+    assertCanToggleLike(req, job);
 
     const now = new Date().toISOString();
     const nextJob = await saveImageJob({
@@ -434,6 +536,7 @@ app.post("/api/image-jobs/:jobId/unlike", async (req, res) => {
   try {
     const job = await readImageJob(req.params.jobId);
     if (!job) return res.status(404).json({ message: "生图任务不存在。" });
+    assertCanToggleLike(req, job);
 
     const nextJob = await saveImageJob({
       ...job,
@@ -448,7 +551,7 @@ app.post("/api/image-jobs/:jobId/unlike", async (req, res) => {
   }
 });
 
-app.get("/api/image-jobs/:jobId", async (req, res) => {
+app.get("/api/image-jobs/:jobId", requireAdmin, async (req, res) => {
   try {
     const job = await readImageJob(req.params.jobId);
     if (!job) return res.status(404).json({ message: "生图任务不存在。" });
@@ -459,7 +562,7 @@ app.get("/api/image-jobs/:jobId", async (req, res) => {
   }
 });
 
-app.delete("/api/image-jobs/:jobId", async (req, res) => {
+app.delete("/api/image-jobs/:jobId", requireAdmin, async (req, res) => {
   try {
     const job = await readImageJob(req.params.jobId);
     if (!job) return res.status(404).json({ message: "生图任务不存在。" });
@@ -473,7 +576,116 @@ app.delete("/api/image-jobs/:jobId", async (req, res) => {
   }
 });
 
-app.post("/api/style-groups", async (req, res) => {
+app.get("/api/admin/invite-codes", requireAdmin, async (_req, res) => {
+  try {
+    const inviteCodes = await readInviteCodes();
+    res.json({
+      inviteCodes: inviteCodes
+        .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+        .map(toPublicInviteCode)
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取邀请码失败。" });
+  }
+});
+
+app.post("/api/admin/invite-codes", requireAdmin, async (req, res) => {
+  try {
+    const count = Math.min(Math.max(Number(req.body?.count || 1), 1), 20);
+    const prefix = String(req.body?.prefix || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
+    const created = await createInviteCodes(count, prefix);
+    res.status(201).json({ inviteCodes: created.map(toPublicInviteCode) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "创建邀请码失败。" });
+  }
+});
+
+app.patch("/api/admin/invite-codes/:id", requireAdmin, async (req, res) => {
+  try {
+    const updated = await updateInviteCode(req.params.id, {
+      enabled: req.body?.enabled
+    });
+    if (!updated) return res.status(404).json({ message: "邀请码不存在。" });
+    res.json({ inviteCode: toPublicInviteCode(updated) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "更新邀请码失败。" });
+  }
+});
+
+app.get("/api/admin/visitors", requireAdmin, async (_req, res) => {
+  try {
+    const visitors = await listVisitorStates();
+    res.json({
+      visitors: visitors
+        .sort((a, b) => String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || "")))
+        .map(toPublicAdminVisitor)
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取访客额度失败。" });
+  }
+});
+
+app.get("/api/admin/settings", requireAdmin, async (_req, res) => {
+  try {
+    const settings = await readAppSettings();
+    res.json({ settings });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取系统设置失败。" });
+  }
+});
+
+app.patch("/api/admin/settings", requireAdmin, async (req, res) => {
+  try {
+    const updated = await saveAppSettings({
+      ...(await readAppSettings()),
+      anonymousQuotaLimit: normalizeAnonymousQuotaLimit(req.body?.anonymousQuotaLimit)
+    });
+    res.json({ settings: updated });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "更新系统设置失败。" });
+  }
+});
+
+app.get("/api/admin/image-jobs/:jobId/result", requireAdmin, async (req, res) => {
+  try {
+    const job = await readImageJob(req.params.jobId);
+    if (!job) return res.status(404).json({ message: "生图任务不存在。" });
+    await sendAdminJobImage(res, job);
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 404).json({ message: error.publicMessage || "读取高清图失败。" });
+  }
+});
+
+app.get("/api/admin/image-jobs/:jobId/download", requireAdmin, async (req, res) => {
+  try {
+    const job = await readImageJob(req.params.jobId);
+    if (!job) return res.status(404).json({ message: "生图任务不存在。" });
+    await sendAdminJobImage(res, job, { asDownload: true });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 404).json({ message: error.publicMessage || "下载高清图失败。" });
+  }
+});
+
+app.get("/api/admin/image-jobs/:jobId/references/:index", requireAdmin, async (req, res) => {
+  try {
+    const job = await readImageJob(req.params.jobId);
+    if (!job) return res.status(404).json({ message: "生图任务不存在。" });
+    await sendAdminReferenceImage(res, job, Number(req.params.index));
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 404).json({ message: error.publicMessage || "读取参考图失败。" });
+  }
+});
+
+app.post("/api/style-groups", requireAdmin, async (req, res) => {
   const styles = await readStyles();
   const styleIds = new Set(styles.map((style) => style.id));
   const groups = await readStyleGroups();
@@ -491,7 +703,7 @@ app.post("/api/style-groups", async (req, res) => {
   res.status(201).json(group);
 });
 
-app.put("/api/style-groups/:id", async (req, res) => {
+app.put("/api/style-groups/:id", requireAdmin, async (req, res) => {
   const styles = await readStyles();
   const styleIds = new Set(styles.map((style) => style.id));
   const groups = await readStyleGroups();
@@ -510,7 +722,7 @@ app.put("/api/style-groups/:id", async (req, res) => {
   res.json(groups[index]);
 });
 
-app.delete("/api/style-groups/:id", async (req, res) => {
+app.delete("/api/style-groups/:id", requireAdmin, async (req, res) => {
   const groups = await readStyleGroups();
   const nextGroups = groups.filter((group) => group.id !== req.params.id);
   if (nextGroups.length === groups.length) return res.status(404).json({ message: "风格组不存在。" });
@@ -519,7 +731,7 @@ app.delete("/api/style-groups/:id", async (req, res) => {
   res.status(204).end();
 });
 
-app.post("/api/styles", async (req, res) => {
+app.post("/api/styles", requireAdmin, async (req, res) => {
   const styles = await readStyles();
   const style = {
     id: `style_${Date.now()}`,
@@ -533,7 +745,7 @@ app.post("/api/styles", async (req, res) => {
   res.status(201).json(style);
 });
 
-app.put("/api/styles/order", async (req, res) => {
+app.put("/api/styles/order", requireAdmin, async (req, res) => {
   const styles = await readStyles();
   const ids = Array.isArray(req.body.ids) ? req.body.ids.map(String) : [];
   const currentIds = new Set(styles.map((style) => style.id));
@@ -547,7 +759,7 @@ app.put("/api/styles/order", async (req, res) => {
   res.json(nextStyles);
 });
 
-app.put("/api/styles/:id", async (req, res) => {
+app.put("/api/styles/:id", requireAdmin, async (req, res) => {
   const styles = await readStyles();
   const style = styles.find((item) => item.id === req.params.id);
   if (!style) return res.status(404).json({ message: "风格不存在。" });
@@ -559,7 +771,7 @@ app.put("/api/styles/:id", async (req, res) => {
   res.json(style);
 });
 
-app.delete("/api/styles/:id", async (req, res) => {
+app.delete("/api/styles/:id", requireAdmin, async (req, res) => {
   const styles = await readStyles();
   const nextStyles = styles.filter((item) => item.id !== req.params.id);
   if (nextStyles.length === styles.length) return res.status(404).json({ message: "风格不存在。" });
@@ -570,7 +782,7 @@ app.delete("/api/styles/:id", async (req, res) => {
   res.status(204).end();
 });
 
-app.post("/api/styles/:id/image", upload.single("image"), async (req, res) => {
+app.post("/api/styles/:id/image", requireAdmin, upload.single("image"), async (req, res) => {
   try {
     const styles = await readStyles();
     const style = styles.find((item) => item.id === req.params.id);
@@ -599,12 +811,31 @@ app.use(express.static(path.join(rootDir, "public")));
 app.use("/images-small", express.static(miniImageRoot));
 app.use(express.static(path.join(rootDir, "dist")));
 
-app.use((_req, res) => {
+app.use((error, _req, res, next) => {
+  if (!error) return next();
+  if (error.status) {
+    return res.status(error.status).json({ message: error.publicMessage || error.message });
+  }
+  console.error(error);
+  return res.status(500).json({ message: "服务器暂时不可用，请稍后再试。" });
+});
+
+app.use((req, res) => {
+  const pathname = req.path || "/";
+  if (pathname === "/" || pathname.startsWith("/admin/") || pathname === "/admin") {
+    return res.sendFile(path.join(rootDir, "dist", "index.html"));
+  }
+  if (pathname === "/luck" || pathname === "/manage" || pathname === "/tasks" || pathname === "/batch") {
+    return res.redirect(pathname === "/luck" ? "/" : "/admin/login");
+  }
   res.sendFile(path.join(rootDir, "dist", "index.html"));
 });
 
 app.listen(port, () => {
   console.log(`Prompt gallery listening on http://127.0.0.1:${port}`);
+  if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {
+    console.warn("Admin credentials are missing. Please set ADMIN_USERNAME and ADMIN_PASSWORD in .env.");
+  }
   prepareImageJobStorage()
     .then(readStyles)
     .then(syncMiniProgram)
@@ -656,6 +887,493 @@ function normalizeStyleGroup(group, validStyleIds = null) {
   };
 }
 
+function parseCookies(req) {
+  const header = String(req.headers?.cookie || "");
+  return header.split(/;\s*/).reduce((accumulator, item) => {
+    const separator = item.indexOf("=");
+    if (separator <= 0) return accumulator;
+    const key = item.slice(0, separator).trim();
+    const value = item.slice(separator + 1).trim();
+    if (key) accumulator[key] = decodeURIComponent(value);
+    return accumulator;
+  }, {});
+}
+
+function serializeCookie(name, value, options = {}) {
+  const parts = [`${name}=${encodeURIComponent(value)}`];
+  parts.push(`Path=${options.path || "/"}`);
+  if (options.httpOnly !== false) parts.push("HttpOnly");
+  parts.push(`SameSite=${options.sameSite || "Lax"}`);
+  if (options.maxAge !== undefined) parts.push(`Max-Age=${Math.max(0, Math.floor(options.maxAge))}`);
+  if (process.env.NODE_ENV === "production") parts.push("Secure");
+  return parts.join("; ");
+}
+
+function appendSetCookie(res, cookie) {
+  const current = res.getHeader("Set-Cookie");
+  if (!current) {
+    res.setHeader("Set-Cookie", cookie);
+    return;
+  }
+
+  res.setHeader("Set-Cookie", Array.isArray(current) ? current.concat(cookie) : [current, cookie]);
+}
+
+function setVisitorCookie(res, visitorId) {
+  appendSetCookie(res, serializeCookie(VISITOR_COOKIE_NAME, visitorId, {
+    maxAge: 60 * 60 * 24 * 365
+  }));
+}
+
+function setAdminCookie(res, sessionId) {
+  appendSetCookie(res, serializeCookie(ADMIN_COOKIE_NAME, sessionId, {
+    maxAge: ADMIN_SESSION_TTL_MS / 1000
+  }));
+}
+
+function clearAdminCookie(res) {
+  appendSetCookie(res, serializeCookie(ADMIN_COOKIE_NAME, "", { maxAge: 0 }));
+}
+
+async function visitorSessionMiddleware(req, res, next) {
+  try {
+    const cookies = parseCookies(req);
+    const current = cookies[VISITOR_COOKIE_NAME];
+    const visitorId = isSafeVisitorId(current) ? current : randomUUID();
+    req.visitorId = visitorId;
+    if (visitorId !== current) setVisitorCookie(res, visitorId);
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function adminSessionMiddleware(req, _res, next) {
+  try {
+    const cookies = parseCookies(req);
+    const sessionId = cookies[ADMIN_COOKIE_NAME];
+    req.adminSession = sessionId && isSafeAdminSessionId(sessionId) ? await readAdminSession(sessionId) : null;
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+
+function requireAdmin(req, _res, next) {
+  if (!req.adminSession) {
+    return next(createHttpError(401, "请先登录后台。"));
+  }
+  return next();
+}
+
+function createHttpError(status, publicMessage) {
+  const error = new Error(publicMessage);
+  error.status = status;
+  error.publicMessage = publicMessage;
+  return error;
+}
+
+function getClientIp(req) {
+  const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  const remoteAddress = String(req.socket?.remoteAddress || "");
+  return forwarded || remoteAddress || "unknown";
+}
+
+function pruneTimestamps(store, key, windowMs, now) {
+  const existing = store.get(key) || [];
+  const next = existing.filter((timestamp) => now - timestamp < windowMs);
+  store.set(key, next);
+  return next;
+}
+
+function enforcePublicRateLimits(req) {
+  const now = Date.now();
+  const visitorEntries = pruneTimestamps(visitorRequestLog, req.visitorId, VISITOR_RATE_WINDOW_MS, now);
+  if (visitorEntries.length >= VISITOR_RATE_LIMIT) {
+    throw createHttpError(429, "当前操作过于频繁，请稍后再试。");
+  }
+  visitorEntries.push(now);
+
+  const ip = getClientIp(req);
+  const ipEntries = pruneTimestamps(ipRequestLog, ip, IP_RATE_WINDOW_MS, now);
+  if (ipEntries.length >= IP_RATE_LIMIT) {
+    throw createHttpError(429, "当前网络请求过于频繁，请稍后再试。");
+  }
+  ipEntries.push(now);
+}
+
+async function readVisitorState(visitorId) {
+  if (!isSafeVisitorId(visitorId)) return null;
+  try {
+    return normalizeVisitorState(JSON.parse(await readFile(getVisitorStatePath(visitorId), "utf-8")));
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function saveVisitorState(visitor) {
+  await mkdir(visitorStateRoot, { recursive: true });
+  const safeVisitor = normalizeVisitorState(visitor);
+  await writeFile(getVisitorStatePath(safeVisitor.visitorId), `${JSON.stringify(safeVisitor, null, 2)}\n`, "utf-8");
+  return safeVisitor;
+}
+
+function normalizeVisitorState(visitor) {
+  const tier = String(visitor?.tier || "anonymous");
+  const quotaLimit = Number(visitor?.quotaLimit || (tier === "invited" ? VISITOR_INVITED_LIMIT : DEFAULT_VISITOR_ANONYMOUS_LIMIT));
+  const quotaUsed = Math.max(0, Number(visitor?.quotaUsed || 0));
+  return {
+    visitorId: String(visitor?.visitorId || randomUUID()),
+    tier,
+    quotaLimit,
+    quotaUsed,
+    invitedAt: visitor?.invitedAt || null,
+    contactMessage: String(visitor?.contactMessage || DEFAULT_CONTACT_MESSAGE),
+    createdAt: visitor?.createdAt || new Date().toISOString(),
+    updatedAt: visitor?.updatedAt || new Date().toISOString()
+  };
+}
+
+async function getVisitorState(req) {
+  const existing = await readVisitorState(req.visitorId);
+  if (existing) return existing;
+  const now = new Date().toISOString();
+  const settings = await readAppSettings();
+  return saveVisitorState({
+    visitorId: req.visitorId,
+    tier: "anonymous",
+    quotaLimit: normalizeAnonymousQuotaLimit(settings.anonymousQuotaLimit),
+    quotaUsed: 0,
+    invitedAt: null,
+    contactMessage: DEFAULT_CONTACT_MESSAGE,
+    createdAt: now,
+    updatedAt: now
+  });
+}
+
+async function readAppSettings() {
+  try {
+    const parsed = JSON.parse(await readFile(appSettingsPath, "utf-8"));
+    return normalizeAppSettings(parsed);
+  } catch (error) {
+    if (error.code === "ENOENT") return normalizeAppSettings({});
+    throw error;
+  }
+}
+
+async function saveAppSettings(settings) {
+  const safeSettings = normalizeAppSettings(settings);
+  await writeFile(appSettingsPath, `${JSON.stringify(safeSettings, null, 2)}\n`, "utf-8");
+  return safeSettings;
+}
+
+function normalizeAppSettings(settings) {
+  return {
+    anonymousQuotaLimit: normalizeAnonymousQuotaLimit(settings?.anonymousQuotaLimit)
+  };
+}
+
+function normalizeAnonymousQuotaLimit(value) {
+  const next = Number(value);
+  if (!Number.isFinite(next)) return DEFAULT_VISITOR_ANONYMOUS_LIMIT;
+  return Math.min(Math.max(Math.round(next), 1), 50);
+}
+
+function toPublicVisitorState(visitor) {
+  const safeVisitor = normalizeVisitorState(visitor);
+  return {
+    visitorId: safeVisitor.visitorId,
+    tier: safeVisitor.tier,
+    quotaLimit: safeVisitor.quotaLimit,
+    quotaUsed: safeVisitor.quotaUsed,
+    quotaRemaining: Math.max(0, safeVisitor.quotaLimit - safeVisitor.quotaUsed),
+    canGenerate: safeVisitor.quotaUsed < safeVisitor.quotaLimit,
+    contactMessage: safeVisitor.contactMessage
+  };
+}
+
+async function listVisitorStates() {
+  await mkdir(visitorStateRoot, { recursive: true });
+  const entries = await readdir(visitorStateRoot, { withFileTypes: true });
+  const visitors = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .map((entry) => readVisitorState(entry.name.replace(/\.json$/, "")))
+  );
+  return visitors.filter(Boolean);
+}
+
+function toPublicAdminVisitor(visitor) {
+  const safeVisitor = normalizeVisitorState(visitor);
+  return {
+    visitorId: safeVisitor.visitorId,
+    tier: safeVisitor.tier,
+    quotaLimit: safeVisitor.quotaLimit,
+    quotaUsed: safeVisitor.quotaUsed,
+    quotaRemaining: Math.max(0, safeVisitor.quotaLimit - safeVisitor.quotaUsed),
+    invitedAt: safeVisitor.invitedAt,
+    createdAt: safeVisitor.createdAt,
+    updatedAt: safeVisitor.updatedAt
+  };
+}
+
+async function readInviteCodes() {
+  try {
+    const codes = JSON.parse(await readFile(inviteCodePath, "utf-8"));
+    return Array.isArray(codes) ? codes.map(normalizeInviteCode) : [];
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+async function saveInviteCodes(inviteCodes) {
+  await writeFile(inviteCodePath, `${JSON.stringify(inviteCodes.map(normalizeInviteCode), null, 2)}\n`, "utf-8");
+}
+
+function normalizeInviteCode(inviteCode) {
+  return {
+    id: String(inviteCode?.id || randomUUID()),
+    code: String(inviteCode?.code || "").trim().toUpperCase(),
+    enabled: inviteCode?.enabled !== false,
+    maxRedemptions: Math.max(1, Number(inviteCode?.maxRedemptions || INVITE_DEFAULT_MAX_REDEMPTIONS)),
+    redeemedCount: Math.max(0, Number(inviteCode?.redeemedCount || 0)),
+    redeemedByVisitorIds: Array.isArray(inviteCode?.redeemedByVisitorIds) ? inviteCode.redeemedByVisitorIds.map(String) : [],
+    createdAt: inviteCode?.createdAt || new Date().toISOString(),
+    updatedAt: inviteCode?.updatedAt || new Date().toISOString()
+  };
+}
+
+function toPublicInviteCode(inviteCode) {
+  const safeInvite = normalizeInviteCode(inviteCode);
+  return {
+    id: safeInvite.id,
+    code: safeInvite.code,
+    enabled: safeInvite.enabled,
+    maxRedemptions: safeInvite.maxRedemptions,
+    redeemedCount: safeInvite.redeemedCount,
+    remainingRedemptions: Math.max(0, safeInvite.maxRedemptions - safeInvite.redeemedCount),
+    createdAt: safeInvite.createdAt,
+    updatedAt: safeInvite.updatedAt
+  };
+}
+
+async function createInviteCodes(count, prefix = "") {
+  const inviteCodes = await readInviteCodes();
+  const now = new Date().toISOString();
+  const created = Array.from({ length: count }, () => normalizeInviteCode({
+    id: randomUUID(),
+    code: generateInviteCode(prefix),
+    enabled: true,
+    maxRedemptions: INVITE_DEFAULT_MAX_REDEMPTIONS,
+    redeemedCount: 0,
+    redeemedByVisitorIds: [],
+    createdAt: now,
+    updatedAt: now
+  }));
+  await saveInviteCodes(inviteCodes.concat(created));
+  return created;
+}
+
+function generateInviteCode(prefix = "") {
+  const base = randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+  return prefix ? `${prefix}-${base}` : base;
+}
+
+async function updateInviteCode(id, patch) {
+  const inviteCodes = await readInviteCodes();
+  const index = inviteCodes.findIndex((item) => item.id === id);
+  if (index < 0) return null;
+  inviteCodes[index] = normalizeInviteCode({
+    ...inviteCodes[index],
+    enabled: patch.enabled === undefined ? inviteCodes[index].enabled : Boolean(patch.enabled),
+    updatedAt: new Date().toISOString()
+  });
+  await saveInviteCodes(inviteCodes);
+  return inviteCodes[index];
+}
+
+async function redeemInviteCode(req, code) {
+  const inviteCodes = await readInviteCodes();
+  const normalizedCode = String(code || "").trim().toUpperCase();
+  const invite = inviteCodes.find((item) => item.code === normalizedCode);
+  if (!invite || !invite.enabled) {
+    throw createHttpError(400, "邀请码无效或已停用。");
+  }
+  if (invite.redeemedByVisitorIds.includes(req.visitorId)) {
+    return upgradeVisitorByInvite(req);
+  }
+  if (invite.redeemedCount >= invite.maxRedemptions) {
+    throw createHttpError(400, "邀请码已被使用。");
+  }
+
+  invite.redeemedCount += 1;
+  invite.redeemedByVisitorIds = invite.redeemedByVisitorIds.concat(req.visitorId);
+  invite.updatedAt = new Date().toISOString();
+  await saveInviteCodes(inviteCodes);
+  return upgradeVisitorByInvite(req);
+}
+
+async function upgradeVisitorByInvite(req) {
+  const visitor = await getVisitorState(req);
+  return saveVisitorState({
+    ...visitor,
+    tier: "invited",
+    quotaLimit: Math.max(visitor.quotaLimit, VISITOR_INVITED_LIMIT),
+    invitedAt: visitor.invitedAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+}
+
+function enforceVisitorQuota(visitor, cost) {
+  const remaining = Math.max(0, Number(visitor.quotaLimit || 0) - Number(visitor.quotaUsed || 0));
+  if (remaining < cost) {
+    throw createHttpError(403, visitor.contactMessage || DEFAULT_CONTACT_MESSAGE);
+  }
+}
+
+async function consumeVisitorQuota(visitorId, cost) {
+  const current = await readVisitorState(visitorId);
+  if (!current) return;
+  await saveVisitorState({
+    ...current,
+    quotaUsed: Math.max(0, Number(current.quotaUsed || 0)) + Math.max(0, Number(cost || 0)),
+    updatedAt: new Date().toISOString()
+  });
+}
+
+async function estimateDrawCardQuotaCost() {
+  const groups = await readStyleGroups();
+  const group = groups.find((item) => String(item.name || "").trim() === DRAW_CARD_GROUP_NAME);
+  return Math.max(1, Array.isArray(group?.styleIds) ? group.styleIds.length : 1);
+}
+
+async function enforceVisitorRunningJobLimit(visitorId) {
+  const jobs = await listImageJobs();
+  const running = jobs.filter((job) => job.visibility === "public" && job.ownerVisitorId === visitorId && ["queued", "running"].includes(job.status));
+  if (running.length >= VISITOR_RUNNING_JOB_LIMIT) {
+    throw createHttpError(409, "当前已有进行中的抽卡，请等待这一轮完成。");
+  }
+}
+
+async function verifyAdminCredentials(username, password) {
+  const expectedUsername = String(process.env.ADMIN_USERNAME || "").trim();
+  const expectedPassword = String(process.env.ADMIN_PASSWORD || "");
+  if (!expectedUsername || !expectedPassword) {
+    throw createHttpError(503, "后台账号尚未配置。");
+  }
+  if (!safeCompare(username, expectedUsername) || !safeCompare(password, expectedPassword)) {
+    throw createHttpError(401, "账号或密码错误。");
+  }
+}
+
+function safeCompare(left, right) {
+  const leftHash = createHash("sha256").update(String(left || "")).digest();
+  const rightHash = createHash("sha256").update(String(right || "")).digest();
+  return timingSafeEqual(leftHash, rightHash);
+}
+
+async function createAdminSession() {
+  const now = Date.now();
+  const session = {
+    sessionId: randomUUID(),
+    createdAt: new Date(now).toISOString(),
+    expiresAt: new Date(now + ADMIN_SESSION_TTL_MS).toISOString()
+  };
+  await mkdir(adminSessionRoot, { recursive: true });
+  await writeFile(getAdminSessionPath(session.sessionId), `${JSON.stringify(session, null, 2)}\n`, "utf-8");
+  return session;
+}
+
+async function readAdminSession(sessionId) {
+  if (!isSafeAdminSessionId(sessionId)) return null;
+  try {
+    const session = JSON.parse(await readFile(getAdminSessionPath(sessionId), "utf-8"));
+    if (new Date(session.expiresAt).getTime() <= Date.now()) {
+      await deleteAdminSession(sessionId);
+      return null;
+    }
+    return session;
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function deleteAdminSession(sessionId) {
+  if (!isSafeAdminSessionId(sessionId)) return;
+  await rm(getAdminSessionPath(sessionId), { force: true });
+}
+
+function toPublicAdminSession(session) {
+  return {
+    sessionId: String(session?.sessionId || ""),
+    expiresAt: session?.expiresAt || null
+  };
+}
+
+function assertVisitorOwnsSession(req, session) {
+  if (session.ownerVisitorId !== req.visitorId) {
+    throw createHttpError(403, "无权访问该抽卡记录。");
+  }
+}
+
+function assertCanToggleLike(req, job) {
+  if (job.visibility !== "public" || job.ownerVisitorId !== req.visitorId) {
+    throw createHttpError(403, "无权操作该结果。");
+  }
+}
+
+function toPublicClipItem(job) {
+  const result = normalizeJobResult(job.result);
+  return {
+    jobId: String(job.jobId || ""),
+    styleId: String(job.styleId || ""),
+    styleName: String(job.styleName || ""),
+    imageUrl: String(result?.previewUrl || result?.thumbnailUrl || ""),
+    thumbnailUrl: String(result?.thumbnailUrl || result?.previewUrl || ""),
+    isLiked: Boolean(job.isLiked),
+    likedAt: job.likedAt || null
+  };
+}
+
+async function sendAdminJobImage(res, job, options = {}) {
+  const file = await resolveJobImageFile(job);
+  if (!file) throw createHttpError(404, "高清图不存在。");
+  const mimeType = mimeForExtension(path.extname(file).toLowerCase()) || "application/octet-stream";
+  if (options.asDownload) {
+    res.setHeader("Content-Disposition", `attachment; filename="${path.basename(file)}"`);
+  }
+  res.type(mimeType);
+  res.sendFile(file);
+}
+
+async function sendAdminReferenceImage(res, job, index) {
+  const references = Array.isArray(job.originalReferences) ? [...job.originalReferences].sort((left, right) => Number(left.order || 0) - Number(right.order || 0)) : [];
+  const reference = references[index];
+  if (!reference) throw createHttpError(404, "参考图不存在。");
+  const file = getJobReferenceFilePath(job.jobId, reference.url);
+  if (!(await fileExists(file))) throw createHttpError(404, "参考图不存在。");
+  res.type(reference.mimeType || mimeForExtension(path.extname(file).toLowerCase()) || "application/octet-stream");
+  res.sendFile(file);
+}
+
+async function resolveJobImageFile(job) {
+  const imageUrl = String(job?.result?.imageUrl || "");
+  if (!imageUrl) return "";
+  if (imageUrl.startsWith("/generated-images/")) {
+    const filename = path.basename(imageUrl);
+    const fullPath = path.join(generatedImageRoot, filename);
+    return (await fileExists(fullPath)) ? fullPath : "";
+  }
+  return "";
+}
+
+function getJobReferenceFilePath(jobId, url) {
+  return path.join(jobReferenceRoot, String(jobId), path.basename(String(url || "")));
+}
+
 async function removeStyleFromGroups(styleId) {
   const groups = await readStyleGroups();
   const nextGroups = groups.map((group) => ({
@@ -665,7 +1383,7 @@ async function removeStyleFromGroups(styleId) {
   await saveStyleGroups(nextGroups);
 }
 
-async function createDrawCardSession(file) {
+async function createDrawCardSession(file, visitor) {
   const [groups, styles] = await Promise.all([readStyleGroups(), readStyles()]);
   const group = groups.find((item) => String(item.name || "").trim() === DRAW_CARD_GROUP_NAME);
   if (!group) {
@@ -695,6 +1413,7 @@ async function createDrawCardSession(file) {
 
   const sessionId = randomUUID();
   const now = new Date().toISOString();
+  const ownerVisitorId = String(visitor?.visitorId || "");
   const sharedReferenceFiles = [
     {
       originalname: file.originalname || "draw-card-reference",
@@ -735,7 +1454,9 @@ async function createDrawCardSession(file) {
           name: provider.name,
           model: provider.model
         },
-        mode: referenceFiles.length ? "edit" : "generation"
+        mode: referenceFiles.length ? "edit" : "generation",
+        ownerVisitorId,
+        visibility: "public"
       };
 
       preparedJobs.push({
@@ -772,6 +1493,7 @@ async function createDrawCardSession(file) {
 
     const session = await saveDrawCardSession({
       sessionId,
+      ownerVisitorId,
       status: "queued",
       message: DRAW_CARD_WAITING_MESSAGE,
       createdAt: now,
@@ -781,6 +1503,8 @@ async function createDrawCardSession(file) {
       results: [],
       items: sessionItems
     });
+
+    await consumeVisitorQuota(ownerVisitorId, preparedJobs.length);
 
     preparedJobs.forEach((item) => {
       runImageJob(item.runArgs).catch((error) => {
@@ -854,9 +1578,10 @@ async function synchronizeDrawCardSession(session) {
           jobId: item.jobId,
           styleId: item.styleId,
           styleName: item.styleName,
-          imageUrl: String(job?.result?.imageUrl || ""),
+          imageUrl: String(job?.result?.previewUrl || job?.result?.thumbnailUrl || ""),
           thumbnailUrl: String(job?.result?.thumbnailUrl || ""),
           originalImageUrl: String(job?.result?.originalImageUrl || ""),
+          previewUrl: String(job?.result?.previewUrl || job?.result?.thumbnailUrl || ""),
           isLiked: Boolean(job?.isLiked),
           likedAt: job?.likedAt || null
         };
@@ -901,6 +1626,7 @@ async function cancelDrawCardSiblingJobs(jobs) {
 function normalizeDrawCardSession(session) {
   return {
     sessionId: String(session?.sessionId || ""),
+    ownerVisitorId: String(session?.ownerVisitorId || ""),
     status: String(session?.status || "queued"),
     message: String(session?.message || DRAW_CARD_WAITING_MESSAGE),
     createdAt: session?.createdAt || null,
@@ -914,9 +1640,10 @@ function normalizeDrawCardSession(session) {
             jobId: String(result?.jobId || ""),
             styleId: String(result?.styleId || ""),
             styleName: String(result?.styleName || ""),
-            imageUrl: String(result?.imageUrl || ""),
+            imageUrl: String(result?.imageUrl || result?.previewUrl || ""),
             thumbnailUrl: String(result?.thumbnailUrl || ""),
             originalImageUrl: String(result?.originalImageUrl || ""),
+            previewUrl: String(result?.previewUrl || result?.thumbnailUrl || result?.imageUrl || ""),
             isLiked: Boolean(result?.isLiked),
             likedAt: result?.likedAt || null
           }))
@@ -954,7 +1681,10 @@ async function prepareImageJobStorage() {
   await mkdir(imageJobRoot, { recursive: true });
   await mkdir(drawCardSessionRoot, { recursive: true });
   await mkdir(tempReferenceRoot, { recursive: true });
+  await mkdir(visitorStateRoot, { recursive: true });
+  await mkdir(adminSessionRoot, { recursive: true });
   await mkdir(generatedImageRoot, { recursive: true });
+  await mkdir(generatedPreviewRoot, { recursive: true });
   await mkdir(generatedThumbnailRoot, { recursive: true });
   await mkdir(jobReferenceRoot, { recursive: true });
   await mkdir(jobReferenceThumbnailRoot, { recursive: true });
@@ -977,7 +1707,7 @@ async function prepareImageJobStorage() {
   );
 }
 
-async function createTemporaryReference(file) {
+async function createTemporaryReference(file, ownerVisitorId = "") {
   const referenceId = randomUUID();
   const dir = path.join(tempReferenceRoot, referenceId);
   const extension = extensionForMime(file.mimetype);
@@ -988,6 +1718,7 @@ async function createTemporaryReference(file) {
     mimeType: file.mimetype,
     size: Number(file.size || file.buffer?.length || 0),
     filename,
+    ownerVisitorId: String(ownerVisitorId || ""),
     createdAt: new Date().toISOString()
   };
 
@@ -1138,6 +1869,7 @@ async function persistImageJobResult(jobId, result, outputFormat) {
   const bytes = Buffer.from(match[2], "base64");
   await mkdir(generatedImageRoot, { recursive: true });
   await writeFile(path.join(generatedImageRoot, filename), bytes);
+  const preview = await createPublicPreview(jobId, bytes);
   const thumbnail = await createGeneratedImageThumbnail(jobId, bytes);
 
   return {
@@ -1145,6 +1877,9 @@ async function persistImageJobResult(jobId, result, outputFormat) {
     imageDataUrl: "",
     imageUrl: `/generated-images/${filename}`,
     mimeType: match[1],
+    previewUrl: preview?.url || thumbnail?.url || "",
+    previewWidth: preview?.width || null,
+    previewHeight: preview?.height || null,
     thumbnailUrl: thumbnail?.url || "",
     thumbnailWidth: thumbnail?.width || null,
     thumbnailHeight: thumbnail?.height || null
@@ -1165,6 +1900,7 @@ async function persistRemoteImageJobResult(jobId, result, outputFormat) {
   const bytes = Buffer.from(await response.arrayBuffer());
   await mkdir(generatedImageRoot, { recursive: true });
   await writeFile(path.join(generatedImageRoot, filename), bytes);
+  const preview = await createPublicPreview(jobId, bytes);
   const thumbnail = await createGeneratedImageThumbnail(jobId, bytes);
 
   return {
@@ -1173,6 +1909,9 @@ async function persistRemoteImageJobResult(jobId, result, outputFormat) {
     imageUrl: `/generated-images/${filename}`,
     mimeType: contentType,
     originalImageUrl: result.imageUrl,
+    previewUrl: preview?.url || thumbnail?.url || "",
+    previewWidth: preview?.width || null,
+    previewHeight: preview?.height || null,
     thumbnailUrl: thumbnail?.url || "",
     thumbnailWidth: thumbnail?.width || null,
     thumbnailHeight: thumbnail?.height || null
@@ -1209,6 +1948,7 @@ async function deleteImageJob(job) {
 
 async function deleteGeneratedImage(job) {
   if (job?.jobId) {
+    await rm(path.join(generatedPreviewRoot, `${job.jobId}.webp`), { force: true });
     await rm(path.join(generatedThumbnailRoot, `${job.jobId}.webp`), { force: true });
   }
 
@@ -1332,7 +2072,9 @@ function toPublicImageJob(job) {
     provider: job.provider || null,
     mode: job.mode || result?.mode || "",
     isLiked: Boolean(job.isLiked),
-    likedAt: job.likedAt || null
+    likedAt: job.likedAt || null,
+    ownerVisitorId: String(job.ownerVisitorId || ""),
+    visibility: String(job.visibility || "admin")
   };
 }
 
@@ -1343,6 +2085,9 @@ function normalizeJobResult(result) {
     imageDataUrl: String(result.imageDataUrl || ""),
     imageUrl: String(result.imageUrl || ""),
     originalImageUrl: String(result.originalImageUrl || ""),
+    previewUrl: String(result.previewUrl || result.thumbnailUrl || ""),
+    previewWidth: Number(result.previewWidth || 0) || null,
+    previewHeight: Number(result.previewHeight || 0) || null,
     thumbnailUrl: String(result.thumbnailUrl || ""),
     thumbnailWidth: Number(result.thumbnailWidth || 0) || null,
     thumbnailHeight: Number(result.thumbnailHeight || 0) || null
@@ -1372,6 +2117,60 @@ async function createGeneratedImageThumbnail(jobId, bytes) {
     urlPrefix: "/generated-thumbnails",
     maxEdge: RESULT_THUMBNAIL_MAX_EDGE
   });
+}
+
+async function createPublicPreview(jobId, bytes) {
+  const sharp = await loadSharpModule();
+  if (!sharp || !bytes?.length) return null;
+
+  try {
+    const image = sharp(bytes, { animated: false }).rotate().resize({
+      width: PUBLIC_PREVIEW_MAX_EDGE,
+      height: PUBLIC_PREVIEW_MAX_EDGE,
+      fit: "inside",
+      withoutEnlargement: true
+    });
+    const metadata = await image.metadata();
+    const width = Number(metadata.width || 0) || PUBLIC_PREVIEW_MAX_EDGE;
+    const height = Number(metadata.height || 0) || PUBLIC_PREVIEW_MAX_EDGE;
+    const svgWatermark = Buffer.from(`
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0" y="${Math.max(0, height - 56)}" width="${width}" height="56" fill="rgba(8,8,10,0.58)" />
+        <text x="${Math.max(18, Math.floor(width * 0.04))}" y="${Math.max(34, height - 20)}" fill="rgba(255,255,255,0.88)" font-size="${Math.max(16, Math.floor(width * 0.038))}" font-family="Arial, sans-serif">Preview Only</text>
+      </svg>
+    `);
+    const transformed = await image
+      .composite([{ input: svgWatermark, gravity: "southwest" }])
+      .webp({ quality: 74 })
+      .toBuffer({ resolveWithObject: true });
+    await mkdir(generatedPreviewRoot, { recursive: true });
+    await writeFile(path.join(generatedPreviewRoot, `${jobId}.webp`), transformed.data);
+    return {
+      url: `/generated-previews/${jobId}.webp`,
+      width: Number(transformed.info?.width || 0) || null,
+      height: Number(transformed.info?.height || 0) || null,
+      mimeType: "image/webp"
+    };
+  } catch (error) {
+    console.warn("Preview generation skipped.", error?.message || error);
+    return null;
+  }
+}
+
+function getVisitorStatePath(visitorId) {
+  return path.join(visitorStateRoot, `${visitorId}.json`);
+}
+
+function getAdminSessionPath(sessionId) {
+  return path.join(adminSessionRoot, `${sessionId}.json`);
+}
+
+function isSafeVisitorId(visitorId) {
+  return /^[a-f0-9-]{36}$/i.test(String(visitorId || ""));
+}
+
+function isSafeAdminSessionId(sessionId) {
+  return /^[a-f0-9-]{36}$/i.test(String(sessionId || ""));
 }
 
 async function createReferenceThumbnail(jobId, filename, bytes, mimeType) {

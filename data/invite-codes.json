@@ -1,0 +1,54 @@
+[
+  {
+    "id": "64d89179-8f3c-4431-9abf-9361f9896121",
+    "code": "VIP-1E2E5508",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "redeemedCount": 1,
+    "redeemedByVisitorIds": [
+      "8bd73a23-4c4e-4cb5-80fa-dc8d798749e0"
+    ],
+    "createdAt": "2026-06-04T03:28:22.274Z",
+    "updatedAt": "2026-06-04T03:50:31.606Z"
+  },
+  {
+    "id": "41b57e62-aab6-4ccc-8e4f-abba2cb1bfbc",
+    "code": "VIP-3965A5C9",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "createdAt": "2026-06-04T03:28:22.274Z",
+    "updatedAt": "2026-06-04T03:28:22.274Z"
+  },
+  {
+    "id": "7a15fd53-ac1b-4976-a028-0e5275270693",
+    "code": "VIP-F995F26B",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "createdAt": "2026-06-04T03:28:22.274Z",
+    "updatedAt": "2026-06-04T03:28:22.274Z"
+  },
+  {
+    "id": "27f807ac-96b8-4406-a6c7-58d99bf6c86f",
+    "code": "VIP-583F6148",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "createdAt": "2026-06-04T03:28:22.274Z",
+    "updatedAt": "2026-06-04T03:28:22.274Z"
+  },
+  {
+    "id": "e48d1c5e-c2e6-4b7e-9ba5-f38677d08504",
+    "code": "VIP-553B3579",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "createdAt": "2026-06-04T03:28:22.274Z",
+    "updatedAt": "2026-06-04T03:28:22.274Z"
+  }
+]
