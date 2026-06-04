@@ -30,6 +30,7 @@ const REFERENCE_UPLOAD_LIMITS = {
 };
 
 const GENERATION_STEPS = ["准备请求", "提交到中转站", "等待模型生成", "接收图片结果", "准备预览"];
+const DRAW_CARD_SESSION_STORAGE_KEY = "pg.public-draw.session-id";
 
 function readRoute() {
   const pathname = window.location.pathname;
@@ -395,6 +396,48 @@ function LuckDrawCardPage() {
   const flightTimeoutRef = useRef(null);
   const clipPulseTimeoutRef = useRef(null);
 
+  function clearPersistedDrawCardSession() {
+    try {
+      window.localStorage.removeItem(DRAW_CARD_SESSION_STORAGE_KEY);
+    } catch {}
+  }
+
+  function persistDrawCardSession(nextSessionId) {
+    if (!nextSessionId) {
+      clearPersistedDrawCardSession();
+      return;
+    }
+    try {
+      window.localStorage.setItem(DRAW_CARD_SESSION_STORAGE_KEY, nextSessionId);
+    } catch {}
+  }
+
+  function applyDrawCardSession(payload, options = {}) {
+    const { revealOnSuccess = true } = options;
+    const nextSessionId = String(payload?.sessionId || "");
+    setSession(payload);
+    setSessionId(nextSessionId);
+    persistDrawCardSession(nextSessionId);
+
+    if (payload?.status === "failed") {
+      setResults(Array.isArray(payload?.results) ? payload.results : []);
+      setError(payload.failedReason || payload.message || "这一轮未能顺利完成，请重新开始。");
+      setPhase("error");
+      return;
+    }
+
+    if (payload?.status === "succeeded") {
+      setResults(Array.isArray(payload?.results) ? payload.results : []);
+      setError("");
+      setPhase(revealOnSuccess ? "revealing" : "results");
+      return;
+    }
+
+    setResults(Array.isArray(payload?.results) ? payload.results : []);
+    setError("");
+    setPhase("waiting");
+  }
+
   useEffect(() => {
     if (!referenceFile) {
       if (referencePreviewUrl) URL.revokeObjectURL(referencePreviewUrl);
@@ -430,6 +473,38 @@ function LuckDrawCardPage() {
     }
 
     loadClipItems();
+
+    async function restoreDrawCardProgress() {
+      const restoredSessionId = readPersistedDrawCardSessionId();
+      if (restoredSessionId) {
+        try {
+          const payload = await fetchDrawCardSession(restoredSessionId);
+          if (!isActive) return;
+          applyDrawCardSession(payload, { revealOnSuccess: false });
+          return;
+        } catch (nextError) {
+          if (!isActive) return;
+          if (![403, 404].includes(nextError?.status)) {
+            setError((current) => current || nextError.message || "恢复上次抽卡进度失败，请稍后再试。");
+            return;
+          }
+          clearPersistedDrawCardSession();
+        }
+      }
+
+      try {
+        const payload = await fetchLatestDrawCardSession();
+        if (!isActive) return;
+        applyDrawCardSession(payload, { revealOnSuccess: false });
+      } catch (nextError) {
+        if (!isActive) return;
+        if (nextError?.status === 404) return;
+        setError((current) => current || nextError.message || "恢复上次抽卡进度失败，请稍后再试。");
+      }
+    }
+
+    restoreDrawCardProgress();
+
     return () => {
       isActive = false;
     };
@@ -458,20 +533,18 @@ function LuckDrawCardPage() {
       try {
         const payload = await fetchDrawCardSession(sessionId);
         if (!isActive) return;
-
-        setSession(payload);
-        if (payload.status === "failed") {
-          setError(payload.failedReason || payload.message || "这一轮未能顺利完成，请重新开始。");
-          setPhase("error");
-          return;
-        }
-
-        if (payload.status === "succeeded") {
-          setResults(payload.results || []);
-          setPhase("revealing");
-        }
+        applyDrawCardSession(payload);
       } catch (nextError) {
         if (!isActive) return;
+        if ([403, 404].includes(nextError?.status)) {
+          clearPersistedDrawCardSession();
+          setSessionId("");
+          setSession(null);
+          setResults([]);
+          setError("");
+          setPhase("idle");
+          return;
+        }
         setError(nextError.message || "读取抽卡状态失败，请稍后再试。");
         setPhase("error");
       }
@@ -505,6 +578,7 @@ function LuckDrawCardPage() {
   const isOriginalPreview = activeResultIndex === -2;
 
   function resetDrawCard() {
+    clearPersistedDrawCardSession();
     setPhase("idle");
     setReferenceFile(null);
     setSessionId("");
@@ -529,6 +603,7 @@ function LuckDrawCardPage() {
       return;
     }
 
+    clearPersistedDrawCardSession();
     setReferenceFile(file);
     setSessionId("");
     setSession(null);
@@ -620,10 +695,8 @@ function LuckDrawCardPage() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message || "抽卡暂时不可用，请稍后再试。");
 
-      setSession(payload);
-      setSessionId(payload.sessionId || "");
+      applyDrawCardSession(payload);
       fetchVisitorState().then(setVisitorState).catch(() => {});
-      setPhase("waiting");
     } catch (nextError) {
       setError(nextError.message || "抽卡暂时不可用，请稍后再试。");
       setPhase("error");
@@ -743,7 +816,7 @@ function LuckDrawCardPage() {
         )}
 
         <div className="draw-card-clip-empty">
-          <p>剩余次数：{visitorState ? `${visitorState.quotaRemaining}/${visitorState.quotaLimit}` : "--/--"}</p>
+          <p>剩余次数：{visitorState ? `${visitorState.quotaRemaining}` : "--"}</p>
           <input className="field-inline-input" onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} />
           <button
             className="draw-card-secondary"
@@ -2870,7 +2943,6 @@ function InviteAdminPage({ inviteCodes, visitors, settings, onRefreshInviteCodes
                   <strong>{shortJobId(visitor.visitorId)}</strong>
                   <span>已用 {visitor.quotaUsed}</span>
                   <span>剩余 {visitor.quotaRemaining}</span>
-                  <span>上限 {visitor.quotaLimit}</span>
                 </div>
                 <p className="storage-note">最近更新 {formatDateTime(visitor.updatedAt)}</p>
               </div>
@@ -3138,8 +3210,32 @@ function StorageAdminPage({ storageSummary, onRefreshStorage }) {
 async function fetchDrawCardSession(sessionId) {
   const response = await fetch(`/api/draw-card/sessions/${sessionId}`);
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message || "读取抽卡状态失败，请稍后再试。");
+  if (!response.ok) {
+    const error = new Error(payload.message || "读取抽卡状态失败，请稍后再试。");
+    error.status = response.status;
+    throw error;
+  }
   return payload;
+}
+
+async function fetchLatestDrawCardSession() {
+  const response = await fetch("/api/draw-card/sessions/latest");
+  const payload = await response.json();
+  if (!response.ok) {
+    const error = new Error(payload.message || "恢复抽卡进度失败，请稍后再试。");
+    error.status = response.status;
+    throw error;
+  }
+  return payload;
+}
+
+function readPersistedDrawCardSessionId() {
+  try {
+    const stored = window.localStorage.getItem(DRAW_CARD_SESSION_STORAGE_KEY);
+    return stored ? String(stored) : "";
+  } catch {
+    return "";
+  }
 }
 
 async function likeImageJob(jobId) {

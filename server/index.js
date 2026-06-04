@@ -34,16 +34,17 @@ const miniImageRoot = path.join(rootDir, "wechat-miniprogram", "miniprogram", "i
 const miniCompressScript = path.join(rootDir, "tools", "compress_for_miniprogram.ps1");
 const execFileAsync = promisify(execFile);
 const RESULT_THUMBNAIL_MAX_EDGE = 384;
-const PUBLIC_PREVIEW_MAX_EDGE = 512;
+const PUBLIC_PREVIEW_MAX_EDGE = 1536;
 const REFERENCE_THUMBNAIL_MAX_EDGE = 240;
 const DRAW_CARD_GROUP_NAME = "抽卡";
 const DRAW_CARD_DEFAULT_SIZE = "1024x1536";
 const DRAW_CARD_WAITING_MESSAGE = "仪式正在进行，请稍候。";
 const DRAW_CARD_SUCCESS_MESSAGE = "结果已准备好。";
 const DRAW_CARD_FAILURE_MESSAGE = "这一轮未能顺利完成，请重新开始。";
+const PUBLIC_PREVIEW_WATERMARK_TEXT = "Preview Only";
 const VISITOR_COOKIE_NAME = "pg_visitor";
 const ADMIN_COOKIE_NAME = "pg_admin";
-const VISITOR_INVITED_LIMIT = 20;
+const VISITOR_INVITE_BONUS = 5;
 const VISITOR_RUNNING_JOB_LIMIT = 1;
 const VISITOR_RATE_WINDOW_MS = 10 * 60 * 1000;
 const VISITOR_RATE_LIMIT = 3;
@@ -200,6 +201,21 @@ app.get("/api/draw-card/sessions/:sessionId", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "读取抽卡状态失败，请稍后再试。" });
+  }
+});
+
+app.get("/api/draw-card/sessions/latest", async (req, res) => {
+  try {
+    const session = await readLatestVisitorDrawCardSession(req.visitorId);
+    if (!session) {
+      return res.status(404).json({ message: "当前没有可恢复的抽卡进度。" });
+    }
+
+    const syncedSession = await synchronizeDrawCardSession(session);
+    res.json(toPublicDrawCardSession(syncedSession));
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "恢复抽卡进度失败，请稍后再试。" });
   }
 });
 
@@ -1147,7 +1163,7 @@ async function saveVisitorState(visitor) {
 
 function normalizeVisitorState(visitor) {
   const tier = String(visitor?.tier || "anonymous");
-  const quotaLimit = Number(visitor?.quotaLimit || (tier === "invited" ? VISITOR_INVITED_LIMIT : DEFAULT_VISITOR_ANONYMOUS_LIMIT));
+  const quotaLimit = Number(visitor?.quotaLimit || (tier === "invited" ? DEFAULT_VISITOR_ANONYMOUS_LIMIT + VISITOR_INVITE_BONUS : DEFAULT_VISITOR_ANONYMOUS_LIMIT));
   const quotaUsed = Math.max(0, Number(visitor?.quotaUsed || 0));
   return {
     visitorId: String(visitor?.visitorId || randomUUID()),
@@ -1814,7 +1830,7 @@ function normalizeInviteCode(inviteCode) {
     id: String(inviteCode?.id || randomUUID()),
     code: String(inviteCode?.code || "").trim().toUpperCase(),
     enabled: inviteCode?.enabled !== false,
-    maxRedemptions: Math.max(1, Number(inviteCode?.maxRedemptions || INVITE_DEFAULT_MAX_REDEMPTIONS)),
+    maxRedemptions: 1,
     redeemedCount: Math.max(0, Number(inviteCode?.redeemedCount || 0)),
     redeemedByVisitorIds: Array.isArray(inviteCode?.redeemedByVisitorIds) ? inviteCode.redeemedByVisitorIds.map(String) : [],
     createdAt: inviteCode?.createdAt || new Date().toISOString(),
@@ -1878,9 +1894,6 @@ async function redeemInviteCode(req, code) {
   if (!invite || !invite.enabled) {
     throw createHttpError(400, "邀请码无效或已停用。");
   }
-  if (invite.redeemedByVisitorIds.includes(req.visitorId)) {
-    return upgradeVisitorByInvite(req);
-  }
   if (invite.redeemedCount >= invite.maxRedemptions) {
     throw createHttpError(400, "邀请码已被使用。");
   }
@@ -1897,7 +1910,7 @@ async function upgradeVisitorByInvite(req) {
   return saveVisitorState({
     ...visitor,
     tier: "invited",
-    quotaLimit: Math.max(visitor.quotaLimit, VISITOR_INVITED_LIMIT),
+    quotaLimit: Math.max(0, Number(visitor.quotaLimit || 0)) + VISITOR_INVITE_BONUS,
     invitedAt: visitor.invitedAt || new Date().toISOString(),
     updatedAt: new Date().toISOString()
   });
@@ -1921,9 +1934,7 @@ async function consumeVisitorQuota(visitorId, cost) {
 }
 
 async function estimateDrawCardQuotaCost() {
-  const groups = await readStyleGroups();
-  const group = groups.find((item) => String(item.name || "").trim() === DRAW_CARD_GROUP_NAME);
-  return Math.max(1, Array.isArray(group?.styleIds) ? group.styleIds.length : 1);
+  return 1;
 }
 
 async function enforceVisitorRunningJobLimit(visitorId) {
@@ -2210,6 +2221,33 @@ async function readDrawCardSession(sessionId) {
     if (error.code === "ENOENT") return null;
     throw error;
   }
+}
+
+async function listDrawCardSessions() {
+  await mkdir(drawCardSessionRoot, { recursive: true });
+  const entries = await readdir(drawCardSessionRoot, { withFileTypes: true });
+  const sessions = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .map((entry) => readDrawCardSession(entry.name.replace(/\.json$/, "")))
+  );
+  return sessions.filter(Boolean);
+}
+
+async function readLatestVisitorDrawCardSession(visitorId) {
+  if (!isSafeVisitorId(visitorId)) return null;
+  const sessions = await listDrawCardSessions();
+  const latest = sessions
+    .filter((session) => session.ownerVisitorId === visitorId)
+    .sort((left, right) =>
+      String(right.updatedAt || right.completedAt || right.createdAt || "").localeCompare(
+        String(left.updatedAt || left.completedAt || left.createdAt || "")
+      )
+    )[0];
+
+  if (!latest) return null;
+  if (!["queued", "running", "succeeded"].includes(String(latest.status || ""))) return null;
+  return latest;
 }
 
 async function saveDrawCardSession(session) {
@@ -2801,24 +2839,20 @@ async function createPublicPreview(jobId, bytes) {
   if (!sharp || !bytes?.length) return null;
 
   try {
-    const image = sharp(bytes, { animated: false }).rotate().resize({
-      width: PUBLIC_PREVIEW_MAX_EDGE,
-      height: PUBLIC_PREVIEW_MAX_EDGE,
-      fit: "inside",
-      withoutEnlargement: true
-    });
-    const metadata = await image.metadata();
-    const width = Number(metadata.width || 0) || PUBLIC_PREVIEW_MAX_EDGE;
-    const height = Number(metadata.height || 0) || PUBLIC_PREVIEW_MAX_EDGE;
-    const svgWatermark = Buffer.from(`
-      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-        <rect x="0" y="${Math.max(0, height - 56)}" width="${width}" height="56" fill="rgba(8,8,10,0.58)" />
-        <text x="${Math.max(18, Math.floor(width * 0.04))}" y="${Math.max(34, height - 20)}" fill="rgba(255,255,255,0.88)" font-size="${Math.max(16, Math.floor(width * 0.038))}" font-family="Arial, sans-serif">Preview Only</text>
-      </svg>
-    `);
-    const transformed = await image
-      .composite([{ input: svgWatermark, gravity: "southwest" }])
-      .webp({ quality: 74 })
+    const resized = await sharp(bytes, { animated: false })
+      .rotate()
+      .resize({
+        width: PUBLIC_PREVIEW_MAX_EDGE,
+        height: PUBLIC_PREVIEW_MAX_EDGE,
+        fit: "inside",
+        withoutEnlargement: true
+      })
+      .toBuffer({ resolveWithObject: true });
+    const width = Number(resized.info?.width || 0) || PUBLIC_PREVIEW_MAX_EDGE;
+    const height = Number(resized.info?.height || 0) || PUBLIC_PREVIEW_MAX_EDGE;
+    const transformed = await sharp(resized.data, { animated: false })
+      .composite([{ input: createPublicPreviewWatermark(width, height) }])
+      .webp({ quality: 88 })
       .toBuffer({ resolveWithObject: true });
     await mkdir(generatedPreviewRoot, { recursive: true });
     await writeFile(path.join(generatedPreviewRoot, `${jobId}.webp`), transformed.data);
@@ -2832,6 +2866,47 @@ async function createPublicPreview(jobId, bytes) {
     console.warn("Preview generation skipped.", error?.message || error);
     return null;
   }
+}
+
+function createPublicPreviewWatermark(width, height) {
+  const safeWidth = Math.max(1, Math.round(width || PUBLIC_PREVIEW_MAX_EDGE));
+  const safeHeight = Math.max(1, Math.round(height || PUBLIC_PREVIEW_MAX_EDGE));
+  const barHeight = Math.max(64, Math.floor(safeHeight * 0.09));
+  const labelFontSize = Math.max(22, Math.floor(safeWidth * 0.028));
+  const labelX = Math.max(24, Math.floor(safeWidth * 0.035));
+  const labelY = safeHeight - Math.max(22, Math.floor(barHeight * 0.36));
+  const patternFontSize = Math.max(22, Math.floor(safeWidth * 0.036));
+  const patternWidth = Math.max(240, Math.floor(safeWidth * 0.26));
+  const patternHeight = Math.max(160, Math.floor(safeHeight * 0.2));
+
+  return Buffer.from(`
+    <svg width="${safeWidth}" height="${safeHeight}" viewBox="0 0 ${safeWidth} ${safeHeight}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="preview-diagonal-pattern" patternUnits="userSpaceOnUse" width="${patternWidth}" height="${patternHeight}" patternTransform="rotate(-28)">
+          <text
+            x="0"
+            y="${Math.floor(patternHeight * 0.6)}"
+            fill="#ffffff"
+            fill-opacity="0.12"
+            font-size="${patternFontSize}"
+            font-family="Arial, sans-serif"
+            letter-spacing="2"
+          >${PUBLIC_PREVIEW_WATERMARK_TEXT}</text>
+        </pattern>
+      </defs>
+      <rect x="0" y="0" width="${safeWidth}" height="${safeHeight}" fill="url(#preview-diagonal-pattern)" />
+      <rect x="0" y="${Math.max(0, safeHeight - barHeight)}" width="${safeWidth}" height="${barHeight}" fill="#08080a" fill-opacity="0.62" />
+      <text
+        x="${labelX}"
+        y="${labelY}"
+        fill="#ffffff"
+        fill-opacity="0.92"
+        font-size="${labelFontSize}"
+        font-family="Arial, sans-serif"
+        letter-spacing="1.5"
+      >${PUBLIC_PREVIEW_WATERMARK_TEXT}</text>
+    </svg>
+  `);
 }
 
 function getVisitorStatePath(visitorId) {
