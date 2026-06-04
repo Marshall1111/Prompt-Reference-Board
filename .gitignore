@@ -8,4 +8,16 @@ server.out.log
 server.err.log
 .git-work/
 data/image-jobs/
+data/draw-card-sessions/
+data/temp-image-references/
+data/private-generated-images/
+data/private-job-references/
+data/storage-backups/
+data/storage-export-temp/
+data/admin-sessions/
+data/visitor-states/
 public/generated-images/
+public/generated-previews/
+public/generated-thumbnails/
+public/job-references/
+public/job-reference-thumbnails/

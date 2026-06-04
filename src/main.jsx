@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
@@ -40,6 +40,7 @@ function readRoute() {
   if (pathname === "/admin/tasks") return "admin-tasks";
   if (pathname === "/admin/batch") return "admin-batch";
   if (pathname === "/admin/invites") return "admin-invites";
+  if (pathname === "/admin/storage") return "admin-storage";
   return "public-draw";
 }
 
@@ -60,7 +61,8 @@ function App() {
       "admin-styles": "/admin/styles",
       "admin-tasks": "/admin/tasks",
       "admin-batch": "/admin/batch",
-      "admin-invites": "/admin/invites"
+      "admin-invites": "/admin/invites",
+      "admin-storage": "/admin/storage"
     };
     const path = pathByRoute[nextRoute] || "/";
     window.history.pushState({}, "", path);
@@ -80,6 +82,7 @@ function AdminApp({ navigate, route }) {
   const [inviteCodes, setInviteCodes] = useState([]);
   const [visitors, setVisitors] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [storageSummary, setStorageSummary] = useState(null);
   const [query, setQuery] = useState("");
   const [copiedId, setCopiedId] = useState("");
   const [activePrompt, setActivePrompt] = useState(null);
@@ -116,6 +119,7 @@ function AdminApp({ navigate, route }) {
     refreshInviteCodes().then(setInviteCodes).catch(() => setInviteCodes([]));
     refreshVisitors().then(setVisitors).catch(() => setVisitors([]));
     refreshAdminSettings().then(setSettings).catch(() => setSettings(null));
+    refreshStorageSummary().then(setStorageSummary).catch(() => setStorageSummary(null));
   }, [adminReady, isAuthenticated]);
 
   const filteredStyles = useMemo(() => {
@@ -226,7 +230,8 @@ function AdminApp({ navigate, route }) {
         refreshStyleGroups().then(setStyleGroups),
         refreshInviteCodes().then(setInviteCodes),
         refreshVisitors().then(setVisitors),
-        refreshAdminSettings().then(setSettings)
+        refreshAdminSettings().then(setSettings),
+        refreshStorageSummary().then(setStorageSummary)
       ]);
     navigate("admin-styles");
   }
@@ -278,6 +283,10 @@ function AdminApp({ navigate, route }) {
               <Sparkles size={18} />
               <span>邀请码</span>
             </button>
+            <button className="nav-button" onClick={() => navigate("admin-storage")} type="button">
+              <HardDrive size={18} />
+              <span>存储管理</span>
+            </button>
             <button className="nav-button" onClick={handleLogout} type="button">
               <Home size={18} />
               <span>退出登录</span>
@@ -305,6 +314,11 @@ function AdminApp({ navigate, route }) {
             onRefreshSettings={() => refreshAdminSettings().then(setSettings)}
             settings={settings}
             visitors={visitors}
+          />
+        ) : route === "admin-storage" ? (
+          <StorageAdminPage
+            storageSummary={storageSummary}
+            onRefreshStorage={() => refreshStorageSummary().then(setStorageSummary)}
           />
         ) : route === "admin-styles" ? (
           <ManagePage
@@ -2574,6 +2588,58 @@ async function updateAdminSettings(payload) {
   return data.settings;
 }
 
+async function refreshStorageSummary() {
+  const response = await fetch("/api/admin/storage");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取存储概览失败。");
+  return payload;
+}
+
+async function createStorageBackupRequest() {
+  const response = await fetch("/api/admin/storage/backups", {
+    method: "POST"
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "创建备份失败。");
+  return payload.backup;
+}
+
+async function createImageRangeBackupRequest(payload) {
+  const response = await fetch("/api/admin/storage/image-backups", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "创建图片备份失败。");
+  return data.backup;
+}
+
+async function deleteStorageBackupRequest(backupId) {
+  const response = await fetch(`/api/admin/storage/backups/${backupId}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    const payload = await response.json();
+    throw new Error(payload.message || "删除备份失败。");
+  }
+}
+
+function downloadStorageBackup(backupId) {
+  window.open(`/api/admin/storage/backups/${backupId}/download`, "_blank", "noopener,noreferrer");
+}
+
+async function cleanupStorageHistoryRequest(payload) {
+  const response = await fetch("/api/admin/storage/cleanup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "清理历史数据失败。");
+  return data;
+}
+
 async function fetchImageJob(jobId) {
   const response = await fetch(`/api/image-jobs/${jobId}`);
   const payload = await response.json();
@@ -2813,6 +2879,259 @@ function InviteAdminPage({ inviteCodes, visitors, settings, onRefreshInviteCodes
   );
 }
 
+function StorageAdminPage({ storageSummary, onRefreshStorage }) {
+  const [retentionDays, setRetentionDays] = useState(storageSummary?.cleanupDefaults?.retentionDays || 30);
+  const [cleanVisitors, setCleanVisitors] = useState(false);
+  const [imageBackupStartDate, setImageBackupStartDate] = useState("");
+  const [imageBackupEndDate, setImageBackupEndDate] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [error, setError] = useState("");
+  const [isBusy, setIsBusy] = useState(false);
+
+  useEffect(() => {
+    setRetentionDays(storageSummary?.cleanupDefaults?.retentionDays || 30);
+  }, [storageSummary]);
+
+  async function handleCreateBackup() {
+    setIsBusy(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      const backup = await createStorageBackupRequest();
+      await onRefreshStorage();
+      setStatusMessage(`已创建备份 ${backup.filename}`);
+    } catch (nextError) {
+      setError(nextError.message || "创建备份失败。");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleCreateImageBackup() {
+    if (!imageBackupStartDate || !imageBackupEndDate) {
+      setError("请选择开始日期和结束日期。");
+      setStatusMessage("");
+      return;
+    }
+    if (imageBackupStartDate > imageBackupEndDate) {
+      setError("开始日期不能晚于结束日期。");
+      setStatusMessage("");
+      return;
+    }
+    setIsBusy(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      const backup = await createImageRangeBackupRequest({
+        startDate: imageBackupStartDate,
+        endDate: imageBackupEndDate
+      });
+      await onRefreshStorage();
+      setStatusMessage(`已创建图片备份 ${backup.filename}`);
+    } catch (nextError) {
+      setError(nextError.message || "创建图片备份失败。");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleDeleteBackup(backup) {
+    if (!window.confirm(`确认删除备份 ${backup.filename} 吗？删除后将无法下载。`)) return;
+    setIsBusy(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      await deleteStorageBackupRequest(backup.backupId);
+      await onRefreshStorage();
+      setStatusMessage(`已删除备份 ${backup.filename}`);
+    } catch (nextError) {
+      setError(nextError.message || "删除备份失败。");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleCleanup() {
+    if (!window.confirm(`确认清理 ${retentionDays} 天前的历史数据吗？这会删除旧任务记录以及对应图片文件。`)) return;
+    setIsBusy(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      const result = await cleanupStorageHistoryRequest({
+        retentionDays,
+        cleanVisitors,
+        clearAllHistory: true
+      });
+      await onRefreshStorage();
+      setStatusMessage(
+        `已清理：任务 ${result.deleted.imageJobs} 条，抽卡会话 ${result.deleted.drawCardSessions} 条，访客 ${result.deleted.visitorStates} 条，后台会话 ${result.deleted.adminSessions} 条，临时参考 ${result.deleted.tempReferences} 条。`
+      );
+    } catch (nextError) {
+      setError(nextError.message || "清理历史数据失败。");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  const directories = storageSummary?.directories || [];
+  const backups = storageSummary?.backups || [];
+  const totals = storageSummary?.totals || { bytes: 0, files: 0 };
+
+  return (
+    <section className="task-page" aria-label="存储管理">
+      <div className="task-toolbar">
+        <div>
+          <p className="eyebrow">Storage</p>
+          <h2>存储管理</h2>
+          <p className="storage-note">查看目录占用，创建可下载备份，并清理过期历史数据。</p>
+        </div>
+        <button className="secondary-button" onClick={onRefreshStorage} type="button">
+          <RefreshCw size={18} />
+          <span>刷新</span>
+        </button>
+      </div>
+
+      <div className="storage-summary-grid">
+        <article className="task-card storage-summary-card">
+          <div className="task-detail">
+            <div className="task-meta-row">
+              <strong>总文件数</strong>
+              <span>{totals.files}</span>
+            </div>
+            <p className="storage-note">当前统计的是任务相关目录与后台运行数据目录。</p>
+          </div>
+        </article>
+        <article className="task-card storage-summary-card">
+          <div className="task-detail">
+            <div className="task-meta-row">
+              <strong>总占用</strong>
+              <span>{formatBytes(totals.bytes)}</span>
+            </div>
+            <p className="storage-note">高清原图、参考图、预览图通常是空间占用大头。</p>
+          </div>
+        </article>
+        <article className="task-card storage-summary-card">
+          <div className="task-detail">
+            <div className="task-meta-row">
+              <strong>可下载备份</strong>
+              <span>{backups.length}</span>
+            </div>
+            <p className="storage-note">备份文件保存在服务器上，可随时下载或删除。</p>
+          </div>
+        </article>
+      </div>
+
+      <div className="task-list">
+        {directories.map((item) => (
+          <article className="task-card" key={item.key}>
+            <div className="task-status queued">{item.files} 个文件</div>
+            <div className="task-detail">
+              <div className="task-meta-row">
+                <strong>{item.label}</strong>
+                <span>{formatBytes(item.bytes)}</span>
+                <span>{item.path}</span>
+              </div>
+              <p className="storage-note">目录数 {item.directories}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <section className="task-page" aria-label="备份管理">
+        <div className="task-toolbar">
+          <div>
+            <p className="eyebrow">Backups</p>
+            <h2>备份文件</h2>
+            <p className="storage-note">支持轻量配置备份，也支持按日期范围导出高清原图和临时参考图 zip。</p>
+          </div>
+          <button className="copy-button" disabled={isBusy} onClick={handleCreateBackup} type="button">
+            {isBusy ? <LoaderCircle className="spin" size={18} /> : <Save size={18} />}
+            <span>{isBusy ? "处理中" : "创建配置备份"}</span>
+          </button>
+        </div>
+        <div className="draw-card-upload-panel">
+          <p className="storage-note">图片范围备份会将所选日期内的高清原图和临时参考图打包成 zip，并附带 `manifest.json`。</p>
+          <label className="field-label">
+            开始日期
+            <input onChange={(event) => setImageBackupStartDate(event.target.value)} type="date" value={imageBackupStartDate} />
+          </label>
+          <label className="field-label">
+            结束日期
+            <input onChange={(event) => setImageBackupEndDate(event.target.value)} type="date" value={imageBackupEndDate} />
+          </label>
+          <div className="card-actions generator-actions">
+            <button className="secondary-button" disabled={isBusy} onClick={handleCreateImageBackup} type="button">
+              {isBusy ? <LoaderCircle className="spin" size={18} /> : <Download size={18} />}
+              <span>{isBusy ? "处理中" : "生成图片备份 zip"}</span>
+            </button>
+          </div>
+        </div>
+        <div className="task-list">
+          {backups.map((backup) => (
+            <article className="task-card" key={backup.backupId}>
+              <div className="task-status succeeded">{backup.kind === "image-range-zip" ? "图片备份" : "配置备份"}</div>
+              <div className="task-detail">
+                <div className="task-meta-row">
+                  <strong>{backup.filename}</strong>
+                  <span>{formatBytes(backup.sizeBytes)}</span>
+                  <span>v{backup.version}</span>
+                </div>
+                <p className="storage-note">
+                  创建于 {formatDateTime(backup.createdAt)}
+                  {backup.dateRange ? ` · 范围 ${backup.dateRange.startDate} 到 ${backup.dateRange.endDate}` : ""}
+                </p>
+              </div>
+              <div className="task-actions">
+                <button className="secondary-button" onClick={() => downloadStorageBackup(backup.backupId)} type="button">
+                  <Download size={18} />
+                  <span>下载</span>
+                </button>
+                <button className="danger-button" disabled={isBusy} onClick={() => handleDeleteBackup(backup)} type="button">
+                  <Trash2 size={18} />
+                  <span>删除</span>
+                </button>
+              </div>
+            </article>
+          ))}
+          {!backups.length ? <p className="empty-note">还没有创建过备份文件。</p> : null}
+        </div>
+      </section>
+
+      <section className="task-page" aria-label="历史清理">
+        <div className="task-toolbar">
+          <div>
+            <p className="eyebrow">Cleanup</p>
+            <h2>历史数据清理</h2>
+            <p className="storage-note">会清空历史任务，以及关联的高清原图、缩略图、参考图缩略图、抽卡会话和临时参考图。</p>
+          </div>
+        </div>
+        <div className="draw-card-upload-panel">
+          <label className="field-label">
+            历史阈值天数
+            <input max="3650" min="0" onChange={(event) => setRetentionDays(Number(event.target.value) || 0)} type="number" value={retentionDays} />
+          </label>
+          <label className="storage-checkbox">
+            <input checked={cleanVisitors} onChange={(event) => setCleanVisitors(event.target.checked)} type="checkbox" />
+            <span>同时清理旧访客额度记录</span>
+          </label>
+          <div className="storage-warning">
+            <AlertTriangle size={18} />
+            <span>默认不会动风格库、分组、邀请码和系统设置。点击后会清空历史任务及其关联图片文件；访客记录默认也不删，除非你手动勾选。</span>
+          </div>
+          <div className="card-actions generator-actions">
+            <button className="danger-button" disabled={isBusy} onClick={handleCleanup} type="button">
+              {isBusy ? <LoaderCircle className="spin" size={18} /> : <Trash2 size={18} />}
+              <span>{isBusy ? "清理中" : "一键清理历史数据"}</span>
+            </button>
+          </div>
+          {statusMessage ? <p className="success-note">{statusMessage}</p> : null}
+          {error ? <p className="error-note">{error}</p> : null}
+        </div>
+      </section>
+    </section>
+  );
+}
+
 async function fetchDrawCardSession(sessionId) {
   const response = await fetch(`/api/draw-card/sessions/${sessionId}`);
   const payload = await response.json();
@@ -2862,6 +3181,19 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function formatBytes(value) {
+  const size = Number(value || 0);
+  if (!Number.isFinite(size) || size <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let index = 0;
+  let current = size;
+  while (current >= 1024 && index < units.length - 1) {
+    current /= 1024;
+    index += 1;
+  }
+  return `${current.toFixed(current >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
 function formatDuration(seconds) {

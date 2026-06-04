@@ -20,10 +20,13 @@ const visitorStateRoot = path.join(rootDir, "data", "visitor-states");
 const inviteCodePath = path.join(rootDir, "data", "invite-codes.json");
 const adminSessionRoot = path.join(rootDir, "data", "admin-sessions");
 const appSettingsPath = path.join(rootDir, "data", "app-settings.json");
+const storageBackupRoot = path.join(rootDir, "data", "storage-backups");
+const storageExportTempRoot = path.join(rootDir, "data", "storage-export-temp");
 const previewRoot = path.join(rootDir, "public", "style-previews");
 const generatedImageRoot = path.join(rootDir, "data", "private-generated-images");
 const generatedPreviewRoot = path.join(rootDir, "public", "generated-previews");
 const generatedThumbnailRoot = path.join(rootDir, "public", "generated-thumbnails");
+const legacyGeneratedImageRoot = path.join(rootDir, "public", "generated-images");
 const jobReferenceRoot = path.join(rootDir, "data", "private-job-references");
 const jobReferenceThumbnailRoot = path.join(rootDir, "public", "job-reference-thumbnails");
 const miniDataPath = path.join(rootDir, "wechat-miniprogram", "miniprogram", "data", "styles.js");
@@ -50,6 +53,10 @@ const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const INVITE_DEFAULT_MAX_REDEMPTIONS = 1;
 const DEFAULT_CONTACT_MESSAGE = "如需更多生图机会，请联系客服填写邀请码。";
 const DEFAULT_VISITOR_ANONYMOUS_LIMIT = 5;
+const DEFAULT_STORAGE_CLEANUP_DAYS = 30;
+const MAX_STORAGE_CLEANUP_DAYS = 3650;
+const BACKUP_KIND_CONFIG = "config-snapshot";
+const BACKUP_KIND_IMAGE_RANGE = "image-range-zip";
 
 let sharpModulePromise;
 const visitorRequestLog = new Map();
@@ -652,6 +659,72 @@ app.patch("/api/admin/settings", requireAdmin, async (req, res) => {
   }
 });
 
+app.get("/api/admin/storage", requireAdmin, async (_req, res) => {
+  try {
+    const summary = await buildStorageSummary();
+    res.json(summary);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取存储概览失败。" });
+  }
+});
+
+app.post("/api/admin/storage/backups", requireAdmin, async (_req, res) => {
+  try {
+    const backup = await createStorageBackup();
+    res.status(201).json({ backup });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "创建备份失败。" });
+  }
+});
+
+app.post("/api/admin/storage/image-backups", requireAdmin, async (req, res) => {
+  try {
+    const backup = await createImageRangeBackup(req.body || {});
+    res.status(201).json({ backup });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "创建图片备份失败。" });
+  }
+});
+
+app.get("/api/admin/storage/backups/:backupId/download", requireAdmin, async (req, res) => {
+  try {
+    const backup = await readStorageBackupMetadata(req.params.backupId);
+    if (!backup) return res.status(404).json({ message: "备份不存在。" });
+    const filePath = getStorageBackupFilePath(backup.filename);
+    if (!(await fileExists(filePath))) {
+      return res.status(404).json({ message: "备份文件不存在。" });
+    }
+    res.download(filePath, backup.filename);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "下载备份失败。" });
+  }
+});
+
+app.delete("/api/admin/storage/backups/:backupId", requireAdmin, async (req, res) => {
+  try {
+    const deleted = await deleteStorageBackup(req.params.backupId);
+    if (!deleted) return res.status(404).json({ message: "备份不存在。" });
+    res.status(204).end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "删除备份失败。" });
+  }
+});
+
+app.post("/api/admin/storage/cleanup", requireAdmin, async (req, res) => {
+  try {
+    const result = await cleanupStorageHistory(req.body || {});
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "清理历史数据失败。" });
+  }
+});
+
 app.get("/api/admin/image-jobs/:jobId/result", requireAdmin, async (req, res) => {
   try {
     const job = await readImageJob(req.params.jobId);
@@ -822,7 +895,7 @@ app.use((error, _req, res, next) => {
 
 app.use((req, res) => {
   const pathname = req.path || "/";
-  if (pathname === "/" || pathname.startsWith("/admin/") || pathname === "/admin") {
+  if (pathname === "/" || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
     return res.sendFile(path.join(rootDir, "dist", "index.html"));
   }
   if (pathname === "/luck" || pathname === "/manage" || pathname === "/tasks" || pathname === "/batch") {
@@ -837,6 +910,7 @@ app.listen(port, () => {
     console.warn("Admin credentials are missing. Please set ADMIN_USERNAME and ADMIN_PASSWORD in .env.");
   }
   prepareImageJobStorage()
+    .then(migrateLegacyGeneratedImages)
     .then(readStyles)
     .then(syncMiniProgram)
     .then(() => console.log("Mini program files synced."))
@@ -855,6 +929,45 @@ async function readStyles() {
       useStyleImageAsReference: Boolean(style.useStyleImageAsReference)
     }))
   );
+}
+
+async function migrateLegacyGeneratedImages() {
+  if (!(await fileExists(legacyGeneratedImageRoot))) {
+    return;
+  }
+
+  await mkdir(generatedImageRoot, { recursive: true });
+
+  const legacyEntries = await readdir(legacyGeneratedImageRoot, { withFileTypes: true });
+  const legacyFiles = legacyEntries.filter((entry) => entry.isFile());
+  if (!legacyFiles.length) {
+    return;
+  }
+
+  for (const entry of legacyFiles) {
+    const sourcePath = path.join(legacyGeneratedImageRoot, entry.name);
+    const targetPath = path.join(generatedImageRoot, entry.name);
+    if (!(await fileExists(targetPath))) {
+      await copyFile(sourcePath, targetPath);
+    }
+  }
+
+  const jobs = await listImageJobs();
+  let updatedCount = 0;
+  for (const job of jobs) {
+    const imageUrl = String(job?.result?.imageUrl || "");
+    if (!imageUrl.startsWith("/generated-images/")) continue;
+    const filename = path.basename(imageUrl);
+    const migratedFilePath = path.join(generatedImageRoot, filename);
+    if (!(await fileExists(migratedFilePath))) continue;
+    const normalizedJob = toPublicImageJob(job);
+    await saveImageJob(normalizedJob);
+    updatedCount += 1;
+  }
+
+  await rm(legacyGeneratedImageRoot, { recursive: true, force: true });
+
+  console.log(`Legacy generated images migrated: ${legacyFiles.length} files, ${updatedCount} jobs normalized.`);
 }
 
 async function readStyleGroups() {
@@ -1078,6 +1191,557 @@ function normalizeAnonymousQuotaLimit(value) {
   const next = Number(value);
   if (!Number.isFinite(next)) return DEFAULT_VISITOR_ANONYMOUS_LIMIT;
   return Math.min(Math.max(Math.round(next), 1), 50);
+}
+
+async function buildStorageSummary() {
+  const [directoryStats, backupFiles, appSettings] = await Promise.all([
+    Promise.all([
+      summarizeStorageDirectory("任务记录", imageJobRoot, "jobRecords"),
+      summarizeStorageDirectory("抽卡会话", drawCardSessionRoot, "drawCardSessions"),
+      summarizeStorageDirectory("访客额度", visitorStateRoot, "visitorStates"),
+      summarizeStorageDirectory("后台会话", adminSessionRoot, "adminSessions"),
+      summarizeStorageDirectory("临时参考图", tempReferenceRoot, "tempReferences"),
+      summarizeStorageDirectory("高清原图", generatedImageRoot, "generatedImages"),
+      summarizeStorageDirectory("公开预览图", generatedPreviewRoot, "generatedPreviews"),
+      summarizeStorageDirectory("任务缩略图", generatedThumbnailRoot, "generatedThumbnails"),
+      summarizeStorageDirectory("任务参考图", jobReferenceRoot, "jobReferences"),
+      summarizeStorageDirectory("参考图缩略图", jobReferenceThumbnailRoot, "jobReferenceThumbnails")
+    ]),
+    listStorageBackups(),
+    readAppSettings()
+  ]);
+
+  return {
+    directories: directoryStats,
+    backups: backupFiles,
+    totals: {
+      bytes: directoryStats.reduce((sum, item) => sum + item.bytes, 0),
+      files: directoryStats.reduce((sum, item) => sum + item.files, 0)
+    },
+    cleanupDefaults: {
+      retentionDays: normalizeCleanupRetentionDays(appSettings?.storageHistoryRetentionDays)
+    }
+  };
+}
+
+async function summarizeStorageDirectory(label, dirPath, key) {
+  const stats = await getDirectoryTreeStats(dirPath);
+  return {
+    key,
+    label,
+    path: path.relative(rootDir, dirPath).replace(/\\/g, "/"),
+    bytes: stats.bytes,
+    files: stats.files,
+    directories: stats.directories
+  };
+}
+
+async function getDirectoryTreeStats(targetPath) {
+  if (!(await fileExists(targetPath))) {
+    return { bytes: 0, files: 0, directories: 0 };
+  }
+
+  const rootStat = await stat(targetPath);
+  if (!rootStat.isDirectory()) {
+    return {
+      bytes: Number(rootStat.size || 0),
+      files: 1,
+      directories: 0
+    };
+  }
+
+  let bytes = 0;
+  let files = 0;
+  let directories = 0;
+  const queue = [targetPath];
+
+  while (queue.length) {
+    const current = queue.pop();
+    const entries = await readdir(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        directories += 1;
+        queue.push(fullPath);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      const entryStat = await stat(fullPath);
+      files += 1;
+      bytes += Number(entryStat.size || 0);
+    }
+  }
+
+  return { bytes, files, directories };
+}
+
+async function listStorageBackups() {
+  await mkdir(storageBackupRoot, { recursive: true });
+  const entries = await readdir(storageBackupRoot, { withFileTypes: true });
+  const backups = await Promise.all(
+    entries
+      .filter((entry) => {
+        if (!entry.isFile()) return false;
+        const ext = path.extname(entry.name).toLowerCase();
+        if (ext === ".zip") return true;
+        if (ext !== ".json") return false;
+        return !entry.name.endsWith(".backup.json");
+      })
+      .map((entry) => readStorageBackupMetadata(entry.name))
+  );
+  return backups
+    .filter(Boolean)
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+}
+
+async function createStorageBackup() {
+  await mkdir(storageBackupRoot, { recursive: true });
+  const now = new Date();
+  const backupId = randomUUID();
+  const timestamp = formatBackupTimestamp(now);
+  const filename = `storage-backup-${timestamp}-${backupId.slice(0, 8)}.json`;
+  const payload = {
+    meta: {
+      backupId,
+      kind: BACKUP_KIND_CONFIG,
+      filename,
+      createdAt: now.toISOString(),
+      version: 1
+    },
+    data: {
+      styles: await readStyles(),
+      styleGroups: await readStyleGroups(),
+      inviteCodes: await readInviteCodes(),
+      appSettings: await readAppSettings()
+    }
+  };
+  const filePath = getStorageBackupFilePath(filename);
+  await writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
+  return {
+    backupId,
+    kind: BACKUP_KIND_CONFIG,
+    filename,
+    createdAt: payload.meta.createdAt,
+    sizeBytes: Buffer.byteLength(`${JSON.stringify(payload, null, 2)}\n`, "utf-8"),
+    version: payload.meta.version
+  };
+}
+
+async function readStorageBackupMetadata(backupId) {
+  const filePath = await resolveStorageBackupPathById(backupId);
+  if (!filePath) return null;
+  const fileStat = await stat(filePath);
+  const ext = path.extname(filePath).toLowerCase();
+  const raw = ext === ".json"
+    ? JSON.parse(await readFile(filePath, "utf-8"))
+    : await readZipBackupSidecar(filePath);
+  const meta = raw?.meta || {};
+  const kind = String(meta.kind || (ext === ".zip" ? BACKUP_KIND_IMAGE_RANGE : BACKUP_KIND_CONFIG));
+  return {
+    backupId: String(meta.backupId || backupId),
+    kind,
+    filename: path.basename(filePath),
+    createdAt: meta.createdAt || fileStat.mtime.toISOString(),
+    sizeBytes: Number(fileStat.size || 0),
+    version: Number(meta.version || 1),
+    dateRange: meta.dateRange || null
+  };
+}
+
+async function resolveStorageBackupPathById(backupId) {
+  const normalizedId = String(backupId || "").trim();
+  if (!normalizedId) return null;
+
+  const directFilename = normalizedId.endsWith(".json") ? normalizedId : `${normalizedId}.json`;
+  const directPath = path.join(storageBackupRoot, directFilename);
+  if (await fileExists(directPath)) {
+    return directPath;
+  }
+
+  const directZipPath = normalizedId.endsWith(".zip") ? path.join(storageBackupRoot, normalizedId) : path.join(storageBackupRoot, `${normalizedId}.zip`);
+  if (await fileExists(directZipPath)) {
+    return directZipPath;
+  }
+
+  const entries = await readdir(storageBackupRoot, { withFileTypes: true });
+  const matched = entries.find((entry) => entry.isFile() && [".json", ".zip"].includes(path.extname(entry.name).toLowerCase()) && entry.name.includes(normalizedId));
+  if (matched) {
+    return path.join(storageBackupRoot, matched.name);
+  }
+
+  for (const entry of entries) {
+    if (!entry.isFile() || path.extname(entry.name).toLowerCase() !== ".json") continue;
+    const fullPath = path.join(storageBackupRoot, entry.name);
+    try {
+      const raw = JSON.parse(await readFile(fullPath, "utf-8"));
+      if (String(raw?.meta?.backupId || "").trim() === normalizedId) {
+        if (String(raw?.meta?.kind || "") === BACKUP_KIND_IMAGE_RANGE) {
+          const zipPath = getZipPathFromSidecar(fullPath, raw?.meta?.filename);
+          if (zipPath && await fileExists(zipPath)) {
+            return zipPath;
+          }
+        }
+        return fullPath;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+function getStorageBackupFilePath(filename) {
+  return path.join(storageBackupRoot, path.basename(String(filename || "")));
+}
+
+async function deleteStorageBackup(backupId) {
+  const filePath = await resolveStorageBackupPathById(backupId);
+  if (!filePath) return false;
+  await rm(filePath, { force: true });
+  if (path.extname(filePath).toLowerCase() === ".zip") {
+    await rm(getZipBackupSidecarPath(filePath), { force: true });
+  }
+  return true;
+}
+
+async function createImageRangeBackup(options) {
+  const startDate = normalizeDateInput(options.startDate);
+  const endDate = normalizeDateInput(options.endDate);
+  if (!startDate) {
+    throw createHttpError(400, "请选择开始日期。");
+  }
+  if (!endDate) {
+    throw createHttpError(400, "请选择结束日期。");
+  }
+  if (startDate > endDate) {
+    throw createHttpError(400, "开始日期不能晚于结束日期。");
+  }
+
+  const startTime = new Date(`${startDate}T00:00:00`).getTime();
+  const endTime = new Date(`${endDate}T23:59:59.999`).getTime();
+  const jobItems = await collectImageBackupOriginals(startTime, endTime);
+  const tempReferenceItems = await collectImageBackupTempReferences(startTime, endTime);
+  const allItems = jobItems.concat(tempReferenceItems).sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+
+  if (!allItems.length) {
+    throw createHttpError(400, "所选日期范围内没有可备份图片。");
+  }
+
+  await mkdir(storageBackupRoot, { recursive: true });
+  await mkdir(storageExportTempRoot, { recursive: true });
+
+  const backupId = randomUUID();
+  const zipFilename = `${startDate.replace(/-/g, "")}-${endDate.replace(/-/g, "")}.zip`;
+  const tempDir = path.join(storageExportTempRoot, backupId);
+  const createdAt = new Date().toISOString();
+
+  try {
+    await mkdir(tempDir, { recursive: true });
+    const manifest = {
+      version: 1,
+      kind: BACKUP_KIND_IMAGE_RANGE,
+      backupId,
+      dateRange: { startDate, endDate },
+      generatedAt: createdAt,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "local",
+      items: []
+    };
+
+    for (const item of allItems) {
+      const relativeArchivePath = item.archivePath.replace(/\//g, path.sep);
+      const targetPath = path.join(tempDir, relativeArchivePath);
+      await mkdir(path.dirname(targetPath), { recursive: true });
+      await copyFile(item.sourceFilePath, targetPath);
+      manifest.items.push({
+        type: item.type,
+        date: item.date,
+        jobId: item.jobId || null,
+        referenceId: item.referenceId || null,
+        sourcePath: item.sourcePath,
+        archivePath: item.archivePath,
+        createdAt: item.createdAt
+      });
+    }
+
+    await writeFile(path.join(tempDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf-8");
+
+    const outputPath = path.join(storageBackupRoot, zipFilename);
+    const sidecarPath = getZipBackupSidecarPath(outputPath);
+    if (await fileExists(outputPath)) {
+      await rm(outputPath, { force: true });
+    }
+    if (await fileExists(sidecarPath)) {
+      await rm(sidecarPath, { force: true });
+    }
+    await createZipFromDirectory(tempDir, outputPath);
+    await writeFile(sidecarPath, `${JSON.stringify({
+      meta: {
+        backupId,
+        kind: BACKUP_KIND_IMAGE_RANGE,
+        filename: zipFilename,
+        createdAt,
+        version: 1,
+        dateRange: { startDate, endDate }
+      }
+    }, null, 2)}\n`, "utf-8");
+
+    return {
+      backupId,
+      kind: BACKUP_KIND_IMAGE_RANGE,
+      filename: zipFilename,
+      createdAt,
+      sizeBytes: Number((await stat(outputPath)).size || 0),
+      version: 1,
+      dateRange: { startDate, endDate }
+    };
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+async function collectImageBackupOriginals(startTime, endTime) {
+  const jobs = await listImageJobs();
+  const items = [];
+
+  for (const job of jobs) {
+    const imageFilePath = await resolveJobImageFile(job);
+    if (!imageFilePath) continue;
+    const createdAt = String(job?.createdAt || "");
+    const time = new Date(createdAt).getTime();
+    if (!Number.isFinite(time) || time < startTime || time > endTime) continue;
+    const date = formatArchiveDate(createdAt);
+    const filename = path.basename(imageFilePath);
+    items.push({
+      type: "original",
+      date,
+      jobId: String(job.jobId || ""),
+      referenceId: "",
+      sourcePath: toRelativeStoragePath(imageFilePath),
+      sourceFilePath: imageFilePath,
+      archivePath: `${date}/originals/${filename}`,
+      createdAt
+    });
+  }
+
+  return items;
+}
+
+async function collectImageBackupTempReferences(startTime, endTime) {
+  if (!(await fileExists(tempReferenceRoot))) return [];
+  const entries = await readdir(tempReferenceRoot, { withFileTypes: true });
+  const items = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const referenceId = entry.name;
+    const dir = path.join(tempReferenceRoot, referenceId);
+    const metadataPath = path.join(dir, "metadata.json");
+    let metadata = null;
+
+    try {
+      metadata = JSON.parse(await readFile(metadataPath, "utf-8"));
+    } catch {
+      metadata = null;
+    }
+
+    const fallbackStat = await stat(dir);
+    const createdAt = String(metadata?.createdAt || fallbackStat.mtime.toISOString());
+    const time = new Date(createdAt).getTime();
+    if (!Number.isFinite(time) || time < startTime || time > endTime) continue;
+    const date = formatArchiveDate(createdAt);
+    const fileEntries = await readdir(dir, { withFileTypes: true });
+
+    for (const fileEntry of fileEntries) {
+      if (!fileEntry.isFile() || fileEntry.name === "metadata.json") continue;
+      const filePath = path.join(dir, fileEntry.name);
+      items.push({
+        type: "temp-reference",
+        date,
+        jobId: "",
+        referenceId,
+        sourcePath: toRelativeStoragePath(filePath),
+        sourceFilePath: filePath,
+        archivePath: `${date}/temp-references/${referenceId}/${fileEntry.name}`,
+        createdAt
+      });
+    }
+  }
+
+  return items;
+}
+
+function normalizeDateInput(value) {
+  const text = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return "";
+  const date = new Date(`${text}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  return text;
+}
+
+function formatArchiveDate(value) {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function toRelativeStoragePath(filePath) {
+  return path.relative(rootDir, filePath).replace(/\\/g, "/");
+}
+
+async function createZipFromDirectory(sourceDir, outputPath) {
+  await execFileAsync("tar", ["-a", "-c", "-f", outputPath, "-C", sourceDir, "."]);
+}
+
+function getZipBackupSidecarPath(zipFilePath) {
+  const parsed = path.parse(zipFilePath);
+  return path.join(parsed.dir, `${parsed.name}.backup.json`);
+}
+
+function getZipPathFromSidecar(sidecarPath, filename) {
+  if (filename) {
+    return path.join(path.dirname(sidecarPath), path.basename(String(filename)));
+  }
+  const parsed = path.parse(sidecarPath);
+  const baseName = parsed.name.replace(/\.backup$/, "");
+  return path.join(parsed.dir, `${baseName}.zip`);
+}
+
+async function readZipBackupSidecar(zipFilePath) {
+  const sidecarPath = getZipBackupSidecarPath(zipFilePath);
+  if (!(await fileExists(sidecarPath))) return null;
+  try {
+    return JSON.parse(await readFile(sidecarPath, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+async function cleanupStorageHistory(options) {
+  const retentionDays = normalizeCleanupRetentionDays(options.retentionDays);
+  const beforeTime = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+  const cleanVisitors = options.cleanVisitors === true;
+  const cleanAdminSessions = options.cleanAdminSessions === true;
+  const cleanTempReferences = options.cleanTempReferences !== false;
+  const clearAllHistory = options.clearAllHistory !== false;
+
+  const result = {
+    retentionDays,
+    clearAllHistory,
+    deleted: {
+      imageJobs: 0,
+      drawCardSessions: 0,
+      visitorStates: 0,
+      adminSessions: 0,
+      tempReferences: 0
+    }
+  };
+
+  result.deleted.imageJobs = clearAllHistory ? await cleanupAllImageJobs() : await cleanupImageJobsBefore(beforeTime);
+  result.deleted.drawCardSessions = clearAllHistory ? await cleanupAllJsonFiles(drawCardSessionRoot) : await cleanupJsonFilesBefore(drawCardSessionRoot, beforeTime);
+  if (cleanVisitors) {
+    result.deleted.visitorStates = clearAllHistory ? await cleanupAllJsonFiles(visitorStateRoot) : await cleanupJsonFilesBefore(visitorStateRoot, beforeTime);
+  }
+  if (cleanAdminSessions) {
+    result.deleted.adminSessions = clearAllHistory ? await cleanupAllJsonFiles(adminSessionRoot) : await cleanupJsonFilesBefore(adminSessionRoot, beforeTime);
+  }
+  if (cleanTempReferences) {
+    result.deleted.tempReferences = clearAllHistory ? await cleanupAllDirectories(tempReferenceRoot) : await cleanupDirectoriesBefore(tempReferenceRoot, beforeTime);
+  }
+
+  return result;
+}
+
+function normalizeCleanupRetentionDays(value) {
+  const next = Number(value);
+  if (!Number.isFinite(next)) return DEFAULT_STORAGE_CLEANUP_DAYS;
+  return Math.min(Math.max(Math.round(next), 0), MAX_STORAGE_CLEANUP_DAYS);
+}
+
+async function cleanupImageJobsBefore(beforeTime) {
+  const jobs = await listImageJobs();
+  const targets = jobs.filter((job) => {
+    const updatedAt = new Date(job?.updatedAt || job?.completedAt || job?.createdAt || 0).getTime();
+    return Number.isFinite(updatedAt) && updatedAt <= beforeTime;
+  });
+  for (const job of targets) {
+    activeImageJobs.get(job.jobId)?.abortController?.abort?.();
+    await deleteImageJob(job);
+  }
+  return targets.length;
+}
+
+async function cleanupAllImageJobs() {
+  const jobs = await listImageJobs();
+  for (const job of jobs) {
+    activeImageJobs.get(job.jobId)?.abortController?.abort?.();
+    await deleteImageJob(job);
+  }
+  return jobs.length;
+}
+
+async function cleanupAllJsonFiles(dirPath) {
+  if (!(await fileExists(dirPath))) return 0;
+  const entries = await readdir(dirPath, { withFileTypes: true });
+  let deleted = 0;
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    await rm(path.join(dirPath, entry.name), { force: true });
+    deleted += 1;
+  }
+  return deleted;
+}
+
+async function cleanupJsonFilesBefore(dirPath, beforeTime) {
+  if (!(await fileExists(dirPath))) return 0;
+  const entries = await readdir(dirPath, { withFileTypes: true });
+  let deleted = 0;
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    const fullPath = path.join(dirPath, entry.name);
+    const entryStat = await stat(fullPath);
+    if (Number(entryStat.mtimeMs || 0) > beforeTime) continue;
+    await rm(fullPath, { force: true });
+    deleted += 1;
+  }
+  return deleted;
+}
+
+async function cleanupDirectoriesBefore(dirPath, beforeTime) {
+  if (!(await fileExists(dirPath))) return 0;
+  const entries = await readdir(dirPath, { withFileTypes: true });
+  let deleted = 0;
+  for (const entry of entries) {
+    const fullPath = path.join(dirPath, entry.name);
+    const entryStat = await stat(fullPath);
+    if (Number(entryStat.mtimeMs || 0) > beforeTime) continue;
+    await rm(fullPath, { recursive: true, force: true });
+    deleted += 1;
+  }
+  return deleted;
+}
+
+async function cleanupAllDirectories(dirPath) {
+  if (!(await fileExists(dirPath))) return 0;
+  const entries = await readdir(dirPath, { withFileTypes: true });
+  let deleted = 0;
+  for (const entry of entries) {
+    await rm(path.join(dirPath, entry.name), { recursive: true, force: true });
+    deleted += 1;
+  }
+  return deleted;
+}
+
+function formatBackupTimestamp(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  const second = String(date.getSeconds()).padStart(2, "0");
+  return `${year}${month}${day}-${hour}${minute}${second}`;
 }
 
 function toPublicVisitorState(visitor) {
