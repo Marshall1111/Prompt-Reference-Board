@@ -16,10 +16,12 @@
     "code": "VIP-3965A5C9",
     "enabled": true,
     "maxRedemptions": 1,
-    "redeemedCount": 0,
-    "redeemedByVisitorIds": [],
+    "redeemedCount": 1,
+    "redeemedByVisitorIds": [
+      "be44feec-476d-4dc7-92e2-3a3d25672ea0"
+    ],
     "createdAt": "2026-06-04T03:28:22.274Z",
-    "updatedAt": "2026-06-04T03:28:22.274Z"
+    "updatedAt": "2026-06-05T22:15:57.030Z"
   },
   {
     "id": "7a15fd53-ac1b-4976-a028-0e5275270693",

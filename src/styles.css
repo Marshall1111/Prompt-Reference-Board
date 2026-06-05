@@ -363,11 +363,20 @@ body {
   align-items: start;
 }
 
+.draw-card-results-main {
+  display: grid;
+  gap: 18px;
+}
+
 .draw-card-results-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 22px;
   align-items: start;
+}
+
+.draw-card-results-restart-mobile {
+  display: none;
 }
 
 .draw-card-result-card {
@@ -401,8 +410,9 @@ body {
 .draw-card-result-media img {
   display: block;
   width: 100%;
-  aspect-ratio: 2 / 3;
-  object-fit: cover;
+  height: auto;
+  aspect-ratio: auto;
+  object-fit: contain;
   transition: transform 260ms ease, filter 260ms ease;
 }
 
@@ -762,6 +772,18 @@ body {
 .draw-card-shell.theme-fridge-magnet .draw-card-primary:disabled {
   background: rgba(189, 206, 210, 0.72);
   color: rgba(20, 37, 42, 0.45);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-upload-empty {
+  color: rgba(37, 64, 70, 0.74);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-upload-empty strong {
+  color: #17343b;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-upload-empty span {
+  color: rgba(37, 64, 70, 0.82);
 }
 
 .draw-card-shell.theme-fridge-magnet .draw-card-secondary,
@@ -2035,11 +2057,23 @@ textarea {
   }
 
   .draw-card-results-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .draw-card-results-restart-desktop {
+    display: none;
+  }
+
+  .draw-card-results-restart-mobile {
+    display: inline-flex;
+    width: 100%;
   }
 
   .draw-card-result-card {
     grid-column: auto;
+    padding: 10px;
+    gap: 10px;
   }
 
   .draw-card-clip-item {

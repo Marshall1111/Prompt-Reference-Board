@@ -493,9 +493,7 @@ function PublicExperiencePage({ config }) {
     experienceType,
     inviteErrorMessage,
     latestErrorMessage,
-    lightboxOriginalAlt,
     lightboxResultAlt,
-    originalAlt,
     pocketAddLabel = "加入卡夹",
     pocketAddedLabel = "已加入卡夹",
     pocketRemoveLabel = "移出卡夹",
@@ -729,7 +727,6 @@ function PublicExperiencePage({ config }) {
   const canStart = Boolean(referenceFile) && !isSubmitting;
   const waitingCopy = waitingLines[waitingLineIndex];
   const activeResult = activeResultIndex >= 0 ? results[activeResultIndex] : activeResultIndex === -3 ? activeClipPreview : null;
-  const isOriginalPreview = activeResultIndex === -2;
 
   function resetExperience() {
     clearPersistedSession();
@@ -1111,7 +1108,7 @@ function PublicExperiencePage({ config }) {
               <h2>{resultsTitle}</h2>
               <p className="draw-card-subtitle">{resultsSubtitle}</p>
             </div>
-            <button className="draw-card-secondary" onClick={resetExperience} type="button">
+            <button className="draw-card-secondary draw-card-results-restart draw-card-results-restart-desktop" onClick={resetExperience} type="button">
               <RefreshCw size={18} />
               <span>重新开始</span>
             </button>
@@ -1120,33 +1117,27 @@ function PublicExperiencePage({ config }) {
           {error ? <p className="error-note draw-card-inline-error">{error}</p> : null}
 
           <div className="draw-card-results-layout">
-            <div className="draw-card-results-grid">
-              {referencePreviewUrl ? (
-                <article className="draw-card-result-card draw-card-result-card-original" key="draw-card-original">
-                  <button className="draw-card-result-media draw-card-result-media-original" onClick={() => setActiveResultIndex(-2)} type="button">
-                    <img alt={originalAlt} src={referencePreviewUrl} />
-                  </button>
-                  <div className="draw-card-result-meta">
-                    <span>原图</span>
-                    <span className="draw-card-meta-note">保持原比例</span>
-                  </div>
-                </article>
-              ) : null}
-
-              {results.map((result, index) => (
-                <article className={`draw-card-result-card ${result.isLiked ? "is-in-clip" : ""}`} key={`${result.styleId}-${result.jobId || index}`}>
-                  <button className="draw-card-result-media" onClick={() => setActiveResultIndex(index)} ref={(node) => setResultMediaRef(result.jobId, node)} type="button">
-                    <img alt={`${resultAltPrefix} ${index + 1}`} src={result.imageUrl || result.thumbnailUrl} />
-                  </button>
-                  <div className="draw-card-result-meta">
-                    <span>{result.styleName || `${resultNameFallback} ${index + 1}`}</span>
-                    <button className={`draw-card-save-button ${result.isLiked ? "is-liked" : ""}`} disabled={Boolean(result.isLiked)} onClick={() => addToClip(result)} type="button">
-                      {result.isLiked ? <Check size={16} /> : <Sparkles size={16} />}
-                      <span>{result.isLiked ? pocketAddedLabel : pocketAddLabel}</span>
+            <div className="draw-card-results-main">
+              <div className="draw-card-results-grid">
+                {results.map((result, index) => (
+                  <article className={`draw-card-result-card ${result.isLiked ? "is-in-clip" : ""}`} key={`${result.styleId}-${result.jobId || index}`}>
+                    <button className="draw-card-result-media" onClick={() => setActiveResultIndex(index)} ref={(node) => setResultMediaRef(result.jobId, node)} type="button">
+                      <img alt={`${resultAltPrefix} ${index + 1}`} src={result.imageUrl || result.thumbnailUrl} />
                     </button>
-                  </div>
-                </article>
-              ))}
+                    <div className="draw-card-result-meta">
+                      <span>{result.styleName || `${resultNameFallback} ${index + 1}`}</span>
+                      <button className={`draw-card-save-button ${result.isLiked ? "is-liked" : ""}`} disabled={Boolean(result.isLiked)} onClick={() => addToClip(result)} type="button">
+                        {result.isLiked ? <Check size={16} /> : <Sparkles size={16} />}
+                        <span>{result.isLiked ? pocketAddedLabel : pocketAddLabel}</span>
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <button className="draw-card-secondary draw-card-results-restart draw-card-results-restart-mobile" onClick={resetExperience} type="button">
+                <RefreshCw size={18} />
+                <span>再试一次</span>
+              </button>
             </div>
 
             {renderClipPanel()}
@@ -1187,21 +1178,6 @@ function PublicExperiencePage({ config }) {
                   <span>{pocketAddLabel}</span>
                 </button>
               )}
-            </div>
-          </section>
-        </div>
-      )}
-
-      {isOriginalPreview && (
-        <div className="modal-backdrop draw-card-lightbox" onClick={closeActivePreview} role="presentation">
-          <section className="draw-card-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
-            <button className="icon-button" onClick={closeActivePreview} type="button" aria-label="关闭预览">
-              <X size={18} />
-            </button>
-            <img alt={lightboxOriginalAlt} src={referencePreviewUrl} />
-            <div className="draw-card-lightbox-meta">
-              <span>原图</span>
-              <span className="draw-card-meta-note">保持原比例展示</span>
             </div>
           </section>
         </div>
