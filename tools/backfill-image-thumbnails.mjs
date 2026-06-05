@@ -7,6 +7,8 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
 const jobsRoot = path.join(rootDir, "data", "image-jobs");
 const publicRoot = path.join(rootDir, "public");
+const generatedImageRoot = path.join(rootDir, "data", "private-generated-images");
+const jobReferenceRoot = path.join(rootDir, "data", "private-job-references");
 const generatedThumbnailRoot = path.join(publicRoot, "generated-thumbnails");
 const jobReferenceThumbnailRoot = path.join(publicRoot, "job-reference-thumbnails");
 const RESULT_THUMBNAIL_MAX_EDGE = 384;
@@ -163,9 +165,14 @@ function toPublicFilePath(url) {
   const relative = text.replace(/^\/+/, "");
 
   if (!text.startsWith("/")) return "";
-  if (!text.startsWith("/generated-images/") && !text.startsWith("/job-references/")) return "";
-
-  return path.join(publicRoot, relative);
+  if (text.startsWith("/generated-images/")) {
+    return path.join(generatedImageRoot, path.basename(relative));
+  }
+  if (text.startsWith("/job-references/")) {
+    const parts = relative.split("/").slice(1);
+    return path.join(jobReferenceRoot, ...parts);
+  }
+  return "";
 }
 
 async function shouldRegenerate(sourcePath, outputPath) {

@@ -39,6 +39,7 @@ const REFERENCE_THUMBNAIL_MAX_EDGE = 240;
 const DRAW_CARD_GROUP_NAME = "抽卡";
 const FRIDGE_MAGNET_GROUP_NAME = "冰箱贴";
 const DRAW_CARD_DEFAULT_SIZE = "1024x1536";
+const STYLE_GROUP_SIZE_OPTIONS = new Set(["1024x1536", "1536x1024", "1024x1024", "1024x1365", "1365x1024"]);
 const DRAW_CARD_WAITING_MESSAGE = "仪式正在进行，请稍候。";
 const DRAW_CARD_SUCCESS_MESSAGE = "结果已准备好。";
 const DRAW_CARD_FAILURE_MESSAGE = "这一轮未能顺利完成，请重新开始。";
@@ -66,7 +67,6 @@ const PUBLIC_EXPERIENCE_CONFIGS = {
     experienceType: "draw-card",
     label: "抽卡",
     styleGroupName: DRAW_CARD_GROUP_NAME,
-    defaultSize: DRAW_CARD_DEFAULT_SIZE,
     waitingMessage: DRAW_CARD_WAITING_MESSAGE,
     successMessage: DRAW_CARD_SUCCESS_MESSAGE,
     failureMessage: DRAW_CARD_FAILURE_MESSAGE,
@@ -82,7 +82,6 @@ const PUBLIC_EXPERIENCE_CONFIGS = {
     experienceType: "fridge-magnet",
     label: "冰箱贴",
     styleGroupName: FRIDGE_MAGNET_GROUP_NAME,
-    defaultSize: DRAW_CARD_DEFAULT_SIZE,
     waitingMessage: "冰箱贴正在制作，请稍候。",
     successMessage: "冰箱贴结果已准备好。",
     failureMessage: "这一轮冰箱贴未能顺利完成，请重新开始。",
@@ -92,7 +91,7 @@ const PUBLIC_EXPERIENCE_CONFIGS = {
     readFailureMessage: "读取冰箱贴状态失败，请稍后再试。",
     restoreFailureMessage: "恢复冰箱贴进度失败，请稍后再试。",
     runningLimitMessage: "当前已有进行中的冰箱贴，请等待这一轮完成。",
-    promptSuffix: "请确保主体完整，背景为纯白色，整体适合做冰箱贴展示。"
+    promptSuffix: ""
   }
 };
 
@@ -1002,7 +1001,8 @@ app.post("/api/style-groups", requireAdmin, async (req, res) => {
     {
       id: `group_${Date.now()}`,
       name: req.body.name,
-      styleIds: req.body.styleIds
+      styleIds: req.body.styleIds,
+      size: req.body.size
     },
     styleIds
   );
@@ -1023,7 +1023,8 @@ app.put("/api/style-groups/:id", requireAdmin, async (req, res) => {
     {
       ...groups[index],
       name: req.body.name,
-      styleIds: req.body.styleIds
+      styleIds: req.body.styleIds,
+      size: req.body.size
     },
     styleIds
   );
@@ -1122,6 +1123,7 @@ app.post("/api/styles/:id/image", requireAdmin, upload.single("image"), async (r
   }
 });
 
+app.use("/generated-images", express.static(generatedImageRoot));
 app.use(express.static(path.join(rootDir, "public")));
 app.use("/images-small", express.static(miniImageRoot));
 app.use(express.static(path.join(rootDir, "dist")));
@@ -1239,8 +1241,14 @@ function normalizeStyleGroup(group, validStyleIds = null) {
   return {
     id: String(group?.id || `group_${Date.now()}`),
     name: String(group?.name || "").trim() || "鏈懡鍚嶉鏍肩粍",
-    styleIds: nextStyleIds
+    styleIds: nextStyleIds,
+    size: normalizeStyleGroupSize(group?.size)
   };
+}
+
+function normalizeStyleGroupSize(value) {
+  const size = String(value || "").trim();
+  return STYLE_GROUP_SIZE_OPTIONS.has(size) ? size : DRAW_CARD_DEFAULT_SIZE;
 }
 
 function parseCookies(req) {
@@ -2458,7 +2466,7 @@ async function createDrawCardSession(file, visitor, options = {}) {
         updatedAt: now,
         completedAt: null,
         prompt: buildPublicExperiencePrompt(prompt, config),
-        size: config.defaultSize,
+        size: group.size,
         referenceCount: referenceFiles.length,
         originalReferences,
         styleId: String(style.id || ""),
@@ -2490,7 +2498,7 @@ async function createDrawCardSession(file, visitor, options = {}) {
         runArgs: {
           jobId,
           body: {
-            size: config.defaultSize,
+            size: group.size,
             quality: "medium",
             output_format: "png",
             background: config.experienceType === "fridge-magnet" ? "opaque" : "auto",
@@ -2734,10 +2742,10 @@ async function synchronizeDrawCardSession(session) {
             jobId: item.jobId,
             styleId: item.styleId,
             styleName: item.styleName,
-            imageUrl: String(job?.result?.previewUrl || job?.result?.thumbnailUrl || ""),
-            thumbnailUrl: String(job?.result?.thumbnailUrl || ""),
+            imageUrl: String(job?.result?.previewUrl || job?.result?.thumbnailUrl || job?.result?.imageUrl || ""),
+            thumbnailUrl: String(job?.result?.thumbnailUrl || job?.result?.previewUrl || job?.result?.imageUrl || ""),
             originalImageUrl: String(job?.result?.originalImageUrl || ""),
-            previewUrl: String(job?.result?.previewUrl || job?.result?.thumbnailUrl || ""),
+            previewUrl: String(job?.result?.previewUrl || job?.result?.thumbnailUrl || job?.result?.imageUrl || ""),
             isLiked: Boolean(job?.isLiked),
             likedAt: job?.likedAt || null
           };

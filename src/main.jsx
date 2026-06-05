@@ -18,6 +18,10 @@ const GENERATION_SIZE_OPTIONS = [
   { value: "1024x1365", label: "3:4" },
   { value: "1365x1024", label: "4:3" }
 ];
+
+function getSizeLabel(size) {
+  return GENERATION_SIZE_OPTIONS.find((option) => option.value === size)?.label || size || DEFAULT_GENERATION_SIZE;
+}
 const GALLERY_INITIAL_BATCH = 18;
 const GALLERY_BATCH_STEP = 12;
 const MANAGE_INITIAL_BATCH = 6;
@@ -2193,6 +2197,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
   const [groupName, setGroupName] = useState("");
   const [selectedStyleIds, setSelectedStyleIds] = useState([]);
   const [promptOverride, setPromptOverride] = useState("");
+  const [groupSize, setGroupSize] = useState(DEFAULT_GENERATION_SIZE);
   const [size, setSize] = useState(DEFAULT_GENERATION_SIZE);
   const [providers, setProviders] = useState([]);
   const [selectedProvider, setSelectedProvider] = useState("");
@@ -2231,6 +2236,8 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
     setSelectedGroupId(group?.id || "");
     setGroupName(group?.name || "");
     setSelectedStyleIds(group?.styleIds || []);
+    setGroupSize(group?.size || DEFAULT_GENERATION_SIZE);
+    setSize(group?.size || DEFAULT_GENERATION_SIZE);
     setStatusMessage("");
     setError("");
   }
@@ -2239,9 +2246,16 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
     setSelectedGroupId("");
     setGroupName("");
     setSelectedStyleIds([]);
+    setGroupSize(DEFAULT_GENERATION_SIZE);
+    setSize(DEFAULT_GENERATION_SIZE);
     setStatusMessage("");
     setError("");
   }
+
+  useEffect(() => {
+    if (!selectedGroup) return;
+    setSize(selectedGroup.size || DEFAULT_GENERATION_SIZE);
+  }, [selectedGroup]);
 
   async function saveGroup() {
     if (!groupName.trim()) {
@@ -2254,7 +2268,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
     }
 
     setError("");
-    const payload = { name: groupName.trim(), styleIds: selectedStyleIds };
+    const payload = { name: groupName.trim(), styleIds: selectedStyleIds, size: groupSize };
     if (selectedGroupId) {
       await onUpdateGroup(selectedGroupId, payload);
       setStatusMessage("风格组已更新。");
@@ -2360,6 +2374,16 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
             风格组名称
             <input onChange={(event) => setGroupName(event.target.value)} placeholder="例如：宠物海报组" value={groupName} />
           </label>
+          <label className="field-label">
+            默认比例
+            <select onChange={(event) => setGroupSize(event.target.value)} value={groupSize}>
+              {GENERATION_SIZE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="style-picker-section">
             <div className="task-toolbar compact-toolbar">
               <div>
@@ -2404,6 +2428,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
                 <article className={`group-card ${selectedGroupId === group.id ? "active" : ""}`} key={group.id}>
                   <div className="group-card-body">
                     <strong>{group.name}</strong>
+                    <p className="storage-note">比例：{getSizeLabel(group.size)}</p>
                     <p className="storage-note">{group.styleIds.map((styleId) => styleMap.get(styleId)?.tags.join("、") || styleId).join(" / ") || "暂无风格"}</p>
                   </div>
                   <div className="task-actions">
@@ -2427,7 +2452,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
                 <p className="eyebrow">Batch submit</p>
                 <h2>批量提交</h2>
                 <p className="storage-note">
-                  已选风格组：{selectedGroup?.name || "未选择"}，共 {selectedStyles.length} 个风格
+                  已选风格组：{selectedGroup?.name || "未选择"}，共 {selectedStyles.length} 个风格，比例 {getSizeLabel(size)}
                 </p>
               </div>
             </div>
@@ -2443,13 +2468,14 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
             </label>
             <label className="field-label">
               比例
-              <select onChange={(event) => setSize(event.target.value)} value={size}>
+              <select disabled value={size}>
                 {GENERATION_SIZE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
               </select>
+              <span className="storage-note">批量提交会自动使用当前风格组设置的比例。</span>
             </label>
             <label className="field-label">
               覆盖提示词（可选）

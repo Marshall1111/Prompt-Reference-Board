@@ -114,6 +114,9 @@ Page({
         providerDisplayName: selectedProvider ? selectedProvider.name : "Not Ready",
         activeGroupId: selectionData.activeGroupId,
         activeGroupName: selectionData.activeGroupName,
+        size: selectionData.activeGroupSize,
+        sizeLabel: selectionData.activeGroupSizeLabel,
+        sizeIndex: findSizeOptionIndex(selectionData.activeGroupSize),
         activeGroupSummary: selectionData.activeGroupSummary,
         selectedStyles: selectionData.selectedStyles,
         selectedStyleCount: selectionData.selectedStyleCount,
@@ -150,6 +153,9 @@ Page({
     this.setData({
       activeGroupId: selectionData.activeGroupId,
       activeGroupName: selectionData.activeGroupName,
+      size: selectionData.activeGroupSize,
+      sizeLabel: selectionData.activeGroupSizeLabel,
+      sizeIndex: findSizeOptionIndex(selectionData.activeGroupSize),
       activeGroupSummary: selectionData.activeGroupSummary,
       selectedStyles: selectionData.selectedStyles,
       selectedStyleCount: selectionData.selectedStyleCount,
@@ -390,10 +396,13 @@ function normalizeGroup(group, styleMap) {
   var styles = styleIds.map(function (styleId) {
     return styleMap[styleId];
   }).filter(Boolean);
+  var size = normalizeGroupSize(group && group.size);
 
   return {
     id: String((group && group.id) || ""),
     name: String((group && group.name) || "").trim() || "Untitled Group",
+    size: size,
+    sizeLabel: findSizeOption(size).label,
     styleIds: styleIds,
     styles: styles,
     styleCount: styles.length,
@@ -414,6 +423,26 @@ function resolveGroupId(activeGroupId, groups) {
   }
 
   return groups[0] ? groups[0].id : "";
+}
+
+function normalizeGroupSize(size) {
+  return findSizeOption(String(size || "").trim()).value;
+}
+
+function findSizeOption(size) {
+  var matched = SIZE_OPTIONS.find(function (option) {
+    return option.value === size;
+  });
+
+  return matched || SIZE_OPTIONS[0];
+}
+
+function findSizeOptionIndex(size) {
+  var index = SIZE_OPTIONS.findIndex(function (option) {
+    return option.value === size;
+  });
+
+  return index >= 0 ? index : 0;
 }
 
 function buildGroupSelectionData(groups, groupId, referenceImages) {
@@ -440,6 +469,8 @@ function buildGroupSelectionData(groups, groupId, referenceImages) {
   return {
     activeGroupId: group ? group.id : "",
     activeGroupName: group ? group.name : "",
+    activeGroupSize: group ? group.size : SIZE_OPTIONS[0].value,
+    activeGroupSizeLabel: group ? group.sizeLabel : SIZE_OPTIONS[0].label,
     activeGroupSummary: group ? group.summaryText : "",
     selectedStyles: group ? group.styles : [],
     selectedStyleCount: group ? group.styleCount : 0,
