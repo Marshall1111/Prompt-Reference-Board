@@ -37,6 +37,7 @@ const RESULT_THUMBNAIL_MAX_EDGE = 384;
 const PUBLIC_PREVIEW_MAX_EDGE = 1536;
 const REFERENCE_THUMBNAIL_MAX_EDGE = 240;
 const DRAW_CARD_GROUP_NAME = "抽卡";
+const FRIDGE_MAGNET_GROUP_NAME = "冰箱贴";
 const DRAW_CARD_DEFAULT_SIZE = "1024x1536";
 const DRAW_CARD_WAITING_MESSAGE = "仪式正在进行，请稍候。";
 const DRAW_CARD_SUCCESS_MESSAGE = "结果已准备好。";
@@ -59,6 +60,41 @@ const MAX_STORAGE_CLEANUP_DAYS = 3650;
 const BACKUP_KIND_CONFIG = "config-snapshot";
 const BACKUP_KIND_IMAGE_RANGE = "image-range-zip";
 const ADMIN_DRAW_CARD_SESSION_LIMIT = 3;
+const DEFAULT_PUBLIC_EXPERIENCE_TYPE = "draw-card";
+const PUBLIC_EXPERIENCE_CONFIGS = {
+  "draw-card": {
+    experienceType: "draw-card",
+    label: "抽卡",
+    styleGroupName: DRAW_CARD_GROUP_NAME,
+    defaultSize: DRAW_CARD_DEFAULT_SIZE,
+    waitingMessage: DRAW_CARD_WAITING_MESSAGE,
+    successMessage: DRAW_CARD_SUCCESS_MESSAGE,
+    failureMessage: DRAW_CARD_FAILURE_MESSAGE,
+    unavailableMessage: "抽卡暂时不可用，请稍后再试。",
+    missingSessionMessage: "本次抽卡记录不存在或已失效。",
+    latestMissingMessage: "当前没有可恢复的抽卡进度。",
+    readFailureMessage: "读取抽卡状态失败，请稍后再试。",
+    restoreFailureMessage: "恢复抽卡进度失败，请稍后再试。",
+    runningLimitMessage: "当前已有进行中的抽卡，请等待这一轮完成。",
+    promptSuffix: ""
+  },
+  "fridge-magnet": {
+    experienceType: "fridge-magnet",
+    label: "冰箱贴",
+    styleGroupName: FRIDGE_MAGNET_GROUP_NAME,
+    defaultSize: DRAW_CARD_DEFAULT_SIZE,
+    waitingMessage: "冰箱贴正在制作，请稍候。",
+    successMessage: "冰箱贴结果已准备好。",
+    failureMessage: "这一轮冰箱贴未能顺利完成，请重新开始。",
+    unavailableMessage: "冰箱贴暂时不可用，请稍后再试。",
+    missingSessionMessage: "本次冰箱贴记录不存在或已失效。",
+    latestMissingMessage: "当前没有可恢复的冰箱贴进度。",
+    readFailureMessage: "读取冰箱贴状态失败，请稍后再试。",
+    restoreFailureMessage: "恢复冰箱贴进度失败，请稍后再试。",
+    runningLimitMessage: "当前已有进行中的冰箱贴，请等待这一轮完成。",
+    promptSuffix: "请确保主体完整，背景为纯白色，整体适合做冰箱贴展示。"
+  }
+};
 
 let sharpModulePromise;
 const visitorRequestLog = new Map();
@@ -154,6 +190,23 @@ function parseDrawCardClientMetrics(body) {
   };
 }
 
+function normalizePublicExperienceType(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return PUBLIC_EXPERIENCE_CONFIGS[normalized] ? normalized : DEFAULT_PUBLIC_EXPERIENCE_TYPE;
+}
+
+function getPublicExperienceConfig(value) {
+  return PUBLIC_EXPERIENCE_CONFIGS[normalizePublicExperienceType(value)];
+}
+
+function buildPublicExperiencePrompt(prompt, config) {
+  const basePrompt = String(prompt || "").trim();
+  const suffix = String(config?.promptSuffix || "").trim();
+  if (!suffix) return basePrompt;
+  if (!basePrompt) return suffix;
+  return `${basePrompt}\n\n${suffix}`;
+}
+
 app.use(express.json({ limit: "1mb" }));
 app.use(visitorSessionMiddleware);
 app.use(adminSessionMiddleware);
@@ -238,6 +291,31 @@ app.get("/api/image-providers", requireAdmin, (_req, res) => {
 });
 
 app.post("/api/draw-card/sessions", beginDrawCardRequestTelemetry, upload.single("image"), async (req, res) => {
+  return handleCreatePublicExperienceSession(req, res, "draw-card");
+});
+
+app.get("/api/draw-card/sessions/:sessionId", async (req, res) => {
+  return handleGetPublicExperienceSession(req, res, "draw-card");
+});
+
+app.get("/api/draw-card/sessions/latest", async (req, res) => {
+  return handleGetLatestPublicExperienceSession(req, res, "draw-card");
+});
+
+app.post("/api/fridge-magnet/sessions", beginDrawCardRequestTelemetry, upload.single("image"), async (req, res) => {
+  return handleCreatePublicExperienceSession(req, res, "fridge-magnet");
+});
+
+app.get("/api/fridge-magnet/sessions/:sessionId", async (req, res) => {
+  return handleGetPublicExperienceSession(req, res, "fridge-magnet");
+});
+
+app.get("/api/fridge-magnet/sessions/latest", async (req, res) => {
+  return handleGetLatestPublicExperienceSession(req, res, "fridge-magnet");
+});
+
+async function handleCreatePublicExperienceSession(req, res, experienceType) {
+  const config = getPublicExperienceConfig(experienceType);
   try {
     const visitor = await getVisitorState(req);
     if (!req.file) {
@@ -267,9 +345,10 @@ app.post("/api/draw-card/sessions", beginDrawCardRequestTelemetry, upload.single
     const estimatedCost = await estimateDrawCardQuotaCost();
     enforcePublicRateLimits(req);
     enforceVisitorQuota(visitor, estimatedCost);
-    await enforceVisitorRunningJobLimit(visitor.visitorId);
+    await enforceVisitorRunningJobLimit(visitor.visitorId, config);
 
     const session = await createDrawCardSession(req.file, visitor, {
+      experienceType: config.experienceType,
       traceId: req.drawCardTraceId,
       requestStartedAtMs: req.drawCardRequestStartedAtMs,
       clientMetrics
@@ -280,40 +359,42 @@ app.post("/api/draw-card/sessions", beginDrawCardRequestTelemetry, upload.single
       return res.status(400).json({ message: "请上传 JPG、PNG 或 WebP 图片。" });
     }
     console.error(error);
-    res.status(error.status || 500).json({ message: error.publicMessage || "抽卡暂时不可用，请稍后再试。" });
+    res.status(error.status || 500).json({ message: error.publicMessage || config.unavailableMessage });
   }
-});
+}
 
-app.get("/api/draw-card/sessions/:sessionId", async (req, res) => {
+async function handleGetPublicExperienceSession(req, res, experienceType) {
+  const config = getPublicExperienceConfig(experienceType);
   try {
     const session = await readDrawCardSession(req.params.sessionId);
-    if (!session) {
-      return res.status(404).json({ message: "本次抽卡记录不存在或已失效。" });
+    if (!session || normalizePublicExperienceType(session.experienceType) !== config.experienceType) {
+      return res.status(404).json({ message: config.missingSessionMessage });
     }
-    assertVisitorOwnsSession(req, session);
+    assertVisitorOwnsSession(req, session, config);
 
     const syncedSession = await synchronizeDrawCardSession(session);
     res.json(toPublicDrawCardSession(syncedSession));
   } catch (error) {
     console.error(error);
-    res.status(error.status || 500).json({ message: error.publicMessage || "读取抽卡状态失败，请稍后再试。" });
+    res.status(error.status || 500).json({ message: error.publicMessage || config.readFailureMessage });
   }
-});
+}
 
-app.get("/api/draw-card/sessions/latest", async (req, res) => {
+async function handleGetLatestPublicExperienceSession(req, res, experienceType) {
+  const config = getPublicExperienceConfig(experienceType);
   try {
-    const session = await readLatestVisitorDrawCardSession(req.visitorId);
+    const session = await readLatestVisitorDrawCardSession(req.visitorId, config.experienceType);
     if (!session) {
-      return res.status(404).json({ message: "当前没有可恢复的抽卡进度。" });
+      return res.status(404).json({ message: config.latestMissingMessage });
     }
 
     const syncedSession = await synchronizeDrawCardSession(session);
     res.json(toPublicDrawCardSession(syncedSession));
   } catch (error) {
     console.error(error);
-    res.status(error.status || 500).json({ message: error.publicMessage || "恢复抽卡进度失败，请稍后再试。" });
+    res.status(error.status || 500).json({ message: error.publicMessage || config.restoreFailureMessage });
   }
-});
+}
 
 app.post("/api/sync-miniprogram", requireAdmin, async (_req, res) => {
   const styles = await readStyles();
@@ -579,9 +660,16 @@ app.post("/api/image-jobs/batch", requireAdmin, async (req, res) => {
 
 app.get("/api/public/clip-items", async (req, res) => {
   try {
+    const experienceType = String(req.query.experience || "").trim();
     const jobs = await listImageJobs();
     const items = jobs
-      .filter((job) => job.visibility === "public" && job.ownerVisitorId === req.visitorId && job.isLiked)
+      .filter(
+        (job) =>
+          job.visibility === "public" &&
+          job.ownerVisitorId === req.visitorId &&
+          job.isLiked &&
+          (!experienceType || normalizePublicExperienceType(job.experienceType) === normalizePublicExperienceType(experienceType))
+      )
       .sort((a, b) => String(b.likedAt || b.updatedAt || b.createdAt || "").localeCompare(String(a.likedAt || a.updatedAt || a.createdAt || "")))
       .map((job) => toPublicClipItem(job));
     res.json({ items });
@@ -639,7 +727,7 @@ app.get("/api/admin/draw-card-sessions", requireAdmin, async (req, res) => {
     res.json({ sessions: payload });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "读取抽卡观测失败。" });
+    res.status(500).json({ message: "读取公开玩法观测失败。" });
   }
 });
 
@@ -1049,7 +1137,7 @@ app.use((error, _req, res, next) => {
 
 app.use((req, res) => {
   const pathname = req.path || "/";
-  if (pathname === "/" || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
+  if (pathname === "/" || pathname === "/fridge" || pathname === "/fridge/" || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
     return res.sendFile(path.join(rootDir, "dist", "index.html"));
   }
   if (pathname === "/luck" || pathname === "/manage" || pathname === "/tasks" || pathname === "/batch") {
@@ -2101,11 +2189,11 @@ async function estimateDrawCardQuotaCost() {
   return 1;
 }
 
-async function enforceVisitorRunningJobLimit(visitorId) {
+async function enforceVisitorRunningJobLimit(visitorId, config = getPublicExperienceConfig(DEFAULT_PUBLIC_EXPERIENCE_TYPE)) {
   const jobs = await listImageJobs();
   const running = jobs.filter((job) => job.visibility === "public" && job.ownerVisitorId === visitorId && ["queued", "running"].includes(job.status));
   if (running.length >= VISITOR_RUNNING_JOB_LIMIT) {
-    throw createHttpError(409, "当前已有进行中的抽卡，请等待这一轮完成。");
+    throw createHttpError(409, config?.runningLimitMessage || "当前已有进行中的公开生成，请等待这一轮完成。");
   }
 }
 
@@ -2165,9 +2253,9 @@ function toPublicAdminSession(session) {
   };
 }
 
-function assertVisitorOwnsSession(req, session) {
+function assertVisitorOwnsSession(req, session, config = getPublicExperienceConfig(session?.experienceType)) {
   if (session.ownerVisitorId !== req.visitorId) {
-    throw createHttpError(403, "无权访问该抽卡记录。");
+    throw createHttpError(403, `无权访问该${config?.label || "公开"}记录。`);
   }
 }
 
@@ -2181,6 +2269,7 @@ function toPublicClipItem(job) {
   const result = normalizeJobResult(job.result);
   return {
     jobId: String(job.jobId || ""),
+    experienceType: normalizePublicExperienceType(job.experienceType),
     styleId: String(job.styleId || ""),
     styleName: String(job.styleName || ""),
     imageUrl: String(result?.previewUrl || result?.thumbnailUrl || ""),
@@ -2207,9 +2296,12 @@ function summarizeTelemetryPhases(telemetry) {
 function toPublicAdminDrawCardSession(session, publicJobs = []) {
   const current = normalizeDrawCardSession(session);
   const phases = summarizeTelemetryPhases(current.telemetry);
+  const config = getPublicExperienceConfig(current.experienceType);
   return {
     sessionId: current.sessionId,
     traceId: current.traceId,
+    experienceType: current.experienceType,
+    experienceLabel: config.label,
     ownerVisitorId: current.ownerVisitorId,
     status: current.status,
     message: current.message,
@@ -2274,25 +2366,26 @@ async function removeStyleFromGroups(styleId) {
 }
 
 async function createDrawCardSession(file, visitor, options = {}) {
+  const config = getPublicExperienceConfig(options?.experienceType);
   const traceId = String(options?.traceId || "").trim() || randomUUID();
   const requestStartedAtMs = normalizeTelemetryNumber(options?.requestStartedAtMs) || nowMs();
   const clientMetrics = options?.clientMetrics && typeof options.clientMetrics === "object" ? options.clientMetrics : {};
   const sessionCreateStartedAtMs = nowMs();
   const [groups, styles] = await Promise.all([readStyleGroups(), readStyles()]);
-  const group = groups.find((item) => String(item.name || "").trim() === DRAW_CARD_GROUP_NAME);
+  const group = groups.find((item) => String(item.name || "").trim() === config.styleGroupName);
   if (!group) {
-    const error = new Error("Draw card group not found");
+    const error = new Error(`${config.label} group not found`);
     error.status = 503;
-    error.publicMessage = "抽卡暂时不可用，请稍后再试。";
+    error.publicMessage = config.unavailableMessage;
     throw error;
   }
 
   const styleMap = new Map(styles.map((style) => [style.id, style]));
   const groupStyles = (group.styleIds || []).map((styleId) => styleMap.get(styleId)).filter(Boolean);
   if (!groupStyles.length) {
-    const error = new Error("Draw card group is empty");
+    const error = new Error(`${config.label} group is empty`);
     error.status = 503;
-    error.publicMessage = "抽卡暂时不可用，请稍后再试。";
+    error.publicMessage = config.unavailableMessage;
     throw error;
   }
 
@@ -2301,7 +2394,7 @@ async function createDrawCardSession(file, visitor, options = {}) {
   if (!provider) {
     const error = new Error("No image providers configured");
     error.status = 503;
-    error.publicMessage = "抽卡暂时不可用，请稍后再试。";
+    error.publicMessage = config.unavailableMessage;
     throw error;
   }
 
@@ -2357,14 +2450,15 @@ async function createDrawCardSession(file, visitor, options = {}) {
       totalReferenceBytes += Number(persistedReferenceResult.metrics?.totalBytes || 0);
       const job = {
         jobId,
+        experienceType: config.experienceType,
         status: "queued",
         message: "任务已提交，等待生成。",
         result: null,
         createdAt: now,
         updatedAt: now,
         completedAt: null,
-        prompt,
-        size: DRAW_CARD_DEFAULT_SIZE,
+        prompt: buildPublicExperiencePrompt(prompt, config),
+        size: config.defaultSize,
         referenceCount: referenceFiles.length,
         originalReferences,
         styleId: String(style.id || ""),
@@ -2396,10 +2490,10 @@ async function createDrawCardSession(file, visitor, options = {}) {
         runArgs: {
           jobId,
           body: {
-            size: DRAW_CARD_DEFAULT_SIZE,
+            size: config.defaultSize,
             quality: "medium",
             output_format: "png",
-            background: "auto",
+            background: config.experienceType === "fridge-magnet" ? "opaque" : "auto",
             moderation: "auto",
             styleId: style.id,
             styleName,
@@ -2408,7 +2502,7 @@ async function createDrawCardSession(file, visitor, options = {}) {
           },
           files: referenceFiles.map(cloneReferenceFile),
           outputFormat: "png",
-          prompt,
+          prompt: buildPublicExperiencePrompt(prompt, config),
           provider,
           providers: providerChain,
           telemetry: {
@@ -2447,9 +2541,10 @@ async function createDrawCardSession(file, visitor, options = {}) {
     const session = await saveDrawCardSession({
       sessionId,
       traceId,
+      experienceType: config.experienceType,
       ownerVisitorId,
       status: "queued",
-      message: DRAW_CARD_WAITING_MESSAGE,
+      message: config.waitingMessage,
       createdAt: now,
       updatedAt: now,
       completedAt: null,
@@ -2543,11 +2638,15 @@ async function listDrawCardSessions() {
   return sessions.filter(Boolean);
 }
 
-async function readLatestVisitorDrawCardSession(visitorId) {
+async function readLatestVisitorDrawCardSession(visitorId, experienceType = "") {
   if (!isSafeVisitorId(visitorId)) return null;
   const sessions = await listDrawCardSessions();
   const latest = sessions
-    .filter((session) => session.ownerVisitorId === visitorId)
+    .filter(
+      (session) =>
+        session.ownerVisitorId === visitorId &&
+        (!experienceType || normalizePublicExperienceType(session.experienceType) === normalizePublicExperienceType(experienceType))
+    )
     .sort((left, right) =>
       String(right.updatedAt || right.completedAt || right.createdAt || "").localeCompare(
         String(left.updatedAt || left.completedAt || left.createdAt || "")
@@ -2587,6 +2686,7 @@ async function withDrawCardSessionSyncLock(sessionId, task) {
 
 async function synchronizeDrawCardSession(session) {
   const normalizedSession = normalizeDrawCardSession(session);
+  const config = getPublicExperienceConfig(normalizedSession.experienceType);
   return withDrawCardSessionSyncLock(normalizedSession.sessionId, async () => {
     const current = (await readDrawCardSession(normalizedSession.sessionId)) || normalizedSession;
     const jobs = await Promise.all(current.items.map((item) => readImageJob(item.jobId)));
@@ -2600,7 +2700,7 @@ async function synchronizeDrawCardSession(session) {
 
     const failedJob = jobs.find((job) => !job || job.status === "failed");
     let nextStatus = "queued";
-    let nextMessage = DRAW_CARD_WAITING_MESSAGE;
+    let nextMessage = config.waitingMessage;
     let completedAt = current.completedAt || null;
     let failedReason = "";
     let results = [];
@@ -2609,13 +2709,13 @@ async function synchronizeDrawCardSession(session) {
 
     if (failedJob) {
       nextStatus = "failed";
-      nextMessage = DRAW_CARD_FAILURE_MESSAGE;
+      nextMessage = config.failureMessage;
       completedAt = completedAt || new Date().toISOString();
-      failedReason = DRAW_CARD_FAILURE_MESSAGE;
+      failedReason = config.failureMessage;
       await cancelDrawCardSiblingJobs(jobs);
     } else if (jobs.length && jobs.every((job) => job?.status === "succeeded")) {
       nextStatus = "succeeded";
-      nextMessage = DRAW_CARD_SUCCESS_MESSAGE;
+      nextMessage = config.successMessage;
       completedAt = completedAt || new Date().toISOString();
       if (!quotaChargedAt) {
         const chargeStatus = await consumeVisitorQuotaForDrawCardSession(current.ownerVisitorId, current.sessionId, 1);
@@ -2645,10 +2745,10 @@ async function synchronizeDrawCardSession(session) {
         .sort((a, b) => a.order - b.order);
     } else if (jobs.some((job) => job?.status === "running")) {
       nextStatus = "running";
-      nextMessage = DRAW_CARD_WAITING_MESSAGE;
+      nextMessage = config.waitingMessage;
     } else {
       nextStatus = "queued";
-      nextMessage = DRAW_CARD_WAITING_MESSAGE;
+      nextMessage = config.waitingMessage;
     }
 
     const nextTelemetry = {
@@ -2680,6 +2780,7 @@ async function synchronizeDrawCardSession(session) {
 
     return saveDrawCardSession({
       ...current,
+      experienceType: config.experienceType,
       status: nextStatus,
       message: nextMessage,
       updatedAt: new Date().toISOString(),
@@ -2721,12 +2822,14 @@ function normalizeDrawCardSession(session) {
   const telemetry = session?.telemetry && typeof session.telemetry === "object" ? session.telemetry : {};
   const telemetryClient = telemetry.client && typeof telemetry.client === "object" ? telemetry.client : {};
   const telemetryServer = telemetry.server && typeof telemetry.server === "object" ? telemetry.server : {};
+  const config = getPublicExperienceConfig(session?.experienceType);
   return {
     sessionId: String(session?.sessionId || ""),
     traceId: String(session?.traceId || ""),
+    experienceType: config.experienceType,
     ownerVisitorId: String(session?.ownerVisitorId || ""),
     status: String(session?.status || "queued"),
-    message: String(session?.message || DRAW_CARD_WAITING_MESSAGE),
+    message: String(session?.message || config.waitingMessage),
     createdAt: session?.createdAt || null,
     updatedAt: session?.updatedAt || null,
     completedAt: session?.completedAt || null,
@@ -2792,6 +2895,7 @@ function toPublicDrawCardSession(session) {
   return {
     sessionId: current.sessionId,
     traceId: current.traceId,
+    experienceType: current.experienceType,
     status: current.status,
     message: current.message,
     createdAt: current.createdAt,
@@ -3308,6 +3412,7 @@ function toPublicImageJob(job) {
   const result = normalizeJobResult(job.result);
   return {
     jobId: String(job.jobId || ""),
+    experienceType: normalizePublicExperienceType(job.experienceType),
     status: job.status,
     message: job.message || "",
     result,

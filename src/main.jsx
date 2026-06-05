@@ -31,6 +31,90 @@ const REFERENCE_UPLOAD_LIMITS = {
 
 const GENERATION_STEPS = ["准备请求", "提交到中转站", "等待模型生成", "接收图片结果", "准备预览"];
 const DRAW_CARD_SESSION_STORAGE_KEY = "pg.public-draw.session-id";
+const FRIDGE_MAGNET_SESSION_STORAGE_KEY = "pg.public-fridge.session-id";
+const DRAW_CARD_EXPERIENCE_CONFIG = {
+  route: "public-draw",
+  experienceType: "draw-card",
+  apiBase: "/api/draw-card",
+  sessionStorageKey: DRAW_CARD_SESSION_STORAGE_KEY,
+  themeClass: "theme-draw-card",
+  titleKicker: "Draw card ritual",
+  title: "上传一张图片，静候整组结果揭晓。",
+  subtitle: "无需任何额外设置，只保留一次上传与一次开始，其余流程都会自动完成。",
+  waitingLines: ["静候片刻，结果正在成形。", "光影已经落座，仪式仍在继续。", "请稍候，整组结果即将揭晓。"],
+  waitingFallback: "请保持当前页面开启，结果会在全部完成后一次性揭晓。",
+  startButtonIdle: "开始抽卡",
+  startButtonLoading: "仪式开启中",
+  resultsKicker: "Collection",
+  resultsTitle: "这一轮结果已经全部抵达。",
+  resultsSubtitle: "右侧卡夹会收纳你选中的结果。点击结果可放大查看，加入时会直接飞入卡夹。",
+  clipKicker: "Card clip",
+  clipTitle: "卡夹",
+  clipEmptyText: "挑中想保留的结果后，它会被收进这里，并在你下次回来时继续保留。",
+  clipInvitePlaceholder: "输入邀请码",
+  clipContactFallback: "如需更多生图机会，请联系客服填写邀请码。",
+  errorTitle: "这一轮没有顺利完成。",
+  restoreErrorMessage: "恢复上次抽卡进度失败，请稍后再试。",
+  readErrorMessage: "读取抽卡状态失败，请稍后再试。",
+  latestErrorMessage: "恢复抽卡进度失败，请稍后再试。",
+  createErrorMessage: "抽卡暂时不可用，请稍后再试。",
+  clipErrorMessage: "读取卡夹失败，请稍后再试。",
+  addClipErrorMessage: "加入卡夹失败，请稍后再试。",
+  removeClipErrorMessage: "移出卡夹失败，请稍后再试。",
+  inviteErrorMessage: "邀请码兑换失败，请稍后再试。",
+  originalAlt: "抽卡原图",
+  resultAltPrefix: "抽卡结果",
+  previewAlt: "待抽卡图片预览",
+  waitingAlt: "正在抽卡的原图",
+  lightboxResultAlt: "抽卡结果大图",
+  lightboxOriginalAlt: "抽卡原图大图",
+  resultNameFallback: "结果",
+  clipItemFallback: "卡片",
+  pendingRemovalBody: "这张图片不属于本次生成结果，移出卡夹后将无法在当前抽卡页再次加入。确认移出吗？"
+};
+const FRIDGE_MAGNET_EXPERIENCE_CONFIG = {
+  route: "public-fridge",
+  experienceType: "fridge-magnet",
+  apiBase: "/api/fridge-magnet",
+  sessionStorageKey: FRIDGE_MAGNET_SESSION_STORAGE_KEY,
+  themeClass: "theme-fridge-magnet",
+  titleKicker: "Fridge magnet studio",
+  title: "上传一张图片，开始制作一整组冰箱贴。",
+  subtitle: "沿用同一套上传、轮询、收藏与恢复流程，只是固定改走“冰箱贴”风格组。",
+  waitingLines: ["磁贴正在压膜定型。", "请稍候，整组冰箱贴还在制作中。", "白底展示面已经就绪，结果即将全部贴上来。"],
+  waitingFallback: "请保持当前页面开启，整组冰箱贴完成后会一次性揭晓。",
+  startButtonIdle: "开始制作",
+  startButtonLoading: "制作开启中",
+  resultsKicker: "Magnet board",
+  resultsTitle: "这一轮冰箱贴已经全部做好了。",
+  resultsSubtitle: "结果会直接贴在白色展示面上，配合轻阴影模拟透明感；右侧口袋只保留冰箱贴结果。",
+  clipKicker: "Pocket",
+  clipTitle: "口袋",
+  clipEmptyText: "挑中想保留的冰箱贴后，它会被收进口袋，并在你下次回来时继续保留。",
+  clipInvitePlaceholder: "输入邀请码",
+  clipContactFallback: "如需更多制作次数，请联系客服填写邀请码。",
+  pocketAddLabel: "加入口袋",
+  pocketAddedLabel: "已入口袋",
+  pocketRemoveLabel: "移出口袋",
+  errorTitle: "这一轮冰箱贴没有顺利完成。",
+  restoreErrorMessage: "恢复上次冰箱贴进度失败，请稍后再试。",
+  readErrorMessage: "读取冰箱贴状态失败，请稍后再试。",
+  latestErrorMessage: "恢复冰箱贴进度失败，请稍后再试。",
+  createErrorMessage: "冰箱贴暂时不可用，请稍后再试。",
+  clipErrorMessage: "读取冰箱贴收藏失败，请稍后再试。",
+  addClipErrorMessage: "加入口袋失败，请稍后再试。",
+  removeClipErrorMessage: "移出口袋失败，请稍后再试。",
+  inviteErrorMessage: "邀请码兑换失败，请稍后再试。",
+  originalAlt: "冰箱贴原图",
+  resultAltPrefix: "冰箱贴结果",
+  previewAlt: "待制作冰箱贴图片预览",
+  waitingAlt: "正在制作冰箱贴的原图",
+  lightboxResultAlt: "冰箱贴结果大图",
+  lightboxOriginalAlt: "冰箱贴原图大图",
+  resultNameFallback: "冰箱贴",
+  clipItemFallback: "磁贴",
+  pendingRemovalBody: "这张图片不属于本次制作结果，移出口袋后将无法在当前冰箱贴页再次加入。确认移出吗？"
+};
 
 function createClientTraceId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -39,6 +123,7 @@ function createClientTraceId() {
 
 function readRoute() {
   const pathname = window.location.pathname;
+  if (pathname === "/fridge") return "public-fridge";
   if (pathname === "/gallery") return "admin-gallery";
   if (pathname === "/admin" || pathname === "/admin/") return "admin-styles";
   if (pathname === "/admin/login") return "admin-login";
@@ -62,6 +147,7 @@ function App() {
   function navigate(nextRoute) {
     const pathByRoute = {
       "public-draw": "/",
+      "public-fridge": "/fridge",
       "admin-gallery": "/gallery",
       "admin-login": "/admin/login",
       "admin-styles": "/admin/styles",
@@ -77,6 +163,9 @@ function App() {
 
   if (route === "public-draw") {
     return <LuckDrawCardPage />;
+  }
+  if (route === "public-fridge") {
+    return <FridgeMagnetPage />;
   }
 
   return <AdminApp navigate={navigate} route={route} />;
@@ -377,7 +466,57 @@ function AdminApp({ navigate, route }) {
 }
 
 function LuckDrawCardPage() {
-  const waitingLines = ["静候片刻，结果正在成形。", "光影已经落座，仪式仍在继续。", "请稍候，整组结果即将揭晓。"];
+  return <PublicExperiencePage config={DRAW_CARD_EXPERIENCE_CONFIG} />;
+}
+
+function FridgeMagnetPage() {
+  return <PublicExperiencePage config={FRIDGE_MAGNET_EXPERIENCE_CONFIG} />;
+}
+
+function PublicExperiencePage({ config }) {
+  const {
+    addClipErrorMessage,
+    apiBase,
+    clipContactFallback,
+    clipEmptyText,
+    clipErrorMessage,
+    clipInvitePlaceholder,
+    clipItemFallback,
+    clipKicker,
+    clipTitle,
+    createErrorMessage,
+    errorTitle,
+    experienceType,
+    inviteErrorMessage,
+    latestErrorMessage,
+    lightboxOriginalAlt,
+    lightboxResultAlt,
+    originalAlt,
+    pocketAddLabel = "加入卡夹",
+    pocketAddedLabel = "已加入卡夹",
+    pocketRemoveLabel = "移出卡夹",
+    pendingRemovalBody,
+    previewAlt,
+    readErrorMessage,
+    removeClipErrorMessage,
+    restoreErrorMessage,
+    resultAltPrefix,
+    resultNameFallback,
+    resultsKicker,
+    resultsSubtitle,
+    resultsTitle,
+    route,
+    sessionStorageKey,
+    startButtonIdle,
+    startButtonLoading,
+    subtitle,
+    themeClass,
+    title,
+    titleKicker,
+    waitingAlt,
+    waitingFallback,
+    waitingLines
+  } = config;
   const [phase, setPhase] = useState("idle");
   const [referenceFile, setReferenceFile] = useState(null);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState("");
@@ -405,33 +544,33 @@ function LuckDrawCardPage() {
     fetchVisitorState().then(setVisitorState).catch(() => {});
   }
 
-  function clearPersistedDrawCardSession() {
+  function clearPersistedSession() {
     try {
-      window.localStorage.removeItem(DRAW_CARD_SESSION_STORAGE_KEY);
+      window.localStorage.removeItem(sessionStorageKey);
     } catch {}
   }
 
-  function persistDrawCardSession(nextSessionId) {
+  function persistSession(nextSessionId) {
     if (!nextSessionId) {
-      clearPersistedDrawCardSession();
+      clearPersistedSession();
       return;
     }
     try {
-      window.localStorage.setItem(DRAW_CARD_SESSION_STORAGE_KEY, nextSessionId);
+      window.localStorage.setItem(sessionStorageKey, nextSessionId);
     } catch {}
   }
 
-  function applyDrawCardSession(payload, options = {}) {
+  function applySession(payload, options = {}) {
     const { revealOnSuccess = true } = options;
     const nextSessionId = String(payload?.sessionId || "");
     setSession(payload);
     setSessionId(nextSessionId);
-    persistDrawCardSession(nextSessionId);
+    persistSession(nextSessionId);
 
     if (payload?.status === "failed") {
       refreshVisitorStateSilently();
       setResults(Array.isArray(payload?.results) ? payload.results : []);
-      setError(payload.failedReason || payload.message || "这一轮未能顺利完成，请重新开始。");
+      setError(payload.failedReason || payload.message || createErrorMessage);
       setPhase("error");
       return;
     }
@@ -474,52 +613,52 @@ function LuckDrawCardPage() {
 
     async function loadClipItems() {
       try {
-        const payload = await fetchPublicClipItems();
+        const payload = await fetchPublicClipItems(experienceType);
         if (!isActive) return;
         setClipItems(payload.items || []);
       } catch (nextError) {
         if (!isActive) return;
-        setError((current) => current || nextError.message || "读取卡夹失败，请稍后再试。");
+        setError((current) => current || nextError.message || clipErrorMessage);
       }
     }
 
     loadClipItems();
 
-    async function restoreDrawCardProgress() {
-      const restoredSessionId = readPersistedDrawCardSessionId();
+    async function restoreSessionProgress() {
+      const restoredSessionId = readPersistedSessionId(sessionStorageKey);
       if (restoredSessionId) {
         try {
-          const payload = await fetchDrawCardSession(restoredSessionId);
+          const payload = await fetchPublicExperienceSession(apiBase, restoredSessionId, readErrorMessage);
           if (!isActive) return;
-          applyDrawCardSession(payload, { revealOnSuccess: false });
+          applySession(payload, { revealOnSuccess: false });
           return;
         } catch (nextError) {
           if (!isActive) return;
           if (![403, 404].includes(nextError?.status)) {
-            setError((current) => current || nextError.message || "恢复上次抽卡进度失败，请稍后再试。");
+            setError((current) => current || nextError.message || restoreErrorMessage);
             return;
           }
-          clearPersistedDrawCardSession();
+          clearPersistedSession();
         }
       }
 
       try {
-        const payload = await fetchLatestDrawCardSession();
+        const payload = await fetchLatestPublicExperienceSession(apiBase, latestErrorMessage);
         if (!isActive) return;
-        applyDrawCardSession(payload, { revealOnSuccess: false });
+        applySession(payload, { revealOnSuccess: false });
       } catch (nextError) {
         if (!isActive) return;
         if (nextError?.status === 404) return;
-        setError((current) => current || nextError.message || "恢复上次抽卡进度失败，请稍后再试。");
+        setError((current) => current || nextError.message || restoreErrorMessage);
       }
     }
 
-    restoreDrawCardProgress();
+    restoreSessionProgress();
 
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [apiBase, clipErrorMessage, experienceType, latestErrorMessage, readErrorMessage, restoreErrorMessage, sessionStorageKey]);
 
   useEffect(() => {
     if (phase !== "waiting") return undefined;
@@ -542,13 +681,13 @@ function LuckDrawCardPage() {
     let isActive = true;
     async function pollSession() {
       try {
-        const payload = await fetchDrawCardSession(sessionId);
+        const payload = await fetchPublicExperienceSession(apiBase, sessionId, readErrorMessage);
         if (!isActive) return;
-        applyDrawCardSession(payload);
+        applySession(payload);
       } catch (nextError) {
         if (!isActive) return;
         if ([403, 404].includes(nextError?.status)) {
-          clearPersistedDrawCardSession();
+          clearPersistedSession();
           setSessionId("");
           setSession(null);
           setResults([]);
@@ -556,7 +695,7 @@ function LuckDrawCardPage() {
           setPhase("idle");
           return;
         }
-        setError(nextError.message || "读取抽卡状态失败，请稍后再试。");
+        setError(nextError.message || readErrorMessage);
         setPhase("error");
       }
     }
@@ -567,7 +706,7 @@ function LuckDrawCardPage() {
       isActive = false;
       window.clearInterval(timer);
     };
-  }, [phase, sessionId]);
+  }, [apiBase, phase, readErrorMessage, sessionId]);
 
   useEffect(() => {
     if (phase !== "revealing") return undefined;
@@ -588,8 +727,8 @@ function LuckDrawCardPage() {
   const activeResult = activeResultIndex >= 0 ? results[activeResultIndex] : activeResultIndex === -3 ? activeClipPreview : null;
   const isOriginalPreview = activeResultIndex === -2;
 
-  function resetDrawCard() {
-    clearPersistedDrawCardSession();
+  function resetExperience() {
+    clearPersistedSession();
     setPhase("idle");
     setReferenceFile(null);
     setSessionId("");
@@ -614,7 +753,7 @@ function LuckDrawCardPage() {
       return;
     }
 
-    clearPersistedDrawCardSession();
+    clearPersistedSession();
     setReferenceFile(file);
     setSessionId("");
     setSession(null);
@@ -701,7 +840,7 @@ function LuckDrawCardPage() {
       const latestVisitorState = await fetchVisitorState();
       setVisitorState(latestVisitorState);
       if (!latestVisitorState?.canGenerate) {
-        setError(latestVisitorState?.contactMessage || "如需更多生图机会，请联系客服填写邀请码。");
+        setError(latestVisitorState?.contactMessage || clipContactFallback);
         return;
       }
 
@@ -718,18 +857,18 @@ function LuckDrawCardPage() {
       formData.append("clientUploadedHeight", String(preparedReference.telemetry?.uploadedHeight ?? ""));
       formData.append("clientWasCompressed", preparedReference.telemetry?.wasCompressed ? "1" : "0");
 
-      const response = await fetch("/api/draw-card/sessions", {
+      const response = await fetch(`${apiBase}/sessions`, {
         method: "POST",
         headers: { "x-draw-trace-id": traceId },
         body: formData
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.message || "抽卡暂时不可用，请稍后再试。");
+      if (!response.ok) throw new Error(payload.message || createErrorMessage);
 
-      applyDrawCardSession(payload);
+      applySession(payload);
       refreshVisitorStateSilently();
     } catch (nextError) {
-      setError(nextError.message || "抽卡暂时不可用，请稍后再试。");
+      setError(nextError.message || createErrorMessage);
       setPhase("ready");
     } finally {
       setIsSubmitting(false);
@@ -750,13 +889,14 @@ function LuckDrawCardPage() {
         styleName: payload.styleName || result.styleName || "",
         imageUrl: payload.result?.previewUrl || payload.result?.thumbnailUrl || result.imageUrl || "",
         thumbnailUrl: payload.result?.thumbnailUrl || payload.result?.previewUrl || result.thumbnailUrl || result.imageUrl || "",
+        experienceType,
         isLiked: true,
         likedAt
       });
       animateIntoClip(result);
       setError("");
     } catch (nextError) {
-      setError(nextError.message || "加入卡夹失败，请稍后再试。");
+      setError(nextError.message || addClipErrorMessage);
     }
   }
 
@@ -773,7 +913,7 @@ function LuckDrawCardPage() {
       }
       setError("");
     } catch (nextError) {
-      setError(nextError.message || "移出卡夹失败，请稍后再试。");
+      setError(nextError.message || removeClipErrorMessage);
     }
   }
 
@@ -817,8 +957,8 @@ function LuckDrawCardPage() {
       <aside className={`draw-card-clip-panel ${clipReceiving ? "is-receiving" : ""}`} ref={cardClipPanelRef}>
         <div className="draw-card-clip-head">
           <div>
-            <p className="draw-card-kicker">Card clip</p>
-            <h3>卡夹</h3>
+            <p className="draw-card-kicker">{clipKicker}</p>
+            <h3>{clipTitle}</h3>
           </div>
           <span className="draw-card-clip-count">{clipItems.length}</span>
         </div>
@@ -828,12 +968,12 @@ function LuckDrawCardPage() {
             {clipItems.map((item, index) => (
               <article className="draw-card-clip-item" key={`clip-${item.jobId}-${index}`}>
                 <button className="draw-card-clip-preview" onClick={() => openClipPreview(item.jobId)} type="button">
-                  <img alt={item.styleName || `卡夹图片 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
+                  <img alt={item.styleName || `${clipItemFallback} ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
                 </button>
                 <div className="draw-card-clip-meta">
-                  <strong>{item.styleName || `卡片 ${index + 1}`}</strong>
+                  <strong>{item.styleName || `${clipItemFallback} ${index + 1}`}</strong>
                   <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(item)} type="button">
-                    移出卡夹
+                    {pocketRemoveLabel}
                   </button>
                 </div>
               </article>
@@ -842,13 +982,13 @@ function LuckDrawCardPage() {
         ) : (
           <div className="draw-card-clip-empty">
             <Sparkles size={18} />
-            <p>挑中想保留的结果后，它会被收进这里，并在你下次回来时继续保留。</p>
+            <p>{clipEmptyText}</p>
           </div>
         )}
 
         <div className="draw-card-clip-empty">
           <p>剩余次数：{visitorState ? `${visitorState.quotaRemaining}` : "--"}</p>
-          <input className="field-inline-input" onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} />
+          <input className="field-inline-input" onChange={(event) => setInviteCode(event.target.value)} placeholder={clipInvitePlaceholder} value={inviteCode} />
           <button
             className="draw-card-secondary"
             onClick={async () => {
@@ -858,21 +998,21 @@ function LuckDrawCardPage() {
                 setInviteCode("");
                 setError("");
               } catch (nextError) {
-                setError(nextError.message || "邀请码兑换失败，请稍后再试。");
+                setError(nextError.message || inviteErrorMessage);
               }
             }}
             type="button"
           >
             <span>兑换邀请码</span>
           </button>
-          <p>{visitorState?.contactMessage || "如需更多生图机会，请联系客服填写邀请码。"}</p>
+          <p>{visitorState?.contactMessage || clipContactFallback}</p>
         </div>
       </aside>
     );
   }
 
   return (
-    <main className={`draw-card-shell phase-${phase}`}>
+    <main className={`draw-card-shell ${themeClass} ${route} phase-${phase}`}>
       <div className="draw-card-ambient draw-card-ambient-a" />
       <div className="draw-card-ambient draw-card-ambient-b" />
 
@@ -881,15 +1021,15 @@ function LuckDrawCardPage() {
           <div className="draw-card-stage-layout">
             <div className="draw-card-stage-main">
               <div className="draw-card-hero">
-                <p className="draw-card-kicker">Draw card ritual</p>
-                <h1 className="draw-card-title">上传一张图片，静候整组结果揭晓。</h1>
-                <p className="draw-card-subtitle">无需任何额外设置，只保留一次上传与一次开始，其余流程都会自动完成。</p>
+                <p className="draw-card-kicker">{titleKicker}</p>
+                <h1 className="draw-card-title">{title}</h1>
+                <p className="draw-card-subtitle">{subtitle}</p>
               </div>
 
               <section className={`draw-card-upload-panel ${referenceFile ? "has-image" : ""}`}>
-                <label className="draw-card-upload" htmlFor="draw-card-input">
+                <label className="draw-card-upload" htmlFor={`${experienceType}-input`}>
                   {referencePreviewUrl ? (
-                    <img alt="待抽卡图片预览" className="draw-card-upload-preview" src={referencePreviewUrl} />
+                    <img alt={previewAlt} className="draw-card-upload-preview" src={referencePreviewUrl} />
                   ) : (
                     <div className="draw-card-upload-empty">
                       <ImageUp size={22} />
@@ -899,7 +1039,7 @@ function LuckDrawCardPage() {
                   )}
                   <input
                     accept="image/png,image/jpeg,image/webp"
-                    id="draw-card-input"
+                    id={`${experienceType}-input`}
                     onChange={(event) => {
                       handleFileChange(event.target.files?.[0] || null);
                       event.target.value = "";
@@ -911,10 +1051,10 @@ function LuckDrawCardPage() {
                 <div className="draw-card-actions">
                   <button className="draw-card-primary" disabled={!canStart} onClick={startDrawCard} type="button">
                     {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
-                    <span>{isSubmitting ? "仪式开启中" : "开始抽卡"}</span>
+                    <span>{isSubmitting ? startButtonLoading : startButtonIdle}</span>
                   </button>
                   {referenceFile ? (
-                    <button className="draw-card-secondary" onClick={resetDrawCard} type="button">
+                    <button className="draw-card-secondary" onClick={resetExperience} type="button">
                       <RefreshCw size={18} />
                       <span>重新选择</span>
                     </button>
@@ -933,7 +1073,7 @@ function LuckDrawCardPage() {
       {phase === "waiting" && (
         <section className="draw-card-stage draw-card-stage-waiting">
           <div className={`draw-card-offering ${waitingStage}`}>
-            {referencePreviewUrl ? <img alt="正在抽卡的原图" src={referencePreviewUrl} /> : null}
+            {referencePreviewUrl ? <img alt={waitingAlt} src={referencePreviewUrl} /> : null}
           </div>
           <div className="draw-card-deck" aria-hidden="true">
             <span className="draw-card-card draw-card-card-1" />
@@ -944,7 +1084,7 @@ function LuckDrawCardPage() {
           <div className="draw-card-waiting-copy">
             <p className="draw-card-kicker">In progress</p>
             <h2>{waitingCopy}</h2>
-            <p>{session?.message || "请保持当前页面开启，结果会在全部完成后一次性揭晓。"}</p>
+            <p>{session?.message || waitingFallback}</p>
           </div>
         </section>
       )}
@@ -963,11 +1103,11 @@ function LuckDrawCardPage() {
         <section className="draw-card-stage draw-card-stage-results">
           <div className="draw-card-results-head">
             <div>
-              <p className="draw-card-kicker">Collection</p>
-              <h2>这一轮结果已经全部抵达。</h2>
-              <p className="draw-card-subtitle">右侧卡夹会收纳你选中的结果。点击结果可放大查看，加入时会直接飞入卡夹。</p>
+              <p className="draw-card-kicker">{resultsKicker}</p>
+              <h2>{resultsTitle}</h2>
+              <p className="draw-card-subtitle">{resultsSubtitle}</p>
             </div>
-            <button className="draw-card-secondary" onClick={resetDrawCard} type="button">
+            <button className="draw-card-secondary" onClick={resetExperience} type="button">
               <RefreshCw size={18} />
               <span>重新开始</span>
             </button>
@@ -980,7 +1120,7 @@ function LuckDrawCardPage() {
               {referencePreviewUrl ? (
                 <article className="draw-card-result-card draw-card-result-card-original" key="draw-card-original">
                   <button className="draw-card-result-media draw-card-result-media-original" onClick={() => setActiveResultIndex(-2)} type="button">
-                    <img alt="抽卡原图" src={referencePreviewUrl} />
+                    <img alt={originalAlt} src={referencePreviewUrl} />
                   </button>
                   <div className="draw-card-result-meta">
                     <span>原图</span>
@@ -992,13 +1132,13 @@ function LuckDrawCardPage() {
               {results.map((result, index) => (
                 <article className={`draw-card-result-card ${result.isLiked ? "is-in-clip" : ""}`} key={`${result.styleId}-${result.jobId || index}`}>
                   <button className="draw-card-result-media" onClick={() => setActiveResultIndex(index)} ref={(node) => setResultMediaRef(result.jobId, node)} type="button">
-                    <img alt={`抽卡结果 ${index + 1}`} src={result.imageUrl || result.thumbnailUrl} />
+                    <img alt={`${resultAltPrefix} ${index + 1}`} src={result.imageUrl || result.thumbnailUrl} />
                   </button>
                   <div className="draw-card-result-meta">
-                    <span>{result.styleName || `结果 ${index + 1}`}</span>
+                    <span>{result.styleName || `${resultNameFallback} ${index + 1}`}</span>
                     <button className={`draw-card-save-button ${result.isLiked ? "is-liked" : ""}`} disabled={Boolean(result.isLiked)} onClick={() => addToClip(result)} type="button">
                       {result.isLiked ? <Check size={16} /> : <Sparkles size={16} />}
-                      <span>{result.isLiked ? "已加入卡夹" : "加入卡夹"}</span>
+                      <span>{result.isLiked ? pocketAddedLabel : pocketAddLabel}</span>
                     </button>
                   </div>
                 </article>
@@ -1014,9 +1154,9 @@ function LuckDrawCardPage() {
         <section className="draw-card-stage draw-card-stage-error">
           <div className="draw-card-error-panel">
             <p className="draw-card-kicker">Unavailable</p>
-            <h2>这一轮没有顺利完成。</h2>
+            <h2>{errorTitle}</h2>
             <p>{error || "请稍后重新开始。"}</p>
-            <button className="draw-card-primary" onClick={resetDrawCard} type="button">
+            <button className="draw-card-primary" onClick={resetExperience} type="button">
               <RefreshCw size={18} />
               <span>重新开始</span>
             </button>
@@ -1030,17 +1170,17 @@ function LuckDrawCardPage() {
             <button className="icon-button" onClick={closeActivePreview} type="button" aria-label="关闭预览">
               <X size={18} />
             </button>
-            <img alt={activeResult.styleName || "抽卡结果大图"} src={activeResult.imageUrl || activeResult.thumbnailUrl} />
+            <img alt={activeResult.styleName || lightboxResultAlt} src={activeResult.imageUrl || activeResult.thumbnailUrl} />
             <div className="draw-card-lightbox-meta">
-              <span>{activeResult.styleName || "抽卡结果"}</span>
+              <span>{activeResult.styleName || resultNameFallback}</span>
               {activeResult.isLiked ? (
                 <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(activeResult)} type="button">
-                  移出卡夹
+                  {pocketRemoveLabel}
                 </button>
               ) : (
                 <button className="draw-card-save-button" onClick={() => addToClip(activeResult)} type="button">
                   <Sparkles size={16} />
-                  <span>加入卡夹</span>
+                  <span>{pocketAddLabel}</span>
                 </button>
               )}
             </div>
@@ -1054,7 +1194,7 @@ function LuckDrawCardPage() {
             <button className="icon-button" onClick={closeActivePreview} type="button" aria-label="关闭预览">
               <X size={18} />
             </button>
-            <img alt="抽卡原图大图" src={referencePreviewUrl} />
+            <img alt={lightboxOriginalAlt} src={referencePreviewUrl} />
             <div className="draw-card-lightbox-meta">
               <span>原图</span>
               <span className="draw-card-meta-note">保持原比例展示</span>
@@ -1080,9 +1220,9 @@ function LuckDrawCardPage() {
       {pendingRemoval ? (
         <div className="modal-backdrop draw-card-confirm" onClick={() => setPendingRemoval(null)} role="presentation">
           <section className="draw-card-confirm-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
-            <p className="draw-card-kicker">Card clip</p>
+            <p className="draw-card-kicker">{clipKicker}</p>
             <h2>移出后不可恢复。</h2>
-            <p className="storage-note">这张图片不属于本次生成结果，移出卡夹后将无法在当前抽卡页再次加入。确认移出吗？</p>
+            <p className="storage-note">{pendingRemovalBody}</p>
             <div className="draw-card-confirm-actions">
               <button className="draw-card-secondary" onClick={() => setPendingRemoval(null)} type="button">
                 取消
@@ -1095,7 +1235,7 @@ function LuckDrawCardPage() {
                 }}
                 type="button"
               >
-                确认移出
+                {pocketRemoveLabel}
               </button>
             </div>
           </section>
@@ -1834,9 +1974,10 @@ function ImageJobsPage() {
     };
   }, []);
 
-  const visibleJobs = jobs.filter((job) => statusFilter === "all" || job.status === statusFilter);
-  const activeCount = jobs.filter((job) => job.status === "queued" || job.status === "running").length;
-  const completedCount = jobs.filter((job) => job.status === "succeeded").length;
+  const mergedJobs = useMemo(() => mergeAdminJobsWithRecentSessions(jobs, drawCardSessions), [jobs, drawCardSessions]);
+  const visibleJobs = mergedJobs.filter((job) => statusFilter === "all" || job.status === statusFilter);
+  const activeCount = mergedJobs.filter((job) => job.status === "queued" || job.status === "running").length;
+  const completedCount = mergedJobs.filter((job) => job.status === "succeeded").length;
   const visibleDrawCardSessions = drawCardSessions.slice(0, 3);
   const activeDrawCardCount = visibleDrawCardSessions.filter((session) => ["queued", "running"].includes(session.status)).length;
 
@@ -1859,15 +2000,15 @@ function ImageJobsPage() {
       <section className="draw-observability-panel">
         <div className="task-toolbar">
           <div>
-            <p className="eyebrow">Draw observability</p>
-            <h3>抽卡观测</h3>
+            <p className="eyebrow">Public experiences</p>
+            <h3>公开玩法观测</h3>
             <p className="storage-note">
-              最近 {visibleDrawCardSessions.length} 轮抽卡，{activeDrawCardCount} 轮仍在处理中
+              最近 {visibleDrawCardSessions.length} 轮公开玩法，{activeDrawCardCount} 轮仍在处理中
             </p>
           </div>
         </div>
 
-        {!isLoading && !visibleDrawCardSessions.length ? <p className="empty-note">还没有可查看的抽卡会话。</p> : null}
+        {!isLoading && !visibleDrawCardSessions.length ? <p className="empty-note">还没有可查看的公开玩法会话。</p> : null}
 
         <div className="draw-observability-list">
           {visibleDrawCardSessions.map((session) => {
@@ -1880,6 +2021,7 @@ function ImageJobsPage() {
                     <div className="task-meta-row">
                       <strong>{shortJobId(session.sessionId)}</strong>
                       <span className={`task-status ${session.status}`}>{statusLabel(session.status)}</span>
+                      <span className="experience-badge">{session.experienceLabel || session.experienceType || "公开玩法"}</span>
                       <span>trace {shortJobId(session.traceId)}</span>
                       <span>{formatDateTime(session.createdAt)}</span>
                       <span>{session.styleCount} 个风格</span>
@@ -1995,6 +2137,7 @@ function ImageJobsPage() {
                 <div className="task-meta-row">
                   <strong>{shortJobId(job.jobId)}</strong>
                   {job.isLiked ? <span className="task-like-badge">已加入卡夹</span> : null}
+                  <span className="experience-badge">{publicExperienceLabel(job.experienceType)}</span>
                   {job.styleName ? <span>{job.styleName}</span> : null}
                   {job.styleGroupName ? <span>组：{job.styleGroupName}</span> : null}
                   <span>{modeLabel(job.mode)}</span>
@@ -2800,8 +2943,9 @@ async function redeemInviteCode(code) {
   return payload;
 }
 
-async function fetchPublicClipItems() {
-  const response = await fetch("/api/public/clip-items");
+async function fetchPublicClipItems(experienceType = "") {
+  const query = experienceType ? `?experience=${encodeURIComponent(experienceType)}` : "";
+  const response = await fetch(`/api/public/clip-items${query}`);
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取卡夹失败。");
   return payload;
@@ -2955,7 +3099,7 @@ async function refreshImageJobs() {
 async function refreshAdminDrawCardSessions() {
   const response = await fetch("/api/admin/draw-card-sessions?limit=3");
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message || "读取抽卡观测失败。");
+  if (!response.ok) throw new Error(payload.message || "读取公开玩法观测失败。");
   return payload;
 }
 
@@ -3436,31 +3580,31 @@ function StorageAdminPage({ storageSummary, onRefreshStorage }) {
   );
 }
 
-async function fetchDrawCardSession(sessionId) {
-  const response = await fetch(`/api/draw-card/sessions/${sessionId}`);
+async function fetchPublicExperienceSession(apiBase, sessionId, fallbackMessage) {
+  const response = await fetch(`${apiBase}/sessions/${sessionId}`);
   const payload = await response.json();
   if (!response.ok) {
-    const error = new Error(payload.message || "读取抽卡状态失败，请稍后再试。");
+    const error = new Error(payload.message || fallbackMessage || "读取公开玩法状态失败，请稍后再试。");
     error.status = response.status;
     throw error;
   }
   return payload;
 }
 
-async function fetchLatestDrawCardSession() {
-  const response = await fetch("/api/draw-card/sessions/latest");
+async function fetchLatestPublicExperienceSession(apiBase, fallbackMessage) {
+  const response = await fetch(`${apiBase}/sessions/latest`);
   const payload = await response.json();
   if (!response.ok) {
-    const error = new Error(payload.message || "恢复抽卡进度失败，请稍后再试。");
+    const error = new Error(payload.message || fallbackMessage || "恢复公开玩法进度失败，请稍后再试。");
     error.status = response.status;
     throw error;
   }
   return payload;
 }
 
-function readPersistedDrawCardSessionId() {
+function readPersistedSessionId(storageKey) {
   try {
-    const stored = window.localStorage.getItem(DRAW_CARD_SESSION_STORAGE_KEY);
+    const stored = window.localStorage.getItem(storageKey);
     return stored ? String(stored) : "";
   } catch {
     return "";
@@ -3495,6 +3639,33 @@ function statusLabel(status) {
 
 function modeLabel(mode) {
   return mode === "edit" ? "参考图编辑" : "文生图";
+}
+
+function publicExperienceLabel(experienceType) {
+  if (experienceType === "fridge-magnet") return "冰箱贴";
+  if (experienceType === "draw-card") return "抽卡";
+  return "公开玩法";
+}
+
+function mergeAdminJobsWithRecentSessions(jobs, sessions) {
+  const merged = new Map();
+
+  (jobs || []).forEach((job) => {
+    if (!job?.jobId) return;
+    merged.set(job.jobId, job);
+  });
+
+  (sessions || []).forEach((session) => {
+    (session?.jobs || []).forEach((job) => {
+      if (!job?.jobId) return;
+      const current = merged.get(job.jobId);
+      merged.set(job.jobId, current ? { ...job, ...current } : job);
+    });
+  });
+
+  return Array.from(merged.values()).sort((left, right) =>
+    String(right.createdAt || right.updatedAt || "").localeCompare(String(left.createdAt || left.updatedAt || ""))
+  );
 }
 
 function shortJobId(jobId) {

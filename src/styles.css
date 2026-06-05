@@ -677,6 +677,163 @@ body {
   justify-content: flex-end;
 }
 
+.draw-card-shell.theme-fridge-magnet {
+  background:
+    radial-gradient(circle at 18% 14%, rgba(221, 234, 236, 0.9), transparent 28%),
+    radial-gradient(circle at 86% 18%, rgba(242, 248, 249, 0.92), transparent 24%),
+    linear-gradient(180deg, #eef3f4 0%, #e4eaec 52%, #dfe6e8 100%);
+  color: #1e2c31;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-ambient-a {
+  background: radial-gradient(circle, rgba(184, 210, 214, 0.55), transparent 70%);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-ambient-b {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.78), transparent 72%);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-kicker {
+  color: rgba(56, 84, 90, 0.7);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-title,
+.draw-card-shell.theme-fridge-magnet .draw-card-stage h2 {
+  color: #183139;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-subtitle,
+.draw-card-shell.theme-fridge-magnet .draw-card-waiting-copy p:last-child,
+.draw-card-shell.theme-fridge-magnet .draw-card-error-panel p,
+.draw-card-shell.theme-fridge-magnet .draw-card-meta-note,
+.draw-card-shell.theme-fridge-magnet .draw-card-clip-empty,
+.draw-card-shell.theme-fridge-magnet .draw-card-clip-empty p {
+  color: rgba(44, 70, 76, 0.72);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-upload-panel,
+.draw-card-shell.theme-fridge-magnet .draw-card-error-panel,
+.draw-card-shell.theme-fridge-magnet .draw-card-clip-panel,
+.draw-card-shell.theme-fridge-magnet .draw-card-result-card,
+.draw-card-shell.theme-fridge-magnet .draw-card-lightbox-panel,
+.draw-card-shell.theme-fridge-magnet .draw-card-confirm-panel {
+  border-color: rgba(180, 195, 198, 0.78);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(249, 252, 252, 0.94)),
+    #ffffff;
+  box-shadow:
+    0 18px 42px rgba(88, 108, 114, 0.08),
+    0 2px 0 rgba(255, 255, 255, 0.88) inset;
+  color: #193038;
+  backdrop-filter: blur(10px);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-upload,
+.draw-card-shell.theme-fridge-magnet .draw-card-result-media,
+.draw-card-shell.theme-fridge-magnet .draw-card-result-media-original,
+.draw-card-shell.theme-fridge-magnet .draw-card-lightbox-panel img,
+.draw-card-shell.theme-fridge-magnet .draw-card-clip-preview,
+.draw-card-shell.theme-fridge-magnet .draw-card-clip-item {
+  border-color: rgba(212, 221, 224, 0.96);
+  background: #ffffff;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-result-card,
+.draw-card-shell.theme-fridge-magnet .draw-card-lightbox-panel img,
+.draw-card-shell.theme-fridge-magnet .draw-card-clip-preview,
+.draw-card-shell.theme-fridge-magnet .draw-card-clip-item,
+.draw-card-shell.theme-fridge-magnet .draw-card-fly-card {
+  box-shadow:
+    0 12px 24px rgba(87, 106, 111, 0.08),
+    0 3px 0 rgba(255, 255, 255, 0.86) inset;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-result-media,
+.draw-card-shell.theme-fridge-magnet .draw-card-result-media-original,
+.draw-card-shell.theme-fridge-magnet .draw-card-lightbox-panel img {
+  border-radius: 20px;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-primary {
+  background: linear-gradient(135deg, #215760, #5e9fa6);
+  color: #ffffff;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-primary:disabled {
+  background: rgba(189, 206, 210, 0.72);
+  color: rgba(20, 37, 42, 0.45);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-secondary,
+.draw-card-shell.theme-fridge-magnet .draw-card-save-button {
+  border-color: rgba(179, 198, 203, 0.94);
+  background: rgba(245, 249, 249, 0.96);
+  color: #204148;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-save-button.is-liked,
+.draw-card-shell.theme-fridge-magnet .draw-card-save-button:disabled,
+.draw-card-shell.theme-fridge-magnet .draw-card-clip-remove {
+  border-color: rgba(110, 162, 171, 0.3);
+  background: rgba(224, 241, 243, 0.92);
+  color: #1d5760;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-clip-head h3,
+.draw-card-shell.theme-fridge-magnet .draw-card-clip-meta strong,
+.draw-card-shell.theme-fridge-magnet .draw-card-result-meta,
+.draw-card-shell.theme-fridge-magnet .draw-card-lightbox-meta {
+  color: #1e3940;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-clip-count {
+  border-color: rgba(123, 166, 174, 0.36);
+  background: rgba(224, 241, 243, 0.96);
+  color: #20535c;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-stage-waiting,
+.draw-card-shell.theme-fridge-magnet .draw-card-stage-revealing,
+.draw-card-shell.theme-fridge-magnet .draw-card-stage-error {
+  text-align: center;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-card {
+  border-color: rgba(184, 198, 201, 0.78);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(237, 244, 245, 0.94)),
+    #ffffff;
+  box-shadow:
+    0 18px 44px rgba(86, 103, 109, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-card::before {
+  border-color: rgba(153, 177, 182, 0.28);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-reveal-ring {
+  border-color: rgba(161, 186, 191, 0.52);
+  background:
+    radial-gradient(circle, rgba(215, 236, 238, 0.68), transparent 62%),
+    rgba(255, 255, 255, 0.82);
+  box-shadow: 0 0 0 24px rgba(255, 255, 255, 0.36), 0 0 90px rgba(167, 205, 210, 0.22);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-lightbox {
+  background: rgba(222, 231, 233, 0.82);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-offering {
+  border-color: rgba(194, 209, 212, 0.8);
+  background: #ffffff;
+  box-shadow: 0 18px 52px rgba(96, 116, 122, 0.14);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-fly-card {
+  border-color: rgba(177, 200, 205, 0.9);
+}
+
 @keyframes draw-card-sheen {
   0%,
   18% {
@@ -1226,6 +1383,18 @@ h2 {
   background: #eef2ef;
   color: #33423f;
   font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.experience-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #edf7f6;
+  color: #0f5b58;
+  font-size: 0.78rem;
   font-weight: 800;
 }
 
