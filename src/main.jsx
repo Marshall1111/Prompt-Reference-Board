@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, Gri
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
+const CONTACT_WECHAT_ID = "PetPaint";
 const GENERATION_DEFAULTS = {
   quality: "medium",
   output_format: "png",
@@ -537,10 +538,19 @@ function PublicExperiencePage({ config }) {
   const [clipReceiving, setClipReceiving] = useState(false);
   const [visitorState, setVisitorState] = useState(null);
   const [inviteCode, setInviteCode] = useState("");
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactCopied, setContactCopied] = useState(false);
   const resultMediaRefs = useRef(new Map());
   const cardClipPanelRef = useRef(null);
   const flightTimeoutRef = useRef(null);
   const clipPulseTimeoutRef = useRef(null);
+  const contactCopiedTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
+    };
+  }, []);
 
   function refreshVisitorStateSilently() {
     fetchVisitorState().then(setVisitorState).catch(() => {});
@@ -938,6 +948,13 @@ function PublicExperiencePage({ config }) {
     setActiveClipPreview(null);
   }
 
+  async function handleCopyContactWeChat() {
+    await copyText(CONTACT_WECHAT_ID);
+    setContactCopied(true);
+    if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
+    contactCopiedTimeoutRef.current = window.setTimeout(() => setContactCopied(false), 1600);
+  }
+
   function isCurrentSessionResult(jobId) {
     return results.some((item) => item.jobId === jobId);
   }
@@ -990,22 +1007,29 @@ function PublicExperiencePage({ config }) {
         <div className="draw-card-clip-empty">
           <p>剩余次数：{visitorState ? `${visitorState.quotaRemaining}` : "--"}</p>
           <input className="field-inline-input" onChange={(event) => setInviteCode(event.target.value)} placeholder={clipInvitePlaceholder} value={inviteCode} />
-          <button
-            className="draw-card-secondary"
-            onClick={async () => {
-              try {
-                const payload = await redeemInviteCode(inviteCode);
-                setVisitorState(payload);
-                setInviteCode("");
-                setError("");
-              } catch (nextError) {
-                setError(nextError.message || inviteErrorMessage);
-              }
-            }}
-            type="button"
-          >
-            <span>兑换邀请码</span>
-          </button>
+          <div className="draw-card-clip-actions">
+            <button
+              className="draw-card-secondary"
+              onClick={async () => {
+                try {
+                  const payload = await redeemInviteCode(inviteCode);
+                  setVisitorState(payload);
+                  setInviteCode("");
+                  setError("");
+                } catch (nextError) {
+                  setError(nextError.message || inviteErrorMessage);
+                }
+              }}
+              type="button"
+            >
+              <span>兑换邀请码</span>
+            </button>
+            {experienceType === "fridge-magnet" ? (
+              <button className="draw-card-secondary" onClick={() => setShowContactModal(true)} type="button">
+                <span>联系客服</span>
+              </button>
+            ) : null}
+          </div>
           <p>{visitorState?.contactMessage || clipContactFallback}</p>
         </div>
       </aside>
@@ -1216,6 +1240,34 @@ function PublicExperiencePage({ config }) {
                 type="button"
               >
                 {pocketRemoveLabel}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {showContactModal ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => setShowContactModal(false)} role="presentation">
+          <section className="draw-card-confirm-panel draw-card-contact-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="联系客服">
+            <button className="icon-button" onClick={() => setShowContactModal(false)} type="button" aria-label="关闭弹窗">
+              <X size={18} />
+            </button>
+            <div className="draw-card-contact-copy">
+              <h3>联系客服</h3>
+              <p>请加微信</p>
+              <button className="draw-card-contact-id" onClick={handleCopyContactWeChat} type="button">
+                <span>{CONTACT_WECHAT_ID}</span>
+                <Clipboard size={16} />
+              </button>
+              <p className="draw-card-contact-note">{contactCopied ? "微信号已复制" : "点击微信号即可一键复制"}</p>
+            </div>
+            <div className="draw-card-confirm-actions">
+              <button className="draw-card-secondary" onClick={handleCopyContactWeChat} type="button">
+                <Clipboard size={16} />
+                <span>{contactCopied ? "已复制" : "复制微信号"}</span>
+              </button>
+              <button className="draw-card-primary" onClick={() => setShowContactModal(false)} type="button">
+                <span>我知道了</span>
               </button>
             </div>
           </section>
