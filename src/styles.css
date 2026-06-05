@@ -1169,6 +1169,99 @@ h2 {
   box-shadow: 0 12px 32px rgba(33, 38, 40, 0.06);
 }
 
+.draw-observability-panel,
+.draw-observability-card,
+.draw-observability-metric,
+.draw-observability-job {
+  border: 1px solid #ded8ce;
+  border-radius: 8px;
+  background: rgba(255, 253, 249, 0.96);
+  box-shadow: 0 12px 32px rgba(33, 38, 40, 0.05);
+}
+
+.draw-observability-panel {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.draw-observability-list,
+.draw-observability-detail,
+.draw-observability-jobs {
+  display: grid;
+  gap: 12px;
+}
+
+.draw-observability-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.draw-observability-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.draw-observability-main {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.draw-observability-phase-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.draw-observability-phase-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #eef2ef;
+  color: #33423f;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.draw-observability-phase-chip.is-slowest {
+  background: #fff1ef;
+  color: #9f2418;
+}
+
+.draw-observability-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.draw-observability-metric {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.draw-observability-metric strong {
+  color: #263532;
+}
+
+.draw-observability-metric span {
+  color: #115e59;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.draw-observability-job {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
 .storage-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

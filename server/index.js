@@ -47,7 +47,7 @@ const ADMIN_COOKIE_NAME = "pg_admin";
 const VISITOR_INVITE_BONUS = 5;
 const VISITOR_RUNNING_JOB_LIMIT = 1;
 const VISITOR_RATE_WINDOW_MS = 10 * 60 * 1000;
-const VISITOR_RATE_LIMIT = 3;
+const VISITOR_RATE_LIMIT = 6;
 const IP_RATE_WINDOW_MS = 10 * 60 * 1000;
 const IP_RATE_LIMIT = 8;
 const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -58,6 +58,7 @@ const DEFAULT_STORAGE_CLEANUP_DAYS = 30;
 const MAX_STORAGE_CLEANUP_DAYS = 3650;
 const BACKUP_KIND_CONFIG = "config-snapshot";
 const BACKUP_KIND_IMAGE_RANGE = "image-range-zip";
+const ADMIN_DRAW_CARD_SESSION_LIMIT = 3;
 
 let sharpModulePromise;
 const visitorRequestLog = new Map();
@@ -78,6 +79,80 @@ const upload = multer({
   }
 });
 const activeImageJobs = new Map();
+const drawCardSessionSyncLocks = new Map();
+
+function nowMs() {
+  return Date.now();
+}
+
+function elapsedMs(startMs) {
+  return Math.max(0, Math.round(nowMs() - Number(startMs || 0)));
+}
+
+function normalizeTelemetryNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function summarizeDrawCardJobStatuses(items) {
+  const summary = {
+    total: Array.isArray(items) ? items.length : 0,
+    queued: 0,
+    running: 0,
+    succeeded: 0,
+    failed: 0,
+    cancelled: 0
+  };
+  (items || []).forEach((item) => {
+    const status = String(item?.status || "queued");
+    if (Object.prototype.hasOwnProperty.call(summary, status)) {
+      summary[status] += 1;
+    }
+  });
+  return summary;
+}
+
+function logDrawCardTelemetry(event, fields = {}) {
+  const payload = {
+    type: "draw_card_telemetry",
+    event: String(event || ""),
+    at: new Date().toISOString()
+  };
+
+  Object.entries(fields).forEach(([key, value]) => {
+    if (value === undefined) return;
+    payload[key] = value;
+  });
+
+  console.log(JSON.stringify(payload));
+}
+
+function beginDrawCardRequestTelemetry(req, _res, next) {
+  req.drawCardRequestStartedAtMs = nowMs();
+  req.drawCardTraceId = String(req.get("x-draw-trace-id") || "").trim() || randomUUID();
+  logDrawCardTelemetry("request_arrived", {
+    traceId: req.drawCardTraceId,
+    method: req.method,
+    path: req.originalUrl || req.url,
+    ip: req.ip || ""
+  });
+  next();
+}
+
+function parseDrawCardClientMetrics(body) {
+  const safeBody = body && typeof body === "object" ? body : {};
+  const wasCompressedRaw = String(safeBody.clientWasCompressed || "").trim().toLowerCase();
+  return {
+    prepareReferenceMs: normalizeTelemetryNumber(safeBody.clientPrepareReferenceMs),
+    originalBytes: normalizeTelemetryNumber(safeBody.clientOriginalFileBytes),
+    uploadedBytes: normalizeTelemetryNumber(safeBody.clientUploadedFileBytes),
+    originalWidth: normalizeTelemetryNumber(safeBody.clientOriginalWidth),
+    originalHeight: normalizeTelemetryNumber(safeBody.clientOriginalHeight),
+    uploadedWidth: normalizeTelemetryNumber(safeBody.clientUploadedWidth),
+    uploadedHeight: normalizeTelemetryNumber(safeBody.clientUploadedHeight),
+    wasCompressed: ["1", "true", "yes"].includes(wasCompressedRaw)
+  };
+}
 
 app.use(express.json({ limit: "1mb" }));
 app.use(visitorSessionMiddleware);
@@ -162,7 +237,7 @@ app.get("/api/image-providers", requireAdmin, (_req, res) => {
   });
 });
 
-app.post("/api/draw-card/sessions", upload.single("image"), async (req, res) => {
+app.post("/api/draw-card/sessions", beginDrawCardRequestTelemetry, upload.single("image"), async (req, res) => {
   try {
     const visitor = await getVisitorState(req);
     if (!req.file) {
@@ -172,12 +247,33 @@ app.post("/api/draw-card/sessions", upload.single("image"), async (req, res) => 
       return res.status(400).json({ message: "请上传 JPG、PNG 或 WebP 图片。" });
     }
 
+    const clientMetrics = parseDrawCardClientMetrics(req.body);
+    logDrawCardTelemetry("request_parsed", {
+      traceId: req.drawCardTraceId,
+      visitorId: visitor.visitorId,
+      uploadParseMs: elapsedMs(req.drawCardRequestStartedAtMs),
+      uploadedMimeType: req.file.mimetype,
+      uploadedBytes: Number(req.file.size || req.file.buffer?.length || 0),
+      clientPrepareReferenceMs: clientMetrics.prepareReferenceMs,
+      clientOriginalFileBytes: clientMetrics.originalBytes,
+      clientUploadedFileBytes: clientMetrics.uploadedBytes,
+      clientOriginalWidth: clientMetrics.originalWidth,
+      clientOriginalHeight: clientMetrics.originalHeight,
+      clientUploadedWidth: clientMetrics.uploadedWidth,
+      clientUploadedHeight: clientMetrics.uploadedHeight,
+      clientWasCompressed: clientMetrics.wasCompressed
+    });
+
     const estimatedCost = await estimateDrawCardQuotaCost();
     enforcePublicRateLimits(req);
     enforceVisitorQuota(visitor, estimatedCost);
     await enforceVisitorRunningJobLimit(visitor.visitorId);
 
-    const session = await createDrawCardSession(req.file, visitor);
+    const session = await createDrawCardSession(req.file, visitor, {
+      traceId: req.drawCardTraceId,
+      requestStartedAtMs: req.drawCardRequestStartedAtMs,
+      clientMetrics
+    });
     res.status(202).json(toPublicDrawCardSession(session));
   } catch (error) {
     if (error.message === "UNSUPPORTED_IMAGE_TYPE") {
@@ -511,6 +607,42 @@ app.get("/api/image-jobs", requireAdmin, async (req, res) => {
   }
 });
 
+app.get("/api/admin/draw-card-sessions", requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(Number(req.query.limit || ADMIN_DRAW_CARD_SESSION_LIMIT), 1), ADMIN_DRAW_CARD_SESSION_LIMIT);
+    const sessions = await listDrawCardSessions();
+    const selectedSessions = sessions
+      .sort((a, b) =>
+        String(b.updatedAt || b.completedAt || b.createdAt || "").localeCompare(
+          String(a.updatedAt || a.completedAt || a.createdAt || "")
+        )
+      )
+      .slice(0, limit);
+
+    const synchronizedSessions = await Promise.all(
+      selectedSessions.map(async (session) => {
+        if (["queued", "running"].includes(String(session.status || ""))) {
+          return synchronizeDrawCardSession(session);
+        }
+        return normalizeDrawCardSession(session);
+      })
+    );
+
+    const payload = await Promise.all(
+      synchronizedSessions.map(async (session) => {
+        const jobs = await Promise.all(session.items.map((item) => readImageJob(item.jobId)));
+        const publicJobs = jobs.filter(Boolean).map(toPublicImageJob);
+        return toPublicAdminDrawCardSession(session, publicJobs);
+      })
+    );
+
+    res.json({ sessions: payload });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取抽卡观测失败。" });
+  }
+});
+
 app.post("/api/image-jobs/:jobId/cancel", requireAdmin, async (req, res) => {
   try {
     const job = await readImageJob(req.params.jobId);
@@ -822,10 +954,12 @@ app.delete("/api/style-groups/:id", requireAdmin, async (req, res) => {
 
 app.post("/api/styles", requireAdmin, async (req, res) => {
   const styles = await readStyles();
+  const now = new Date().toISOString();
   const style = {
     id: `style_${Date.now()}`,
     tags: normalizeTags(req.body.tags).length ? normalizeTags(req.body.tags) : ["新风格"],
     image: "/style-previews/default/cover.svg",
+    imageUpdatedAt: now,
     prompt: String(req.body.prompt || "在这里填写这个风格对应的提示词。").trim(),
     useStyleImageAsReference: Boolean(req.body.useStyleImageAsReference)
   };
@@ -885,8 +1019,12 @@ app.post("/api/styles/:id/image", requireAdmin, upload.single("image"), async (r
     await writeFile(path.join(dir, filename), req.file.buffer);
 
     style.image = `/style-previews/${style.id}/${filename}`;
+    style.imageUpdatedAt = new Date().toISOString();
     await saveStyles(styles);
-    res.json(style);
+    res.json({
+      ...style,
+      galleryImage: await getWebGalleryImage(style)
+    });
   } catch (error) {
     if (error.message === "UNSUPPORTED_IMAGE_TYPE") {
       return res.status(400).json({ message: "仅支持 JPG、PNG、WebP 或 SVG 图片。" });
@@ -940,6 +1078,7 @@ async function readStyles() {
       id: style.id,
       tags: normalizeTags(style.tags?.length ? style.tags : [style.label, style.description]),
       image: style.image || "/style-previews/default/cover.svg",
+      imageUpdatedAt: style.imageUpdatedAt || null,
       galleryImage: await getWebGalleryImage(style),
       prompt: String(style.prompt || ""),
       useStyleImageAsReference: Boolean(style.useStyleImageAsReference)
@@ -1165,11 +1304,15 @@ function normalizeVisitorState(visitor) {
   const tier = String(visitor?.tier || "anonymous");
   const quotaLimit = Number(visitor?.quotaLimit || (tier === "invited" ? DEFAULT_VISITOR_ANONYMOUS_LIMIT + VISITOR_INVITE_BONUS : DEFAULT_VISITOR_ANONYMOUS_LIMIT));
   const quotaUsed = Math.max(0, Number(visitor?.quotaUsed || 0));
+  const chargedDrawCardSessionIds = Array.isArray(visitor?.chargedDrawCardSessionIds)
+    ? visitor.chargedDrawCardSessionIds.map((sessionId) => String(sessionId || "")).filter(Boolean)
+    : [];
   return {
     visitorId: String(visitor?.visitorId || randomUUID()),
     tier,
     quotaLimit,
     quotaUsed,
+    chargedDrawCardSessionIds,
     invitedAt: visitor?.invitedAt || null,
     contactMessage: String(visitor?.contactMessage || DEFAULT_CONTACT_MESSAGE),
     createdAt: visitor?.createdAt || new Date().toISOString(),
@@ -1933,6 +2076,27 @@ async function consumeVisitorQuota(visitorId, cost) {
   });
 }
 
+async function consumeVisitorQuotaForDrawCardSession(visitorId, sessionId, cost) {
+  const current = await readVisitorState(visitorId);
+  if (!current) return "missing_visitor";
+
+  const chargedSessionIds = Array.isArray(current.chargedDrawCardSessionIds)
+    ? current.chargedDrawCardSessionIds.map((value) => String(value || "")).filter(Boolean)
+    : [];
+
+  if (chargedSessionIds.includes(sessionId)) {
+    return "already_charged";
+  }
+
+  await saveVisitorState({
+    ...current,
+    quotaUsed: Math.max(0, Number(current.quotaUsed || 0)) + Math.max(0, Number(cost || 0)),
+    chargedDrawCardSessionIds: chargedSessionIds.concat(sessionId),
+    updatedAt: new Date().toISOString()
+  });
+  return "charged";
+}
+
 async function estimateDrawCardQuotaCost() {
   return 1;
 }
@@ -2026,6 +2190,44 @@ function toPublicClipItem(job) {
   };
 }
 
+function summarizeTelemetryPhases(telemetry) {
+  const safeTelemetry = telemetry && typeof telemetry === "object" ? telemetry : {};
+  const client = safeTelemetry.client && typeof safeTelemetry.client === "object" ? safeTelemetry.client : {};
+  const server = safeTelemetry.server && typeof safeTelemetry.server === "object" ? safeTelemetry.server : {};
+  return [
+    { key: "client_prepare", label: "本地压图", valueMs: normalizeTelemetryNumber(client.prepareReferenceMs) },
+    { key: "upload_parse", label: "上传解析", valueMs: normalizeTelemetryNumber(server.uploadParseMs) },
+    { key: "session_create", label: "建会话", valueMs: normalizeTelemetryNumber(server.sessionCreateMs) },
+    { key: "reference_persist", label: "参考图落盘", valueMs: normalizeTelemetryNumber(server.totalReferencePersistMs) },
+    { key: "reference_thumbnail", label: "参考图缩略图", valueMs: normalizeTelemetryNumber(server.totalReferenceThumbnailMs) },
+    { key: "final_total", label: "整轮总耗时", valueMs: normalizeTelemetryNumber(server.finalElapsedMs) }
+  ].filter((item) => item.valueMs !== null);
+}
+
+function toPublicAdminDrawCardSession(session, publicJobs = []) {
+  const current = normalizeDrawCardSession(session);
+  const phases = summarizeTelemetryPhases(current.telemetry);
+  return {
+    sessionId: current.sessionId,
+    traceId: current.traceId,
+    ownerVisitorId: current.ownerVisitorId,
+    status: current.status,
+    message: current.message,
+    createdAt: current.createdAt,
+    updatedAt: current.updatedAt,
+    completedAt: current.completedAt,
+    failedReason: current.failedReason,
+    styleCount: current.items.length,
+    jobSummary: current.telemetry.jobs,
+    telemetry: current.telemetry,
+    phases,
+    charged: Boolean(current.quotaChargedAt),
+    quotaChargedAt: current.quotaChargedAt,
+    items: current.items,
+    jobs: publicJobs
+  };
+}
+
 async function sendAdminJobImage(res, job, options = {}) {
   const file = await resolveJobImageFile(job);
   if (!file) throw createHttpError(404, "高清图不存在。");
@@ -2071,7 +2273,11 @@ async function removeStyleFromGroups(styleId) {
   await saveStyleGroups(nextGroups);
 }
 
-async function createDrawCardSession(file, visitor) {
+async function createDrawCardSession(file, visitor, options = {}) {
+  const traceId = String(options?.traceId || "").trim() || randomUUID();
+  const requestStartedAtMs = normalizeTelemetryNumber(options?.requestStartedAtMs) || nowMs();
+  const clientMetrics = options?.clientMetrics && typeof options.clientMetrics === "object" ? options.clientMetrics : {};
+  const sessionCreateStartedAtMs = nowMs();
   const [groups, styles] = await Promise.all([readStyleGroups(), readStyles()]);
   const group = groups.find((item) => String(item.name || "").trim() === DRAW_CARD_GROUP_NAME);
   if (!group) {
@@ -2102,6 +2308,7 @@ async function createDrawCardSession(file, visitor) {
   const sessionId = randomUUID();
   const now = new Date().toISOString();
   const ownerVisitorId = String(visitor?.visitorId || "");
+  const uploadedBytes = Number(file.size || file.buffer?.length || 0);
   const sharedReferenceFiles = [
     {
       originalname: file.originalname || "draw-card-reference",
@@ -2113,14 +2320,41 @@ async function createDrawCardSession(file, visitor) {
   const providerChain = getProviderFallbackChain(provider.id, providers);
   const preparedJobs = [];
   const sessionItems = [];
+  let totalReferencePersistMs = 0;
+  let totalReferenceThumbnailMs = 0;
+  let totalReferenceBytes = 0;
+
+  logDrawCardTelemetry("session_create_started", {
+    traceId,
+    sessionId,
+    visitorId: ownerVisitorId,
+    styleCount: groupStyles.length,
+    uploadedBytes,
+    uploadParseMs: elapsedMs(requestStartedAtMs)
+  });
 
   try {
     for (const [order, style] of groupStyles.entries()) {
       const prompt = String(style.prompt || "").trim();
+      const styleStartedAtMs = nowMs();
       const referenceFiles = await buildBatchReferenceFiles(style, sharedReferenceFiles);
       const jobId = randomUUID();
       const styleName = formatStyleName(style);
-      const originalReferences = await persistImageJobReferences(jobId, referenceFiles);
+      const persistedReferenceResult = await persistImageJobReferences(jobId, referenceFiles, {
+        includeMetrics: true,
+        telemetry: {
+          traceId,
+          sessionId,
+          jobId,
+          styleId: String(style.id || ""),
+          styleName,
+          order
+        }
+      });
+      const originalReferences = persistedReferenceResult.references;
+      totalReferencePersistMs += Number(persistedReferenceResult.metrics?.persistMs || 0);
+      totalReferenceThumbnailMs += Number(persistedReferenceResult.metrics?.thumbnailMs || 0);
+      totalReferenceBytes += Number(persistedReferenceResult.metrics?.totalBytes || 0);
       const job = {
         jobId,
         status: "queued",
@@ -2144,7 +2378,17 @@ async function createDrawCardSession(file, visitor) {
         },
         mode: referenceFiles.length ? "edit" : "generation",
         ownerVisitorId,
-        visibility: "public"
+        visibility: "public",
+        telemetry: {
+          traceId,
+          sessionId,
+          styleId: String(style.id || ""),
+          styleName,
+          order,
+          providerCallMs: null,
+          persistResultMs: null,
+          totalJobMs: null
+        }
       };
 
       preparedJobs.push({
@@ -2166,7 +2410,15 @@ async function createDrawCardSession(file, visitor) {
           outputFormat: "png",
           prompt,
           provider,
-          providers: providerChain
+          providers: providerChain,
+          telemetry: {
+            traceId,
+            sessionId,
+            visitorId: ownerVisitorId,
+            styleId: String(style.id || ""),
+            styleName,
+            order
+          }
         }
       });
       sessionItems.push({
@@ -2175,12 +2427,26 @@ async function createDrawCardSession(file, visitor) {
         styleId: String(style.id || ""),
         styleName
       });
+
+      logDrawCardTelemetry("style_job_prepared", {
+        traceId,
+        sessionId,
+        jobId,
+        styleId: String(style.id || ""),
+        styleName,
+        order,
+        referenceCount: referenceFiles.length,
+        stylePrepareMs: elapsedMs(styleStartedAtMs),
+        referencePersistMs: Number(persistedReferenceResult.metrics?.persistMs || 0),
+        referenceThumbnailMs: Number(persistedReferenceResult.metrics?.thumbnailMs || 0)
+      });
     }
 
     await Promise.all(preparedJobs.map((item) => saveImageJob(item.job)));
 
     const session = await saveDrawCardSession({
       sessionId,
+      traceId,
       ownerVisitorId,
       status: "queued",
       message: DRAW_CARD_WAITING_MESSAGE,
@@ -2188,11 +2454,47 @@ async function createDrawCardSession(file, visitor) {
       updatedAt: now,
       completedAt: null,
       failedReason: "",
+      quotaChargedAt: null,
+      telemetry: {
+        client: {
+          prepareReferenceMs: clientMetrics.prepareReferenceMs,
+          originalBytes: clientMetrics.originalBytes,
+          uploadedBytes: clientMetrics.uploadedBytes || uploadedBytes,
+          originalWidth: clientMetrics.originalWidth,
+          originalHeight: clientMetrics.originalHeight,
+          uploadedWidth: clientMetrics.uploadedWidth,
+          uploadedHeight: clientMetrics.uploadedHeight,
+          wasCompressed: Boolean(clientMetrics.wasCompressed)
+        },
+        server: {
+          uploadParseMs: elapsedMs(requestStartedAtMs),
+          sessionCreateMs: elapsedMs(sessionCreateStartedAtMs),
+          requestAcceptedMs: elapsedMs(requestStartedAtMs),
+          totalReferencePersistMs,
+          totalReferenceThumbnailMs,
+          totalReferenceBytes,
+          finalStatus: "queued",
+          finalElapsedMs: null,
+          quotaChargeStatus: "",
+          charged: false
+        },
+        jobs: summarizeDrawCardJobStatuses(sessionItems.map((item) => ({ status: item.status || "queued" })))
+      },
       results: [],
       items: sessionItems
     });
 
-    await consumeVisitorQuota(ownerVisitorId, preparedJobs.length);
+    logDrawCardTelemetry("session_created", {
+      traceId,
+      sessionId,
+      visitorId: ownerVisitorId,
+      styleCount: groupStyles.length,
+      sessionCreateMs: elapsedMs(sessionCreateStartedAtMs),
+      requestAcceptedMs: elapsedMs(requestStartedAtMs),
+      totalReferencePersistMs,
+      totalReferenceThumbnailMs,
+      totalReferenceBytes
+    });
 
     preparedJobs.forEach((item) => {
       runImageJob(item.runArgs).catch((error) => {
@@ -2209,6 +2511,13 @@ async function createDrawCardSession(file, visitor) {
       })
     );
     await rm(getDrawCardSessionPath(sessionId), { force: true });
+    logDrawCardTelemetry("session_create_failed", {
+      traceId,
+      sessionId,
+      visitorId: ownerVisitorId,
+      elapsedMs: elapsedMs(sessionCreateStartedAtMs),
+      message: error.publicMessage || error.message || "unknown error"
+    });
     throw error;
   }
 }
@@ -2257,69 +2566,139 @@ async function saveDrawCardSession(session) {
   return safeSession;
 }
 
-async function synchronizeDrawCardSession(session) {
-  const current = normalizeDrawCardSession(session);
-  const jobs = await Promise.all(current.items.map((item) => readImageJob(item.jobId)));
-  const normalizedItems = current.items.map((item, index) => {
-    const job = jobs[index];
-    return {
-      ...item,
-      status: job?.status || "failed"
-    };
+async function withDrawCardSessionSyncLock(sessionId, task) {
+  const key = String(sessionId || "");
+  const previous = drawCardSessionSyncLocks.get(key) || Promise.resolve();
+  let release;
+  const current = new Promise((resolve) => {
+    release = resolve;
   });
-
-  const failedJob = jobs.find((job) => !job || job.status === "failed");
-  let nextStatus = "queued";
-  let nextMessage = DRAW_CARD_WAITING_MESSAGE;
-  let completedAt = current.completedAt || null;
-  let failedReason = "";
-  let results = [];
-
-  if (failedJob) {
-    nextStatus = "failed";
-    nextMessage = DRAW_CARD_FAILURE_MESSAGE;
-    completedAt = completedAt || new Date().toISOString();
-    failedReason = DRAW_CARD_FAILURE_MESSAGE;
-    await cancelDrawCardSiblingJobs(jobs);
-  } else if (jobs.length && jobs.every((job) => job?.status === "succeeded")) {
-    nextStatus = "succeeded";
-    nextMessage = DRAW_CARD_SUCCESS_MESSAGE;
-    completedAt = completedAt || new Date().toISOString();
-    results = normalizedItems
-      .map((item) => {
-        const job = jobs.find((currentJob) => currentJob?.jobId === item.jobId);
-        return {
-          order: item.order,
-          jobId: item.jobId,
-          styleId: item.styleId,
-          styleName: item.styleName,
-          imageUrl: String(job?.result?.previewUrl || job?.result?.thumbnailUrl || ""),
-          thumbnailUrl: String(job?.result?.thumbnailUrl || ""),
-          originalImageUrl: String(job?.result?.originalImageUrl || ""),
-          previewUrl: String(job?.result?.previewUrl || job?.result?.thumbnailUrl || ""),
-          isLiked: Boolean(job?.isLiked),
-          likedAt: job?.likedAt || null
-        };
-      })
-      .sort((a, b) => a.order - b.order);
-  } else if (jobs.some((job) => job?.status === "running")) {
-    nextStatus = "running";
-    nextMessage = DRAW_CARD_WAITING_MESSAGE;
-  } else {
-    nextStatus = "queued";
-    nextMessage = DRAW_CARD_WAITING_MESSAGE;
+  drawCardSessionSyncLocks.set(key, current);
+  await previous.catch(() => {});
+  try {
+    return await task();
+  } finally {
+    release();
+    if (drawCardSessionSyncLocks.get(key) === current) {
+      drawCardSessionSyncLocks.delete(key);
+    }
   }
+}
 
-  return saveDrawCardSession({
-    ...current,
-    status: nextStatus,
-    message: nextMessage,
-    updatedAt: new Date().toISOString(),
-    completedAt,
-    failedReason,
-    results,
-    items: normalizedItems
+async function synchronizeDrawCardSession(session) {
+  const normalizedSession = normalizeDrawCardSession(session);
+  return withDrawCardSessionSyncLock(normalizedSession.sessionId, async () => {
+    const current = (await readDrawCardSession(normalizedSession.sessionId)) || normalizedSession;
+    const jobs = await Promise.all(current.items.map((item) => readImageJob(item.jobId)));
+    const normalizedItems = current.items.map((item, index) => {
+      const job = jobs[index];
+      return {
+        ...item,
+        status: job?.status || "failed"
+      };
+    });
+
+    const failedJob = jobs.find((job) => !job || job.status === "failed");
+    let nextStatus = "queued";
+    let nextMessage = DRAW_CARD_WAITING_MESSAGE;
+    let completedAt = current.completedAt || null;
+    let failedReason = "";
+    let results = [];
+    let quotaChargedAt = current.quotaChargedAt || null;
+    let quotaChargeStatus = "";
+
+    if (failedJob) {
+      nextStatus = "failed";
+      nextMessage = DRAW_CARD_FAILURE_MESSAGE;
+      completedAt = completedAt || new Date().toISOString();
+      failedReason = DRAW_CARD_FAILURE_MESSAGE;
+      await cancelDrawCardSiblingJobs(jobs);
+    } else if (jobs.length && jobs.every((job) => job?.status === "succeeded")) {
+      nextStatus = "succeeded";
+      nextMessage = DRAW_CARD_SUCCESS_MESSAGE;
+      completedAt = completedAt || new Date().toISOString();
+      if (!quotaChargedAt) {
+        const chargeStatus = await consumeVisitorQuotaForDrawCardSession(current.ownerVisitorId, current.sessionId, 1);
+        quotaChargeStatus = chargeStatus;
+        if (chargeStatus === "charged" || chargeStatus === "already_charged") {
+          quotaChargedAt = new Date().toISOString();
+        }
+      } else {
+        quotaChargeStatus = "already_charged";
+      }
+      results = normalizedItems
+        .map((item) => {
+          const job = jobs.find((currentJob) => currentJob?.jobId === item.jobId);
+          return {
+            order: item.order,
+            jobId: item.jobId,
+            styleId: item.styleId,
+            styleName: item.styleName,
+            imageUrl: String(job?.result?.previewUrl || job?.result?.thumbnailUrl || ""),
+            thumbnailUrl: String(job?.result?.thumbnailUrl || ""),
+            originalImageUrl: String(job?.result?.originalImageUrl || ""),
+            previewUrl: String(job?.result?.previewUrl || job?.result?.thumbnailUrl || ""),
+            isLiked: Boolean(job?.isLiked),
+            likedAt: job?.likedAt || null
+          };
+        })
+        .sort((a, b) => a.order - b.order);
+    } else if (jobs.some((job) => job?.status === "running")) {
+      nextStatus = "running";
+      nextMessage = DRAW_CARD_WAITING_MESSAGE;
+    } else {
+      nextStatus = "queued";
+      nextMessage = DRAW_CARD_WAITING_MESSAGE;
+    }
+
+    const nextTelemetry = {
+      client: {
+        ...(current.telemetry?.client || {})
+      },
+      server: {
+        ...(current.telemetry?.server || {}),
+        finalStatus: nextStatus,
+        finalElapsedMs: completedAt && current.createdAt
+          ? Math.max(0, Math.round(new Date(completedAt).getTime() - new Date(current.createdAt).getTime()))
+          : current.telemetry?.server?.finalElapsedMs || null,
+        quotaChargeStatus: quotaChargeStatus || current.telemetry?.server?.quotaChargeStatus || "",
+        charged: Boolean(quotaChargedAt)
+      },
+      jobs: summarizeDrawCardJobStatuses(normalizedItems)
+    };
+
+    logDrawCardTelemetry("session_status_updated", {
+      traceId: current.traceId,
+      sessionId: current.sessionId,
+      visitorId: current.ownerVisitorId,
+      status: nextStatus,
+      failedReason,
+      quotaChargeStatus: nextTelemetry.server.quotaChargeStatus,
+      charged: nextTelemetry.server.charged,
+      jobSummary: nextTelemetry.jobs
+    });
+
+    return saveDrawCardSession({
+      ...current,
+      status: nextStatus,
+      message: nextMessage,
+      updatedAt: new Date().toISOString(),
+      completedAt,
+      failedReason,
+      quotaChargedAt,
+      telemetry: nextTelemetry,
+      results,
+      items: normalizedItems
+    });
   });
+}
+
+async function synchronizeDrawCardSessionByJobId(jobId) {
+  if (!isSafeImageJobId(jobId)) return null;
+  const sessions = await listDrawCardSessions();
+  const session = sessions.find((current) => current.items.some((item) => item.jobId === jobId));
+  if (!session) return null;
+  return synchronizeDrawCardSession(session);
 }
 
 async function cancelDrawCardSiblingJobs(jobs) {
@@ -2339,8 +2718,12 @@ async function cancelDrawCardSiblingJobs(jobs) {
 }
 
 function normalizeDrawCardSession(session) {
+  const telemetry = session?.telemetry && typeof session.telemetry === "object" ? session.telemetry : {};
+  const telemetryClient = telemetry.client && typeof telemetry.client === "object" ? telemetry.client : {};
+  const telemetryServer = telemetry.server && typeof telemetry.server === "object" ? telemetry.server : {};
   return {
     sessionId: String(session?.sessionId || ""),
+    traceId: String(session?.traceId || ""),
     ownerVisitorId: String(session?.ownerVisitorId || ""),
     status: String(session?.status || "queued"),
     message: String(session?.message || DRAW_CARD_WAITING_MESSAGE),
@@ -2348,6 +2731,32 @@ function normalizeDrawCardSession(session) {
     updatedAt: session?.updatedAt || null,
     completedAt: session?.completedAt || null,
     failedReason: String(session?.failedReason || ""),
+    quotaChargedAt: session?.quotaChargedAt || null,
+    telemetry: {
+      client: {
+        prepareReferenceMs: normalizeTelemetryNumber(telemetryClient.prepareReferenceMs),
+        originalBytes: normalizeTelemetryNumber(telemetryClient.originalBytes),
+        uploadedBytes: normalizeTelemetryNumber(telemetryClient.uploadedBytes),
+        originalWidth: normalizeTelemetryNumber(telemetryClient.originalWidth),
+        originalHeight: normalizeTelemetryNumber(telemetryClient.originalHeight),
+        uploadedWidth: normalizeTelemetryNumber(telemetryClient.uploadedWidth),
+        uploadedHeight: normalizeTelemetryNumber(telemetryClient.uploadedHeight),
+        wasCompressed: Boolean(telemetryClient.wasCompressed)
+      },
+      server: {
+        uploadParseMs: normalizeTelemetryNumber(telemetryServer.uploadParseMs),
+        sessionCreateMs: normalizeTelemetryNumber(telemetryServer.sessionCreateMs),
+        requestAcceptedMs: normalizeTelemetryNumber(telemetryServer.requestAcceptedMs),
+        totalReferencePersistMs: normalizeTelemetryNumber(telemetryServer.totalReferencePersistMs),
+        totalReferenceThumbnailMs: normalizeTelemetryNumber(telemetryServer.totalReferenceThumbnailMs),
+        totalReferenceBytes: normalizeTelemetryNumber(telemetryServer.totalReferenceBytes),
+        finalStatus: String(telemetryServer.finalStatus || ""),
+        finalElapsedMs: normalizeTelemetryNumber(telemetryServer.finalElapsedMs),
+        quotaChargeStatus: String(telemetryServer.quotaChargeStatus || ""),
+        charged: Boolean(telemetryServer.charged)
+      },
+      jobs: summarizeDrawCardJobStatuses(Array.isArray(session?.items) ? session.items : [])
+    },
     results: Array.isArray(session?.results)
       ? session.results
           .map((result, index) => ({
@@ -2382,12 +2791,14 @@ function toPublicDrawCardSession(session) {
   const current = normalizeDrawCardSession(session);
   return {
     sessionId: current.sessionId,
+    traceId: current.traceId,
     status: current.status,
     message: current.message,
     createdAt: current.createdAt,
     updatedAt: current.updatedAt,
     completedAt: current.completedAt,
     failedReason: current.failedReason,
+    telemetry: current.telemetry,
     results: current.results
   };
 }
@@ -2517,21 +2928,48 @@ async function deleteTemporaryReference(referenceId) {
   await rm(path.join(tempReferenceRoot, String(referenceId)), { recursive: true, force: true });
 }
 
-async function runImageJob({ jobId, body, files, outputFormat, prompt, provider, providers }) {
+async function runImageJob({ jobId, body, files, outputFormat, prompt, provider, providers, telemetry = null }) {
   let job = await readImageJob(jobId);
   if (!job) return;
   if (job.status === "cancelled") return;
   const abortController = new AbortController();
   activeImageJobs.set(jobId, { abortController });
+  const jobRunStartedAtMs = nowMs();
+
+  logDrawCardTelemetry("job_started", {
+    traceId: telemetry?.traceId || "",
+    sessionId: telemetry?.sessionId || "",
+    visitorId: telemetry?.visitorId || "",
+    jobId,
+    styleId: telemetry?.styleId || "",
+    styleName: telemetry?.styleName || "",
+    order: normalizeTelemetryNumber(telemetry?.order),
+    referenceCount: Array.isArray(files) ? files.length : 0,
+    mode: Array.isArray(files) && files.length ? "edit" : "generation",
+    providerId: provider?.id || "",
+    providerModel: provider?.model || ""
+  });
 
   job = await saveImageJob({
     ...job,
     status: "running",
     message: "正在生成图片。",
+    telemetry: {
+      ...(job.telemetry || {}),
+      traceId: telemetry?.traceId || job.telemetry?.traceId || "",
+      sessionId: telemetry?.sessionId || job.telemetry?.sessionId || "",
+      styleId: telemetry?.styleId || job.telemetry?.styleId || "",
+      styleName: telemetry?.styleName || job.telemetry?.styleName || "",
+      order: normalizeTelemetryNumber(telemetry?.order ?? job.telemetry?.order),
+      providerCallMs: null,
+      persistResultMs: null,
+      totalJobMs: null
+    },
     updatedAt: new Date().toISOString()
   });
 
   try {
+    const providerCallStartedAtMs = nowMs();
     const execution = await executeImageJobWithFailover({
       body,
       files,
@@ -2539,12 +2977,16 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider,
       prompt,
       provider,
       providers,
-      signal: abortController.signal
+      signal: abortController.signal,
+      telemetry
     });
+    const providerCallMs = elapsedMs(providerCallStartedAtMs);
     const result = execution.result;
     const latestJob = await readImageJob(jobId);
     if (!latestJob || latestJob.status === "cancelled") return;
+    const persistResultStartedAtMs = nowMs();
     const publicResult = await persistImageJobResult(jobId, result, outputFormat);
+    const persistResultMs = elapsedMs(persistResultStartedAtMs);
     await saveImageJob({
       ...latestJob,
       status: "succeeded",
@@ -2554,9 +2996,35 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider,
         provider: execution.provider
       },
       provider: execution.provider,
+      telemetry: {
+        ...(latestJob.telemetry || {}),
+        traceId: telemetry?.traceId || latestJob.telemetry?.traceId || "",
+        sessionId: telemetry?.sessionId || latestJob.telemetry?.sessionId || "",
+        styleId: telemetry?.styleId || latestJob.telemetry?.styleId || "",
+        styleName: telemetry?.styleName || latestJob.telemetry?.styleName || "",
+        order: normalizeTelemetryNumber(telemetry?.order ?? latestJob.telemetry?.order),
+        providerCallMs,
+        persistResultMs,
+        totalJobMs: elapsedMs(jobRunStartedAtMs)
+      },
       updatedAt: new Date().toISOString(),
       completedAt: new Date().toISOString()
     });
+    logDrawCardTelemetry("job_succeeded", {
+      traceId: telemetry?.traceId || "",
+      sessionId: telemetry?.sessionId || "",
+      visitorId: telemetry?.visitorId || "",
+      jobId,
+      styleId: telemetry?.styleId || "",
+      styleName: telemetry?.styleName || "",
+      order: normalizeTelemetryNumber(telemetry?.order),
+      providerId: execution.provider?.id || provider?.id || "",
+      providerModel: execution.provider?.model || provider?.model || "",
+      providerCallMs,
+      persistResultMs,
+      totalJobMs: elapsedMs(jobRunStartedAtMs)
+    });
+    await synchronizeDrawCardSessionByJobId(jobId);
   } catch (error) {
     const latestJob = await readImageJob(jobId);
     if (!latestJob || latestJob.status === "cancelled") return;
@@ -2565,9 +3033,34 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider,
       status: "failed",
       message: error.name === "AbortError" ? "任务已停止。" : error.publicMessage || error.message || "生图失败，请稍后再试。",
       result: null,
+      telemetry: {
+        ...(latestJob.telemetry || {}),
+        traceId: telemetry?.traceId || latestJob.telemetry?.traceId || "",
+        sessionId: telemetry?.sessionId || latestJob.telemetry?.sessionId || "",
+        styleId: telemetry?.styleId || latestJob.telemetry?.styleId || "",
+        styleName: telemetry?.styleName || latestJob.telemetry?.styleName || "",
+        order: normalizeTelemetryNumber(telemetry?.order ?? latestJob.telemetry?.order),
+        providerCallMs: latestJob.telemetry?.providerCallMs ?? null,
+        persistResultMs: latestJob.telemetry?.persistResultMs ?? null,
+        totalJobMs: elapsedMs(jobRunStartedAtMs)
+      },
       updatedAt: new Date().toISOString(),
       completedAt: new Date().toISOString()
     });
+    logDrawCardTelemetry("job_failed", {
+      traceId: telemetry?.traceId || "",
+      sessionId: telemetry?.sessionId || "",
+      visitorId: telemetry?.visitorId || "",
+      jobId,
+      styleId: telemetry?.styleId || "",
+      styleName: telemetry?.styleName || "",
+      order: normalizeTelemetryNumber(telemetry?.order),
+      providerId: provider?.id || "",
+      providerModel: provider?.model || "",
+      totalJobMs: elapsedMs(jobRunStartedAtMs),
+      message: error.publicMessage || error.message || "unknown error"
+    });
+    await synchronizeDrawCardSessionByJobId(jobId);
   } finally {
     activeImageJobs.delete(jobId);
   }
@@ -2686,18 +3179,52 @@ async function saveImageJob(job) {
   return safeJob;
 }
 
-async function persistImageJobReferences(jobId, referenceFiles) {
-  if (!referenceFiles.length) return [];
+async function persistImageJobReferences(jobId, referenceFiles, options = {}) {
+  const includeMetrics = Boolean(options?.includeMetrics);
+  const telemetry = options?.telemetry && typeof options.telemetry === "object" ? options.telemetry : null;
+  if (!referenceFiles.length) {
+    return includeMetrics
+      ? {
+          references: [],
+          metrics: {
+            persistMs: 0,
+            thumbnailMs: 0,
+            totalBytes: 0
+          }
+        }
+      : [];
+  }
 
   const jobDir = path.join(jobReferenceRoot, String(jobId));
   await mkdir(jobDir, { recursive: true });
+  const persistStartedAtMs = nowMs();
+  let totalThumbnailMs = 0;
+  let totalBytes = 0;
 
-  return Promise.all(
+  const references = await Promise.all(
     referenceFiles.map(async (file, index) => {
+      const fileStartedAtMs = nowMs();
       const extension = extensionForMime(file.mimetype);
       const filename = `${index + 1}-${Date.now()}.${extension}`;
       await writeFile(path.join(jobDir, filename), file.buffer);
+      const thumbnailStartedAtMs = nowMs();
       const thumbnail = await createReferenceThumbnail(jobId, filename, file.buffer, file.mimetype);
+      const thumbnailMs = elapsedMs(thumbnailStartedAtMs);
+      totalThumbnailMs += thumbnailMs;
+      totalBytes += Number(file.size || file.buffer?.length || 0);
+      logDrawCardTelemetry("reference_file_persisted", {
+        traceId: telemetry?.traceId || "",
+        sessionId: telemetry?.sessionId || "",
+        jobId,
+        styleId: telemetry?.styleId || "",
+        styleName: telemetry?.styleName || "",
+        order: normalizeTelemetryNumber(telemetry?.order),
+        referenceIndex: index,
+        bytes: Number(file.size || file.buffer?.length || 0),
+        mimeType: file.mimetype,
+        filePersistMs: elapsedMs(fileStartedAtMs),
+        thumbnailMs
+      });
       return {
         name: file.originalname || `reference-${index + 1}.${extension}`,
         mimeType: file.mimetype,
@@ -2709,6 +3236,19 @@ async function persistImageJobReferences(jobId, referenceFiles) {
       };
     })
   );
+
+  if (!includeMetrics) {
+    return references;
+  }
+
+  return {
+    references,
+    metrics: {
+      persistMs: elapsedMs(persistStartedAtMs),
+      thumbnailMs: totalThumbnailMs,
+      totalBytes
+    }
+  };
 }
 
 async function buildBatchReferenceFiles(style, sharedReferenceFiles) {
@@ -2789,7 +3329,22 @@ function toPublicImageJob(job) {
     isLiked: Boolean(job.isLiked),
     likedAt: job.likedAt || null,
     ownerVisitorId: String(job.ownerVisitorId || ""),
-    visibility: String(job.visibility || "admin")
+    visibility: String(job.visibility || "admin"),
+    telemetry: normalizeJobTelemetry(job.telemetry)
+  };
+}
+
+function normalizeJobTelemetry(telemetry) {
+  const current = telemetry && typeof telemetry === "object" ? telemetry : {};
+  return {
+    traceId: String(current.traceId || ""),
+    sessionId: String(current.sessionId || ""),
+    styleId: String(current.styleId || ""),
+    styleName: String(current.styleName || ""),
+    order: normalizeTelemetryNumber(current.order),
+    providerCallMs: normalizeTelemetryNumber(current.providerCallMs),
+    persistResultMs: normalizeTelemetryNumber(current.persistResultMs),
+    totalJobMs: normalizeTelemetryNumber(current.totalJobMs)
   };
 }
 
@@ -3249,8 +3804,16 @@ function isUsableApiKey(apiKey) {
 }
 
 async function saveStyles(styles) {
-  await writeFile(dataPath, `${JSON.stringify(styles, null, 2)}\n`, "utf-8");
-  await syncMiniProgram(styles);
+  const storedStyles = styles.map((style) => ({
+    id: String(style?.id || "").trim(),
+    tags: normalizeTags(style?.tags),
+    image: String(style?.image || "/style-previews/default/cover.svg").trim() || "/style-previews/default/cover.svg",
+    imageUpdatedAt: style?.imageUpdatedAt || null,
+    prompt: String(style?.prompt || ""),
+    useStyleImageAsReference: Boolean(style?.useStyleImageAsReference)
+  }));
+  await writeFile(dataPath, `${JSON.stringify(storedStyles, null, 2)}\n`, "utf-8");
+  await syncMiniProgram(storedStyles);
 }
 
 async function syncMiniProgram(styles) {

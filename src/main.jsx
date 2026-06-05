@@ -20,7 +20,7 @@ const GENERATION_SIZE_OPTIONS = [
 ];
 const GALLERY_INITIAL_BATCH = 18;
 const GALLERY_BATCH_STEP = 12;
-const MANAGE_INITIAL_BATCH = 12;
+const MANAGE_INITIAL_BATCH = 6;
 const MANAGE_BATCH_STEP = 8;
 
 const REFERENCE_UPLOAD_LIMITS = {
@@ -31,6 +31,11 @@ const REFERENCE_UPLOAD_LIMITS = {
 
 const GENERATION_STEPS = ["准备请求", "提交到中转站", "等待模型生成", "接收图片结果", "准备预览"];
 const DRAW_CARD_SESSION_STORAGE_KEY = "pg.public-draw.session-id";
+
+function createClientTraceId() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  return `draw-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 function readRoute() {
   const pathname = window.location.pathname;
@@ -396,6 +401,10 @@ function LuckDrawCardPage() {
   const flightTimeoutRef = useRef(null);
   const clipPulseTimeoutRef = useRef(null);
 
+  function refreshVisitorStateSilently() {
+    fetchVisitorState().then(setVisitorState).catch(() => {});
+  }
+
   function clearPersistedDrawCardSession() {
     try {
       window.localStorage.removeItem(DRAW_CARD_SESSION_STORAGE_KEY);
@@ -420,6 +429,7 @@ function LuckDrawCardPage() {
     persistDrawCardSession(nextSessionId);
 
     if (payload?.status === "failed") {
+      refreshVisitorStateSilently();
       setResults(Array.isArray(payload?.results) ? payload.results : []);
       setError(payload.failedReason || payload.message || "这一轮未能顺利完成，请重新开始。");
       setPhase("error");
@@ -427,6 +437,7 @@ function LuckDrawCardPage() {
     }
 
     if (payload?.status === "succeeded") {
+      refreshVisitorStateSilently();
       setResults(Array.isArray(payload?.results) ? payload.results : []);
       setError("");
       setPhase(revealOnSuccess ? "revealing" : "results");
@@ -687,19 +698,39 @@ function LuckDrawCardPage() {
     setIsSubmitting(true);
     setError("");
     try {
+      const latestVisitorState = await fetchVisitorState();
+      setVisitorState(latestVisitorState);
+      if (!latestVisitorState?.canGenerate) {
+        setError(latestVisitorState?.contactMessage || "如需更多生图机会，请联系客服填写邀请码。");
+        return;
+      }
+
+      const traceId = createClientTraceId();
       const preparedReference = await prepareReferenceForUpload({ id: "draw-card-reference", file: referenceFile });
       const formData = new FormData();
       formData.append("image", preparedReference.file);
+      formData.append("clientPrepareReferenceMs", String(preparedReference.telemetry?.prepareReferenceMs ?? ""));
+      formData.append("clientOriginalFileBytes", String(preparedReference.telemetry?.originalBytes ?? ""));
+      formData.append("clientUploadedFileBytes", String(preparedReference.telemetry?.uploadedBytes ?? ""));
+      formData.append("clientOriginalWidth", String(preparedReference.telemetry?.originalWidth ?? ""));
+      formData.append("clientOriginalHeight", String(preparedReference.telemetry?.originalHeight ?? ""));
+      formData.append("clientUploadedWidth", String(preparedReference.telemetry?.uploadedWidth ?? ""));
+      formData.append("clientUploadedHeight", String(preparedReference.telemetry?.uploadedHeight ?? ""));
+      formData.append("clientWasCompressed", preparedReference.telemetry?.wasCompressed ? "1" : "0");
 
-      const response = await fetch("/api/draw-card/sessions", { method: "POST", body: formData });
+      const response = await fetch("/api/draw-card/sessions", {
+        method: "POST",
+        headers: { "x-draw-trace-id": traceId },
+        body: formData
+      });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message || "抽卡暂时不可用，请稍后再试。");
 
       applyDrawCardSession(payload);
-      fetchVisitorState().then(setVisitorState).catch(() => {});
+      refreshVisitorStateSilently();
     } catch (nextError) {
       setError(nextError.message || "抽卡暂时不可用，请稍后再试。");
-      setPhase("error");
+      setPhase("ready");
     } finally {
       setIsSubmitting(false);
     }
@@ -889,6 +920,8 @@ function LuckDrawCardPage() {
                     </button>
                   ) : null}
                 </div>
+
+                {error ? <p className="error-note draw-card-inline-error">{error}</p> : null}
               </section>
             </div>
 
@@ -1087,7 +1120,7 @@ function GalleryPage({ copiedId, onCopy, onGenerate, onViewPrompt, styles }) {
           {column.map((style) => (
         <article className="style-card" key={style.id}>
           <div className="image-frame">
-            <img alt={`${style.tags.join("、")}示例图`} decoding="async" loading="lazy" src={cacheBust(style.galleryImage || style.image)} />
+            <img alt={`${style.tags.join("、")}示例图`} decoding="async" loading="lazy" src={cacheBust(style.galleryImage || style.image, style.imageUpdatedAt)} />
           </div>
           <div className="tag-row">
             {style.tags.map((tag) => (
@@ -1182,6 +1215,34 @@ function useProgressiveItems(items, { initialCount, step }) {
   };
 }
 
+function StylePreviewImage({ alt, className = "", preferOriginal = false, style }) {
+  const candidates = (preferOriginal
+    ? [style?.image, style?.galleryImage]
+    : [style?.galleryImage, style?.image]
+  )
+    .map((item) => cacheBust(item, style?.imageUpdatedAt))
+    .filter(Boolean)
+    .filter((item, index, list) => list.indexOf(item) === index);
+  const [candidateIndex, setCandidateIndex] = useState(0);
+
+  useEffect(() => {
+    setCandidateIndex(0);
+  }, [preferOriginal, style?.galleryImage, style?.id, style?.image, style?.imageUpdatedAt]);
+
+  const src = candidates[candidateIndex] || "";
+
+  return (
+    <img
+      alt={alt}
+      className={className}
+      decoding="async"
+      loading="lazy"
+      onError={() => setCandidateIndex((current) => (current + 1 < candidates.length ? current + 1 : current))}
+      src={src}
+    />
+  );
+}
+
 function ImageGeneratorModal({ onClose, style }) {
   const previewRef = useRef(null);
   const [prompt, setPrompt] = useState(style.prompt);
@@ -1223,7 +1284,7 @@ function ImageGeneratorModal({ onClose, style }) {
       }
 
       try {
-        const response = await fetch(cacheBust(style.image));
+        const response = await fetch(cacheBust(style.image, style.imageUpdatedAt));
         if (!response.ok) throw new Error("Failed to fetch style preview");
 
         const blob = await response.blob();
@@ -1610,30 +1671,62 @@ function formatFileSize(size) {
 async function prepareReferenceForUpload(reference) {
   const file = reference.file;
   if (!file.type.startsWith("image/")) return reference;
+  const prepareStartedAt = performance.now();
 
   try {
     const bitmap = await createImageBitmap(file);
+    const originalWidth = Number(bitmap.width || 0) || null;
+    const originalHeight = Number(bitmap.height || 0) || null;
     const longestSide = Math.max(bitmap.width, bitmap.height);
     const scale = Math.min(1, REFERENCE_UPLOAD_LIMITS.maxDimension / longestSide);
     const shouldCompress = file.size > REFERENCE_UPLOAD_LIMITS.maxBytes || scale < 1;
 
     if (!shouldCompress) {
       bitmap.close?.();
-      return reference;
+      return {
+        ...reference,
+        telemetry: {
+          prepareReferenceMs: Math.max(0, Math.round(performance.now() - prepareStartedAt)),
+          originalBytes: Number(file.size || 0),
+          uploadedBytes: Number(file.size || 0),
+          originalWidth,
+          originalHeight,
+          uploadedWidth: originalWidth,
+          uploadedHeight: originalHeight,
+          wasCompressed: false
+        }
+      };
     }
 
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(bitmap.width * scale));
     canvas.height = Math.max(1, Math.round(bitmap.height * scale));
     const context = canvas.getContext("2d", { alpha: false });
-    if (!context) return reference;
+    if (!context) {
+      bitmap.close?.();
+      return reference;
+    }
     context.fillStyle = "#fff";
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     bitmap.close?.();
 
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", REFERENCE_UPLOAD_LIMITS.jpegQuality));
-    if (!blob || blob.size >= file.size) return reference;
+    if (!blob || blob.size >= file.size) {
+      return {
+        ...reference,
+        telemetry: {
+          prepareReferenceMs: Math.max(0, Math.round(performance.now() - prepareStartedAt)),
+          originalBytes: Number(file.size || 0),
+          uploadedBytes: Number(file.size || 0),
+          originalWidth,
+          originalHeight,
+          uploadedWidth: originalWidth,
+          uploadedHeight: originalHeight,
+          wasCompressed: false
+        }
+      };
+    }
 
     const compressedName = `${file.name.replace(/\.[^.]+$/, "") || "reference"}-compressed.jpg`;
     return {
@@ -1641,7 +1734,17 @@ async function prepareReferenceForUpload(reference) {
       file: new File([blob], compressedName, {
         type: "image/jpeg",
         lastModified: file.lastModified
-      })
+      }),
+      telemetry: {
+        prepareReferenceMs: Math.max(0, Math.round(performance.now() - prepareStartedAt)),
+        originalBytes: Number(file.size || 0),
+        uploadedBytes: Number(blob.size || 0),
+        originalWidth,
+        originalHeight,
+        uploadedWidth: canvas.width,
+        uploadedHeight: canvas.height,
+        wasCompressed: true
+      }
     };
   } catch {
     return reference;
@@ -1650,17 +1753,20 @@ async function prepareReferenceForUpload(reference) {
 
 function ImageJobsPage() {
   const [jobs, setJobs] = useState([]);
+  const [drawCardSessions, setDrawCardSessions] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [editingJob, setEditingJob] = useState(null);
   const [updatingClipJobId, setUpdatingClipJobId] = useState("");
+  const [expandedSessionId, setExpandedSessionId] = useState("");
 
-  async function loadJobs() {
+  async function loadDashboard() {
     setIsLoading(true);
     try {
-      const payload = await refreshImageJobs();
-      setJobs(payload.jobs || []);
+      const [jobPayload, drawCardPayload] = await Promise.all([refreshImageJobs(), refreshAdminDrawCardSessions()]);
+      setJobs(jobPayload.jobs || []);
+      setDrawCardSessions(drawCardPayload.sessions || []);
       setError("");
     } catch (nextError) {
       setError(nextError.message);
@@ -1672,7 +1778,7 @@ function ImageJobsPage() {
   async function cancelJob(jobId) {
     try {
       await updateImageJob(jobId, "cancel");
-      await loadJobs();
+      await loadDashboard();
     } catch (nextError) {
       setError(nextError.message);
     }
@@ -1707,9 +1813,10 @@ function ImageJobsPage() {
     let isActive = true;
     async function loadActiveJobs() {
       try {
-        const payload = await refreshImageJobs();
+        const [jobPayload, drawCardPayload] = await Promise.all([refreshImageJobs(), refreshAdminDrawCardSessions()]);
         if (!isActive) return;
-        setJobs(payload.jobs || []);
+        setJobs(jobPayload.jobs || []);
+        setDrawCardSessions(drawCardPayload.sessions || []);
         setError("");
       } catch (nextError) {
         if (!isActive) return;
@@ -1730,6 +1837,8 @@ function ImageJobsPage() {
   const visibleJobs = jobs.filter((job) => statusFilter === "all" || job.status === statusFilter);
   const activeCount = jobs.filter((job) => job.status === "queued" || job.status === "running").length;
   const completedCount = jobs.filter((job) => job.status === "succeeded").length;
+  const visibleDrawCardSessions = drawCardSessions.slice(0, 3);
+  const activeDrawCardCount = visibleDrawCardSessions.filter((session) => ["queued", "running"].includes(session.status)).length;
 
   return (
     <section className="task-page" aria-label="AI 生图任务记录">
@@ -1741,11 +1850,126 @@ function ImageJobsPage() {
             {activeCount} 个进行中，{completedCount} 个已完成
           </p>
         </div>
-        <button className="secondary-button" onClick={loadJobs} type="button">
+        <button className="secondary-button" onClick={loadDashboard} type="button">
           <RefreshCw size={18} />
           <span>{isLoading ? "刷新中" : "刷新"}</span>
         </button>
       </div>
+
+      <section className="draw-observability-panel">
+        <div className="task-toolbar">
+          <div>
+            <p className="eyebrow">Draw observability</p>
+            <h3>抽卡观测</h3>
+            <p className="storage-note">
+              最近 {visibleDrawCardSessions.length} 轮抽卡，{activeDrawCardCount} 轮仍在处理中
+            </p>
+          </div>
+        </div>
+
+        {!isLoading && !visibleDrawCardSessions.length ? <p className="empty-note">还没有可查看的抽卡会话。</p> : null}
+
+        <div className="draw-observability-list">
+          {visibleDrawCardSessions.map((session) => {
+            const isExpanded = expandedSessionId === session.sessionId;
+            const longestPhaseMs = Math.max(...(session.phases || []).map((phase) => Number(phase.valueMs || 0)), 0);
+            return (
+              <article className="draw-observability-card" key={session.sessionId}>
+                <div className="draw-observability-head">
+                  <div className="draw-observability-main">
+                    <div className="task-meta-row">
+                      <strong>{shortJobId(session.sessionId)}</strong>
+                      <span className={`task-status ${session.status}`}>{statusLabel(session.status)}</span>
+                      <span>trace {shortJobId(session.traceId)}</span>
+                      <span>{formatDateTime(session.createdAt)}</span>
+                      <span>{session.styleCount} 个风格</span>
+                      <span>{session.charged ? "已扣次数" : "未扣次数"}</span>
+                    </div>
+                    <p className="storage-note">
+                      {session.failedReason || session.message || "未记录状态"}
+                    </p>
+                    <div className="draw-observability-phase-row">
+                      {(session.phases || []).map((phase) => (
+                        <span
+                          className={`draw-observability-phase-chip ${Number(phase.valueMs || 0) === longestPhaseMs && longestPhaseMs > 0 ? "is-slowest" : ""}`}
+                          key={`${session.sessionId}-${phase.key}`}
+                        >
+                          {phase.label} {formatDurationMs(phase.valueMs)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    className="secondary-button"
+                    onClick={() => setExpandedSessionId((current) => (current === session.sessionId ? "" : session.sessionId))}
+                    type="button"
+                  >
+                    <span>{isExpanded ? "收起详情" : "查看详情"}</span>
+                  </button>
+                </div>
+
+                {isExpanded ? (
+                  <div className="draw-observability-detail">
+                    <div className="draw-observability-grid">
+                      <article className="draw-observability-metric">
+                        <strong>本地压图</strong>
+                        <span>{formatDurationMs(session.telemetry?.client?.prepareReferenceMs)}</span>
+                        <p className="storage-note">
+                          原图 {formatBytes(session.telemetry?.client?.originalBytes)} / 上传 {formatBytes(session.telemetry?.client?.uploadedBytes)}
+                        </p>
+                      </article>
+                      <article className="draw-observability-metric">
+                        <strong>上传解析</strong>
+                        <span>{formatDurationMs(session.telemetry?.server?.uploadParseMs)}</span>
+                        <p className="storage-note">服务端接收并完成 multipart 解析</p>
+                      </article>
+                      <article className="draw-observability-metric">
+                        <strong>建会话</strong>
+                        <span>{formatDurationMs(session.telemetry?.server?.sessionCreateMs)}</span>
+                        <p className="storage-note">创建 session 与所有子任务</p>
+                      </article>
+                      <article className="draw-observability-metric">
+                        <strong>参考图落盘</strong>
+                        <span>{formatDurationMs(session.telemetry?.server?.totalReferencePersistMs)}</span>
+                        <p className="storage-note">{formatBytes(session.telemetry?.server?.totalReferenceBytes)} 已写入</p>
+                      </article>
+                      <article className="draw-observability-metric">
+                        <strong>缩略图</strong>
+                        <span>{formatDurationMs(session.telemetry?.server?.totalReferenceThumbnailMs)}</span>
+                        <p className="storage-note">参考图缩略图生成总耗时</p>
+                      </article>
+                      <article className="draw-observability-metric">
+                        <strong>整轮总耗时</strong>
+                        <span>{formatDurationMs(session.telemetry?.server?.finalElapsedMs)}</span>
+                        <p className="storage-note">状态：{statusLabel(session.telemetry?.server?.finalStatus || session.status)}</p>
+                      </article>
+                    </div>
+
+                    <div className="draw-observability-jobs">
+                      {(session.jobs || []).map((job) => (
+                        <article className="draw-observability-job" key={job.jobId}>
+                          <div className="task-meta-row">
+                            <strong>{job.telemetry?.styleName || job.styleName || shortJobId(job.jobId)}</strong>
+                            <span className={`task-status ${job.status}`}>{statusLabel(job.status)}</span>
+                            <span>{job.provider?.name || "未记录接口"}</span>
+                            <span>{formatDateTime(job.createdAt)}</span>
+                          </div>
+                          <div className="draw-observability-phase-row">
+                            <span className="draw-observability-phase-chip">模型调用 {formatDurationMs(job.telemetry?.providerCallMs)}</span>
+                            <span className="draw-observability-phase-chip">结果落盘 {formatDurationMs(job.telemetry?.persistResultMs)}</span>
+                            <span className="draw-observability-phase-chip">任务总耗时 {formatDurationMs(job.telemetry?.totalJobMs)}</span>
+                          </div>
+                          <p className="storage-note">{job.message || statusLabel(job.status)}</p>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
+      </section>
 
       <div className="task-filters" role="tablist" aria-label="任务状态筛选">
         {["all", "queued", "running", "succeeded", "failed", "cancelled"].map((status) => (
@@ -2005,7 +2229,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
                 {styles.map((style) => (
                   <label className={`style-picker-card ${selectedStyleIds.includes(style.id) ? "active" : ""}`} key={style.id}>
                     <input checked={selectedStyleIds.includes(style.id)} onChange={() => toggleStyle(style.id)} type="checkbox" />
-                    <img alt={style.tags.join("、")} decoding="async" loading="lazy" src={cacheBust(style.galleryImage || style.image)} />
+                    <img alt={style.tags.join("、")} decoding="async" loading="lazy" src={cacheBust(style.galleryImage || style.image, style.imageUpdatedAt)} />
                     <span>{style.tags.join("、") || style.id}</span>
                   </label>
                 ))}
@@ -2452,16 +2676,14 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
       {visibleItems.map((style, index) => {
         const draft = drafts[style.id] || { tags: "", prompt: "", useStyleImageAsReference: false };
         return (
-          <article
-            className={`manage-card ${draggingId === style.id ? "is-dragging" : ""}`}
-            draggable
-            key={style.id}
-            onDragEnd={() => setDraggingId("")}
-            onDragOver={(event) => event.preventDefault()}
-            onDragStart={() => setDraggingId(style.id)}
-            onDrop={() => dropStyle(style.id)}
-          >
-            <div className="manage-order-tools" aria-label="排序">
+          <article className={`manage-card ${draggingId === style.id ? "is-dragging" : ""}`} key={style.id} onDragOver={(event) => event.preventDefault()} onDrop={() => dropStyle(style.id)}>
+            <div
+              className="manage-order-tools"
+              aria-label="排序"
+              draggable
+              onDragEnd={() => setDraggingId("")}
+              onDragStart={() => setDraggingId(style.id)}
+            >
               <GripVertical size={18} />
               <span>#{index + 1}</span>
               <button className="icon-button" disabled={index === 0} onClick={() => moveStyle(style.id, -1)} type="button" aria-label="上移">
@@ -2471,7 +2693,7 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
                 <ArrowDown size={18} />
               </button>
             </div>
-            <img alt="当前示例图" decoding="async" loading="lazy" src={cacheBust(style.galleryImage || style.image)} />
+            <StylePreviewImage alt="当前示例图" style={style} />
             <div className="manage-body">
               <label className="field-label">
                 标签
@@ -2727,6 +2949,13 @@ async function refreshImageJobs() {
   const response = await fetch("/api/image-jobs");
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取生图任务列表失败。");
+  return payload;
+}
+
+async function refreshAdminDrawCardSessions() {
+  const response = await fetch("/api/admin/draw-card-sessions?limit=3");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取抽卡观测失败。");
   return payload;
 }
 
@@ -3306,6 +3535,15 @@ function formatDuration(seconds) {
   return restMinutes ? `${hours}h ${restMinutes}m` : `${hours}h`;
 }
 
+function formatDurationMs(value) {
+  const safeMs = Math.max(0, Number(value || 0));
+  if (!Number.isFinite(safeMs) || safeMs <= 0) return "0 ms";
+  if (safeMs < 1000) return `${safeMs} ms`;
+  const seconds = safeMs / 1000;
+  if (seconds < 60) return `${seconds.toFixed(seconds >= 10 ? 0 : 1)} s`;
+  return formatDuration(Math.round(seconds));
+}
+
 function canCancelJob(job) {
   return job.status === "queued" || job.status === "running";
 }
@@ -3376,7 +3614,7 @@ async function buildBatchReferencesForStyle(style, uploadedReferences) {
 
 async function createStyleReference(style) {
   try {
-    const response = await fetch(cacheBust(style.image));
+    const response = await fetch(cacheBust(style.image, style.imageUpdatedAt));
     if (!response.ok) return null;
     const blob = await response.blob();
     const mimeType = normalizeReferenceMimeType(blob.type, style.image);
@@ -3411,8 +3649,12 @@ async function copyText(text) {
   }
 }
 
-function cacheBust(path) {
-  return `${path}?v=${Date.now()}`;
+function cacheBust(path, version = "") {
+  const normalizedPath = String(path || "");
+  if (!normalizedPath) return "";
+  const separator = normalizedPath.includes("?") ? "&" : "?";
+  const safeVersion = String(version || "").trim();
+  return safeVersion ? `${normalizedPath}${separator}v=${encodeURIComponent(safeVersion)}` : normalizedPath;
 }
 
 createRoot(document.getElementById("root")).render(<App />);
