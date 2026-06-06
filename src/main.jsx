@@ -4,6 +4,25 @@ import { createRoot } from "react-dom/client";
 import "./styles.css";
 
 const CONTACT_WECHAT_ID = "PetPaint";
+const DEFAULT_ORDER_ADDRESS = {
+  receiverName: "",
+  receiverPhone: "",
+  address: "",
+  remark: ""
+};
+const ORDER_PAYMENT_STATUS_LABELS = {
+  unpaid: "待支付",
+  paid: "已支付",
+  failed: "支付失败",
+  expired: "已过期"
+};
+const ORDER_FULFILLMENT_STATUS_LABELS = {
+  new: "待处理",
+  in_production: "制作中",
+  shipped: "已发货",
+  completed: "已完成",
+  cancelled: "已取消"
+};
 const GENERATION_DEFAULTS = {
   quality: "medium",
   output_format: "png",
@@ -128,10 +147,12 @@ function createClientTraceId() {
 
 function readRoute() {
   const pathname = window.location.pathname;
+  if (pathname.startsWith("/fridge/orders/")) return "public-fridge-order";
   if (pathname === "/fridge") return "public-fridge";
   if (pathname === "/gallery") return "admin-gallery";
   if (pathname === "/admin" || pathname === "/admin/") return "admin-styles";
   if (pathname === "/admin/login") return "admin-login";
+  if (pathname === "/admin/orders") return "admin-orders";
   if (pathname === "/admin/styles") return "admin-styles";
   if (pathname === "/admin/tasks") return "admin-tasks";
   if (pathname === "/admin/batch") return "admin-batch";
@@ -153,8 +174,10 @@ function App() {
     const pathByRoute = {
       "public-draw": "/",
       "public-fridge": "/fridge",
+      "public-fridge-order": window.location.pathname,
       "admin-gallery": "/gallery",
       "admin-login": "/admin/login",
+      "admin-orders": "/admin/orders",
       "admin-styles": "/admin/styles",
       "admin-tasks": "/admin/tasks",
       "admin-batch": "/admin/batch",
@@ -169,6 +192,9 @@ function App() {
   if (route === "public-draw") {
     return <LuckDrawCardPage />;
   }
+  if (route === "public-fridge-order") {
+    return <FridgeMagnetOrderPage />;
+  }
   if (route === "public-fridge") {
     return <FridgeMagnetPage />;
   }
@@ -181,6 +207,7 @@ function AdminApp({ navigate, route }) {
   const [styleGroups, setStyleGroups] = useState([]);
   const [inviteCodes, setInviteCodes] = useState([]);
   const [visitors, setVisitors] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [settings, setSettings] = useState(null);
   const [storageSummary, setStorageSummary] = useState(null);
   const [query, setQuery] = useState("");
@@ -218,6 +245,7 @@ function AdminApp({ navigate, route }) {
     refreshStyleGroups().then(setStyleGroups).catch(() => setStyleGroups([]));
     refreshInviteCodes().then(setInviteCodes).catch(() => setInviteCodes([]));
     refreshVisitors().then(setVisitors).catch(() => setVisitors([]));
+    refreshAdminOrders().then((payload) => setOrders(payload.orders || [])).catch(() => setOrders([]));
     refreshAdminSettings().then(setSettings).catch(() => setSettings(null));
     refreshStorageSummary().then(setStorageSummary).catch(() => setStorageSummary(null));
   }, [adminReady, isAuthenticated]);
@@ -375,6 +403,10 @@ function AdminApp({ navigate, route }) {
               <ListTodo size={18} />
               <span>任务记录</span>
             </button>
+            <button className="nav-button" onClick={() => navigate("admin-orders")} type="button">
+              <Clipboard size={18} />
+              <span>订单管理</span>
+            </button>
             <button className="nav-button" onClick={() => navigate("admin-batch")} type="button">
               <Layers3 size={18} />
               <span>批量生成</span>
@@ -398,6 +430,13 @@ function AdminApp({ navigate, route }) {
           <GalleryPage copiedId={copiedId} onCopy={copyPrompt} onGenerate={setActiveGenerator} onViewPrompt={setActivePrompt} styles={filteredStyles} />
         ) : route === "admin-tasks" ? (
           <ImageJobsPage />
+        ) : route === "admin-orders" ? (
+          <OrderAdminPage
+            initialOrders={orders}
+            onRefreshOrders={() => refreshAdminOrders().then((payload) => setOrders(payload.orders || []))}
+            onRefreshSettings={() => refreshAdminSettings().then(setSettings)}
+            settings={settings}
+          />
         ) : route === "admin-batch" ? (
           <BatchGeneratePage
             groups={styleGroups}
@@ -478,6 +517,132 @@ function FridgeMagnetPage() {
   return <PublicExperiencePage config={FRIDGE_MAGNET_EXPERIENCE_CONFIG} />;
 }
 
+function FridgeMagnetOrderPage() {
+  const orderId = String(window.location.pathname.split("/").filter(Boolean).pop() || "");
+  const searchParams = new URLSearchParams(window.location.search);
+  const token = searchParams.get("token") || "";
+  const wechatCode = searchParams.get("code") || "";
+  const [order, setOrder] = useState(null);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isActive = true;
+    setIsLoading(true);
+    fetchOrderDetail(orderId, token)
+      .then((payload) => {
+        if (!isActive) return;
+        setOrder(payload);
+        setError("");
+      })
+      .catch((nextError) => {
+        if (!isActive) return;
+        setError(nextError.message || "读取订单失败。");
+      })
+      .finally(() => {
+        if (isActive) setIsLoading(false);
+      });
+    return () => {
+      isActive = false;
+    };
+  }, [orderId, token]);
+
+  useEffect(() => {
+    if (!wechatCode || !token || !isWechatBrowserClient()) return undefined;
+    let isActive = true;
+    payOrderRequest(orderId, {
+      channel: "wechat_jsapi",
+      token,
+      wechatCode
+    })
+      .then((payload) => {
+        if (!isActive) return;
+        if (payload.payment?.jsapi && window.WeixinJSBridge) {
+          window.WeixinJSBridge.invoke("getBrandWCPayRequest", payload.payment.jsapi, () => {
+            window.location.replace(payload.payment.returnUrl);
+          });
+        }
+      })
+      .catch((nextError) => {
+        if (!isActive) return;
+        setError(nextError.message || "继续支付失败，请稍后重试。");
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [orderId, token, wechatCode]);
+
+  return (
+    <main className="app-shell">
+      <section className="workspace order-page">
+        <div className="task-toolbar">
+          <div>
+            <p className="eyebrow">Fridge order</p>
+            <h2>订单详情</h2>
+            <p className="storage-note">支付完成后可在这里查看订单状态、收货信息和下单图片。</p>
+          </div>
+          <button className="secondary-button" onClick={() => window.location.assign("/fridge")} type="button">
+            <Home size={18} />
+            <span>返回冰箱贴页</span>
+          </button>
+        </div>
+        {isLoading ? <p className="storage-note">正在读取订单…</p> : null}
+        {error ? <p className="error-note">{error}</p> : null}
+        {order ? (
+          <section className="task-page">
+            <article className="draw-observability-card">
+              <div className="draw-observability-head">
+                <div className="draw-observability-main">
+                  <div className="task-meta-row">
+                    <strong>{order.orderNo}</strong>
+                    <span className={`task-status ${order.paymentStatus === "paid" ? "succeeded" : order.paymentStatus === "expired" ? "cancelled" : "queued"}`}>{orderPaymentStatusLabel(order.paymentStatus)}</span>
+                    <span className={`task-status ${order.fulfillmentStatus === "completed" ? "succeeded" : order.fulfillmentStatus === "cancelled" ? "cancelled" : "queued"}`}>{orderFulfillmentStatusLabel(order.fulfillmentStatus)}</span>
+                  </div>
+                  <p className="storage-note">下单时间 {formatDateTime(order.createdAt)}，合计 {formatCurrencyCents(order.totalCents)}</p>
+                </div>
+              </div>
+              <div className="draw-observability-grid">
+                <div className="draw-observability-metric">
+                  <strong>商品小计</strong>
+                  <span>{formatCurrencyCents(order.subtotalCents)}</span>
+                </div>
+                <div className="draw-observability-metric">
+                  <strong>邮费</strong>
+                  <span>{order.shippingFeeCents > 0 ? formatCurrencyCents(order.shippingFeeCents) : "包邮"}</span>
+                </div>
+                <div className="draw-observability-metric">
+                  <strong>订单总价</strong>
+                  <span>{formatCurrencyCents(order.totalCents)}</span>
+                </div>
+              </div>
+            </article>
+
+            <article className="draw-observability-card">
+              <h3>收货信息</h3>
+              <p className="storage-note">{order.receiverName} · {order.receiverPhone}</p>
+              <p className="storage-note">{order.addressDetail}</p>
+              {order.remark ? <p className="storage-note">备注：{order.remark}</p> : null}
+            </article>
+
+            <article className="draw-observability-card">
+              <h3>下单图片</h3>
+              <div className="draw-card-order-items">
+                {order.items.map((item, index) => (
+                  <article className="draw-card-order-item" key={`${item.jobId}-${index}`}>
+                    <img alt={item.styleName || `冰箱贴 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
+                    <strong>{item.styleName || `冰箱贴 ${index + 1}`}</strong>
+                  </article>
+                ))}
+              </div>
+            </article>
+          </section>
+        ) : null}
+      </section>
+    </main>
+  );
+}
+
 function PublicExperiencePage({ config }) {
   const {
     addClipErrorMessage,
@@ -540,6 +705,11 @@ function PublicExperiencePage({ config }) {
   const [inviteCode, setInviteCode] = useState("");
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactCopied, setContactCopied] = useState(false);
+  const [orderConfig, setOrderConfig] = useState(null);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderForm, setOrderForm] = useState(DEFAULT_ORDER_ADDRESS);
+  const [orderError, setOrderError] = useState("");
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const resultMediaRefs = useRef(new Map());
   const cardClipPanelRef = useRef(null);
   const flightTimeoutRef = useRef(null);
@@ -621,6 +791,14 @@ function PublicExperiencePage({ config }) {
       })
       .catch(() => {
         if (isActive) setVisitorState(null);
+      });
+
+    fetchOrderConfig()
+      .then((payload) => {
+        if (isActive) setOrderConfig(payload);
+      })
+      .catch(() => {
+        if (isActive) setOrderConfig(null);
       });
 
     async function loadClipItems() {
@@ -955,6 +1133,58 @@ function PublicExperiencePage({ config }) {
     contactCopiedTimeoutRef.current = window.setTimeout(() => setContactCopied(false), 1600);
   }
 
+  function updateOrderFormField(key, value) {
+    setOrderForm((current) => ({ ...current, [key]: value }));
+  }
+
+  async function handleCreateOrderAndPay() {
+    if (experienceType !== "fridge-magnet") return;
+    setIsCreatingOrder(true);
+    setOrderError("");
+    try {
+      const created = await createOrderRequest({
+        experienceType,
+        jobIds: clipItems.map((item) => item.jobId),
+        ...orderForm
+      });
+      const payResult = await payOrderRequest(created.order.id, {
+        channel: isWechatBrowserClient() ? "wechat_jsapi" : "wechat_h5",
+        token: created.order.publicToken
+      });
+
+      if (payResult.payment?.status === "oauth_required" && payResult.payment?.oauthUrl) {
+        window.location.href = payResult.payment.oauthUrl;
+        return;
+      }
+      if (payResult.payment?.channel === "wechat_h5" && payResult.payment?.h5Url) {
+        const redirectUrl = `${payResult.payment.h5Url}${payResult.payment.h5Url.includes("?") ? "&" : "?"}redirect_url=${encodeURIComponent(payResult.payment.returnUrl)}`;
+        window.location.href = redirectUrl;
+        return;
+      }
+      if (payResult.payment?.channel === "wechat_jsapi" && window.WeixinJSBridge && payResult.payment?.jsapi) {
+        const jsapi = payResult.payment.jsapi;
+        window.WeixinJSBridge.invoke("getBrandWCPayRequest", jsapi, (response) => {
+          const errMsg = String(response?.err_msg || "");
+          if (errMsg.includes("ok")) {
+            window.location.href = payResult.payment.returnUrl;
+            return;
+          }
+          setOrderError("支付未完成，请稍后到订单页继续查看。");
+          window.location.href = payResult.payment.returnUrl;
+        });
+        return;
+      }
+
+      window.location.href = `/fridge/orders/${created.order.id}?token=${encodeURIComponent(created.order.publicToken)}`;
+    } catch (nextError) {
+      setOrderError(nextError.message || "下单失败，请稍后再试。");
+    } finally {
+      setIsCreatingOrder(false);
+    }
+  }
+
+  const orderAmountPreview = calculateClientOrderAmount(clipItems.length, orderConfig);
+
   function isCurrentSessionResult(jobId) {
     return results.some((item) => item.jobId === jobId);
   }
@@ -1030,6 +1260,11 @@ function PublicExperiencePage({ config }) {
               </button>
             ) : null}
           </div>
+          {experienceType === "fridge-magnet" ? (
+            <button className="draw-card-primary draw-card-order-button" disabled={!clipItems.length || !orderConfig?.enabled} onClick={() => setShowOrderModal(true)} type="button">
+              <span>{orderConfig?.enabled ? "立即下单" : "下单未开放"}</span>
+            </button>
+          ) : null}
           <p>{visitorState?.contactMessage || clipContactFallback}</p>
         </div>
       </aside>
@@ -1268,6 +1503,65 @@ function PublicExperiencePage({ config }) {
               </button>
               <button className="draw-card-primary" onClick={() => setShowContactModal(false)} type="button">
                 <span>我知道了</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {showOrderModal ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => setShowOrderModal(false)} role="presentation">
+          <section className="draw-card-confirm-panel draw-card-order-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="立即下单">
+            <div className="draw-card-order-head">
+              <div>
+                <p className="draw-card-kicker">Order</p>
+                <h2>填写收货信息</h2>
+              </div>
+              <button className="icon-button" onClick={() => setShowOrderModal(false)} type="button" aria-label="关闭下单弹窗">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="draw-card-order-summary">
+              <p>已选 {clipItems.length} 张</p>
+              <p>单价 {formatCurrencyCents(orderAmountPreview.unitPriceCents)} / 张</p>
+              <p>邮费 {orderAmountPreview.shippingFeeCents > 0 ? formatCurrencyCents(orderAmountPreview.shippingFeeCents) : "包邮"}</p>
+              <strong>合计 {formatCurrencyCents(orderAmountPreview.totalCents)}</strong>
+              <span className="storage-note">1 张收邮费，2 张及以上包邮</span>
+            </div>
+            <div className="draw-card-order-items">
+              {clipItems.map((item, index) => (
+                <article className="draw-card-order-item" key={`${item.jobId}-${index}`}>
+                  <img alt={item.styleName || `冰箱贴 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
+                  <strong>{item.styleName || `冰箱贴 ${index + 1}`}</strong>
+                </article>
+              ))}
+            </div>
+            <div className="draw-card-order-form">
+              <label className="field-label">
+                收件人
+                <input onChange={(event) => updateOrderFormField("receiverName", event.target.value)} type="text" value={orderForm.receiverName} />
+              </label>
+              <label className="field-label">
+                手机号
+                <input onChange={(event) => updateOrderFormField("receiverPhone", event.target.value)} type="tel" value={orderForm.receiverPhone} />
+              </label>
+              <label className="field-label">
+                收货地址
+                <input onChange={(event) => updateOrderFormField("address", event.target.value)} type="text" value={orderForm.address} />
+              </label>
+              <label className="field-label">
+                备注
+                <textarea onChange={(event) => updateOrderFormField("remark", event.target.value)} rows="3" value={orderForm.remark} />
+              </label>
+            </div>
+            {orderError ? <p className="error-note">{orderError}</p> : null}
+            <div className="draw-card-confirm-actions">
+              <button className="draw-card-secondary" onClick={() => setShowOrderModal(false)} type="button">
+                取消
+              </button>
+              <button className="draw-card-primary" disabled={!clipItems.length || isCreatingOrder} onClick={handleCreateOrderAndPay} type="button">
+                {isCreatingOrder ? <LoaderCircle className="spin" size={18} /> : null}
+                <span>{isCreatingOrder ? "提交中" : "提交订单并支付"}</span>
               </button>
             </div>
           </section>
@@ -2986,6 +3280,43 @@ async function fetchVisitorState() {
   return payload;
 }
 
+async function fetchOrderConfig() {
+  const response = await fetch("/api/orders/config");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取下单配置失败。");
+  return payload;
+}
+
+async function createOrderRequest(payload) {
+  const response = await fetch("/api/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "创建订单失败。");
+  return data;
+}
+
+async function payOrderRequest(orderId, payload) {
+  const response = await fetch(`/api/orders/${orderId}/pay`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "发起支付失败。");
+  return data;
+}
+
+async function fetchOrderDetail(orderId, token = "") {
+  const query = token ? `?token=${encodeURIComponent(token)}` : "";
+  const response = await fetch(`/api/orders/${orderId}${query}`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "读取订单失败。");
+  return data.order;
+}
+
 async function redeemInviteCode(code) {
   const response = await fetch("/api/invite-codes/redeem", {
     method: "POST",
@@ -3064,6 +3395,37 @@ async function refreshVisitors() {
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取访客额度失败。");
   return payload.visitors || [];
+}
+
+async function refreshAdminOrders(params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    query.set(key, String(value));
+  });
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const response = await fetch(`/api/admin/orders${suffix}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取订单列表失败。");
+  return payload;
+}
+
+async function fetchAdminOrder(orderId) {
+  const response = await fetch(`/api/admin/orders/${orderId}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取订单详情失败。");
+  return payload.order;
+}
+
+async function updateAdminOrder(orderId, payload) {
+  const response = await fetch(`/api/admin/orders/${orderId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "更新订单失败。");
+  return data.order;
 }
 
 async function refreshAdminSettings() {
@@ -3381,6 +3743,237 @@ function InviteAdminPage({ inviteCodes, visitors, settings, onRefreshInviteCodes
   );
 }
 
+function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, settings }) {
+  const [orders, setOrders] = useState(initialOrders || []);
+  const [paymentStatus, setPaymentStatus] = useState("");
+  const [fulfillmentStatus, setFulfillmentStatus] = useState("");
+  const [search, setSearch] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [adminRemark, setAdminRemark] = useState("");
+  const [fridgeMagnetOrderingEnabled, setFridgeMagnetOrderingEnabled] = useState(settings?.fridgeMagnetOrderingEnabled === true);
+  const [fridgeMagnetUnitPriceCents, setFridgeMagnetUnitPriceCents] = useState(settings?.fridgeMagnetUnitPriceCents || 1990);
+  const [singleItemShippingFeeCents, setSingleItemShippingFeeCents] = useState(settings?.singleItemShippingFeeCents || 800);
+  const [error, setError] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [isBusy, setIsBusy] = useState(false);
+
+  useEffect(() => {
+    setOrders(initialOrders || []);
+  }, [initialOrders]);
+
+  useEffect(() => {
+    setFridgeMagnetOrderingEnabled(settings?.fridgeMagnetOrderingEnabled === true);
+    setFridgeMagnetUnitPriceCents(settings?.fridgeMagnetUnitPriceCents || 1990);
+    setSingleItemShippingFeeCents(settings?.singleItemShippingFeeCents || 800);
+  }, [settings]);
+
+  async function refreshList() {
+    const payload = await refreshAdminOrders({
+      paymentStatus,
+      fulfillmentStatus,
+      search
+    });
+    setOrders(payload.orders || []);
+  }
+
+  async function loadOrderDetail(orderId) {
+    setError("");
+    try {
+      const order = await fetchAdminOrder(orderId);
+      setSelectedOrder(order);
+      setAdminRemark(order.adminRemark || "");
+    } catch (nextError) {
+      setError(nextError.message || "读取订单详情失败。");
+    }
+  }
+
+  async function saveOrderSettings() {
+    setIsBusy(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      await updateAdminSettings({
+        anonymousQuotaLimit: settings?.anonymousQuotaLimit,
+        fridgeMagnetOrderingEnabled,
+        fridgeMagnetUnitPriceCents,
+        singleItemShippingFeeCents
+      });
+      await onRefreshSettings();
+      setStatusMessage("下单配置已更新。");
+    } catch (nextError) {
+      setError(nextError.message || "更新系统设置失败。");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function updateOrderStatus(payload) {
+    if (!selectedOrder?.id) return;
+    setIsBusy(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      const updated = await updateAdminOrder(selectedOrder.id, payload);
+      setSelectedOrder(updated);
+      setAdminRemark(updated.adminRemark || "");
+      await refreshList();
+      await onRefreshOrders();
+      setStatusMessage("订单已更新。");
+    } catch (nextError) {
+      setError(nextError.message || "更新订单失败。");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  return (
+    <section className="task-page" aria-label="订单管理">
+      <div className="task-toolbar">
+        <div>
+          <p className="eyebrow">Orders</p>
+          <h2>订单管理</h2>
+          <p className="storage-note">查看冰箱贴订单、支付状态与履约进度，并维护下单配置。</p>
+        </div>
+        <button className="secondary-button" onClick={refreshList} type="button">
+          <RefreshCw size={18} />
+          <span>刷新订单</span>
+        </button>
+      </div>
+
+      <div className="draw-card-upload-panel">
+        <h3>下单配置</h3>
+        <label className="toggle-field">
+          <input checked={fridgeMagnetOrderingEnabled} onChange={(event) => setFridgeMagnetOrderingEnabled(event.target.checked)} type="checkbox" />
+          <span>开启冰箱贴下单</span>
+        </label>
+        <label className="field-label">
+          单张价格（分）
+          <input min="0" onChange={(event) => setFridgeMagnetUnitPriceCents(Number(event.target.value) || 0)} type="number" value={fridgeMagnetUnitPriceCents} />
+        </label>
+        <label className="field-label">
+          单张邮费（分）
+          <input min="0" onChange={(event) => setSingleItemShippingFeeCents(Number(event.target.value) || 0)} type="number" value={singleItemShippingFeeCents} />
+        </label>
+        <p className="storage-note">金额规则固定为：1 张收邮费，2 张及以上包邮。</p>
+        <div className="card-actions generator-actions">
+          <button className="secondary-button" disabled={isBusy} onClick={saveOrderSettings} type="button">
+            <Save size={18} />
+            <span>保存下单配置</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="task-filters">
+        <select onChange={(event) => setPaymentStatus(event.target.value)} value={paymentStatus}>
+          <option value="">全部支付状态</option>
+          <option value="unpaid">待支付</option>
+          <option value="paid">已支付</option>
+          <option value="failed">支付失败</option>
+          <option value="expired">已过期</option>
+        </select>
+        <select onChange={(event) => setFulfillmentStatus(event.target.value)} value={fulfillmentStatus}>
+          <option value="">全部履约状态</option>
+          <option value="new">待处理</option>
+          <option value="in_production">制作中</option>
+          <option value="shipped">已发货</option>
+          <option value="completed">已完成</option>
+          <option value="cancelled">已取消</option>
+        </select>
+        <label className="search-box">
+          <Search size={18} />
+          <input onChange={(event) => setSearch(event.target.value)} placeholder="订单号 / 姓名 / 手机号" value={search} />
+        </label>
+        <button className="secondary-button" onClick={refreshList} type="button">
+          <span>筛选</span>
+        </button>
+      </div>
+
+      {error ? <p className="error-note">{error}</p> : null}
+      {statusMessage ? <p className="success-note">{statusMessage}</p> : null}
+
+      <div className="task-list">
+        {orders.map((order) => (
+          <article className="task-card order-task-card" key={order.id}>
+            <div className={`task-status ${order.paymentStatus === "paid" ? "succeeded" : order.paymentStatus === "expired" ? "cancelled" : "queued"}`}>
+              {orderPaymentStatusLabel(order.paymentStatus)}
+            </div>
+            <div className="task-detail">
+              <div className="task-meta-row">
+                <strong>{order.orderNo}</strong>
+                <span>{orderFulfillmentStatusLabel(order.fulfillmentStatus)}</span>
+                <span>{order.itemCount} 张</span>
+                <span>{formatCurrencyCents(order.totalCents)}</span>
+              </div>
+              <p className="storage-note">{order.receiverName} · {order.receiverPhone}</p>
+              <p className="storage-note">创建于 {formatDateTime(order.createdAt)}</p>
+            </div>
+            <div className="task-actions">
+              <button className="secondary-button" onClick={() => loadOrderDetail(order.id)} type="button">
+                <Eye size={18} />
+                <span>查看详情</span>
+              </button>
+            </div>
+          </article>
+        ))}
+        {!orders.length ? <p className="empty-note">当前没有符合条件的订单。</p> : null}
+      </div>
+
+      {selectedOrder ? (
+        <div className="modal-backdrop" onClick={() => setSelectedOrder(null)} role="presentation">
+          <section className="prompt-modal order-admin-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">Order detail</p>
+                <h2>{selectedOrder.orderNo}</h2>
+              </div>
+              <button className="icon-button" onClick={() => setSelectedOrder(null)} type="button" aria-label="关闭订单详情">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="task-meta-row">
+              <span className={`task-status ${selectedOrder.paymentStatus === "paid" ? "succeeded" : selectedOrder.paymentStatus === "expired" ? "cancelled" : "queued"}`}>{orderPaymentStatusLabel(selectedOrder.paymentStatus)}</span>
+              <span className={`task-status ${selectedOrder.fulfillmentStatus === "completed" ? "succeeded" : selectedOrder.fulfillmentStatus === "cancelled" ? "cancelled" : "queued"}`}>{orderFulfillmentStatusLabel(selectedOrder.fulfillmentStatus)}</span>
+              <span>总价 {formatCurrencyCents(selectedOrder.totalCents)}</span>
+            </div>
+            <p className="storage-note">{selectedOrder.receiverName} · {selectedOrder.receiverPhone}</p>
+            <p className="storage-note">{selectedOrder.addressDetail}</p>
+            {selectedOrder.remark ? <p className="storage-note">备注：{selectedOrder.remark}</p> : null}
+            <div className="draw-card-order-items">
+              {selectedOrder.items.map((item, index) => (
+                <article className="draw-card-order-item" key={`${item.jobId}-${index}`}>
+                  <img alt={item.styleName || `订单图片 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
+                  <strong>{item.styleName || `订单图片 ${index + 1}`}</strong>
+                </article>
+              ))}
+            </div>
+            <label className="field-label">
+              管理员备注
+              <textarea onChange={(event) => setAdminRemark(event.target.value)} rows="3" value={adminRemark} />
+            </label>
+            <div className="task-filters">
+              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, paymentStatus: selectedOrder.paymentStatus, fulfillmentStatus: "in_production" })} type="button">
+                <span>标记制作中</span>
+              </button>
+              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, paymentStatus: selectedOrder.paymentStatus, fulfillmentStatus: "shipped" })} type="button">
+                <span>标记已发货</span>
+              </button>
+              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, paymentStatus: selectedOrder.paymentStatus, fulfillmentStatus: "completed" })} type="button">
+                <span>标记已完成</span>
+              </button>
+              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, paymentStatus: "paid", fulfillmentStatus: selectedOrder.fulfillmentStatus })} type="button">
+                <span>手动记为已支付</span>
+              </button>
+              <button className="danger-button" onClick={() => updateOrderStatus({ adminRemark, paymentStatus: selectedOrder.paymentStatus, fulfillmentStatus: "cancelled" })} type="button">
+                <span>取消订单</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function StorageAdminPage({ storageSummary, onRefreshStorage }) {
   const [retentionDays, setRetentionDays] = useState(storageSummary?.cleanupDefaults?.retentionDays || 30);
   const [cleanVisitors, setCleanVisitors] = useState(false);
@@ -3691,6 +4284,14 @@ function statusLabel(status) {
   return labels[status] || status || "未知";
 }
 
+function orderPaymentStatusLabel(status) {
+  return ORDER_PAYMENT_STATUS_LABELS[status] || status || "未知";
+}
+
+function orderFulfillmentStatusLabel(status) {
+  return ORDER_FULFILLMENT_STATUS_LABELS[status] || status || "未知";
+}
+
 function modeLabel(mode) {
   return mode === "edit" ? "参考图编辑" : "文生图";
 }
@@ -3734,6 +4335,27 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function formatCurrencyCents(value) {
+  const cents = Number(value || 0);
+  return `¥${(cents / 100).toFixed(2)}`;
+}
+
+function calculateClientOrderAmount(itemCount, config) {
+  const unitPriceCents = Number(config?.unitPriceCents || 0);
+  const shippingFeeCents = itemCount === 1 ? Number(config?.singleItemShippingFeeCents || 0) : 0;
+  const subtotalCents = unitPriceCents * Math.max(0, Number(itemCount || 0));
+  return {
+    unitPriceCents,
+    shippingFeeCents,
+    subtotalCents,
+    totalCents: subtotalCents + shippingFeeCents
+  };
+}
+
+function isWechatBrowserClient() {
+  return /MicroMessenger/i.test(window.navigator?.userAgent || "");
 }
 
 function formatBytes(value) {

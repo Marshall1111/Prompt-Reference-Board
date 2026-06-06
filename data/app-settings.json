@@ -1,3 +1,6 @@
 {
-  "anonymousQuotaLimit": 2
+  "anonymousQuotaLimit": 2,
+  "fridgeMagnetOrderingEnabled": false,
+  "fridgeMagnetUnitPriceCents": 1990,
+  "singleItemShippingFeeCents": 800
 }

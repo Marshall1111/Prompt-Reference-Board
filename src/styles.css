@@ -614,6 +614,10 @@ body {
   min-width: 132px;
 }
 
+.draw-card-order-button {
+  width: 100%;
+}
+
 .draw-card-fly-card {
   position: fixed;
   z-index: 40;
@@ -745,6 +749,60 @@ body {
   font-size: 0.94rem;
 }
 
+.draw-card-order-panel {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+
+.draw-card-order-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.draw-card-order-summary,
+.draw-card-order-form,
+.draw-card-order-items {
+  display: grid;
+  gap: 12px;
+}
+
+.draw-card-order-summary p,
+.draw-card-order-summary strong {
+  margin: 0;
+}
+
+.draw-card-order-items {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.draw-card-order-item {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(239, 225, 198, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.draw-card-order-item img {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.draw-card-order-item strong {
+  color: #f6efe4;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.draw-card-order-form textarea {
+  min-height: 96px;
+}
+
 .draw-card-shell.theme-fridge-magnet {
   background:
     radial-gradient(circle at 18% 14%, rgba(221, 234, 236, 0.9), transparent 28%),
@@ -859,6 +917,15 @@ body {
 
 .draw-card-shell.theme-fridge-magnet .draw-card-contact-note {
   color: rgba(44, 70, 76, 0.72);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-order-item {
+  border-color: rgba(179, 198, 203, 0.94);
+  background: rgba(245, 249, 249, 0.96);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-order-item strong {
+  color: #173c43;
 }
 
 .draw-card-shell.theme-fridge-magnet .draw-card-save-button.is-liked,
@@ -1544,6 +1611,21 @@ h2 {
   background: rgba(255, 240, 246, 0.92);
 }
 
+.order-page {
+  display: grid;
+  gap: 16px;
+}
+
+.order-task-card {
+  grid-template-columns: 120px minmax(0, 1fr) 160px;
+}
+
+.order-admin-modal {
+  width: min(900px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+}
+
 .task-status {
   display: inline-flex;
   align-items: center;
@@ -2146,6 +2228,18 @@ textarea {
 
   .draw-card-clip-actions > button {
     width: 100%;
+  }
+
+  .draw-card-order-head {
+    flex-direction: column;
+  }
+
+  .draw-card-order-items {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .order-task-card {
+    grid-template-columns: 1fr;
   }
 
   .draw-card-clip-item {
