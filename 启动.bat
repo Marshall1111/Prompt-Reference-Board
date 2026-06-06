@@ -24,7 +24,7 @@ echo Close this window or press Ctrl+C to stop the tool.
 echo.
 
 start "" powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Sleep -Seconds 2; Start-Process '%APP_URL%'"
-npm start
+call npm.cmd start
 goto end
 
 :ensure_node
@@ -75,7 +75,7 @@ if exist node_modules (
 )
 
 echo Installing dependencies...
-call npm install
+call npm.cmd install
 if errorlevel 1 (
   echo Dependency installation failed.
   exit /b 1
@@ -84,14 +84,26 @@ echo.
 exit /b 0
 
 :ensure_build
-if exist dist (
-  echo Built page found.
-  echo.
-  exit /b 0
+if not exist dist\index.html goto build_now
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "try { $root = (Resolve-Path '.').Path; $sources = @(); foreach ($relativePath in @('src','public')) { $fullPath = Join-Path $root $relativePath; if (Test-Path $fullPath) { $sources += Get-ChildItem -Path $fullPath -Recurse -File } }; foreach ($relativePath in @('index.html','package.json','package-lock.json','vite.config.js')) { $fullPath = Join-Path $root $relativePath; if (Test-Path $fullPath) { $sources += Get-Item $fullPath } }; $latestSource = $sources | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1; $latestDist = Get-ChildItem -Path (Join-Path $root 'dist') -Recurse -File | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1; if (-not $latestSource -or -not $latestDist -or $latestSource.LastWriteTimeUtc -gt $latestDist.LastWriteTimeUtc) { exit 1 }; exit 0 } catch { exit 2 }"
+if errorlevel 2 (
+  echo Unable to compare build timestamps. Rebuilding to be safe...
+  goto build_now
+)
+if errorlevel 1 (
+  echo Source files changed since the last build.
+  goto build_now
 )
 
+echo Built page is up to date.
+echo.
+exit /b 0
+
+:build_now
 echo Building local page...
-call npm run build
+call npm.cmd run build
 if errorlevel 1 (
   echo Build failed.
   exit /b 1

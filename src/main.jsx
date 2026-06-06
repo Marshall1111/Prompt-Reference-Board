@@ -1254,11 +1254,9 @@ function PublicExperiencePage({ config }) {
             >
               <span>兑换邀请码</span>
             </button>
-            {experienceType === "fridge-magnet" ? (
-              <button className="draw-card-secondary" onClick={() => setShowContactModal(true)} type="button">
-                <span>联系客服</span>
-              </button>
-            ) : null}
+            <button className="draw-card-secondary" onClick={() => setShowContactModal(true)} type="button">
+              <span>联系客服</span>
+            </button>
           </div>
           {experienceType === "fridge-magnet" ? (
             <button className="draw-card-primary draw-card-order-button" disabled={!clipItems.length || !orderConfig?.enabled} onClick={() => setShowOrderModal(true)} type="button">
