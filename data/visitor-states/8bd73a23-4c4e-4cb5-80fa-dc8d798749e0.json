@@ -2,16 +2,18 @@
   "visitorId": "8bd73a23-4c4e-4cb5-80fa-dc8d798749e0",
   "tier": "invited",
   "quotaLimit": 20,
-  "quotaUsed": 11,
+  "quotaUsed": 13,
   "chargedDrawCardSessionIds": [
     "29cfe381-d3de-4f73-8742-223ecf743ec2",
     "668a1ad4-700c-4657-9047-28a0c51a1f7a",
     "894d1cbb-a9d3-41db-8e7b-7bfe1c82b31c",
     "96eb0765-c29d-4185-a8a0-a4aa82aa51e2",
-    "597d2870-6304-4724-86f5-4eac7761ac89"
+    "597d2870-6304-4724-86f5-4eac7761ac89",
+    "832465e7-4597-4035-8e28-bf7ac02654f5",
+    "a321d726-c210-41cb-9021-573337640a6a"
   ],
   "invitedAt": "2026-06-04T03:50:31.612Z",
   "contactMessage": "如需更多生图机会，请联系客服填写邀请码。",
   "createdAt": "2026-06-04T03:06:50.518Z",
-  "updatedAt": "2026-06-05T10:34:41.727Z"
+  "updatedAt": "2026-06-06T15:35:55.072Z"
 }

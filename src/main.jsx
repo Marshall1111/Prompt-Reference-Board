@@ -742,32 +742,85 @@ function PublicExperiencePage({ config }) {
     } catch {}
   }
 
-  function applySession(payload, options = {}) {
-    const { revealOnSuccess = true } = options;
+  function applySession(payload) {
     const nextSessionId = String(payload?.sessionId || "");
     setSession(payload);
     setSessionId(nextSessionId);
     persistSession(nextSessionId);
-
-    if (payload?.status === "failed") {
-      refreshVisitorStateSilently();
-      setResults(Array.isArray(payload?.results) ? payload.results : []);
-      setError(payload.failedReason || payload.message || createErrorMessage);
-      setPhase("error");
-      return;
-    }
-
-    if (payload?.status === "succeeded") {
-      refreshVisitorStateSilently();
-      setResults(Array.isArray(payload?.results) ? payload.results : []);
-      setError("");
-      setPhase(revealOnSuccess ? "revealing" : "results");
-      return;
-    }
-
     setResults(Array.isArray(payload?.results) ? payload.results : []);
     setError("");
-    setPhase("waiting");
+    if (["succeeded", "partial", "failed"].includes(String(payload?.status || ""))) {
+      refreshVisitorStateSilently();
+    }
+    setPhase("results");
+  }
+
+  const sessionItems = useMemo(() => {
+    if (Array.isArray(session?.items) && session.items.length) return session.items;
+    return Array.isArray(session?.results)
+      ? session.results.map((result, index) => ({
+          order: Number(result?.order ?? index),
+          jobId: String(result?.jobId || ""),
+          styleId: String(result?.styleId || ""),
+          styleName: String(result?.styleName || ""),
+          status: "succeeded",
+          result: {
+            imageUrl: String(result?.imageUrl || result?.previewUrl || ""),
+            thumbnailUrl: String(result?.thumbnailUrl || result?.imageUrl || ""),
+            originalImageUrl: String(result?.originalImageUrl || ""),
+            previewUrl: String(result?.previewUrl || result?.thumbnailUrl || result?.imageUrl || ""),
+            isLiked: Boolean(result?.isLiked),
+            likedAt: result?.likedAt || null
+          },
+          errorMessage: ""
+        }))
+      : [];
+  }, [session]);
+
+  const displayItems = useMemo(() => {
+    const resultByJobId = new Map(
+      results.map((result) => [
+        String(result?.jobId || ""),
+        {
+          imageUrl: String(result?.imageUrl || result?.previewUrl || ""),
+          thumbnailUrl: String(result?.thumbnailUrl || result?.imageUrl || ""),
+          originalImageUrl: String(result?.originalImageUrl || ""),
+          previewUrl: String(result?.previewUrl || result?.thumbnailUrl || result?.imageUrl || ""),
+          isLiked: Boolean(result?.isLiked),
+          likedAt: result?.likedAt || null
+        }
+      ])
+    );
+
+    return sessionItems.map((item, index) => {
+      const fallbackResult = resultByJobId.get(String(item?.jobId || "")) || null;
+      const mergedResult = item?.result && typeof item.result === "object" ? item.result : fallbackResult;
+      return {
+        order: Number(item?.order ?? index),
+        jobId: String(item?.jobId || ""),
+        styleId: String(item?.styleId || ""),
+        styleName: String(item?.styleName || ""),
+        status: String(item?.status || (mergedResult ? "succeeded" : "queued")),
+        result: mergedResult,
+        errorMessage: String(item?.errorMessage || "")
+      };
+    });
+  }, [results, sessionItems]);
+
+  function toDisplayResult(item) {
+    if (!item?.result) return null;
+    return {
+      order: item.order,
+      jobId: item.jobId,
+      styleId: item.styleId,
+      styleName: item.styleName,
+      imageUrl: item.result.imageUrl,
+      thumbnailUrl: item.result.thumbnailUrl,
+      originalImageUrl: item.result.originalImageUrl,
+      previewUrl: item.result.previewUrl,
+      isLiked: Boolean(item.result.isLiked),
+      likedAt: item.result.likedAt || null
+    };
   }
 
   useEffect(() => {
@@ -820,7 +873,7 @@ function PublicExperiencePage({ config }) {
         try {
           const payload = await fetchPublicExperienceSession(apiBase, restoredSessionId, readErrorMessage);
           if (!isActive) return;
-          applySession(payload, { revealOnSuccess: false });
+          applySession(payload);
           return;
         } catch (nextError) {
           if (!isActive) return;
@@ -835,7 +888,7 @@ function PublicExperiencePage({ config }) {
       try {
         const payload = await fetchLatestPublicExperienceSession(apiBase, latestErrorMessage);
         if (!isActive) return;
-        applySession(payload, { revealOnSuccess: false });
+        applySession(payload);
       } catch (nextError) {
         if (!isActive) return;
         if (nextError?.status === 404) return;
@@ -851,22 +904,8 @@ function PublicExperiencePage({ config }) {
   }, [apiBase, clipErrorMessage, experienceType, latestErrorMessage, readErrorMessage, restoreErrorMessage, sessionStorageKey]);
 
   useEffect(() => {
-    if (phase !== "waiting") return undefined;
-
-    setWaitingStage("offering");
-    const revealTimer = window.setTimeout(() => setWaitingStage("floating"), 1200);
-    const copyTimer = window.setInterval(() => {
-      setWaitingLineIndex((current) => (current + 1) % waitingLines.length);
-    }, 2400);
-
-    return () => {
-      window.clearTimeout(revealTimer);
-      window.clearInterval(copyTimer);
-    };
-  }, [phase, waitingLines.length]);
-
-  useEffect(() => {
-    if (!sessionId || phase !== "waiting") return undefined;
+    const sessionStatus = String(session?.status || "");
+    if (!sessionId || !["queued", "running"].includes(sessionStatus)) return undefined;
 
     let isActive = true;
     async function pollSession() {
@@ -896,14 +935,7 @@ function PublicExperiencePage({ config }) {
       isActive = false;
       window.clearInterval(timer);
     };
-  }, [apiBase, phase, readErrorMessage, sessionId]);
-
-  useEffect(() => {
-    if (phase !== "revealing") return undefined;
-
-    const timer = window.setTimeout(() => setPhase("results"), 1400);
-    return () => window.clearTimeout(timer);
-  }, [phase]);
+  }, [apiBase, readErrorMessage, session?.status, sessionId]);
 
   useEffect(() => {
     return () => {
@@ -913,8 +945,26 @@ function PublicExperiencePage({ config }) {
   }, []);
 
   const canStart = Boolean(referenceFile) && !isSubmitting;
-  const waitingCopy = waitingLines[waitingLineIndex];
-  const activeResult = activeResultIndex >= 0 ? results[activeResultIndex] : activeResultIndex === -3 ? activeClipPreview : null;
+  const activeResult = activeResultIndex >= 0 ? toDisplayResult(displayItems[activeResultIndex]) : activeResultIndex === -3 ? activeClipPreview : null;
+  const succeededCount = Number(session?.summary?.succeeded ?? displayItems.filter((item) => item.status === "succeeded").length);
+  const totalCount = Number(session?.summary?.total ?? displayItems.length);
+  const currentSessionStatus = String(session?.status || "");
+
+  const resultsHeading = currentSessionStatus === "running" || currentSessionStatus === "queued"
+    ? `已生成 ${succeededCount} / ${totalCount || "--"} 张结果`
+    : currentSessionStatus === "partial"
+      ? "部分结果已抵达，本轮未扣次数。"
+      : currentSessionStatus === "failed"
+        ? "这一轮没有成功结果，本轮未扣次数。"
+        : resultsTitle;
+
+  const resultsBodyCopy = currentSessionStatus === "running" || currentSessionStatus === "queued"
+    ? (session?.message || waitingFallback)
+    : currentSessionStatus === "partial"
+      ? (session?.message || "成功结果可以正常保留，本轮未扣次数。")
+      : currentSessionStatus === "failed"
+        ? (session?.message || "所有卡位都已结束，本轮没有可保留的成功结果。")
+        : resultsSubtitle;
 
   function resetExperience() {
     clearPersistedSession();
@@ -925,8 +975,6 @@ function PublicExperiencePage({ config }) {
     setResults([]);
     setError("");
     setIsSubmitting(false);
-    setWaitingLineIndex(0);
-    setWaitingStage("offering");
     setActiveResultIndex(-1);
     setActiveClipPreview(null);
     setFlyingCard(null);
@@ -957,7 +1005,23 @@ function PublicExperiencePage({ config }) {
       current
         ? {
             ...current,
-            results: Array.isArray(current.results) ? current.results.map((item) => (item.jobId === jobId ? { ...item, ...patch } : item)) : current.results
+            results: Array.isArray(current.results) ? current.results.map((item) => (item.jobId === jobId ? { ...item, ...patch } : item)) : current.results,
+            items: Array.isArray(current.items)
+              ? current.items.map((item) =>
+                  item.jobId === jobId
+                    ? {
+                        ...item,
+                        result: item.result
+                          ? {
+                              ...item.result,
+                              isLiked: Object.prototype.hasOwnProperty.call(patch, "isLiked") ? patch.isLiked : item.result.isLiked,
+                              likedAt: Object.prototype.hasOwnProperty.call(patch, "likedAt") ? patch.likedAt : item.result.likedAt
+                            }
+                          : item.result
+                      }
+                    : item
+                )
+              : current.items
           }
         : current
     );
@@ -1107,7 +1171,7 @@ function PublicExperiencePage({ config }) {
   }
 
   function openClipPreview(jobId) {
-    const targetIndex = results.findIndex((item) => item.jobId === jobId);
+    const targetIndex = displayItems.findIndex((item) => item.jobId === jobId && item.status === "succeeded" && item.result);
     if (targetIndex >= 0) {
       setActiveClipPreview(null);
       setActiveResultIndex(targetIndex);
@@ -1186,7 +1250,7 @@ function PublicExperiencePage({ config }) {
   const orderAmountPreview = calculateClientOrderAmount(clipItems.length, orderConfig);
 
   function isCurrentSessionResult(jobId) {
-    return results.some((item) => item.jobId === jobId);
+    return displayItems.some((item) => item.jobId === jobId && item.status === "succeeded");
   }
 
   function requestRemoveFromClip(result) {
@@ -1328,42 +1392,13 @@ function PublicExperiencePage({ config }) {
         </section>
       )}
 
-      {phase === "waiting" && (
-        <section className="draw-card-stage draw-card-stage-waiting">
-          <div className={`draw-card-offering ${waitingStage}`}>
-            {referencePreviewUrl ? <img alt={waitingAlt} src={referencePreviewUrl} /> : null}
-          </div>
-          <div className="draw-card-deck" aria-hidden="true">
-            <span className="draw-card-card draw-card-card-1" />
-            <span className="draw-card-card draw-card-card-2" />
-            <span className="draw-card-card draw-card-card-3" />
-            <span className="draw-card-card draw-card-card-4" />
-          </div>
-          <div className="draw-card-waiting-copy">
-            <p className="draw-card-kicker">In progress</p>
-            <h2>{waitingCopy}</h2>
-            <p>{session?.message || waitingFallback}</p>
-          </div>
-        </section>
-      )}
-
-      {phase === "revealing" && (
-        <section className="draw-card-stage draw-card-stage-revealing">
-          <div className="draw-card-reveal-ring" />
-          <div className="draw-card-reveal-copy">
-            <p className="draw-card-kicker">Reveal</p>
-            <h2>结果即将揭晓。</h2>
-          </div>
-        </section>
-      )}
-
       {phase === "results" && (
         <section className="draw-card-stage draw-card-stage-results">
           <div className="draw-card-results-head">
             <div>
               <p className="draw-card-kicker">{resultsKicker}</p>
-              <h2>{resultsTitle}</h2>
-              <p className="draw-card-subtitle">{resultsSubtitle}</p>
+              <h2>{resultsHeading}</h2>
+              <p className="draw-card-subtitle">{resultsBodyCopy}</p>
             </div>
             <button className="draw-card-secondary draw-card-results-restart draw-card-results-restart-desktop" onClick={resetExperience} type="button">
               <RefreshCw size={18} />
@@ -1376,20 +1411,41 @@ function PublicExperiencePage({ config }) {
           <div className="draw-card-results-layout">
             <div className="draw-card-results-main">
               <div className="draw-card-results-grid">
-                {results.map((result, index) => (
-                  <article className={`draw-card-result-card ${result.isLiked ? "is-in-clip" : ""}`} key={`${result.styleId}-${result.jobId || index}`}>
-                    <button className="draw-card-result-media" onClick={() => setActiveResultIndex(index)} ref={(node) => setResultMediaRef(result.jobId, node)} type="button">
-                      <img alt={`${resultAltPrefix} ${index + 1}`} src={result.imageUrl || result.thumbnailUrl} />
-                    </button>
-                    <div className="draw-card-result-meta">
-                      <span>{result.styleName || `${resultNameFallback} ${index + 1}`}</span>
-                      <button className={`draw-card-save-button ${result.isLiked ? "is-liked" : ""}`} disabled={Boolean(result.isLiked)} onClick={() => addToClip(result)} type="button">
-                        {result.isLiked ? <Check size={16} /> : <Sparkles size={16} />}
-                        <span>{result.isLiked ? pocketAddedLabel : pocketAddLabel}</span>
-                      </button>
-                    </div>
-                  </article>
-                ))}
+                {displayItems.map((item, index) => {
+                  const result = toDisplayResult(item);
+                  const isSucceeded = item.status === "succeeded" && result;
+                  const isRunning = item.status === "running" || item.status === "queued";
+                  const isFailed = item.status === "failed" || item.status === "cancelled";
+                  return (
+                    <article
+                      className={`draw-card-result-card ${result?.isLiked ? "is-in-clip" : ""} ${isRunning ? "is-pending" : ""} ${isFailed ? "is-failed" : ""}`}
+                      key={`${item.styleId}-${item.jobId || index}`}
+                    >
+                      {isSucceeded ? (
+                        <button className="draw-card-result-media" onClick={() => setActiveResultIndex(index)} ref={(node) => setResultMediaRef(item.jobId, node)} type="button">
+                          <img alt={`${resultAltPrefix} ${index + 1}`} src={result.imageUrl || result.thumbnailUrl} />
+                        </button>
+                      ) : (
+                        <div className={`draw-card-result-placeholder ${isFailed ? "is-failed" : "is-pending"}`}>
+                          {isFailed ? <AlertTriangle size={22} /> : <LoaderCircle className="spin" size={22} />}
+                          <strong>{isFailed ? "生成失败" : "正在生成"}</strong>
+                          <span>{isFailed ? item.errorMessage || "该风格本轮未能成功生成。" : "结果会在完成后自动出现。"}</span>
+                        </div>
+                      )}
+                      <div className="draw-card-result-meta">
+                        <span>{item.styleName || `${resultNameFallback} ${index + 1}`}</span>
+                        {isSucceeded ? (
+                          <button className={`draw-card-save-button ${result.isLiked ? "is-liked" : ""}`} disabled={Boolean(result.isLiked)} onClick={() => addToClip(result)} type="button">
+                            {result.isLiked ? <Check size={16} /> : <Sparkles size={16} />}
+                            <span>{result.isLiked ? pocketAddedLabel : pocketAddLabel}</span>
+                          </button>
+                        ) : (
+                          <span className={`task-status ${item.status}`}>{statusLabel(item.status)}</span>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
               <button className="draw-card-secondary draw-card-results-restart draw-card-results-restart-mobile" onClick={resetExperience} type="button">
                 <RefreshCw size={18} />
@@ -2438,7 +2494,7 @@ function ImageJobsPage() {
       </section>
 
       <div className="task-filters" role="tablist" aria-label="任务状态筛选">
-        {["all", "queued", "running", "succeeded", "failed", "cancelled"].map((status) => (
+        {["all", "queued", "running", "partial", "succeeded", "failed", "cancelled"].map((status) => (
           <button className={statusFilter === status ? "active" : ""} key={status} onClick={() => setStatusFilter(status)} type="button">
             {statusLabel(status)}
           </button>
@@ -4276,6 +4332,7 @@ function statusLabel(status) {
     queued: "排队中",
     running: "生成中",
     succeeded: "已完成",
+    partial: "部分完成",
     failed: "失败",
     cancelled: "已停止"
   };

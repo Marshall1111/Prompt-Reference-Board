@@ -45,6 +45,7 @@ const STYLE_GROUP_SIZE_OPTIONS = new Set(["1024x1536", "1536x1024", "1024x1024",
 const DRAW_CARD_WAITING_MESSAGE = "仪式正在进行，请稍候。";
 const DRAW_CARD_SUCCESS_MESSAGE = "结果已准备好。";
 const DRAW_CARD_FAILURE_MESSAGE = "这一轮未能顺利完成，请重新开始。";
+const DRAW_CARD_PARTIAL_MESSAGE = "部分结果已准备好，本轮未扣次数。";
 const PUBLIC_PREVIEW_WATERMARK_TEXT = "Preview Only";
 const VISITOR_COOKIE_NAME = "pg_visitor";
 const ADMIN_COOKIE_NAME = "pg_admin";
@@ -80,6 +81,7 @@ const PUBLIC_EXPERIENCE_CONFIGS = {
     waitingMessage: DRAW_CARD_WAITING_MESSAGE,
     successMessage: DRAW_CARD_SUCCESS_MESSAGE,
     failureMessage: DRAW_CARD_FAILURE_MESSAGE,
+    partialMessage: DRAW_CARD_PARTIAL_MESSAGE,
     unavailableMessage: "抽卡暂时不可用，请稍后再试。",
     missingSessionMessage: "本次抽卡记录不存在或已失效。",
     latestMissingMessage: "当前没有可恢复的抽卡进度。",
@@ -95,6 +97,7 @@ const PUBLIC_EXPERIENCE_CONFIGS = {
     waitingMessage: "冰箱贴正在制作，请稍候。",
     successMessage: "冰箱贴结果已准备好。",
     failureMessage: "这一轮冰箱贴未能顺利完成，请重新开始。",
+    partialMessage: "部分冰箱贴已准备好，本轮未扣次数。",
     unavailableMessage: "冰箱贴暂时不可用，请稍后再试。",
     missingSessionMessage: "本次冰箱贴记录不存在或已失效。",
     latestMissingMessage: "当前没有可恢复的冰箱贴进度。",
@@ -3383,7 +3386,7 @@ async function readLatestVisitorDrawCardSession(visitorId, experienceType = "") 
     )[0];
 
   if (!latest) return null;
-  if (!["queued", "running", "succeeded"].includes(String(latest.status || ""))) return null;
+  if (!["queued", "running", "succeeded", "partial"].includes(String(latest.status || ""))) return null;
   return latest;
 }
 
@@ -3421,31 +3424,62 @@ async function synchronizeDrawCardSession(session) {
     const jobs = await Promise.all(current.items.map((item) => readImageJob(item.jobId)));
     const normalizedItems = current.items.map((item, index) => {
       const job = jobs[index];
+      const imageUrl = String(job?.result?.previewUrl || job?.result?.thumbnailUrl || job?.result?.imageUrl || "");
+      const thumbnailUrl = String(job?.result?.thumbnailUrl || job?.result?.previewUrl || job?.result?.imageUrl || "");
+      const originalImageUrl = String(job?.result?.originalImageUrl || "");
+      const previewUrl = String(job?.result?.previewUrl || job?.result?.thumbnailUrl || job?.result?.imageUrl || "");
+      const status = String(job?.status || "failed");
       return {
         ...item,
-        status: job?.status || "failed"
+        status,
+        result: status === "succeeded"
+          ? {
+              imageUrl,
+              thumbnailUrl,
+              originalImageUrl,
+              previewUrl,
+              isLiked: Boolean(job?.isLiked),
+              likedAt: job?.likedAt || null
+            }
+          : null,
+        errorMessage: ["failed", "cancelled"].includes(status)
+          ? String(job?.message || (status === "cancelled" ? "任务已停止。" : "生成失败。"))
+          : ""
       };
     });
 
-    const failedJob = jobs.find((job) => !job || job.status === "failed");
     let nextStatus = "queued";
     let nextMessage = config.waitingMessage;
-    let completedAt = current.completedAt || null;
+    let completedAt = null;
     let failedReason = "";
-    let results = [];
+    const results = normalizedItems
+      .filter((item) => item.status === "succeeded" && item.result)
+      .map((item) => ({
+        order: item.order,
+        jobId: item.jobId,
+        styleId: item.styleId,
+        styleName: item.styleName,
+        imageUrl: String(item.result?.imageUrl || item.result?.previewUrl || ""),
+        thumbnailUrl: String(item.result?.thumbnailUrl || item.result?.imageUrl || ""),
+        originalImageUrl: String(item.result?.originalImageUrl || ""),
+        previewUrl: String(item.result?.previewUrl || item.result?.imageUrl || ""),
+        isLiked: Boolean(item.result?.isLiked),
+        likedAt: item.result?.likedAt || null
+      }))
+      .sort((a, b) => a.order - b.order);
     let quotaChargedAt = current.quotaChargedAt || null;
     let quotaChargeStatus = "";
+    const summary = summarizeDrawCardJobStatuses(normalizedItems);
+    const hasQueued = summary.queued > 0;
+    const hasRunning = summary.running > 0;
+    const successCount = summary.succeeded;
+    const failedCount = summary.failed + summary.cancelled;
+    const hasPending = hasQueued || hasRunning;
 
-    if (failedJob) {
-      nextStatus = "failed";
-      nextMessage = config.failureMessage;
-      completedAt = completedAt || new Date().toISOString();
-      failedReason = config.failureMessage;
-      await cancelDrawCardSiblingJobs(jobs);
-    } else if (jobs.length && jobs.every((job) => job?.status === "succeeded")) {
+    if (jobs.length && successCount === jobs.length) {
       nextStatus = "succeeded";
       nextMessage = config.successMessage;
-      completedAt = completedAt || new Date().toISOString();
+      completedAt = current.completedAt || new Date().toISOString();
       if (!quotaChargedAt) {
         const chargeStatus = await consumeVisitorQuotaForDrawCardSession(current.ownerVisitorId, current.sessionId, 1);
         quotaChargeStatus = chargeStatus;
@@ -3455,23 +3489,21 @@ async function synchronizeDrawCardSession(session) {
       } else {
         quotaChargeStatus = "already_charged";
       }
-      results = normalizedItems
-        .map((item) => {
-          const job = jobs.find((currentJob) => currentJob?.jobId === item.jobId);
-          return {
-            order: item.order,
-            jobId: item.jobId,
-            styleId: item.styleId,
-            styleName: item.styleName,
-            imageUrl: String(job?.result?.previewUrl || job?.result?.thumbnailUrl || job?.result?.imageUrl || ""),
-            thumbnailUrl: String(job?.result?.thumbnailUrl || job?.result?.previewUrl || job?.result?.imageUrl || ""),
-            originalImageUrl: String(job?.result?.originalImageUrl || ""),
-            previewUrl: String(job?.result?.previewUrl || job?.result?.thumbnailUrl || job?.result?.imageUrl || ""),
-            isLiked: Boolean(job?.isLiked),
-            likedAt: job?.likedAt || null
-          };
-        })
-        .sort((a, b) => a.order - b.order);
+    } else if (hasPending) {
+      nextStatus = hasRunning ? "running" : "queued";
+      nextMessage = config.waitingMessage;
+      quotaChargeStatus = quotaChargedAt ? "already_charged" : "";
+    } else if (successCount > 0 && failedCount > 0) {
+      nextStatus = "partial";
+      nextMessage = config.partialMessage;
+      completedAt = current.completedAt || new Date().toISOString();
+      quotaChargeStatus = quotaChargedAt ? "already_charged" : "";
+    } else if (failedCount > 0 && successCount === 0) {
+      nextStatus = "failed";
+      nextMessage = config.failureMessage;
+      completedAt = current.completedAt || new Date().toISOString();
+      failedReason = config.failureMessage;
+      quotaChargeStatus = quotaChargedAt ? "already_charged" : "";
     } else if (jobs.some((job) => job?.status === "running")) {
       nextStatus = "running";
       nextMessage = config.waitingMessage;
@@ -3552,6 +3584,50 @@ function normalizeDrawCardSession(session) {
   const telemetryClient = telemetry.client && typeof telemetry.client === "object" ? telemetry.client : {};
   const telemetryServer = telemetry.server && typeof telemetry.server === "object" ? telemetry.server : {};
   const config = getPublicExperienceConfig(session?.experienceType);
+  const normalizedResults = Array.isArray(session?.results)
+    ? session.results
+        .map((result, index) => ({
+          order: Number(result?.order ?? index),
+          jobId: String(result?.jobId || ""),
+          styleId: String(result?.styleId || ""),
+          styleName: String(result?.styleName || ""),
+          imageUrl: String(result?.imageUrl || result?.previewUrl || ""),
+          thumbnailUrl: String(result?.thumbnailUrl || ""),
+          originalImageUrl: String(result?.originalImageUrl || ""),
+          previewUrl: String(result?.previewUrl || result?.thumbnailUrl || result?.imageUrl || ""),
+          isLiked: Boolean(result?.isLiked),
+          likedAt: result?.likedAt || null
+        }))
+        .sort((a, b) => a.order - b.order)
+    : [];
+  const resultByJobId = new Map(normalizedResults.map((result) => [result.jobId, result]));
+  const normalizedItems = Array.isArray(session?.items)
+    ? session.items
+        .map((item, index) => {
+          const fallbackResult = resultByJobId.get(String(item?.jobId || "")) || null;
+          const itemResult = item?.result && typeof item.result === "object" ? item.result : fallbackResult;
+          return {
+            order: Number(item?.order ?? index),
+            jobId: String(item?.jobId || ""),
+            styleId: String(item?.styleId || ""),
+            styleName: String(item?.styleName || ""),
+            status: String(item?.status || (itemResult ? "succeeded" : "queued")),
+            result: itemResult
+              ? {
+                  imageUrl: String(itemResult.imageUrl || itemResult.previewUrl || ""),
+                  thumbnailUrl: String(itemResult.thumbnailUrl || itemResult.imageUrl || ""),
+                  originalImageUrl: String(itemResult.originalImageUrl || ""),
+                  previewUrl: String(itemResult.previewUrl || itemResult.thumbnailUrl || itemResult.imageUrl || ""),
+                  isLiked: Boolean(itemResult.isLiked),
+                  likedAt: itemResult.likedAt || null
+                }
+              : null,
+            errorMessage: String(item?.errorMessage || "")
+          };
+        })
+        .sort((a, b) => a.order - b.order)
+    : [];
+  const summary = summarizeDrawCardJobStatuses(normalizedItems);
   return {
     sessionId: String(session?.sessionId || ""),
     traceId: String(session?.traceId || ""),
@@ -3587,35 +3663,12 @@ function normalizeDrawCardSession(session) {
         quotaChargeStatus: String(telemetryServer.quotaChargeStatus || ""),
         charged: Boolean(telemetryServer.charged)
       },
-      jobs: summarizeDrawCardJobStatuses(Array.isArray(session?.items) ? session.items : [])
+      jobs: summary
     },
-    results: Array.isArray(session?.results)
-      ? session.results
-          .map((result, index) => ({
-            order: Number(result?.order ?? index),
-            jobId: String(result?.jobId || ""),
-            styleId: String(result?.styleId || ""),
-            styleName: String(result?.styleName || ""),
-            imageUrl: String(result?.imageUrl || result?.previewUrl || ""),
-            thumbnailUrl: String(result?.thumbnailUrl || ""),
-            originalImageUrl: String(result?.originalImageUrl || ""),
-            previewUrl: String(result?.previewUrl || result?.thumbnailUrl || result?.imageUrl || ""),
-            isLiked: Boolean(result?.isLiked),
-            likedAt: result?.likedAt || null
-          }))
-          .sort((a, b) => a.order - b.order)
-      : [],
-    items: Array.isArray(session?.items)
-      ? session.items
-          .map((item, index) => ({
-            order: Number(item?.order ?? index),
-            jobId: String(item?.jobId || ""),
-            styleId: String(item?.styleId || ""),
-            styleName: String(item?.styleName || ""),
-            status: String(item?.status || "queued")
-          }))
-          .sort((a, b) => a.order - b.order)
-      : []
+    charged: Boolean(session?.quotaChargedAt || telemetryServer.charged),
+    summary,
+    results: normalizedResults,
+    items: normalizedItems
   };
 }
 
@@ -3631,8 +3684,12 @@ function toPublicDrawCardSession(session) {
     updatedAt: current.updatedAt,
     completedAt: current.completedAt,
     failedReason: current.failedReason,
+    charged: current.charged,
+    quotaChargedAt: current.quotaChargedAt,
+    summary: current.summary,
     telemetry: current.telemetry,
-    results: current.results
+    results: current.results,
+    items: current.items
   };
 }
 

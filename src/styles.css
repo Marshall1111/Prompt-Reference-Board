@@ -398,6 +398,14 @@ body {
     0 0 0 1px rgba(255, 191, 221, 0.12);
 }
 
+.draw-card-result-card.is-pending {
+  border-style: dashed;
+}
+
+.draw-card-result-card.is-failed {
+  border-color: rgba(255, 161, 150, 0.28);
+}
+
 .draw-card-result-media {
   width: 100%;
   padding: 0;
@@ -434,6 +442,38 @@ body {
 .draw-card-result-media:hover img {
   transform: scale(1.03);
   filter: saturate(1.04);
+}
+
+.draw-card-result-placeholder {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  min-height: 320px;
+  padding: 24px 18px;
+  border: 1px dashed rgba(239, 225, 198, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  text-align: center;
+}
+
+.draw-card-result-placeholder strong {
+  color: #f6efe4;
+  font-size: 1rem;
+}
+
+.draw-card-result-placeholder span {
+  color: rgba(243, 237, 225, 0.66);
+  line-height: 1.6;
+}
+
+.draw-card-result-placeholder.is-failed {
+  border-color: rgba(255, 161, 150, 0.28);
+  background: rgba(159, 36, 24, 0.08);
+}
+
+.draw-card-result-placeholder.is-failed strong,
+.draw-card-result-placeholder.is-failed svg {
+  color: #ffb5a7;
 }
 
 .draw-card-result-meta,
@@ -878,6 +918,24 @@ body {
 .draw-card-shell.theme-fridge-magnet .draw-card-result-media-original,
 .draw-card-shell.theme-fridge-magnet .draw-card-lightbox-panel img {
   border-radius: 20px;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-result-placeholder {
+  border-color: rgba(212, 221, 224, 0.96);
+  background: #ffffff;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-result-placeholder strong {
+  color: #193038;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-result-placeholder span {
+  color: rgba(44, 70, 76, 0.72);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-result-placeholder.is-failed {
+  background: #fff3f1;
+  border-color: rgba(232, 182, 175, 0.9);
 }
 
 .draw-card-shell.theme-fridge-magnet .draw-card-primary {
@@ -1647,6 +1705,11 @@ h2 {
 .task-status.succeeded {
   background: #e6f4d7;
   color: #2f5d18;
+}
+
+.task-status.partial {
+  background: #fff3d6;
+  color: #8a5a00;
 }
 
 .task-status.failed {
