@@ -389,7 +389,7 @@ export function createOrderStore({ dbPath }) {
     `).run({ now });
   }
 
-  function listOrders({ visitorId = "", paymentStatus = "", fulfillmentStatus = "", search = "", startDate = "", endDate = "", page = 1, limit = 20 } = {}) {
+  function listOrders({ visitorId = "", orderStatus = "", search = "", startDate = "", endDate = "", page = 1, limit = 20 } = {}) {
     expireUnpaidOrders();
 
     const conditions = [];
@@ -398,13 +398,20 @@ export function createOrderStore({ dbPath }) {
       conditions.push("visitor_id = @visitorId");
       params.visitorId = visitorId;
     }
-    if (paymentStatus) {
-      conditions.push("payment_status = @paymentStatus");
-      params.paymentStatus = paymentStatus;
-    }
-    if (fulfillmentStatus) {
-      conditions.push("fulfillment_status = @fulfillmentStatus");
-      params.fulfillmentStatus = fulfillmentStatus;
+    if (orderStatus) {
+      if (orderStatus === "pending_payment") {
+        conditions.push("payment_status = 'unpaid' AND fulfillment_status != 'cancelled'");
+      } else if (orderStatus === "pending_shipment") {
+        conditions.push("payment_status = 'paid' AND fulfillment_status NOT IN ('shipped', 'completed', 'cancelled')");
+      } else if (orderStatus === "shipped") {
+        conditions.push("fulfillment_status = 'shipped'");
+      } else if (orderStatus === "completed") {
+        conditions.push("fulfillment_status = 'completed'");
+      } else if (orderStatus === "cancelled") {
+        conditions.push("fulfillment_status = 'cancelled'");
+      } else if (orderStatus === "expired") {
+        conditions.push("payment_status = 'expired' AND fulfillment_status != 'cancelled'");
+      }
     }
     if (search) {
       conditions.push("(order_no LIKE @search OR receiver_name LIKE @search OR receiver_phone LIKE @search)");

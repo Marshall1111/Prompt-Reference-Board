@@ -10,18 +10,13 @@ const DEFAULT_ORDER_ADDRESS = {
   address: "",
   remark: ""
 };
-const ORDER_PAYMENT_STATUS_LABELS = {
-  unpaid: "待支付",
-  paid: "已支付",
-  failed: "支付失败",
-  expired: "已过期"
-};
-const ORDER_FULFILLMENT_STATUS_LABELS = {
-  new: "待处理",
-  in_production: "制作中",
+const ORDER_STATUS_LABELS = {
+  pending_payment: "待付款",
+  pending_shipment: "待发货",
   shipped: "已发货",
   completed: "已完成",
-  cancelled: "已取消"
+  cancelled: "已取消",
+  expired: "已过期"
 };
 const GENERATION_DEFAULTS = {
   quality: "medium",
@@ -56,6 +51,7 @@ const REFERENCE_UPLOAD_LIMITS = {
 const GENERATION_STEPS = ["准备请求", "提交到中转站", "等待模型生成", "接收图片结果", "准备预览"];
 const DRAW_CARD_SESSION_STORAGE_KEY = "pg.public-draw.session-id";
 const FRIDGE_MAGNET_SESSION_STORAGE_KEY = "pg.public-fridge.session-id";
+const LATEST_MANUAL_ORDER_STORAGE_KEY = "pg.fridge.latest-manual-order";
 const DRAW_CARD_EXPERIENCE_CONFIG = {
   route: "public-draw",
   experienceType: "draw-card",
@@ -527,6 +523,7 @@ function FridgeMagnetOrdersPage() {
   const [orderConfig, setOrderConfig] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [deletingOrderId, setDeletingOrderId] = useState("");
 
   useEffect(() => {
     let isActive = true;
@@ -550,6 +547,25 @@ function FridgeMagnetOrdersPage() {
     };
   }, []);
 
+  async function handleDeleteOrder(order) {
+    if (!order?.id) return;
+    if (!window.confirm(`确定取消订单 ${order.orderNo} 吗？取消后订单状态会显示为“已取消”。`)) return;
+    setDeletingOrderId(order.id);
+    setError("");
+    try {
+      const deleted = await deleteMyOrder(order.id, order.publicToken);
+      setOrders((current) => current.map((item) => (item.id === order.id ? deleted : item)));
+      syncLatestManualOrder(deleted, orderConfig, deleted.publicToken || order.publicToken || "");
+      if (readLatestManualOrder()?.orderId === order.id) {
+        clearLatestManualOrder();
+      }
+    } catch (nextError) {
+      setError(nextError.message || "取消订单失败。");
+    } finally {
+      setDeletingOrderId("");
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="workspace order-page">
@@ -557,7 +573,7 @@ function FridgeMagnetOrdersPage() {
           <div>
             <p className="eyebrow">My orders</p>
             <h2>我的订单</h2>
-            <p className="storage-note">查看你提交过的冰箱贴订单、付款状态和履约进度。</p>
+            <p className="storage-note">查看你提交过的冰箱贴订单与订单状态。</p>
           </div>
           <button className="secondary-button" onClick={() => window.location.assign("/fridge")} type="button">
             <Home size={18} />
@@ -569,27 +585,33 @@ function FridgeMagnetOrdersPage() {
         {!isLoading && !error && !orders.length ? <p className="empty-note">你还没有提交过冰箱贴订单。</p> : null}
         <div className="task-list">
           {orders.map((order) => {
-            const isManualUnpaid = order.paymentStatus === "unpaid" && isManualPaymentOrder(order, orderConfig);
+            const isManualUnpaid = order.orderStatus === "pending_payment" && isManualPaymentOrder(order, orderConfig);
+            const canDelete = order.orderStatus === "pending_payment";
             return (
               <article className="task-card order-task-card" key={order.id}>
-                <div className={`task-status ${order.paymentStatus === "paid" ? "succeeded" : order.paymentStatus === "expired" ? "cancelled" : "queued"}`}>
-                  {orderPaymentStatusLabel(order.paymentStatus)}
+                <div className={`task-status ${orderStatusTone(order.orderStatus)}`}>
+                  {orderStatusLabel(order.orderStatus)}
                 </div>
                 <div className="task-detail">
                   <div className="task-meta-row">
                     <strong>{order.orderNo}</strong>
-                    <span>{orderFulfillmentStatusLabel(order.fulfillmentStatus)}</span>
                     <span>{order.itemCount} 张</span>
                     <span>{formatCurrencyCents(order.totalCents)}</span>
                   </div>
                   <p className="storage-note">下单时间 {formatDateTime(order.createdAt)}</p>
-                  {isManualUnpaid ? <p className="storage-note">待支付：请联系客服并备注订单号完成付款。</p> : null}
+                  {isManualUnpaid ? <p className="storage-note">待付款：请联系客服并发送订单卡片。</p> : null}
                 </div>
                 <div className="task-actions">
                   <button className="secondary-button" onClick={() => window.location.assign(buildOrderDetailUrl(order.id, order.publicToken))} type="button">
                     <Eye size={18} />
                     <span>查看详情</span>
                   </button>
+                  {canDelete ? (
+                    <button className="danger-button" disabled={deletingOrderId === order.id} onClick={() => handleDeleteOrder(order)} type="button">
+                      <Trash2 size={18} />
+                      <span>{deletingOrderId === order.id ? "取消中" : "取消订单"}</span>
+                    </button>
+                  ) : null}
                 </div>
               </article>
             );
@@ -611,13 +633,17 @@ function FridgeMagnetOrderPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [contactCopied, setContactCopied] = useState(false);
   const [orderCopied, setOrderCopied] = useState(false);
+  const [messageCopied, setMessageCopied] = useState(false);
+  const [paymentCardUrl, setPaymentCardUrl] = useState("");
   const contactCopiedTimeoutRef = useRef(null);
   const orderCopiedTimeoutRef = useRef(null);
+  const messageCopiedTimeoutRef = useRef(null);
 
   useEffect(() => {
     return () => {
       if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
       if (orderCopiedTimeoutRef.current) window.clearTimeout(orderCopiedTimeoutRef.current);
+      if (messageCopiedTimeoutRef.current) window.clearTimeout(messageCopiedTimeoutRef.current);
     };
   }, []);
 
@@ -629,6 +655,7 @@ function FridgeMagnetOrderPage() {
         if (!isActive) return;
         setOrder(payload.order || null);
         setOrderConfig(payload.config || null);
+        syncLatestManualOrder(payload.order || null, payload.config || null, token);
         setError("");
       })
       .catch((nextError) => {
@@ -684,6 +711,19 @@ function FridgeMagnetOrderPage() {
     orderCopiedTimeoutRef.current = window.setTimeout(() => setOrderCopied(false), 1600);
   }
 
+  async function handleCopyPaymentMessage() {
+    if (!order) return;
+    await copyText(buildManualPaymentMessage(order));
+    setMessageCopied(true);
+    if (messageCopiedTimeoutRef.current) window.clearTimeout(messageCopiedTimeoutRef.current);
+    messageCopiedTimeoutRef.current = window.setTimeout(() => setMessageCopied(false), 1600);
+  }
+
+  async function handleOpenPaymentCard() {
+    if (!order) return;
+    setPaymentCardUrl(await buildManualPaymentCard(order, orderConfig));
+  }
+
   return (
     <main className="app-shell">
       <section className="workspace order-page">
@@ -702,15 +742,15 @@ function FridgeMagnetOrderPage() {
         {error ? <p className="error-note">{error}</p> : null}
         {order ? (
           <section className="task-page">
-            {order.paymentStatus === "unpaid" && isManualPaymentOrder(order, orderConfig) ? (
+            {order.orderStatus === "pending_payment" && isManualPaymentOrder(order, orderConfig) ? (
               <article className="draw-observability-card manual-payment-guide">
                 <div className="draw-observability-head">
                   <div className="draw-observability-main">
                     <div className="task-meta-row">
                       <strong>请联系客服付款</strong>
-                      <span className="task-status queued">待支付</span>
+                      <span className="task-status queued">待付款</span>
                     </div>
-                    <p className="storage-note">请联系客服微信并备注订单号，客服确认收款后会手动更新为已支付。</p>
+                    <p className="storage-note">建议先保存订单卡片，再去添加客服。联系客服时请发送订单卡片，客服确认收款后会手动更新订单状态。</p>
                   </div>
                 </div>
                 <div className="draw-observability-grid">
@@ -727,8 +767,16 @@ function FridgeMagnetOrderPage() {
                     <span>{getContactWechatId(orderConfig)}</span>
                   </div>
                 </div>
-                <p className="storage-note">请在 {formatDateTime(order.expiresAt)} 前完成付款，付款时备注订单号更方便核对。</p>
+                <p className="storage-note">请在 {formatDateTime(order.expiresAt)} 前完成付款，并将订单卡片发送给客服。</p>
                 <div className="manual-payment-actions">
+                  <button className="secondary-button" onClick={handleOpenPaymentCard} type="button">
+                    <Download size={18} />
+                    <span>保存订单卡片</span>
+                  </button>
+                  <button className="secondary-button" onClick={handleCopyPaymentMessage} type="button">
+                    <Clipboard size={18} />
+                    <span>{messageCopied ? "付款信息已复制" : "复制付款信息"}</span>
+                  </button>
                   <button className="secondary-button" onClick={handleCopyContactWeChat} type="button">
                     <Clipboard size={18} />
                     <span>{contactCopied ? "微信号已复制" : "复制客服微信"}</span>
@@ -745,8 +793,7 @@ function FridgeMagnetOrderPage() {
                 <div className="draw-observability-main">
                   <div className="task-meta-row">
                     <strong>{order.orderNo}</strong>
-                    <span className={`task-status ${order.paymentStatus === "paid" ? "succeeded" : order.paymentStatus === "expired" ? "cancelled" : "queued"}`}>{orderPaymentStatusLabel(order.paymentStatus)}</span>
-                    <span className={`task-status ${order.fulfillmentStatus === "completed" ? "succeeded" : order.fulfillmentStatus === "cancelled" ? "cancelled" : "queued"}`}>{orderFulfillmentStatusLabel(order.fulfillmentStatus)}</span>
+                    <span className={`task-status ${orderStatusTone(order.orderStatus)}`}>{orderStatusLabel(order.orderStatus)}</span>
                   </div>
                   <p className="storage-note">下单时间 {formatDateTime(order.createdAt)}，合计 {formatCurrencyCents(order.totalCents)}</p>
                 </div>
@@ -788,6 +835,20 @@ function FridgeMagnetOrderPage() {
           </section>
         ) : null}
       </section>
+      {paymentCardUrl ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => setPaymentCardUrl("")} role="presentation">
+          <section className="draw-card-confirm-panel draw-card-payment-card-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="订单卡片">
+            <button className="icon-button" onClick={() => setPaymentCardUrl("")} type="button" aria-label="关闭订单卡片">
+              <X size={18} />
+            </button>
+            <div className="draw-card-payment-card-copy">
+              <h3>长按保存订单卡片</h3>
+              <p className="draw-card-contact-note">建议先保存到相册，再去添加客服，避免返回后找不到订单。</p>
+            </div>
+            <img alt="人工订单卡片" className="draw-card-payment-card-image" src={paymentCardUrl} />
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -852,6 +913,7 @@ function PublicExperiencePage({ config }) {
   const [clipReceiving, setClipReceiving] = useState(false);
   const [visitorState, setVisitorState] = useState(null);
   const [myOrders, setMyOrders] = useState([]);
+  const [latestManualOrder, setLatestManualOrder] = useState(() => readLatestManualOrder());
   const [inviteCode, setInviteCode] = useState("");
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactCopied, setContactCopied] = useState(false);
@@ -863,6 +925,8 @@ function PublicExperiencePage({ config }) {
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [manualContactCopied, setManualContactCopied] = useState(false);
   const [manualOrderCopied, setManualOrderCopied] = useState(false);
+  const [manualMessageCopied, setManualMessageCopied] = useState(false);
+  const [manualPaymentCardUrl, setManualPaymentCardUrl] = useState("");
   const resultMediaRefs = useRef(new Map());
   const cardClipPanelRef = useRef(null);
   const flightTimeoutRef = useRef(null);
@@ -870,12 +934,14 @@ function PublicExperiencePage({ config }) {
   const contactCopiedTimeoutRef = useRef(null);
   const manualContactCopiedTimeoutRef = useRef(null);
   const manualOrderCopiedTimeoutRef = useRef(null);
+  const manualMessageCopiedTimeoutRef = useRef(null);
 
   useEffect(() => {
     return () => {
       if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
       if (manualContactCopiedTimeoutRef.current) window.clearTimeout(manualContactCopiedTimeoutRef.current);
       if (manualOrderCopiedTimeoutRef.current) window.clearTimeout(manualOrderCopiedTimeoutRef.current);
+      if (manualMessageCopiedTimeoutRef.current) window.clearTimeout(manualMessageCopiedTimeoutRef.current);
     };
   }, []);
 
@@ -1013,10 +1079,22 @@ function PublicExperiencePage({ config }) {
 
     fetchMyOrders()
       .then((payload) => {
-        if (isActive) setMyOrders(payload.orders || []);
+        if (!isActive) return;
+        const nextOrders = payload.orders || [];
+        setMyOrders(nextOrders);
+        const cachedOrder = readLatestManualOrder();
+        const matchedOrder = cachedOrder ? nextOrders.find((item) => item.id === cachedOrder.orderId) : null;
+        if (matchedOrder) {
+          syncLatestManualOrder(matchedOrder, payload.config || orderConfig, matchedOrder.publicToken || cachedOrder?.publicToken || "");
+          setLatestManualOrder(readLatestManualOrder());
+        } else {
+          setLatestManualOrder(cachedOrder);
+        }
       })
       .catch(() => {
-        if (isActive) setMyOrders([]);
+        if (!isActive) return;
+        setMyOrders([]);
+        setLatestManualOrder(readLatestManualOrder());
       });
 
     async function loadClipItems() {
@@ -1377,6 +1455,19 @@ function PublicExperiencePage({ config }) {
     manualOrderCopiedTimeoutRef.current = window.setTimeout(() => setManualOrderCopied(false), 1600);
   }
 
+  async function handleCopyManualPaymentMessage() {
+    if (!manualPaymentOrder?.order) return;
+    await copyText(buildManualPaymentMessage(manualPaymentOrder.order));
+    setManualMessageCopied(true);
+    if (manualMessageCopiedTimeoutRef.current) window.clearTimeout(manualMessageCopiedTimeoutRef.current);
+    manualMessageCopiedTimeoutRef.current = window.setTimeout(() => setManualMessageCopied(false), 1600);
+  }
+
+  async function handleOpenManualPaymentCard(order = manualPaymentOrder?.order) {
+    if (!order) return;
+    setManualPaymentCardUrl(await buildManualPaymentCard(order, orderConfig));
+  }
+
   function goToOrderDetail(orderId, token) {
     window.location.href = buildOrderDetailUrl(orderId, token);
   }
@@ -1398,6 +1489,8 @@ function PublicExperiencePage({ config }) {
       if (created.payment?.mode === "manual" || orderConfig?.paymentMode === "manual") {
         setShowOrderModal(false);
         setManualPaymentOrder(created);
+        persistLatestManualOrder(created.order, created.order.publicToken);
+        setLatestManualOrder(readLatestManualOrder());
         setOrderForm(DEFAULT_ORDER_ADDRESS);
         return;
       }
@@ -1438,6 +1531,9 @@ function PublicExperiencePage({ config }) {
   }
 
   const orderAmountPreview = calculateClientOrderAmount(clipItems.length, orderConfig);
+  const recentManualOrderLink = isActiveLatestManualOrder(latestManualOrder)
+    ? buildOrderDetailUrl(latestManualOrder.orderId, latestManualOrder.publicToken)
+    : "";
 
   function isCurrentSessionResult(jobId) {
     return displayItems.some((item) => item.jobId === jobId && item.status === "succeeded");
@@ -1511,9 +1607,13 @@ function PublicExperiencePage({ config }) {
             <button className="draw-card-secondary" onClick={() => setShowContactModal(true)} type="button">
               <span>联系客服</span>
             </button>
-            {experienceType === "fridge-magnet" && myOrders.length ? (
-              <button className="draw-card-secondary" onClick={() => window.location.assign("/fridge/orders")} type="button">
-                <span>我的订单</span>
+            {experienceType === "fridge-magnet" && (myOrders.length || recentManualOrderLink) ? (
+              <button
+                className="draw-card-secondary"
+                onClick={() => window.location.assign(myOrders.length ? "/fridge/orders" : recentManualOrderLink)}
+                type="button"
+              >
+                <span>{myOrders.length ? "我的订单 / 继续付款" : "继续查看最近订单"}</span>
               </button>
             ) : null}
           </div>
@@ -1834,21 +1934,52 @@ function PublicExperiencePage({ config }) {
               <p>订单号 {manualPaymentOrder.order.orderNo}</p>
               <p>客服微信 {getContactWechatId(orderConfig)}</p>
               <strong>请在 {formatDateTime(manualPaymentOrder.payment?.expiresAt || manualPaymentOrder.order.expiresAt)} 前完成付款</strong>
-              <span className="storage-note">联系客服时请备注订单号，管理员确认收款后会手动更新为已支付。</span>
+              <span className="storage-note">请按下面两步操作。订单卡片里已经包含订单号、金额和客服微信，先保存，再去微信添加好友。</span>
+            </div>
+            <div className="manual-payment-step-list">
+              <article className="manual-payment-step-card">
+                <div className="manual-payment-step-head">
+                  <span className="manual-payment-step-index">第一步</span>
+                  <strong>保存订单卡片</strong>
+                </div>
+                <p className="storage-note">一键打开订单卡片。卡片里已经包含订单号、金额和客服微信，保存后就不用再回页面找订单号。</p>
+                <button className="draw-card-primary manual-payment-step-button" onClick={() => handleOpenManualPaymentCard(manualPaymentOrder.order)} type="button">
+                  <Download size={16} />
+                  <span>保存订单卡片</span>
+                </button>
+              </article>
+              <article className="manual-payment-step-card">
+                <div className="manual-payment-step-head">
+                  <span className="manual-payment-step-index">第二步</span>
+                  <strong>复制客服微信，去微信添加好友</strong>
+                </div>
+                <p className="storage-note">复制后直接切换到微信搜索并添加客服，付款时把刚保存的订单卡片发给客服即可。</p>
+                <button className="draw-card-primary manual-payment-step-button" onClick={handleCopyManualPaymentContact} type="button">
+                  <Clipboard size={16} />
+                  <span>{manualContactCopied ? "客服微信已复制" : "复制客服微信"}</span>
+                </button>
+              </article>
             </div>
             <div className="draw-card-confirm-actions">
-              <button className="draw-card-secondary" onClick={handleCopyManualPaymentContact} type="button">
-                <Clipboard size={16} />
-                <span>{manualContactCopied ? "微信号已复制" : "复制客服微信"}</span>
-              </button>
-              <button className="draw-card-secondary" onClick={handleCopyManualPaymentOrderNo} type="button">
-                <Clipboard size={16} />
-                <span>{manualOrderCopied ? "订单号已复制" : "复制订单号"}</span>
-              </button>
-              <button className="draw-card-primary" onClick={() => goToOrderDetail(manualPaymentOrder.order.id, manualPaymentOrder.order.publicToken)} type="button">
-                <span>查看订单详情</span>
+              <button className="draw-card-secondary" onClick={() => goToOrderDetail(manualPaymentOrder.order.id, manualPaymentOrder.order.publicToken)} type="button">
+                <Eye size={16} />
+                <span>稍后查看订单详情</span>
               </button>
             </div>
+          </section>
+        </div>
+      ) : null}
+      {manualPaymentCardUrl ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => setManualPaymentCardUrl("")} role="presentation">
+          <section className="draw-card-confirm-panel draw-card-payment-card-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="订单卡片">
+            <button className="icon-button" onClick={() => setManualPaymentCardUrl("")} type="button" aria-label="关闭订单卡片">
+              <X size={18} />
+            </button>
+            <div className="draw-card-payment-card-copy">
+              <h3>第一步：保存订单卡片</h3>
+              <p className="draw-card-contact-note">请长按下面这张图保存到相册。保存后回到上一步，再点“复制客服微信”。</p>
+            </div>
+            <img alt="人工订单卡片" className="draw-card-payment-card-image" src={manualPaymentCardUrl} />
           </section>
         </div>
       ) : null}
@@ -3609,6 +3740,16 @@ async function fetchMyOrders() {
   return data;
 }
 
+async function deleteMyOrder(orderId, token = "") {
+  const query = token ? `?token=${encodeURIComponent(token)}` : "";
+  const response = await fetch(`/api/orders/${orderId}${query}`, {
+    method: "DELETE"
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "取消订单失败。");
+  return data.order;
+}
+
 async function redeemInviteCode(code) {
   const response = await fetch("/api/invite-codes/redeem", {
     method: "POST",
@@ -4083,8 +4224,7 @@ function InviteAdminPage({ inviteCodes, visitors, settings, onRefreshInviteCodes
 
 function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, settings }) {
   const [orders, setOrders] = useState(initialOrders || []);
-  const [paymentStatus, setPaymentStatus] = useState("");
-  const [fulfillmentStatus, setFulfillmentStatus] = useState("");
+  const [orderStatus, setOrderStatus] = useState("");
   const [search, setSearch] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [adminRemark, setAdminRemark] = useState("");
@@ -4114,8 +4254,7 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
 
   async function refreshList() {
     const payload = await refreshAdminOrders({
-      paymentStatus,
-      fulfillmentStatus,
+      orderStatus,
       search
     });
     setOrders(payload.orders || []);
@@ -4196,7 +4335,7 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
         <div>
           <p className="eyebrow">Orders</p>
           <h2>订单管理</h2>
-          <p className="storage-note">查看冰箱贴订单、支付状态与履约进度，并维护下单配置。</p>
+          <p className="storage-note">查看冰箱贴订单、订单状态，并维护下单配置。</p>
         </div>
         <button className="secondary-button" onClick={refreshList} type="button">
           <RefreshCw size={18} />
@@ -4244,20 +4383,14 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
       </div>
 
       <div className="task-filters">
-        <select onChange={(event) => setPaymentStatus(event.target.value)} value={paymentStatus}>
-          <option value="">全部支付状态</option>
-          <option value="unpaid">待支付</option>
-          <option value="paid">已支付</option>
-          <option value="failed">支付失败</option>
-          <option value="expired">已过期</option>
-        </select>
-        <select onChange={(event) => setFulfillmentStatus(event.target.value)} value={fulfillmentStatus}>
-          <option value="">全部履约状态</option>
-          <option value="new">待处理</option>
-          <option value="in_production">制作中</option>
+        <select onChange={(event) => setOrderStatus(event.target.value)} value={orderStatus}>
+          <option value="">全部订单状态</option>
+          <option value="pending_payment">待付款</option>
+          <option value="pending_shipment">待发货</option>
           <option value="shipped">已发货</option>
           <option value="completed">已完成</option>
           <option value="cancelled">已取消</option>
+          <option value="expired">已过期</option>
         </select>
         <label className="search-box">
           <Search size={18} />
@@ -4274,13 +4407,12 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
       <div className="task-list">
         {orders.map((order) => (
           <article className="task-card order-task-card" key={order.id}>
-            <div className={`task-status ${order.paymentStatus === "paid" ? "succeeded" : order.paymentStatus === "expired" ? "cancelled" : "queued"}`}>
-              {orderPaymentStatusLabel(order.paymentStatus)}
+            <div className={`task-status ${getAdminOrderPrimaryStatusTone(order)}`}>
+              {getAdminOrderPrimaryStatusLabel(order)}
             </div>
             <div className="task-detail">
               <div className="task-meta-row">
                 <strong>{order.orderNo}</strong>
-                <span>{orderFulfillmentStatusLabel(order.fulfillmentStatus)}</span>
                 <span>{order.itemCount} 张</span>
                 <span>{formatCurrencyCents(order.totalCents)}</span>
               </div>
@@ -4311,8 +4443,7 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
               </button>
             </div>
             <div className="task-meta-row">
-              <span className={`task-status ${selectedOrder.paymentStatus === "paid" ? "succeeded" : selectedOrder.paymentStatus === "expired" ? "cancelled" : "queued"}`}>{orderPaymentStatusLabel(selectedOrder.paymentStatus)}</span>
-              <span className={`task-status ${selectedOrder.fulfillmentStatus === "completed" ? "succeeded" : selectedOrder.fulfillmentStatus === "cancelled" ? "cancelled" : "queued"}`}>{orderFulfillmentStatusLabel(selectedOrder.fulfillmentStatus)}</span>
+              <span className={`task-status ${getAdminOrderPrimaryStatusTone(selectedOrder)}`}>{getAdminOrderPrimaryStatusLabel(selectedOrder)}</span>
               <span>总价 {formatCurrencyCents(selectedOrder.totalCents)}</span>
             </div>
             <p className="storage-note">{selectedOrder.receiverName} · {selectedOrder.receiverPhone}</p>
@@ -4336,19 +4467,19 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
                 <Download size={18} />
                 <span>下载原图</span>
               </button>
-              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, paymentStatus: selectedOrder.paymentStatus, fulfillmentStatus: "in_production" })} type="button">
-                <span>标记制作中</span>
+              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, orderStatus: "pending_shipment" })} type="button">
+                <span>标记待发货</span>
               </button>
-              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, paymentStatus: selectedOrder.paymentStatus, fulfillmentStatus: "shipped" })} type="button">
+              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, orderStatus: "shipped" })} type="button">
                 <span>标记已发货</span>
               </button>
-              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, paymentStatus: selectedOrder.paymentStatus, fulfillmentStatus: "completed" })} type="button">
+              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, orderStatus: "completed" })} type="button">
                 <span>标记已完成</span>
               </button>
-              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, paymentStatus: "paid", fulfillmentStatus: selectedOrder.fulfillmentStatus })} type="button">
-                <span>手动记为已支付</span>
+              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, orderStatus: "pending_shipment" })} type="button">
+                <span>手动记为待发货</span>
               </button>
-              <button className="danger-button" onClick={() => updateOrderStatus({ adminRemark, paymentStatus: selectedOrder.paymentStatus, fulfillmentStatus: "cancelled" })} type="button">
+              <button className="danger-button" onClick={() => updateOrderStatus({ adminRemark, orderStatus: "cancelled" })} type="button">
                 <span>取消订单</span>
               </button>
             </div>
@@ -4670,12 +4801,22 @@ function statusLabel(status) {
   return labels[status] || status || "未知";
 }
 
-function orderPaymentStatusLabel(status) {
-  return ORDER_PAYMENT_STATUS_LABELS[status] || status || "未知";
+function orderStatusLabel(status) {
+  return ORDER_STATUS_LABELS[status] || status || "未知";
 }
 
-function orderFulfillmentStatusLabel(status) {
-  return ORDER_FULFILLMENT_STATUS_LABELS[status] || status || "未知";
+function orderStatusTone(status) {
+  if (status === "completed" || status === "pending_shipment" || status === "shipped") return "succeeded";
+  if (status === "cancelled" || status === "expired") return "cancelled";
+  return "queued";
+}
+
+function getAdminOrderPrimaryStatusLabel(order) {
+  return orderStatusLabel(String(order?.orderStatus || ""));
+}
+
+function getAdminOrderPrimaryStatusTone(order) {
+  return orderStatusTone(String(order?.orderStatus || ""));
 }
 
 function modeLabel(mode) {
@@ -4732,6 +4873,65 @@ function getContactWechatId(config) {
   return String(config?.contactWechatId || DEFAULT_CONTACT_WECHAT_ID).trim() || DEFAULT_CONTACT_WECHAT_ID;
 }
 
+function readLatestManualOrder() {
+  try {
+    const payload = JSON.parse(window.localStorage.getItem(LATEST_MANUAL_ORDER_STORAGE_KEY) || "null");
+    if (!payload || typeof payload !== "object") return null;
+    if (!payload.orderId || !payload.publicToken || !payload.orderNo) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function clearLatestManualOrder() {
+  try {
+    window.localStorage.removeItem(LATEST_MANUAL_ORDER_STORAGE_KEY);
+  } catch {}
+}
+
+function persistLatestManualOrder(order, publicToken = "") {
+  if (!order?.id || !order?.orderNo) return;
+  const orderStatus = normalizeOrderStatusForCache(order.orderStatus);
+  if (["pending_shipment", "shipped", "completed", "cancelled", "expired"].includes(orderStatus)) {
+    clearLatestManualOrder();
+    return;
+  }
+  try {
+    window.localStorage.setItem(LATEST_MANUAL_ORDER_STORAGE_KEY, JSON.stringify({
+      orderId: String(order.id || ""),
+      publicToken: String(publicToken || order.publicToken || ""),
+      orderNo: String(order.orderNo || ""),
+      expiresAt: order.expiresAt || "",
+      createdAt: order.createdAt || "",
+      orderStatus
+    }));
+  } catch {}
+}
+
+function normalizeOrderStatusForCache(status) {
+  const value = String(status || "").trim();
+  return value || "pending_payment";
+}
+
+function syncLatestManualOrder(order, config, token = "") {
+  if (!order || !isManualPaymentOrder(order, config)) return;
+  const orderStatus = normalizeOrderStatusForCache(order.orderStatus);
+  if (["pending_shipment", "shipped", "completed", "cancelled", "expired"].includes(orderStatus)) {
+    clearLatestManualOrder();
+    return;
+  }
+  persistLatestManualOrder(order, token);
+}
+
+function isActiveLatestManualOrder(order) {
+  if (!order?.orderId || !order?.publicToken) return false;
+  if (["pending_shipment", "shipped", "completed", "cancelled", "expired"].includes(String(order.orderStatus || ""))) return false;
+  const expiresAtMs = new Date(String(order.expiresAt || "")).getTime();
+  if (Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now()) return false;
+  return true;
+}
+
 function buildOrderDetailUrl(orderId, token = "") {
   const base = `/fridge/orders/${orderId}`;
   return token ? `${base}?token=${encodeURIComponent(token)}` : base;
@@ -4739,6 +4939,119 @@ function buildOrderDetailUrl(orderId, token = "") {
 
 function isManualPaymentOrder(order, config) {
   return String(order?.lastPaymentChannel || "") === "manual" || String(config?.paymentMode || "") === "manual";
+}
+
+function maskPhone(phone) {
+  const normalized = String(phone || "").trim();
+  if (!normalized) return "未填写";
+  return normalized.length <= 4 ? normalized : `尾号 ${normalized.slice(-4)}`;
+}
+
+function buildManualPaymentMessage(order) {
+  return [
+    "冰箱贴订单待付款",
+    `订单号：${String(order?.orderNo || "")}`,
+    `应付金额：${formatCurrencyCents(order?.totalCents)}`,
+    `收货人：${String(order?.receiverName || "未填写")}`,
+    `手机号：${String(order?.receiverPhone || "未填写")}`,
+    "请确认收款，我会发送订单卡片"
+  ].join("\n");
+}
+
+async function buildManualPaymentCard(order, config) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080;
+  canvas.height = 1620;
+  const context = canvas.getContext("2d");
+  if (!context) return "";
+
+  context.fillStyle = "#f5efe5";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#1f2b2b";
+  context.fillRect(72, 72, canvas.width - 144, canvas.height - 144);
+
+  context.fillStyle = "#f7f1e7";
+  roundRect(context, 132, 132, canvas.width - 264, canvas.height - 264, 36);
+  context.fill();
+
+  context.fillStyle = "#24504a";
+  context.font = "700 42px sans-serif";
+  context.fillText("冰箱贴订单卡片", 192, 246);
+
+  context.fillStyle = "#5d726c";
+  context.font = "500 26px sans-serif";
+  context.fillText("建议先保存卡片，再去添加客服", 192, 296);
+
+  context.fillStyle = "#b45309";
+  roundRect(context, 192, 336, canvas.width - 384, 80, 24);
+  context.fill();
+  context.fillStyle = "#fffaf0";
+  context.font = "800 38px sans-serif";
+  context.fillText("长按保存，发给客服", 250, 388);
+
+  drawPaymentCardRow(context, "订单号", String(order?.orderNo || ""), 192, 464);
+  drawPaymentCardRow(context, "应付金额", formatCurrencyCents(order?.totalCents), 192, 584);
+  drawPaymentCardRow(context, "客服微信", getContactWechatId(config), 192, 704);
+  drawPaymentCardRow(context, "付款截止", formatDateTime(order?.expiresAt), 192, 824);
+  drawPaymentCardRow(context, "收货人", String(order?.receiverName || "未填写"), 192, 944);
+  drawPaymentCardRow(context, "手机号", maskPhone(order?.receiverPhone), 192, 1064);
+
+  context.fillStyle = "#edf5f2";
+  roundRect(context, 192, 1170, canvas.width - 384, 186, 28);
+  context.fill();
+
+  context.fillStyle = "#24504a";
+  context.font = "700 30px sans-serif";
+  context.fillText("付款说明", 232, 1234);
+  context.fillStyle = "#465a56";
+  context.font = "500 26px sans-serif";
+  wrapCanvasText(context, "联系客服并发送订单卡片，管理员确认收款后会手动更新订单状态。", 232, 1288, canvas.width - 464, 40);
+
+  context.fillStyle = "#7a8b86";
+  context.font = "500 22px sans-serif";
+  context.fillText("长按图片保存到相册", 192, 1458);
+
+  return canvas.toDataURL("image/png");
+}
+
+function drawPaymentCardRow(context, label, value, x, y) {
+  context.fillStyle = "#6b7e79";
+  context.font = "600 24px sans-serif";
+  context.fillText(label, x, y);
+  context.fillStyle = "#182726";
+  context.font = "700 34px sans-serif";
+  wrapCanvasText(context, value, x, y + 52, 696, 44);
+}
+
+function wrapCanvasText(context, text, x, y, maxWidth, lineHeight) {
+  const characters = Array.from(String(text || ""));
+  let current = "";
+  let currentY = y;
+  characters.forEach((character) => {
+    const next = `${current}${character}`;
+    if (current && context.measureText(next).width > maxWidth) {
+      context.fillText(current, x, currentY);
+      current = character;
+      currentY += lineHeight;
+      return;
+    }
+    current = next;
+  });
+  if (current) context.fillText(current, x, currentY);
+}
+
+function roundRect(context, x, y, width, height, radius) {
+  context.beginPath();
+  context.moveTo(x + radius, y);
+  context.lineTo(x + width - radius, y);
+  context.quadraticCurveTo(x + width, y, x + width, y + radius);
+  context.lineTo(x + width, y + height - radius);
+  context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  context.lineTo(x + radius, y + height);
+  context.quadraticCurveTo(x, y + height, x, y + height - radius);
+  context.lineTo(x, y + radius);
+  context.quadraticCurveTo(x, y, x + radius, y);
+  context.closePath();
 }
 
 function calculateClientOrderAmount(itemCount, config) {

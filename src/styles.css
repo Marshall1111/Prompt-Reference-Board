@@ -799,6 +799,75 @@ body {
   width: min(640px, 100%);
 }
 
+.draw-card-payment-card-panel {
+  width: min(560px, 100%);
+  display: grid;
+  gap: 16px;
+}
+
+.draw-card-payment-card-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.draw-card-payment-card-copy h3 {
+  margin: 0;
+  color: #f6efe4;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.draw-card-payment-card-image {
+  width: 100%;
+  height: auto;
+  border-radius: 18px;
+  border: 1px solid rgba(239, 225, 198, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.manual-payment-step-list {
+  display: grid;
+  gap: 14px;
+}
+
+.manual-payment-step-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(239, 225, 198, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.manual-payment-step-head {
+  display: grid;
+  gap: 6px;
+}
+
+.manual-payment-step-head strong {
+  color: #f6efe4;
+  font-size: 1.02rem;
+  line-height: 1.5;
+}
+
+.manual-payment-step-index {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(243, 237, 225, 0.14);
+  color: #f3ede1;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.manual-payment-step-button {
+  width: 100%;
+  justify-content: center;
+}
+
 .draw-card-order-head {
   display: flex;
   align-items: start;
@@ -979,6 +1048,16 @@ body {
 
 .draw-card-shell.theme-fridge-magnet .draw-card-contact-note {
   color: rgba(44, 70, 76, 0.72);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-payment-card-copy h3,
+.draw-card-shell.theme-fridge-magnet .manual-payment-step-head strong {
+  color: #18363c;
+}
+
+.draw-card-shell.theme-fridge-magnet .manual-payment-step-index {
+  background: rgba(30, 71, 78, 0.12);
+  color: #18363c;
 }
 
 .draw-card-shell.theme-fridge-magnet .draw-card-order-item {
@@ -1690,7 +1769,7 @@ h2 {
 }
 
 .order-task-card {
-  grid-template-columns: 120px minmax(0, 1fr) 160px;
+  grid-template-columns: 120px minmax(0, 1fr) 220px;
 }
 
 .order-admin-modal {
@@ -1798,9 +1877,17 @@ h2 {
 }
 
 .task-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-end;
+}
+
+.task-actions > button,
+.task-actions > .secondary-button,
+.task-actions > .danger-button {
+  flex: 1 1 132px;
+  min-width: 0;
 }
 
 .empty-note {

@@ -73,6 +73,7 @@ const ORDER_SEARCH_LIMIT = 100;
 const ORDER_PAYMENT_STATUS_VALUES = new Set(["unpaid", "paid", "failed", "expired"]);
 const ORDER_FULFILLMENT_STATUS_VALUES = new Set(["new", "in_production", "shipped", "completed", "cancelled"]);
 const ORDER_PAYMENT_MODE_VALUES = new Set(["manual", "wechat"]);
+const ORDER_STATUS_VALUES = new Set(["pending_payment", "pending_shipment", "shipped", "completed", "cancelled", "expired"]);
 const BACKUP_KIND_CONFIG = "config-snapshot";
 const BACKUP_KIND_IMAGE_RANGE = "image-range-zip";
 const ADMIN_DRAW_CARD_SESSION_LIMIT = 3;
@@ -544,6 +545,27 @@ app.get("/api/my/orders", async (req, res, next) => {
       orders: payload.items.map((order) => toPublicOrder(order)),
       config: getOrderPricingSnapshot(settings)
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/orders/:orderId", async (req, res, next) => {
+  try {
+    orderStore.expireUnpaidOrders();
+    const order = orderStore.readOrderWithRelations(req.params.orderId);
+    assertOrderOwnership(req, order, String(req.query?.token || ""));
+    if (order.paymentStatus === "paid") throw createHttpError(409, "已付款订单不支持取消。");
+    if (order.paymentStatus === "expired") throw createHttpError(409, "已过期订单无需取消。");
+    if (order.fulfillmentStatus !== "new") throw createHttpError(409, "当前订单已进入处理流程，暂不支持取消。");
+
+    const deleted = orderStore.updateOrder(order.id, {
+      paymentStatus: "expired",
+      fulfillmentStatus: "cancelled",
+      cancelledAt: order.cancelledAt || new Date().toISOString(),
+      lastPaymentError: "订单已取消"
+    });
+    res.json({ order: toPublicOrder(deleted, { includeToken: true }) });
   } catch (error) {
     next(error);
   }
@@ -1252,8 +1274,7 @@ app.get("/api/admin/orders", requireAdmin, async (req, res) => {
   try {
     const page = Math.max(Number(req.query.page || 1), 1);
     const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), ORDER_SEARCH_LIMIT);
-    const paymentStatus = normalizeOrderPaymentStatus(String(req.query.paymentStatus || ""), "");
-    const fulfillmentStatus = normalizeOrderFulfillmentStatus(String(req.query.fulfillmentStatus || ""), "");
+    const orderStatus = normalizeOrderStatus(String(req.query.orderStatus || ""), "");
     const search = String(req.query.search || "").trim();
     const startDate = String(req.query.startDate || "").trim();
     const endDate = String(req.query.endDate || "").trim();
@@ -1261,8 +1282,7 @@ app.get("/api/admin/orders", requireAdmin, async (req, res) => {
     const payload = orderStore.listOrders({
       page,
       limit,
-      paymentStatus,
-      fulfillmentStatus,
+      orderStatus,
       search,
       startDate,
       endDate
@@ -1315,6 +1335,51 @@ app.patch("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
     if (!order) return res.status(404).json({ message: "订单不存在。" });
 
     const patch = {};
+    if (req.body?.orderStatus !== undefined) {
+      const nextOrderStatus = normalizeOrderStatus(req.body.orderStatus, getOrderStatus(order));
+      if (nextOrderStatus === "pending_payment") {
+        patch.fulfillmentStatus = "new";
+        patch.paymentStatus = "unpaid";
+        patch.paidAt = "";
+        patch.shippedAt = "";
+        patch.completedAt = "";
+        patch.cancelledAt = "";
+        patch.lastPaymentError = "";
+      } else if (nextOrderStatus === "pending_shipment") {
+        patch.paymentStatus = "paid";
+        patch.fulfillmentStatus = "new";
+        patch.paidAt = order.paidAt || new Date().toISOString();
+        patch.shippedAt = "";
+        patch.completedAt = "";
+        patch.cancelledAt = "";
+        patch.lastPaymentError = "";
+      } else if (nextOrderStatus === "shipped") {
+        patch.paymentStatus = "paid";
+        patch.fulfillmentStatus = "shipped";
+        patch.paidAt = order.paidAt || new Date().toISOString();
+        if (!order.shippedAt) patch.shippedAt = new Date().toISOString();
+        patch.completedAt = "";
+        patch.cancelledAt = "";
+      } else if (nextOrderStatus === "completed") {
+        patch.paymentStatus = "paid";
+        patch.fulfillmentStatus = "completed";
+        patch.paidAt = order.paidAt || new Date().toISOString();
+        patch.shippedAt = order.shippedAt || new Date().toISOString();
+        if (!order.completedAt) patch.completedAt = new Date().toISOString();
+        patch.cancelledAt = "";
+      } else if (nextOrderStatus === "cancelled") {
+        patch.fulfillmentStatus = "cancelled";
+        if (!order.cancelledAt) patch.cancelledAt = new Date().toISOString();
+        if (order.paymentStatus === "unpaid") {
+          patch.paymentStatus = "expired";
+          patch.lastPaymentError = "订单已取消";
+        }
+      } else if (nextOrderStatus === "expired") {
+        patch.paymentStatus = "expired";
+        patch.lastPaymentError = patch.lastPaymentError || "订单已过期";
+      }
+    }
+
     if (req.body?.paymentStatus !== undefined) {
       const nextPaymentStatus = normalizeOrderPaymentStatus(req.body.paymentStatus, order.paymentStatus);
       if (nextPaymentStatus === "paid" && order.paymentStatus === "unpaid") {
@@ -1330,7 +1395,13 @@ app.patch("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
       patch.fulfillmentStatus = nextFulfillmentStatus;
       if (nextFulfillmentStatus === "shipped" && !order.shippedAt) patch.shippedAt = new Date().toISOString();
       if (nextFulfillmentStatus === "completed" && !order.completedAt) patch.completedAt = new Date().toISOString();
-      if (nextFulfillmentStatus === "cancelled" && !order.cancelledAt) patch.cancelledAt = new Date().toISOString();
+      if (nextFulfillmentStatus === "cancelled") {
+        if (!order.cancelledAt) patch.cancelledAt = new Date().toISOString();
+        if (order.paymentStatus === "unpaid" && patch.paymentStatus === undefined) {
+          patch.paymentStatus = "expired";
+          patch.lastPaymentError = "订单已取消";
+        }
+      }
     }
 
     if (req.body?.adminRemark !== undefined) {
@@ -2003,7 +2074,8 @@ async function resolveOrderOriginalCandidates(order) {
     if (!job?.jobId) return;
 
     const generatedFilePath = path.join(generatedImageRoot, path.basename(String(job?.result?.imageUrl || "")));
-    if (String(job?.result?.imageUrl || "").startsWith("/generated-images/")) {
+    const hasGeneratedImage = String(job?.result?.imageUrl || "").startsWith("/generated-images/");
+    if (hasGeneratedImage) {
       const key = `generated:${generatedFilePath}`;
       if (!seenKeys.has(key)) {
         seenKeys.add(key);
@@ -2017,7 +2089,7 @@ async function resolveOrderOriginalCandidates(order) {
     }
 
     const remoteUrl = String(job?.result?.originalImageUrl || "").trim();
-    if (remoteUrl) {
+    if (remoteUrl && !hasGeneratedImage) {
       const key = `remote:${remoteUrl}`;
       if (!seenKeys.has(key)) {
         seenKeys.add(key);
@@ -2747,6 +2819,11 @@ function normalizeOrderFulfillmentStatus(value, fallback = "new") {
   return ORDER_FULFILLMENT_STATUS_VALUES.has(current) ? current : fallback;
 }
 
+function normalizeOrderStatus(value, fallback = "pending_payment") {
+  const current = String(value || fallback).trim();
+  return ORDER_STATUS_VALUES.has(current) ? current : fallback;
+}
+
 function maskPhone(phone) {
   const normalized = String(phone || "").replace(/\s+/g, "");
   if (normalized.length < 7) return normalized;
@@ -2969,6 +3046,7 @@ function toPublicOrder(order, options = {}) {
     id: safeOrder.id,
     orderNo: safeOrder.orderNo,
     experienceType: safeOrder.experienceType,
+    orderStatus: getOrderStatus(safeOrder),
     paymentStatus: safeOrder.paymentStatus,
     fulfillmentStatus: safeOrder.fulfillmentStatus,
     itemCount: safeOrder.itemCount,
@@ -3007,6 +3085,17 @@ function toPublicOrder(order, options = {}) {
     })),
     paymentEvents: includePrivate ? safeOrder.paymentEvents : []
   };
+}
+
+function getOrderStatus(order) {
+  const fulfillmentStatus = normalizeOrderFulfillmentStatus(order?.fulfillmentStatus, "new");
+  const paymentStatus = normalizeOrderPaymentStatus(order?.paymentStatus, "unpaid");
+  if (fulfillmentStatus === "cancelled") return "cancelled";
+  if (fulfillmentStatus === "completed") return "completed";
+  if (fulfillmentStatus === "shipped") return "shipped";
+  if (paymentStatus === "paid") return "pending_shipment";
+  if (paymentStatus === "expired") return "expired";
+  return "pending_payment";
 }
 
 async function readInviteCodes() {

@@ -28,10 +28,12 @@
     "code": "VIP-F995F26B",
     "enabled": true,
     "maxRedemptions": 1,
-    "redeemedCount": 0,
-    "redeemedByVisitorIds": [],
+    "redeemedCount": 1,
+    "redeemedByVisitorIds": [
+      "a4f3f5bf-e11c-4bc3-a90d-3f82290ffedf"
+    ],
     "createdAt": "2026-06-04T03:28:22.274Z",
-    "updatedAt": "2026-06-04T03:28:22.274Z"
+    "updatedAt": "2026-06-07T05:59:27.198Z"
   },
   {
     "id": "27f807ac-96b8-4406-a6c7-58d99bf6c86f",
