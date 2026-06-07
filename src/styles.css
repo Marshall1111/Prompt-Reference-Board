@@ -1591,6 +1591,42 @@ h2 {
   gap: 16px;
 }
 
+.task-query-form,
+.task-query-fields,
+.task-query-actions,
+.task-pagination,
+.task-pagination-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.task-query-form,
+.task-pagination {
+  align-items: end;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.task-query-form,
+.task-query-fields {
+  flex-wrap: wrap;
+}
+
+.task-query-field {
+  min-width: min(100%, 280px);
+  flex: 1 1 280px;
+}
+
+.task-query-toggle {
+  align-self: end;
+  min-height: 42px;
+}
+
+.task-query-actions,
+.task-pagination-actions {
+  flex-wrap: wrap;
+}
+
 .task-filters {
   display: flex;
   flex-wrap: wrap;

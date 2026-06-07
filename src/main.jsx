@@ -33,6 +33,14 @@ const GENERATION_SIZE_OPTIONS = [
   { value: "1024x1365", label: "3:4" },
   { value: "1365x1024", label: "4:3" }
 ];
+const DEFAULT_IMAGE_JOB_QUERY = {
+  page: 1,
+  limit: 20,
+  status: "all",
+  search: "",
+  date: "",
+  likedOnly: false
+};
 
 function getSizeLabel(size) {
   return GENERATION_SIZE_OPTIONS.find((option) => option.value === size)?.label || size || DEFAULT_GENERATION_SIZE;
@@ -1225,6 +1233,12 @@ function PublicExperiencePage({ config }) {
     resultMediaRefs.current.clear();
   }
 
+  function confirmResetExperience() {
+    const confirmed = window.confirm("换张图片重做后，本轮未被放入口袋的结果会被删除。请先确认你喜欢的图片已经放入口袋。");
+    if (!confirmed) return;
+    resetExperience();
+  }
+
   function handleFileChange(file) {
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
@@ -1695,9 +1709,9 @@ function PublicExperiencePage({ config }) {
               <h2>{resultsHeading}</h2>
               <p className="draw-card-subtitle">{resultsBodyCopy}</p>
             </div>
-            <button className="draw-card-secondary draw-card-results-restart draw-card-results-restart-desktop" onClick={resetExperience} type="button">
+            <button className="draw-card-secondary draw-card-results-restart draw-card-results-restart-desktop" onClick={confirmResetExperience} type="button">
               <RefreshCw size={18} />
-              <span>重新开始</span>
+              <span>换张图片重做</span>
             </button>
           </div>
 
@@ -1742,9 +1756,9 @@ function PublicExperiencePage({ config }) {
                   );
                 })}
               </div>
-              <button className="draw-card-secondary draw-card-results-restart draw-card-results-restart-mobile" onClick={resetExperience} type="button">
+              <button className="draw-card-secondary draw-card-results-restart draw-card-results-restart-mobile" onClick={confirmResetExperience} type="button">
                 <RefreshCw size={18} />
-                <span>再试一次</span>
+                <span>换张图片重做</span>
               </button>
             </div>
 
@@ -2635,20 +2649,37 @@ async function prepareReferenceForUpload(reference) {
 
 function ImageJobsPage() {
   const [jobs, setJobs] = useState([]);
-  const [drawCardSessions, setDrawCardSessions] = useState([]);
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [jobTotal, setJobTotal] = useState(0);
+  const [jobQuery, setJobQuery] = useState(DEFAULT_IMAGE_JOB_QUERY);
+  const [searchInput, setSearchInput] = useState(DEFAULT_IMAGE_JOB_QUERY.search);
+  const [dateInput, setDateInput] = useState(DEFAULT_IMAGE_JOB_QUERY.date);
+  const [likedOnlyInput, setLikedOnlyInput] = useState(DEFAULT_IMAGE_JOB_QUERY.likedOnly);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [editingJob, setEditingJob] = useState(null);
   const [updatingClipJobId, setUpdatingClipJobId] = useState("");
-  const [expandedSessionId, setExpandedSessionId] = useState("");
+  const queryRef = useRef(DEFAULT_IMAGE_JOB_QUERY);
 
-  async function loadDashboard() {
-    setIsLoading(true);
+  function syncQueryState(requestQuery, payload) {
+    const nextQuery = {
+      ...requestQuery,
+      page: Number(payload?.page || requestQuery.page || DEFAULT_IMAGE_JOB_QUERY.page),
+      limit: Number(payload?.limit || requestQuery.limit || DEFAULT_IMAGE_JOB_QUERY.limit)
+    };
+    queryRef.current = nextQuery;
+    setJobQuery((current) => (areImageJobQueriesEqual(current, nextQuery) ? current : nextQuery));
+  }
+
+  async function loadDashboard(nextQuery = queryRef.current, options = {}) {
+    const showLoading = options.showLoading !== false;
+    if (showLoading) {
+      setIsLoading(true);
+    }
     try {
-      const [jobPayload, drawCardPayload] = await Promise.all([refreshImageJobs(), refreshAdminDrawCardSessions()]);
+      const jobPayload = await refreshImageJobs(nextQuery);
+      syncQueryState(nextQuery, jobPayload);
       setJobs(jobPayload.jobs || []);
-      setDrawCardSessions(drawCardPayload.sessions || []);
+      setJobTotal(Number(jobPayload.total || 0));
       setError("");
     } catch (nextError) {
       setError(nextError.message);
@@ -2657,10 +2688,17 @@ function ImageJobsPage() {
     }
   }
 
+  async function applyJobQuery(patch, options = {}) {
+    const nextQuery = { ...queryRef.current, ...patch };
+    queryRef.current = nextQuery;
+    setJobQuery(nextQuery);
+    await loadDashboard(nextQuery, options);
+  }
+
   async function cancelJob(jobId) {
     try {
       await updateImageJob(jobId, "cancel");
-      await loadDashboard();
+      await loadDashboard(queryRef.current, { showLoading: false });
     } catch (nextError) {
       setError(nextError.message);
     }
@@ -2669,7 +2707,7 @@ function ImageJobsPage() {
   async function deleteJob(jobId) {
     try {
       await deleteImageJob(jobId);
-      setJobs((current) => current.filter((job) => job.jobId !== jobId));
+      await loadDashboard(queryRef.current, { showLoading: false });
       setError("");
     } catch (nextError) {
       setError(nextError.message);
@@ -2682,7 +2720,11 @@ function ImageJobsPage() {
     setUpdatingClipJobId(job.jobId);
     try {
       const nextJob = job.isLiked ? await unlikeImageJob(job.jobId) : await likeImageJob(job.jobId);
-      setJobs((current) => current.map((item) => (item.jobId === job.jobId ? nextJob : item)));
+      if (queryRef.current.likedOnly && job.isLiked) {
+        await loadDashboard(queryRef.current, { showLoading: false });
+      } else {
+        setJobs((current) => current.map((item) => (item.jobId === job.jobId ? nextJob : item)));
+      }
       setError("");
     } catch (nextError) {
       setError(nextError.message);
@@ -2693,12 +2735,17 @@ function ImageJobsPage() {
 
   useEffect(() => {
     let isActive = true;
-    async function loadActiveJobs() {
+    async function loadActiveJobs(showLoading = false) {
+      if (showLoading) {
+        setIsLoading(true);
+      }
       try {
-        const [jobPayload, drawCardPayload] = await Promise.all([refreshImageJobs(), refreshAdminDrawCardSessions()]);
+        const currentQuery = queryRef.current;
+        const jobPayload = await refreshImageJobs(currentQuery);
         if (!isActive) return;
+        syncQueryState(currentQuery, jobPayload);
         setJobs(jobPayload.jobs || []);
-        setDrawCardSessions(drawCardPayload.sessions || []);
+        setJobTotal(Number(jobPayload.total || 0));
         setError("");
       } catch (nextError) {
         if (!isActive) return;
@@ -2708,20 +2755,43 @@ function ImageJobsPage() {
       }
     }
 
-    loadActiveJobs();
-    const timer = window.setInterval(loadActiveJobs, 2000);
+    loadActiveJobs(true);
+    const timer = window.setInterval(() => loadActiveJobs(false), 2000);
     return () => {
       isActive = false;
       window.clearInterval(timer);
     };
   }, []);
 
-  const mergedJobs = useMemo(() => mergeAdminJobsWithRecentSessions(jobs, drawCardSessions), [jobs, drawCardSessions]);
-  const visibleJobs = mergedJobs.filter((job) => statusFilter === "all" || job.status === statusFilter);
-  const activeCount = mergedJobs.filter((job) => job.status === "queued" || job.status === "running").length;
-  const completedCount = mergedJobs.filter((job) => job.status === "succeeded").length;
-  const visibleDrawCardSessions = drawCardSessions.slice(0, 3);
-  const activeDrawCardCount = visibleDrawCardSessions.filter((session) => ["queued", "running"].includes(session.status)).length;
+  const totalPages = Math.max(1, Math.ceil(jobTotal / Math.max(jobQuery.limit, 1)));
+  const activeCount = jobs.filter((job) => job.status === "queued" || job.status === "running").length;
+  const completedCount = jobs.filter((job) => job.status === "succeeded").length;
+
+  function handleSearchSubmit(event) {
+    event.preventDefault();
+    applyJobQuery({
+      page: 1,
+      search: searchInput.trim(),
+      date: dateInput,
+      likedOnly: likedOnlyInput
+    });
+  }
+
+  function handleResetFilters() {
+    setSearchInput(DEFAULT_IMAGE_JOB_QUERY.search);
+    setDateInput(DEFAULT_IMAGE_JOB_QUERY.date);
+    setLikedOnlyInput(DEFAULT_IMAGE_JOB_QUERY.likedOnly);
+    applyJobQuery(DEFAULT_IMAGE_JOB_QUERY);
+  }
+
+  function handleStatusFilter(status) {
+    applyJobQuery({ status, page: 1 });
+  }
+
+  function changePage(nextPage) {
+    if (nextPage < 1 || nextPage > totalPages || nextPage === jobQuery.page) return;
+    applyJobQuery({ page: nextPage });
+  }
 
   return (
     <section className="task-page" aria-label="AI 生图任务记录">
@@ -2730,144 +2800,59 @@ function ImageJobsPage() {
           <p className="eyebrow">Image jobs</p>
           <h2>任务记录</h2>
           <p className="storage-note">
-            {activeCount} 个进行中，{completedCount} 个已完成
+            共 {jobTotal} 条符合条件，当前第 {jobQuery.page} / {totalPages} 页，当前页 {jobs.length} 条，其中 {activeCount} 个进行中，{completedCount} 个已完成
           </p>
         </div>
-        <button className="secondary-button" onClick={loadDashboard} type="button">
+        <button className="secondary-button" onClick={() => loadDashboard(queryRef.current)} type="button">
           <RefreshCw size={18} />
           <span>{isLoading ? "刷新中" : "刷新"}</span>
         </button>
       </div>
 
-      <section className="draw-observability-panel">
-        <div className="task-toolbar">
-          <div>
-            <p className="eyebrow">Public experiences</p>
-            <h3>公开玩法观测</h3>
-            <p className="storage-note">
-              最近 {visibleDrawCardSessions.length} 轮公开玩法，{activeDrawCardCount} 轮仍在处理中
-            </p>
-          </div>
+      <form className="task-query-form" onSubmit={handleSearchSubmit}>
+        <div className="task-query-fields">
+          <label className="field-label task-query-field">
+            关键词
+            <input
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="搜索任务 ID、提示词、风格名、风格组名"
+              value={searchInput}
+            />
+          </label>
+          <label className="field-label task-query-field">
+            日期
+            <input onChange={(event) => setDateInput(event.target.value)} type="date" value={dateInput} />
+          </label>
+          <label className="toggle-field task-query-toggle">
+            <input checked={likedOnlyInput} onChange={(event) => setLikedOnlyInput(event.target.checked)} type="checkbox" />
+            <span>仅看卡夹</span>
+          </label>
         </div>
-
-        {!isLoading && !visibleDrawCardSessions.length ? <p className="empty-note">还没有可查看的公开玩法会话。</p> : null}
-
-        <div className="draw-observability-list">
-          {visibleDrawCardSessions.map((session) => {
-            const isExpanded = expandedSessionId === session.sessionId;
-            const longestPhaseMs = Math.max(...(session.phases || []).map((phase) => Number(phase.valueMs || 0)), 0);
-            return (
-              <article className="draw-observability-card" key={session.sessionId}>
-                <div className="draw-observability-head">
-                  <div className="draw-observability-main">
-                    <div className="task-meta-row">
-                      <strong>{shortJobId(session.sessionId)}</strong>
-                      <span className={`task-status ${session.status}`}>{statusLabel(session.status)}</span>
-                      <span className="experience-badge">{session.experienceLabel || session.experienceType || "公开玩法"}</span>
-                      <span>trace {shortJobId(session.traceId)}</span>
-                      <span>{formatDateTime(session.createdAt)}</span>
-                      <span>{session.styleCount} 个风格</span>
-                      <span>{session.charged ? "已扣次数" : "未扣次数"}</span>
-                    </div>
-                    <p className="storage-note">
-                      {session.failedReason || session.message || "未记录状态"}
-                    </p>
-                    <div className="draw-observability-phase-row">
-                      {(session.phases || []).map((phase) => (
-                        <span
-                          className={`draw-observability-phase-chip ${Number(phase.valueMs || 0) === longestPhaseMs && longestPhaseMs > 0 ? "is-slowest" : ""}`}
-                          key={`${session.sessionId}-${phase.key}`}
-                        >
-                          {phase.label} {formatDurationMs(phase.valueMs)}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <button
-                    className="secondary-button"
-                    onClick={() => setExpandedSessionId((current) => (current === session.sessionId ? "" : session.sessionId))}
-                    type="button"
-                  >
-                    <span>{isExpanded ? "收起详情" : "查看详情"}</span>
-                  </button>
-                </div>
-
-                {isExpanded ? (
-                  <div className="draw-observability-detail">
-                    <div className="draw-observability-grid">
-                      <article className="draw-observability-metric">
-                        <strong>本地压图</strong>
-                        <span>{formatDurationMs(session.telemetry?.client?.prepareReferenceMs)}</span>
-                        <p className="storage-note">
-                          原图 {formatBytes(session.telemetry?.client?.originalBytes)} / 上传 {formatBytes(session.telemetry?.client?.uploadedBytes)}
-                        </p>
-                      </article>
-                      <article className="draw-observability-metric">
-                        <strong>上传解析</strong>
-                        <span>{formatDurationMs(session.telemetry?.server?.uploadParseMs)}</span>
-                        <p className="storage-note">服务端接收并完成 multipart 解析</p>
-                      </article>
-                      <article className="draw-observability-metric">
-                        <strong>建会话</strong>
-                        <span>{formatDurationMs(session.telemetry?.server?.sessionCreateMs)}</span>
-                        <p className="storage-note">创建 session 与所有子任务</p>
-                      </article>
-                      <article className="draw-observability-metric">
-                        <strong>参考图落盘</strong>
-                        <span>{formatDurationMs(session.telemetry?.server?.totalReferencePersistMs)}</span>
-                        <p className="storage-note">{formatBytes(session.telemetry?.server?.totalReferenceBytes)} 已写入</p>
-                      </article>
-                      <article className="draw-observability-metric">
-                        <strong>缩略图</strong>
-                        <span>{formatDurationMs(session.telemetry?.server?.totalReferenceThumbnailMs)}</span>
-                        <p className="storage-note">参考图缩略图生成总耗时</p>
-                      </article>
-                      <article className="draw-observability-metric">
-                        <strong>整轮总耗时</strong>
-                        <span>{formatDurationMs(session.telemetry?.server?.finalElapsedMs)}</span>
-                        <p className="storage-note">状态：{statusLabel(session.telemetry?.server?.finalStatus || session.status)}</p>
-                      </article>
-                    </div>
-
-                    <div className="draw-observability-jobs">
-                      {(session.jobs || []).map((job) => (
-                        <article className="draw-observability-job" key={job.jobId}>
-                          <div className="task-meta-row">
-                            <strong>{job.telemetry?.styleName || job.styleName || shortJobId(job.jobId)}</strong>
-                            <span className={`task-status ${job.status}`}>{statusLabel(job.status)}</span>
-                            <span>{job.provider?.name || "未记录接口"}</span>
-                            <span>{formatDateTime(job.createdAt)}</span>
-                          </div>
-                          <div className="draw-observability-phase-row">
-                            <span className="draw-observability-phase-chip">模型调用 {formatDurationMs(job.telemetry?.providerCallMs)}</span>
-                            <span className="draw-observability-phase-chip">结果落盘 {formatDurationMs(job.telemetry?.persistResultMs)}</span>
-                            <span className="draw-observability-phase-chip">任务总耗时 {formatDurationMs(job.telemetry?.totalJobMs)}</span>
-                          </div>
-                          <p className="storage-note">{job.message || statusLabel(job.status)}</p>
-                        </article>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </article>
-            );
-          })}
+        <div className="task-query-actions">
+          <button className="copy-button" type="submit">
+            <Search size={18} />
+            <span>查询</span>
+          </button>
+          <button className="secondary-button" onClick={handleResetFilters} type="button">
+            <RefreshCw size={18} />
+            <span>重置</span>
+          </button>
         </div>
-      </section>
+      </form>
 
       <div className="task-filters" role="tablist" aria-label="任务状态筛选">
         {["all", "queued", "running", "partial", "succeeded", "failed", "cancelled"].map((status) => (
-          <button className={statusFilter === status ? "active" : ""} key={status} onClick={() => setStatusFilter(status)} type="button">
+          <button className={jobQuery.status === status ? "active" : ""} key={status} onClick={() => handleStatusFilter(status)} type="button">
             {statusLabel(status)}
           </button>
         ))}
       </div>
 
       {error && <p className="error-note">{error}</p>}
-      {!isLoading && !visibleJobs.length && <p className="empty-note">还没有符合条件的生图任务。</p>}
+      {!isLoading && !jobs.length && <p className="empty-note">还没有符合条件的生图任务。</p>}
 
       <div className="task-list">
-        {visibleJobs.map((job) => {
+        {jobs.map((job) => {
           const imageSource = job.result?.previewUrl || job.result?.thumbnailUrl || job.result?.imageDataUrl || job.result?.imageUrl;
           return (
             <article className={`task-card ${job.isLiked ? "is-liked" : ""}`} key={job.jobId}>
@@ -2924,6 +2909,21 @@ function ImageJobsPage() {
             </article>
           );
         })}
+      </div>
+      <div className="task-pagination">
+        <p className="storage-note">
+          共 {jobTotal} 条，当前第 {jobQuery.page} / {totalPages} 页
+        </p>
+        <div className="task-pagination-actions">
+          <button className="secondary-button" disabled={jobQuery.page <= 1} onClick={() => changePage(jobQuery.page - 1)} type="button">
+            <ArrowUp size={18} />
+            <span>上一页</span>
+          </button>
+          <button className="secondary-button" disabled={jobQuery.page >= totalPages || !jobTotal} onClick={() => changePage(jobQuery.page + 1)} type="button">
+            <ArrowDown size={18} />
+            <span>下一页</span>
+          </button>
+        </div>
       </div>
       {editingJob && <JobEditModal job={editingJob} onClose={() => setEditingJob(null)} />}
     </section>
@@ -3984,17 +3984,20 @@ async function fetchImageJob(jobId) {
   return payload;
 }
 
-async function refreshImageJobs() {
-  const response = await fetch("/api/image-jobs");
+async function refreshImageJobs(params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    if (typeof value === "boolean") {
+      query.set(key, value ? "true" : "false");
+      return;
+    }
+    query.set(key, String(value));
+  });
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const response = await fetch(`/api/image-jobs${suffix}`);
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取生图任务列表失败。");
-  return payload;
-}
-
-async function refreshAdminDrawCardSessions() {
-  const response = await fetch("/api/admin/draw-card-sessions?limit=3");
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message || "读取公开玩法观测失败。");
   return payload;
 }
 
@@ -4829,24 +4832,14 @@ function publicExperienceLabel(experienceType) {
   return "公开玩法";
 }
 
-function mergeAdminJobsWithRecentSessions(jobs, sessions) {
-  const merged = new Map();
-
-  (jobs || []).forEach((job) => {
-    if (!job?.jobId) return;
-    merged.set(job.jobId, job);
-  });
-
-  (sessions || []).forEach((session) => {
-    (session?.jobs || []).forEach((job) => {
-      if (!job?.jobId) return;
-      const current = merged.get(job.jobId);
-      merged.set(job.jobId, current ? { ...job, ...current } : job);
-    });
-  });
-
-  return Array.from(merged.values()).sort((left, right) =>
-    String(right.createdAt || right.updatedAt || "").localeCompare(String(left.createdAt || left.updatedAt || ""))
+function areImageJobQueriesEqual(left, right) {
+  return (
+    Number(left?.page || 0) === Number(right?.page || 0) &&
+    Number(left?.limit || 0) === Number(right?.limit || 0) &&
+    String(left?.status || "") === String(right?.status || "") &&
+    String(left?.search || "") === String(right?.search || "") &&
+    String(left?.date || "") === String(right?.date || "") &&
+    Boolean(left?.likedOnly) === Boolean(right?.likedOnly)
   );
 }
 

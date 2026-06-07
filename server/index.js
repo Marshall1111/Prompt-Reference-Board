@@ -77,6 +77,10 @@ const ORDER_STATUS_VALUES = new Set(["pending_payment", "pending_shipment", "shi
 const BACKUP_KIND_CONFIG = "config-snapshot";
 const BACKUP_KIND_IMAGE_RANGE = "image-range-zip";
 const ADMIN_DRAW_CARD_SESSION_LIMIT = 3;
+const IMAGE_JOB_QUERY_STATUS_VALUES = new Set(["all", "queued", "running", "partial", "succeeded", "failed", "cancelled"]);
+const DEFAULT_IMAGE_JOB_PAGE = 1;
+const DEFAULT_IMAGE_JOB_LIMIT = 20;
+const MAX_IMAGE_JOB_LIMIT = 100;
 const DEFAULT_PUBLIC_EXPERIENCE_TYPE = "draw-card";
 const PUBLIC_EXPERIENCE_CONFIGS = {
   "draw-card": {
@@ -1079,17 +1083,11 @@ app.get("/api/public/clip-items", async (req, res) => {
 
 app.get("/api/image-jobs", requireAdmin, async (req, res) => {
   try {
-    const jobs = await listImageJobs();
-    const limit = Math.min(Math.max(Number(req.query.limit || 80), 1), 200);
-    res.json({
-      jobs: jobs
-        .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
-        .slice(0, limit)
-        .map(toPublicImageJob)
-    });
+    const payload = await queryImageJobs(req.query || {});
+    res.json(payload);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "读取生图任务列表失败。" });
+    res.status(error.status || 500).json({ message: error.publicMessage || "读取生图任务列表失败。" });
   }
 });
 
@@ -2576,6 +2574,82 @@ function formatArchiveDate(value) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function normalizeImageJobPage(value) {
+  if (value === undefined || value === null || value === "") return DEFAULT_IMAGE_JOB_PAGE;
+  const page = Number(value);
+  if (!Number.isInteger(page) || page < 1) {
+    throw createHttpError(400, "页码参数无效。");
+  }
+  return page;
+}
+
+function normalizeImageJobLimit(value) {
+  if (value === undefined || value === null || value === "") return DEFAULT_IMAGE_JOB_LIMIT;
+  const limit = Number(value);
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw createHttpError(400, "每页数量参数无效。");
+  }
+  return Math.min(limit, MAX_IMAGE_JOB_LIMIT);
+}
+
+function normalizeImageJobQueryStatus(value) {
+  const status = String(value || "all").trim() || "all";
+  if (!IMAGE_JOB_QUERY_STATUS_VALUES.has(status)) {
+    throw createHttpError(400, "任务状态参数无效。");
+  }
+  return status;
+}
+
+function normalizeImageJobSearch(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizeImageJobQueryDate(value) {
+  if (value === undefined || value === null || value === "") return "";
+  const normalized = normalizeDateInput(value);
+  if (!normalized) {
+    throw createHttpError(400, "日期参数无效。");
+  }
+  return normalized;
+}
+
+function normalizeBooleanQuery(value) {
+  const text = String(value || "").trim().toLowerCase();
+  return ["1", "true", "yes", "on"].includes(text);
+}
+
+function matchesImageJobStatus(job, status) {
+  if (status === "all") return true;
+  return String(job?.status || "") === status;
+}
+
+function matchesImageJobLikedOnly(job, likedOnly) {
+  if (!likedOnly) return true;
+  return Boolean(job?.isLiked);
+}
+
+function matchesImageJobDate(job, date) {
+  if (!date) return true;
+  const createdAt = String(job?.createdAt || "");
+  if (!createdAt) return false;
+  const time = new Date(createdAt).getTime();
+  if (!Number.isFinite(time)) return false;
+  return formatArchiveDate(createdAt) === date;
+}
+
+function matchesImageJobSearch(job, search) {
+  if (!search) return true;
+  const haystack = [
+    job?.jobId,
+    job?.prompt,
+    job?.styleName,
+    job?.styleGroupName
+  ]
+    .map((value) => String(value || "").toLowerCase())
+    .join("\n");
+  return haystack.includes(search);
 }
 
 function toRelativeStoragePath(filePath) {
@@ -4359,6 +4433,32 @@ async function listImageJobs() {
       .map((entry) => readImageJob(entry.name.replace(/\.json$/, "")))
   );
   return jobs.filter(Boolean);
+}
+
+async function queryImageJobs(options = {}) {
+  const page = normalizeImageJobPage(options.page);
+  const limit = normalizeImageJobLimit(options.limit);
+  const status = normalizeImageJobQueryStatus(options.status);
+  const search = normalizeImageJobSearch(options.search);
+  const date = normalizeImageJobQueryDate(options.date);
+  const likedOnly = normalizeBooleanQuery(options.likedOnly);
+  const jobs = await listImageJobs();
+  const filteredJobs = jobs
+    .filter((job) => matchesImageJobStatus(job, status))
+    .filter((job) => matchesImageJobLikedOnly(job, likedOnly))
+    .filter((job) => matchesImageJobDate(job, date))
+    .filter((job) => matchesImageJobSearch(job, search))
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const total = filteredJobs.length;
+  const totalPages = total > 0 ? Math.ceil(total / limit) : 1;
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * limit;
+  return {
+    jobs: filteredJobs.slice(start, start + limit).map(toPublicImageJob),
+    total,
+    page: safePage,
+    limit
+  };
 }
 
 async function deleteImageJob(job) {
