@@ -65,10 +65,14 @@ const DEFAULT_FRIDGE_ORDERING_ENABLED = false;
 const DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS = 1990;
 const DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS = 800;
 const DEFAULT_FREE_SHIPPING_ITEM_COUNT = 2;
+const DEFAULT_ORDER_PAYMENT_MODE = "manual";
+const DEFAULT_MANUAL_PAYMENT_EXPIRE_DAYS = 7;
+const DEFAULT_CONTACT_WECHAT_ID = "PetPaint";
 const ORDER_PAYMENT_EXPIRE_MS = 30 * 60 * 1000;
 const ORDER_SEARCH_LIMIT = 100;
 const ORDER_PAYMENT_STATUS_VALUES = new Set(["unpaid", "paid", "failed", "expired"]);
 const ORDER_FULFILLMENT_STATUS_VALUES = new Set(["new", "in_production", "shipped", "completed", "cancelled"]);
+const ORDER_PAYMENT_MODE_VALUES = new Set(["manual", "wechat"]);
 const BACKUP_KIND_CONFIG = "config-snapshot";
 const BACKUP_KIND_IMAGE_RANGE = "image-range-zip";
 const ADMIN_DRAW_CARD_SESSION_LIMIT = 3;
@@ -294,7 +298,8 @@ app.post("/api/orders", async (req, res, next) => {
     const amount = calculateOrderAmounts(likedJobs.length, pricing);
     const now = new Date();
     const createdAt = now.toISOString();
-    const expiresAt = new Date(now.getTime() + ORDER_PAYMENT_EXPIRE_MS).toISOString();
+    const paymentMode = normalizeOrderPaymentMode(pricing.paymentMode);
+    const expiresAt = new Date(now.getTime() + getOrderExpireMs(pricing)).toISOString();
     const orderId = randomUUID();
     const created = orderStore.createOrder({
       order: {
@@ -320,7 +325,7 @@ app.post("/api/orders", async (req, res, next) => {
         wechatOpenId: "",
         wechatTransactionId: "",
         outTradeNo: `FM${randomUUID().replace(/-/g, "")}`,
-        lastPaymentChannel: "",
+        lastPaymentChannel: paymentMode === "manual" ? "manual" : "",
         lastPaymentError: "",
         expiresAt,
         createdAt,
@@ -341,16 +346,26 @@ app.post("/api/orders", async (req, res, next) => {
         success: true,
         payload: {
           itemCount: amount.itemCount,
-          totalCents: amount.totalCents
+          totalCents: amount.totalCents,
+          paymentMode
         }
       }
     });
 
     res.status(201).json({
-      order: toPublicOrder(created),
-      payment: {
-        availableChannels: ["wechat_jsapi", "wechat_h5"]
-      }
+      order: toPublicOrder(created, { includeToken: true }),
+      payment: paymentMode === "manual"
+        ? {
+            status: "manual_payment_required",
+            mode: "manual",
+            contactWechatId: pricing.contactWechatId,
+            expiresAt: created.expiresAt
+          }
+        : {
+            status: "wechat_payment_required",
+            mode: "wechat",
+            availableChannels: ["wechat_jsapi", "wechat_h5"]
+          }
     });
   } catch (error) {
     next(error);
@@ -364,6 +379,11 @@ app.post("/api/orders/:orderId/pay", async (req, res, next) => {
 
     const order = orderStore.readOrderWithRelations(req.params.orderId);
     assertOrderOwnership(req, order, String(req.body?.token || req.query?.token || ""));
+    const settings = await readAppSettings();
+    const pricing = getOrderPricingSnapshot(settings);
+    if (order.lastPaymentChannel === "manual" || normalizeOrderPaymentMode(pricing.paymentMode) === "manual") {
+      throw createHttpError(409, "当前订单为人工付款，请联系客服并提供订单号完成支付。");
+    }
     if (order.paymentStatus === "paid") {
       return res.json({
         order: toPublicOrder(order),
@@ -500,9 +520,30 @@ app.post("/api/orders/:orderId/pay", async (req, res, next) => {
 app.get("/api/orders/:orderId", async (req, res, next) => {
   try {
     orderStore.expireUnpaidOrders();
+    const settings = await readAppSettings();
     const order = orderStore.readOrderWithRelations(req.params.orderId);
     assertOrderOwnership(req, order, String(req.query?.token || ""));
-    res.json({ order: toPublicOrder(order) });
+    res.json({
+      order: toPublicOrder(order),
+      config: getOrderPricingSnapshot(settings)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/my/orders", async (req, res, next) => {
+  try {
+    orderStore.expireUnpaidOrders();
+    const settings = await readAppSettings();
+    const payload = orderStore.listOrders({
+      visitorId: req.visitorId,
+      limit: 50
+    });
+    res.json({
+      orders: payload.items.map((order) => toPublicOrder(order)),
+      config: getOrderPricingSnapshot(settings)
+    });
   } catch (error) {
     next(error);
   }
@@ -1250,6 +1291,24 @@ app.get("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
   }
 });
 
+app.post("/api/admin/orders/:orderId/download-originals", requireAdmin, async (req, res) => {
+  try {
+    const order = orderStore.readOrderWithRelations(req.params.orderId);
+    if (!order) return res.status(404).json({ message: "订单不存在。" });
+    const result = await buildOrderOriginalImageBundle(order);
+    res.download(result.zipPath, result.filename, async (error) => {
+      await Promise.all((result.cleanupPaths || []).map((targetPath) => rm(targetPath, { recursive: true, force: true })));
+      if (error && !res.headersSent) {
+        console.error(error);
+        res.status(500).json({ message: "下载原图失败。" });
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "下载原图失败。" });
+  }
+});
+
 app.patch("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
   try {
     const order = orderStore.readOrderWithRelations(req.params.orderId);
@@ -1303,7 +1362,10 @@ app.patch("/api/admin/settings", requireAdmin, async (req, res) => {
       anonymousQuotaLimit: normalizeAnonymousQuotaLimit(req.body?.anonymousQuotaLimit),
       fridgeMagnetOrderingEnabled: req.body?.fridgeMagnetOrderingEnabled === true,
       fridgeMagnetUnitPriceCents: normalizeMoneyCents(req.body?.fridgeMagnetUnitPriceCents, DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS),
-      singleItemShippingFeeCents: normalizeMoneyCents(req.body?.singleItemShippingFeeCents, DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS)
+      singleItemShippingFeeCents: normalizeMoneyCents(req.body?.singleItemShippingFeeCents, DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS),
+      paymentMode: normalizeOrderPaymentMode(req.body?.paymentMode),
+      manualPaymentExpireDays: normalizeManualPaymentExpireDays(req.body?.manualPaymentExpireDays),
+      contactWechatId: normalizeContactWechatId(req.body?.contactWechatId)
     });
     res.json({ settings: updated });
   } catch (error) {
@@ -1557,7 +1619,7 @@ app.use((error, _req, res, next) => {
 
 app.use((req, res) => {
   const pathname = req.path || "/";
-  if (pathname === "/" || pathname === "/fridge" || pathname === "/fridge/" || pathname.startsWith("/fridge/orders/") || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
+  if (pathname === "/" || pathname === "/fridge" || pathname === "/fridge/" || pathname === "/fridge/orders" || pathname === "/fridge/orders/" || pathname.startsWith("/fridge/orders/") || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
     return res.sendFile(path.join(rootDir, "dist", "index.html"));
   }
   if (pathname === "/luck" || pathname === "/manage" || pathname === "/tasks" || pathname === "/batch") {
@@ -1872,7 +1934,10 @@ function normalizeAppSettings(settings) {
     anonymousQuotaLimit: normalizeAnonymousQuotaLimit(settings?.anonymousQuotaLimit),
     fridgeMagnetOrderingEnabled: settings?.fridgeMagnetOrderingEnabled === true,
     fridgeMagnetUnitPriceCents: normalizeMoneyCents(settings?.fridgeMagnetUnitPriceCents, DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS),
-    singleItemShippingFeeCents: normalizeMoneyCents(settings?.singleItemShippingFeeCents, DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS)
+    singleItemShippingFeeCents: normalizeMoneyCents(settings?.singleItemShippingFeeCents, DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS),
+    paymentMode: normalizeOrderPaymentMode(settings?.paymentMode),
+    manualPaymentExpireDays: normalizeManualPaymentExpireDays(settings?.manualPaymentExpireDays),
+    contactWechatId: normalizeContactWechatId(settings?.contactWechatId)
   };
 }
 
@@ -1886,6 +1951,165 @@ function normalizeMoneyCents(value, fallback) {
   const next = Number(value);
   if (!Number.isFinite(next)) return fallback;
   return Math.min(Math.max(Math.round(next), 0), 99999999);
+}
+
+function normalizeOrderPaymentMode(value) {
+  const next = String(value || DEFAULT_ORDER_PAYMENT_MODE).trim();
+  return ORDER_PAYMENT_MODE_VALUES.has(next) ? next : DEFAULT_ORDER_PAYMENT_MODE;
+}
+
+function normalizeManualPaymentExpireDays(value) {
+  const next = Number(value);
+  if (!Number.isFinite(next)) return DEFAULT_MANUAL_PAYMENT_EXPIRE_DAYS;
+  return Math.min(Math.max(Math.round(next), 1), 365);
+}
+
+function normalizeContactWechatId(value) {
+  const next = String(value || "").trim();
+  return next || DEFAULT_CONTACT_WECHAT_ID;
+}
+
+function sanitizeFilesystemSegment(value, fallback = "item") {
+  const normalized = String(value || "")
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "")
+    .replace(/\s+/g, "")
+    .trim();
+  return normalized || fallback;
+}
+
+function extensionForContentType(contentType = "") {
+  const normalized = String(contentType || "").toLowerCase();
+  if (normalized.includes("image/png")) return ".png";
+  if (normalized.includes("image/jpeg")) return ".jpg";
+  if (normalized.includes("image/webp")) return ".webp";
+  return "";
+}
+
+function extensionForRemoteUrl(url) {
+  try {
+    const pathname = new URL(String(url || "")).pathname;
+    const ext = path.extname(pathname).toLowerCase();
+    if ([".png", ".jpg", ".jpeg", ".webp"].includes(ext)) return ext;
+  } catch {}
+  return "";
+}
+
+async function resolveOrderOriginalCandidates(order) {
+  const jobs = await Promise.all((order.items || []).map((item) => readImageJob(item.jobId)));
+  const candidates = [];
+  const seenKeys = new Set();
+
+  jobs.forEach((job) => {
+    if (!job?.jobId) return;
+
+    const generatedFilePath = path.join(generatedImageRoot, path.basename(String(job?.result?.imageUrl || "")));
+    if (String(job?.result?.imageUrl || "").startsWith("/generated-images/")) {
+      const key = `generated:${generatedFilePath}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        candidates.push({
+          sourceType: "generated",
+          jobId: job.jobId,
+          generatedFilePath,
+          mimeType: String(job?.result?.mimeType || "")
+        });
+      }
+    }
+
+    const remoteUrl = String(job?.result?.originalImageUrl || "").trim();
+    if (remoteUrl) {
+      const key = `remote:${remoteUrl}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        candidates.push({
+          sourceType: "remote",
+          jobId: job.jobId,
+          remoteUrl
+        });
+      }
+    }
+  });
+
+  return candidates;
+}
+
+async function buildOrderOriginalImageBundle(order) {
+  const candidates = await resolveOrderOriginalCandidates(order);
+  if (!candidates.length) {
+    throw createHttpError(404, "该订单没有可下载的生成原图。");
+  }
+
+  const folderName = sanitizeFilesystemSegment(`${order.orderNo}_${order.receiverName}_${order.receiverPhone}`, order.orderNo || "order");
+  await mkdir(storageExportTempRoot, { recursive: true });
+  const bundleId = randomUUID();
+  const tempDir = path.join(storageExportTempRoot, `order-originals-${bundleId}`);
+  const folderPath = path.join(tempDir, folderName);
+  const zipFilename = `${folderName}.zip`;
+  const zipPath = path.join(storageExportTempRoot, `order-originals-${bundleId}.zip`);
+  await mkdir(folderPath, { recursive: true });
+
+  const downloadedFiles = [];
+  const failedSources = [];
+  try {
+    for (let index = 0; index < candidates.length; index += 1) {
+      const candidate = candidates[index];
+
+      try {
+        if (candidate.sourceType === "generated") {
+          if (!(await fileExists(candidate.generatedFilePath))) {
+            throw createHttpError(404, "服务器未找到已保存的生成原图。");
+          }
+
+          const ext = path.extname(candidate.generatedFilePath).toLowerCase() || extensionForContentType(candidate.mimeType) || ".png";
+          const filename = `original-${String(downloadedFiles.length + 1).padStart(2, "0")}${ext}`;
+          const filePath = path.join(folderPath, filename);
+          await copyFile(candidate.generatedFilePath, filePath);
+          downloadedFiles.push(filePath);
+          continue;
+        }
+
+        if (candidate.sourceType === "remote") {
+          const response = await fetch(candidate.remoteUrl);
+          if (!response.ok) {
+            throw createHttpError(response.status === 404 ? 404 : 502, `下载原图失败：${response.status}`);
+          }
+
+          const arrayBuffer = await response.arrayBuffer();
+          const contentType = String(response.headers.get("content-type") || "");
+          const ext = extensionForContentType(contentType) || extensionForRemoteUrl(candidate.remoteUrl) || ".png";
+          const filename = `original-${String(downloadedFiles.length + 1).padStart(2, "0")}${ext}`;
+          const filePath = path.join(folderPath, filename);
+          await writeFile(filePath, Buffer.from(arrayBuffer));
+          downloadedFiles.push(filePath);
+          continue;
+        }
+      } catch (error) {
+        failedSources.push({
+          sourceType: candidate.sourceType,
+          jobId: candidate.jobId,
+          message: error.publicMessage || error.message || "下载失败"
+        });
+      }
+    }
+
+    if (!downloadedFiles.length) {
+      throw createHttpError(404, failedSources[0]?.message || "该订单没有可下载的生成原图。");
+    }
+
+    await createZipFromDirectory(tempDir, zipPath);
+    return {
+      cleanupPaths: [tempDir, zipPath],
+      downloadedCount: downloadedFiles.length,
+      failedSources,
+      filename: zipFilename,
+      folderName,
+      zipPath
+    };
+  } catch (error) {
+    await rm(tempDir, { recursive: true, force: true });
+    await rm(zipPath, { force: true });
+    throw error;
+  }
 }
 
 async function buildStorageSummary() {
@@ -2483,8 +2707,19 @@ function getOrderPricingSnapshot(settings) {
     enabled: safeSettings.fridgeMagnetOrderingEnabled === true,
     unitPriceCents: safeSettings.fridgeMagnetUnitPriceCents,
     singleItemShippingFeeCents: safeSettings.singleItemShippingFeeCents,
-    freeShippingItemCount: DEFAULT_FREE_SHIPPING_ITEM_COUNT
+    freeShippingItemCount: DEFAULT_FREE_SHIPPING_ITEM_COUNT,
+    paymentMode: safeSettings.paymentMode,
+    manualPaymentExpireDays: safeSettings.manualPaymentExpireDays,
+    contactWechatId: safeSettings.contactWechatId
   };
+}
+
+function getOrderExpireMs(pricing) {
+  const paymentMode = normalizeOrderPaymentMode(pricing?.paymentMode);
+  if (paymentMode === "manual") {
+    return normalizeManualPaymentExpireDays(pricing?.manualPaymentExpireDays) * 24 * 60 * 60 * 1000;
+  }
+  return ORDER_PAYMENT_EXPIRE_MS;
 }
 
 function calculateOrderAmounts(itemCount, pricing) {

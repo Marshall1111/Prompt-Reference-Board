@@ -3,7 +3,7 @@ import { AlertTriangle, ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, Gri
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
-const CONTACT_WECHAT_ID = "PetPaint";
+const DEFAULT_CONTACT_WECHAT_ID = "PetPaint";
 const DEFAULT_ORDER_ADDRESS = {
   receiverName: "",
   receiverPhone: "",
@@ -147,6 +147,7 @@ function createClientTraceId() {
 
 function readRoute() {
   const pathname = window.location.pathname;
+  if (pathname === "/fridge/orders") return "public-fridge-orders";
   if (pathname.startsWith("/fridge/orders/")) return "public-fridge-order";
   if (pathname === "/fridge") return "public-fridge";
   if (pathname === "/gallery") return "admin-gallery";
@@ -174,6 +175,7 @@ function App() {
     const pathByRoute = {
       "public-draw": "/",
       "public-fridge": "/fridge",
+      "public-fridge-orders": "/fridge/orders",
       "public-fridge-order": window.location.pathname,
       "admin-gallery": "/gallery",
       "admin-login": "/admin/login",
@@ -194,6 +196,9 @@ function App() {
   }
   if (route === "public-fridge-order") {
     return <FridgeMagnetOrderPage />;
+  }
+  if (route === "public-fridge-orders") {
+    return <FridgeMagnetOrdersPage />;
   }
   if (route === "public-fridge") {
     return <FridgeMagnetPage />;
@@ -517,14 +522,104 @@ function FridgeMagnetPage() {
   return <PublicExperiencePage config={FRIDGE_MAGNET_EXPERIENCE_CONFIG} />;
 }
 
+function FridgeMagnetOrdersPage() {
+  const [orders, setOrders] = useState([]);
+  const [orderConfig, setOrderConfig] = useState(null);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isActive = true;
+    setIsLoading(true);
+    fetchMyOrders()
+      .then((payload) => {
+        if (!isActive) return;
+        setOrders(payload.orders || []);
+        setOrderConfig(payload.config || null);
+        setError("");
+      })
+      .catch((nextError) => {
+        if (!isActive) return;
+        setError(nextError.message || "读取订单列表失败。");
+      })
+      .finally(() => {
+        if (isActive) setIsLoading(false);
+      });
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  return (
+    <main className="app-shell">
+      <section className="workspace order-page">
+        <div className="task-toolbar">
+          <div>
+            <p className="eyebrow">My orders</p>
+            <h2>我的订单</h2>
+            <p className="storage-note">查看你提交过的冰箱贴订单、付款状态和履约进度。</p>
+          </div>
+          <button className="secondary-button" onClick={() => window.location.assign("/fridge")} type="button">
+            <Home size={18} />
+            <span>返回冰箱贴页</span>
+          </button>
+        </div>
+        {isLoading ? <p className="storage-note">正在读取订单列表…</p> : null}
+        {error ? <p className="error-note">{error}</p> : null}
+        {!isLoading && !error && !orders.length ? <p className="empty-note">你还没有提交过冰箱贴订单。</p> : null}
+        <div className="task-list">
+          {orders.map((order) => {
+            const isManualUnpaid = order.paymentStatus === "unpaid" && isManualPaymentOrder(order, orderConfig);
+            return (
+              <article className="task-card order-task-card" key={order.id}>
+                <div className={`task-status ${order.paymentStatus === "paid" ? "succeeded" : order.paymentStatus === "expired" ? "cancelled" : "queued"}`}>
+                  {orderPaymentStatusLabel(order.paymentStatus)}
+                </div>
+                <div className="task-detail">
+                  <div className="task-meta-row">
+                    <strong>{order.orderNo}</strong>
+                    <span>{orderFulfillmentStatusLabel(order.fulfillmentStatus)}</span>
+                    <span>{order.itemCount} 张</span>
+                    <span>{formatCurrencyCents(order.totalCents)}</span>
+                  </div>
+                  <p className="storage-note">下单时间 {formatDateTime(order.createdAt)}</p>
+                  {isManualUnpaid ? <p className="storage-note">待支付：请联系客服并备注订单号完成付款。</p> : null}
+                </div>
+                <div className="task-actions">
+                  <button className="secondary-button" onClick={() => window.location.assign(buildOrderDetailUrl(order.id, order.publicToken))} type="button">
+                    <Eye size={18} />
+                    <span>查看详情</span>
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function FridgeMagnetOrderPage() {
   const orderId = String(window.location.pathname.split("/").filter(Boolean).pop() || "");
   const searchParams = new URLSearchParams(window.location.search);
   const token = searchParams.get("token") || "";
   const wechatCode = searchParams.get("code") || "";
   const [order, setOrder] = useState(null);
+  const [orderConfig, setOrderConfig] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [contactCopied, setContactCopied] = useState(false);
+  const [orderCopied, setOrderCopied] = useState(false);
+  const contactCopiedTimeoutRef = useRef(null);
+  const orderCopiedTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
+      if (orderCopiedTimeoutRef.current) window.clearTimeout(orderCopiedTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -532,7 +627,8 @@ function FridgeMagnetOrderPage() {
     fetchOrderDetail(orderId, token)
       .then((payload) => {
         if (!isActive) return;
-        setOrder(payload);
+        setOrder(payload.order || null);
+        setOrderConfig(payload.config || null);
         setError("");
       })
       .catch((nextError) => {
@@ -548,7 +644,7 @@ function FridgeMagnetOrderPage() {
   }, [orderId, token]);
 
   useEffect(() => {
-    if (!wechatCode || !token || !isWechatBrowserClient()) return undefined;
+    if (!wechatCode || !token || !isWechatBrowserClient() || !orderConfig || orderConfig.paymentMode !== "wechat") return undefined;
     let isActive = true;
     payOrderRequest(orderId, {
       channel: "wechat_jsapi",
@@ -571,7 +667,22 @@ function FridgeMagnetOrderPage() {
     return () => {
       isActive = false;
     };
-  }, [orderId, token, wechatCode]);
+  }, [orderConfig, orderId, token, wechatCode]);
+
+  async function handleCopyContactWeChat() {
+    await copyText(getContactWechatId(orderConfig));
+    setContactCopied(true);
+    if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
+    contactCopiedTimeoutRef.current = window.setTimeout(() => setContactCopied(false), 1600);
+  }
+
+  async function handleCopyOrderNo() {
+    if (!order?.orderNo) return;
+    await copyText(order.orderNo);
+    setOrderCopied(true);
+    if (orderCopiedTimeoutRef.current) window.clearTimeout(orderCopiedTimeoutRef.current);
+    orderCopiedTimeoutRef.current = window.setTimeout(() => setOrderCopied(false), 1600);
+  }
 
   return (
     <main className="app-shell">
@@ -580,7 +691,7 @@ function FridgeMagnetOrderPage() {
           <div>
             <p className="eyebrow">Fridge order</p>
             <h2>订单详情</h2>
-            <p className="storage-note">支付完成后可在这里查看订单状态、收货信息和下单图片。</p>
+            <p className="storage-note">可在这里查看订单状态、收货信息和下单图片。</p>
           </div>
           <button className="secondary-button" onClick={() => window.location.assign("/fridge")} type="button">
             <Home size={18} />
@@ -591,6 +702,44 @@ function FridgeMagnetOrderPage() {
         {error ? <p className="error-note">{error}</p> : null}
         {order ? (
           <section className="task-page">
+            {order.paymentStatus === "unpaid" && isManualPaymentOrder(order, orderConfig) ? (
+              <article className="draw-observability-card manual-payment-guide">
+                <div className="draw-observability-head">
+                  <div className="draw-observability-main">
+                    <div className="task-meta-row">
+                      <strong>请联系客服付款</strong>
+                      <span className="task-status queued">待支付</span>
+                    </div>
+                    <p className="storage-note">请联系客服微信并备注订单号，客服确认收款后会手动更新为已支付。</p>
+                  </div>
+                </div>
+                <div className="draw-observability-grid">
+                  <div className="draw-observability-metric">
+                    <strong>应付金额</strong>
+                    <span>{formatCurrencyCents(order.totalCents)}</span>
+                  </div>
+                  <div className="draw-observability-metric">
+                    <strong>订单号</strong>
+                    <span>{order.orderNo}</span>
+                  </div>
+                  <div className="draw-observability-metric">
+                    <strong>客服微信</strong>
+                    <span>{getContactWechatId(orderConfig)}</span>
+                  </div>
+                </div>
+                <p className="storage-note">请在 {formatDateTime(order.expiresAt)} 前完成付款，付款时备注订单号更方便核对。</p>
+                <div className="manual-payment-actions">
+                  <button className="secondary-button" onClick={handleCopyContactWeChat} type="button">
+                    <Clipboard size={18} />
+                    <span>{contactCopied ? "微信号已复制" : "复制客服微信"}</span>
+                  </button>
+                  <button className="secondary-button" onClick={handleCopyOrderNo} type="button">
+                    <Clipboard size={18} />
+                    <span>{orderCopied ? "订单号已复制" : "复制订单号"}</span>
+                  </button>
+                </div>
+              </article>
+            ) : null}
             <article className="draw-observability-card">
               <div className="draw-observability-head">
                 <div className="draw-observability-main">
@@ -702,23 +851,31 @@ function PublicExperiencePage({ config }) {
   const [flyingCard, setFlyingCard] = useState(null);
   const [clipReceiving, setClipReceiving] = useState(false);
   const [visitorState, setVisitorState] = useState(null);
+  const [myOrders, setMyOrders] = useState([]);
   const [inviteCode, setInviteCode] = useState("");
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactCopied, setContactCopied] = useState(false);
   const [orderConfig, setOrderConfig] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [manualPaymentOrder, setManualPaymentOrder] = useState(null);
   const [orderForm, setOrderForm] = useState(DEFAULT_ORDER_ADDRESS);
   const [orderError, setOrderError] = useState("");
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [manualContactCopied, setManualContactCopied] = useState(false);
+  const [manualOrderCopied, setManualOrderCopied] = useState(false);
   const resultMediaRefs = useRef(new Map());
   const cardClipPanelRef = useRef(null);
   const flightTimeoutRef = useRef(null);
   const clipPulseTimeoutRef = useRef(null);
   const contactCopiedTimeoutRef = useRef(null);
+  const manualContactCopiedTimeoutRef = useRef(null);
+  const manualOrderCopiedTimeoutRef = useRef(null);
 
   useEffect(() => {
     return () => {
       if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
+      if (manualContactCopiedTimeoutRef.current) window.clearTimeout(manualContactCopiedTimeoutRef.current);
+      if (manualOrderCopiedTimeoutRef.current) window.clearTimeout(manualOrderCopiedTimeoutRef.current);
     };
   }, []);
 
@@ -852,6 +1009,14 @@ function PublicExperiencePage({ config }) {
       })
       .catch(() => {
         if (isActive) setOrderConfig(null);
+      });
+
+    fetchMyOrders()
+      .then((payload) => {
+        if (isActive) setMyOrders(payload.orders || []);
+      })
+      .catch(() => {
+        if (isActive) setMyOrders([]);
       });
 
     async function loadClipItems() {
@@ -1191,10 +1356,29 @@ function PublicExperiencePage({ config }) {
   }
 
   async function handleCopyContactWeChat() {
-    await copyText(CONTACT_WECHAT_ID);
+    await copyText(getContactWechatId(orderConfig));
     setContactCopied(true);
     if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
     contactCopiedTimeoutRef.current = window.setTimeout(() => setContactCopied(false), 1600);
+  }
+
+  async function handleCopyManualPaymentContact() {
+    await copyText(getContactWechatId(orderConfig));
+    setManualContactCopied(true);
+    if (manualContactCopiedTimeoutRef.current) window.clearTimeout(manualContactCopiedTimeoutRef.current);
+    manualContactCopiedTimeoutRef.current = window.setTimeout(() => setManualContactCopied(false), 1600);
+  }
+
+  async function handleCopyManualPaymentOrderNo() {
+    if (!manualPaymentOrder?.order?.orderNo) return;
+    await copyText(manualPaymentOrder.order.orderNo);
+    setManualOrderCopied(true);
+    if (manualOrderCopiedTimeoutRef.current) window.clearTimeout(manualOrderCopiedTimeoutRef.current);
+    manualOrderCopiedTimeoutRef.current = window.setTimeout(() => setManualOrderCopied(false), 1600);
+  }
+
+  function goToOrderDetail(orderId, token) {
+    window.location.href = buildOrderDetailUrl(orderId, token);
   }
 
   function updateOrderFormField(key, value) {
@@ -1211,6 +1395,12 @@ function PublicExperiencePage({ config }) {
         jobIds: clipItems.map((item) => item.jobId),
         ...orderForm
       });
+      if (created.payment?.mode === "manual" || orderConfig?.paymentMode === "manual") {
+        setShowOrderModal(false);
+        setManualPaymentOrder(created);
+        setOrderForm(DEFAULT_ORDER_ADDRESS);
+        return;
+      }
       const payResult = await payOrderRequest(created.order.id, {
         channel: isWechatBrowserClient() ? "wechat_jsapi" : "wechat_h5",
         token: created.order.publicToken
@@ -1239,7 +1429,7 @@ function PublicExperiencePage({ config }) {
         return;
       }
 
-      window.location.href = `/fridge/orders/${created.order.id}?token=${encodeURIComponent(created.order.publicToken)}`;
+      goToOrderDetail(created.order.id, created.order.publicToken);
     } catch (nextError) {
       setOrderError(nextError.message || "下单失败，请稍后再试。");
     } finally {
@@ -1321,10 +1511,15 @@ function PublicExperiencePage({ config }) {
             <button className="draw-card-secondary" onClick={() => setShowContactModal(true)} type="button">
               <span>联系客服</span>
             </button>
+            {experienceType === "fridge-magnet" && myOrders.length ? (
+              <button className="draw-card-secondary" onClick={() => window.location.assign("/fridge/orders")} type="button">
+                <span>我的订单</span>
+              </button>
+            ) : null}
           </div>
           {experienceType === "fridge-magnet" ? (
             <button className="draw-card-primary draw-card-order-button" disabled={!clipItems.length || !orderConfig?.enabled} onClick={() => setShowOrderModal(true)} type="button">
-              <span>{orderConfig?.enabled ? "立即下单" : "下单未开放"}</span>
+              <span>{orderConfig?.enabled ? "提交订单" : "下单未开放"}</span>
             </button>
           ) : null}
           <p>{visitorState?.contactMessage || clipContactFallback}</p>
@@ -1545,7 +1740,7 @@ function PublicExperiencePage({ config }) {
               <h3>联系客服</h3>
               <p>请加微信</p>
               <button className="draw-card-contact-id" onClick={handleCopyContactWeChat} type="button">
-                <span>{CONTACT_WECHAT_ID}</span>
+                <span>{getContactWechatId(orderConfig)}</span>
                 <Clipboard size={16} />
               </button>
               <p className="draw-card-contact-note">{contactCopied ? "微信号已复制" : "点击微信号即可一键复制"}</p>
@@ -1615,7 +1810,43 @@ function PublicExperiencePage({ config }) {
               </button>
               <button className="draw-card-primary" disabled={!clipItems.length || isCreatingOrder} onClick={handleCreateOrderAndPay} type="button">
                 {isCreatingOrder ? <LoaderCircle className="spin" size={18} /> : null}
-                <span>{isCreatingOrder ? "提交中" : "提交订单并支付"}</span>
+                <span>{isCreatingOrder ? "提交中" : "提交订单"}</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {manualPaymentOrder ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => goToOrderDetail(manualPaymentOrder.order.id, manualPaymentOrder.order.publicToken)} role="presentation">
+          <section className="draw-card-confirm-panel draw-card-order-panel draw-card-manual-payment-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="联系客服付款">
+            <div className="draw-card-order-head">
+              <div>
+                <p className="draw-card-kicker">Order created</p>
+                <h2>订单已创建，请联系客服付款</h2>
+              </div>
+              <button className="icon-button" onClick={() => goToOrderDetail(manualPaymentOrder.order.id, manualPaymentOrder.order.publicToken)} type="button" aria-label="查看订单详情">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="draw-card-order-summary">
+              <p>应付金额 {formatCurrencyCents(manualPaymentOrder.order.totalCents)}</p>
+              <p>订单号 {manualPaymentOrder.order.orderNo}</p>
+              <p>客服微信 {getContactWechatId(orderConfig)}</p>
+              <strong>请在 {formatDateTime(manualPaymentOrder.payment?.expiresAt || manualPaymentOrder.order.expiresAt)} 前完成付款</strong>
+              <span className="storage-note">联系客服时请备注订单号，管理员确认收款后会手动更新为已支付。</span>
+            </div>
+            <div className="draw-card-confirm-actions">
+              <button className="draw-card-secondary" onClick={handleCopyManualPaymentContact} type="button">
+                <Clipboard size={16} />
+                <span>{manualContactCopied ? "微信号已复制" : "复制客服微信"}</span>
+              </button>
+              <button className="draw-card-secondary" onClick={handleCopyManualPaymentOrderNo} type="button">
+                <Clipboard size={16} />
+                <span>{manualOrderCopied ? "订单号已复制" : "复制订单号"}</span>
+              </button>
+              <button className="draw-card-primary" onClick={() => goToOrderDetail(manualPaymentOrder.order.id, manualPaymentOrder.order.publicToken)} type="button">
+                <span>查看订单详情</span>
               </button>
             </div>
           </section>
@@ -3368,7 +3599,14 @@ async function fetchOrderDetail(orderId, token = "") {
   const response = await fetch(`/api/orders/${orderId}${query}`);
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || "读取订单失败。");
-  return data.order;
+  return data;
+}
+
+async function fetchMyOrders() {
+  const response = await fetch("/api/my/orders");
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "读取订单列表失败。");
+  return data;
 }
 
 async function redeemInviteCode(code) {
@@ -3480,6 +3718,52 @@ async function updateAdminOrder(orderId, payload) {
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || "更新订单失败。");
   return data.order;
+}
+
+function parseDownloadFilename(contentDisposition, fallback = "order-originals.zip") {
+  const value = String(contentDisposition || "");
+  const encodedMatch = value.match(/filename\*=UTF-8''([^;]+)/i);
+  if (encodedMatch?.[1]) {
+    try {
+      return decodeURIComponent(encodedMatch[1]);
+    } catch {}
+  }
+  const quotedMatch = value.match(/filename=\"([^\"]+)\"/i);
+  if (quotedMatch?.[1]) return quotedMatch[1];
+  const plainMatch = value.match(/filename=([^;]+)/i);
+  if (plainMatch?.[1]) return plainMatch[1].trim();
+  return fallback;
+}
+
+async function downloadAdminOrderOriginals(orderId) {
+  const response = await fetch(`/api/admin/orders/${orderId}/download-originals`, {
+    method: "POST"
+  });
+  const contentType = String(response.headers.get("content-type") || "");
+  if (!response.ok) {
+    if (contentType.includes("application/json")) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.message || "下载原图失败。");
+    }
+    const text = await response.text().catch(() => "");
+    throw new Error(text || "下载原图失败。");
+  }
+
+  const filename = parseDownloadFilename(response.headers.get("content-disposition"), `order-${orderId}.zip`);
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+
+  return {
+    filename,
+    sizeBytes: blob.size
+  };
 }
 
 async function refreshAdminSettings() {
@@ -3807,8 +4091,12 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
   const [fridgeMagnetOrderingEnabled, setFridgeMagnetOrderingEnabled] = useState(settings?.fridgeMagnetOrderingEnabled === true);
   const [fridgeMagnetUnitPriceCents, setFridgeMagnetUnitPriceCents] = useState(settings?.fridgeMagnetUnitPriceCents || 1990);
   const [singleItemShippingFeeCents, setSingleItemShippingFeeCents] = useState(settings?.singleItemShippingFeeCents || 800);
+  const [paymentMode, setPaymentMode] = useState(settings?.paymentMode || "manual");
+  const [manualPaymentExpireDays, setManualPaymentExpireDays] = useState(settings?.manualPaymentExpireDays || 7);
+  const [contactWechatId, setContactWechatId] = useState(settings?.contactWechatId || DEFAULT_CONTACT_WECHAT_ID);
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [downloadStatus, setDownloadStatus] = useState("");
   const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
@@ -3819,6 +4107,9 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
     setFridgeMagnetOrderingEnabled(settings?.fridgeMagnetOrderingEnabled === true);
     setFridgeMagnetUnitPriceCents(settings?.fridgeMagnetUnitPriceCents || 1990);
     setSingleItemShippingFeeCents(settings?.singleItemShippingFeeCents || 800);
+    setPaymentMode(settings?.paymentMode || "manual");
+    setManualPaymentExpireDays(settings?.manualPaymentExpireDays || 7);
+    setContactWechatId(settings?.contactWechatId || DEFAULT_CONTACT_WECHAT_ID);
   }, [settings]);
 
   async function refreshList() {
@@ -3832,6 +4123,7 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
 
   async function loadOrderDetail(orderId) {
     setError("");
+    setDownloadStatus("");
     try {
       const order = await fetchAdminOrder(orderId);
       setSelectedOrder(order);
@@ -3850,7 +4142,10 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
         anonymousQuotaLimit: settings?.anonymousQuotaLimit,
         fridgeMagnetOrderingEnabled,
         fridgeMagnetUnitPriceCents,
-        singleItemShippingFeeCents
+        singleItemShippingFeeCents,
+        paymentMode,
+        manualPaymentExpireDays,
+        contactWechatId
       });
       await onRefreshSettings();
       setStatusMessage("下单配置已更新。");
@@ -3875,6 +4170,21 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
       setStatusMessage("订单已更新。");
     } catch (nextError) {
       setError(nextError.message || "更新订单失败。");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function downloadOrderOriginals() {
+    if (!selectedOrder?.id) return;
+    setIsBusy(true);
+    setError("");
+    setDownloadStatus("");
+    try {
+      const payload = await downloadAdminOrderOriginals(selectedOrder.id);
+      setDownloadStatus(`原图压缩包已开始下载：${payload.filename}`);
+    } catch (nextError) {
+      setError(nextError.message || "下载原图失败。");
     } finally {
       setIsBusy(false);
     }
@@ -3908,7 +4218,23 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
           单张邮费（分）
           <input min="0" onChange={(event) => setSingleItemShippingFeeCents(Number(event.target.value) || 0)} type="number" value={singleItemShippingFeeCents} />
         </label>
+        <label className="field-label">
+          支付模式
+          <select onChange={(event) => setPaymentMode(event.target.value)} value={paymentMode}>
+            <option value="manual">人工支付</option>
+            <option value="wechat">微信支付</option>
+          </select>
+        </label>
+        <label className="field-label">
+          人工支付有效期（天）
+          <input min="1" onChange={(event) => setManualPaymentExpireDays(Number(event.target.value) || 1)} type="number" value={manualPaymentExpireDays} />
+        </label>
+        <label className="field-label">
+          客服微信号
+          <input onChange={(event) => setContactWechatId(event.target.value)} type="text" value={contactWechatId} />
+        </label>
         <p className="storage-note">金额规则固定为：1 张收邮费，2 张及以上包邮。</p>
+        <p className="storage-note">人工支付模式下，用户提交订单后会看到客服微信与订单号复制入口，并在 {manualPaymentExpireDays} 天内完成付款。</p>
         <div className="card-actions generator-actions">
           <button className="secondary-button" disabled={isBusy} onClick={saveOrderSettings} type="button">
             <Save size={18} />
@@ -4004,7 +4330,12 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
               管理员备注
               <textarea onChange={(event) => setAdminRemark(event.target.value)} rows="3" value={adminRemark} />
             </label>
+            {downloadStatus ? <p className="success-note">{downloadStatus}</p> : null}
             <div className="task-filters">
+              <button className="secondary-button" disabled={isBusy} onClick={downloadOrderOriginals} type="button">
+                <Download size={18} />
+                <span>下载原图</span>
+              </button>
               <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, paymentStatus: selectedOrder.paymentStatus, fulfillmentStatus: "in_production" })} type="button">
                 <span>标记制作中</span>
               </button>
@@ -4395,6 +4726,19 @@ function formatDateTime(value) {
 function formatCurrencyCents(value) {
   const cents = Number(value || 0);
   return `¥${(cents / 100).toFixed(2)}`;
+}
+
+function getContactWechatId(config) {
+  return String(config?.contactWechatId || DEFAULT_CONTACT_WECHAT_ID).trim() || DEFAULT_CONTACT_WECHAT_ID;
+}
+
+function buildOrderDetailUrl(orderId, token = "") {
+  const base = `/fridge/orders/${orderId}`;
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+}
+
+function isManualPaymentOrder(order, config) {
+  return String(order?.lastPaymentChannel || "") === "manual" || String(config?.paymentMode || "") === "manual";
 }
 
 function calculateClientOrderAmount(itemCount, config) {

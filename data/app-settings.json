@@ -1,6 +1,9 @@
 {
   "anonymousQuotaLimit": 2,
-  "fridgeMagnetOrderingEnabled": false,
+  "fridgeMagnetOrderingEnabled": true,
   "fridgeMagnetUnitPriceCents": 1990,
-  "singleItemShippingFeeCents": 800
+  "singleItemShippingFeeCents": 800,
+  "paymentMode": "manual",
+  "manualPaymentExpireDays": 7,
+  "contactWechatId": "PetPaint"
 }

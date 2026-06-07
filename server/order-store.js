@@ -301,6 +301,29 @@ export function createOrderStore({ dbPath }) {
       ...patch,
       updatedAt: patch.updatedAt || nowIso()
     };
+    const persisted = {
+      id: next.id,
+      paymentStatus: next.paymentStatus,
+      fulfillmentStatus: next.fulfillmentStatus,
+      remark: next.remark,
+      receiverName: next.receiverName,
+      receiverPhone: next.receiverPhone,
+      province: next.province,
+      city: next.city,
+      district: next.district,
+      addressDetail: next.addressDetail,
+      adminRemark: next.adminRemark,
+      wechatOpenId: next.wechatOpenId,
+      wechatTransactionId: next.wechatTransactionId,
+      lastPaymentChannel: next.lastPaymentChannel,
+      lastPaymentError: next.lastPaymentError,
+      expiresAt: next.expiresAt,
+      paidAt: next.paidAt,
+      shippedAt: next.shippedAt,
+      completedAt: next.completedAt,
+      cancelledAt: next.cancelledAt,
+      updatedAt: next.updatedAt
+    };
 
     db.prepare(`
       UPDATE orders SET
@@ -325,7 +348,7 @@ export function createOrderStore({ dbPath }) {
         cancelled_at = @cancelledAt,
         updated_at = @updatedAt
       WHERE id = @id
-    `).run(next);
+    `).run(persisted);
 
     return readOrderWithRelations(orderId);
   }
@@ -366,11 +389,15 @@ export function createOrderStore({ dbPath }) {
     `).run({ now });
   }
 
-  function listOrders({ paymentStatus = "", fulfillmentStatus = "", search = "", startDate = "", endDate = "", page = 1, limit = 20 } = {}) {
+  function listOrders({ visitorId = "", paymentStatus = "", fulfillmentStatus = "", search = "", startDate = "", endDate = "", page = 1, limit = 20 } = {}) {
     expireUnpaidOrders();
 
     const conditions = [];
     const params = {};
+    if (visitorId) {
+      conditions.push("visitor_id = @visitorId");
+      params.visitorId = visitorId;
+    }
     if (paymentStatus) {
       conditions.push("payment_status = @paymentStatus");
       params.paymentStatus = paymentStatus;

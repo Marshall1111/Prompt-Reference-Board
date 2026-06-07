@@ -795,6 +795,10 @@ body {
   overflow-y: auto;
 }
 
+.draw-card-manual-payment-panel {
+  width: min(640px, 100%);
+}
+
 .draw-card-order-head {
   display: flex;
   align-items: start;
@@ -1568,6 +1572,17 @@ h2 {
   display: grid;
   gap: 12px;
   padding: 14px;
+}
+
+.manual-payment-guide {
+  border-color: #b8d8d2;
+  background: linear-gradient(180deg, rgba(242, 252, 249, 0.98), rgba(255, 253, 249, 0.98));
+}
+
+.manual-payment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .draw-observability-head {
