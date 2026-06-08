@@ -116,7 +116,7 @@ const FRIDGE_MAGNET_EXPERIENCE_CONFIG = {
   titleKicker: "Fridge magnet studio",
   title: "上传一张图片，开始制作一整组冰箱贴。",
   subtitle: "沿用同一套上传、轮询、收藏与恢复流程，只是固定改走“冰箱贴”风格组。",
-  waitingLines: ["磁贴正在压膜定型。", "请稍候，整组冰箱贴还在制作中。", "白底展示面已经就绪，结果即将全部贴上来。"],
+  waitingLines: ["预计共需要2~3分钟", "美图值得等待", "不妨放下手机，抱抱身边的人"],
   waitingFallback: "请保持当前页面开启，整组冰箱贴完成后会一次性揭晓。",
   startButtonIdle: "开始制作",
   startButtonLoading: "制作开启中",
@@ -1201,6 +1201,15 @@ function PublicExperiencePage({ config }) {
   }, [clipItems, experienceType]);
 
   useEffect(() => {
+    if (!waitingLines.length) return undefined;
+    setWaitingLineIndex(0);
+    const timer = window.setInterval(() => {
+      setWaitingLineIndex((current) => (current + 1) % waitingLines.length);
+    }, 2400);
+    return () => window.clearInterval(timer);
+  }, [waitingLines]);
+
+  useEffect(() => {
     const sessionStatus = String(session?.status || "");
     if (!sessionId || !["queued", "running"].includes(sessionStatus)) return undefined;
 
@@ -1817,7 +1826,7 @@ function PublicExperiencePage({ config }) {
                         <div className={`draw-card-result-placeholder ${isFailed ? "is-failed" : "is-pending"}`}>
                           {isFailed ? <AlertTriangle size={22} /> : <LoaderCircle className="spin" size={22} />}
                           <strong>{isFailed ? "生成失败" : "正在生成"}</strong>
-                          <span>{isFailed ? item.errorMessage || "该风格本轮未能成功生成。" : "结果会在完成后自动出现。"}</span>
+                          <span>{isFailed ? item.errorMessage || "该风格本轮未能成功生成。" : waitingLines[waitingLineIndex] || "结果会在完成后自动出现。"}</span>
                         </div>
                       )}
                       <div className="draw-card-result-meta">

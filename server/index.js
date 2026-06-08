@@ -105,7 +105,7 @@ const PUBLIC_EXPERIENCE_CONFIGS = {
     experienceType: "fridge-magnet",
     label: "冰箱贴",
     styleGroupName: FRIDGE_MAGNET_GROUP_NAME,
-    waitingMessage: "冰箱贴正在制作，请稍候。",
+    waitingMessage: "美图值得等待",
     successMessage: "冰箱贴结果已准备好。",
     failureMessage: "这一轮冰箱贴未能顺利完成，请重新开始。",
     partialMessage: "部分冰箱贴已准备好，本轮未扣次数。",

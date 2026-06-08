@@ -40,10 +40,12 @@
     "code": "VIP-583F6148",
     "enabled": true,
     "maxRedemptions": 1,
-    "redeemedCount": 0,
-    "redeemedByVisitorIds": [],
+    "redeemedCount": 1,
+    "redeemedByVisitorIds": [
+      "be44feec-476d-4dc7-92e2-3a3d25672ea0"
+    ],
     "createdAt": "2026-06-04T03:28:22.274Z",
-    "updatedAt": "2026-06-04T03:28:22.274Z"
+    "updatedAt": "2026-06-08T22:39:10.321Z"
   },
   {
     "id": "e48d1c5e-c2e6-4b7e-9ba5-f38677d08504",
