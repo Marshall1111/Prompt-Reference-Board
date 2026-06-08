@@ -284,8 +284,8 @@ app.post("/api/orders", async (req, res, next) => {
     const experienceType = normalizePublicExperienceType(req.body?.experienceType || "fridge-magnet");
     if (experienceType !== "fridge-magnet") throw createHttpError(400, "当前仅支持冰箱贴下单。");
 
-    const rawJobIds = Array.isArray(req.body?.jobIds) ? req.body.jobIds : [];
-    const jobIds = [...new Set(rawJobIds.map((item) => String(item || "").trim()).filter(Boolean))];
+    const requestedItems = normalizeRequestedOrderItems(req.body || {});
+    const jobIds = requestedItems.map((item) => item.jobId);
     if (!jobIds.length) throw createHttpError(400, "请先选择要下单的冰箱贴。");
 
     const address = normalizeOrderAddress(req.body || {});
@@ -300,7 +300,9 @@ app.post("/api/orders", async (req, res, next) => {
     );
     if (likedJobs.length !== jobIds.length) throw createHttpError(403, "只能下单当前口袋中的冰箱贴结果。");
 
-    const amount = calculateOrderAmounts(likedJobs.length, pricing);
+    const likedJobById = new Map(likedJobs.map((job) => [String(job.jobId || ""), job]));
+    const totalRequestedItemCount = requestedItems.reduce((sum, item) => sum + item.quantity, 0);
+    const amount = calculateOrderAmounts(totalRequestedItemCount, pricing);
     const now = new Date();
     const createdAt = now.toISOString();
     const paymentMode = normalizeOrderPaymentMode(pricing.paymentMode);
@@ -336,15 +338,19 @@ app.post("/api/orders", async (req, res, next) => {
         createdAt,
         updatedAt: createdAt
       },
-      items: likedJobs.map((job, index) => ({
-        orderId,
-        jobId: String(job.jobId || ""),
-        styleId: String(job.styleId || ""),
-        styleName: String(job.styleName || ""),
-        imageUrl: String(job.result?.previewUrl || job.result?.thumbnailUrl || ""),
-        thumbnailUrl: String(job.result?.thumbnailUrl || job.result?.previewUrl || ""),
-        sortOrder: index
-      })),
+      items: requestedItems.map((item, index) => {
+        const job = likedJobById.get(item.jobId);
+        return {
+          orderId,
+          jobId: String(job?.jobId || ""),
+          styleId: String(job?.styleId || ""),
+          styleName: String(job?.styleName || ""),
+          imageUrl: String(job?.result?.previewUrl || job?.result?.thumbnailUrl || ""),
+          thumbnailUrl: String(job?.result?.thumbnailUrl || job?.result?.previewUrl || ""),
+          quantity: item.quantity,
+          sortOrder: index
+        };
+      }),
       initialPaymentEvent: {
         eventType: "order_created",
         eventId: `${orderId}:order_created`,
@@ -2883,6 +2889,42 @@ function calculateOrderAmounts(itemCount, pricing) {
   };
 }
 
+function normalizeRequestedOrderItems(payload) {
+  const rawItems = Array.isArray(payload?.items) ? payload.items : [];
+  const fallbackJobIds = Array.isArray(payload?.jobIds) ? payload.jobIds : [];
+  const sourceItems = rawItems.length
+    ? rawItems
+    : fallbackJobIds.map((jobId) => ({ jobId, quantity: 1 }));
+  const quantitiesByJobId = new Map();
+
+  sourceItems.forEach((rawItem) => {
+    const jobId = String(rawItem?.jobId || "").trim();
+    if (!jobId) return;
+
+    const quantity = Object.prototype.hasOwnProperty.call(rawItem || {}, "quantity")
+      ? normalizeRequestedOrderItemQuantity(rawItem.quantity)
+      : 1;
+    const nextQuantity = (quantitiesByJobId.get(jobId) || 0) + quantity;
+    if (nextQuantity > 99) {
+      throw createHttpError(400, "同款数量需在 1 到 99 之间。");
+    }
+    quantitiesByJobId.set(jobId, nextQuantity);
+  });
+
+  return Array.from(quantitiesByJobId.entries()).map(([jobId, quantity]) => ({
+    jobId,
+    quantity
+  }));
+}
+
+function normalizeRequestedOrderItemQuantity(value) {
+  const quantity = Number(value);
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+    throw createHttpError(400, "同款数量需在 1 到 99 之间。");
+  }
+  return quantity;
+}
+
 function normalizeOrderPaymentStatus(value, fallback = "unpaid") {
   const current = String(value || fallback).trim();
   return ORDER_PAYMENT_STATUS_VALUES.has(current) ? current : fallback;
@@ -3155,6 +3197,7 @@ function toPublicOrder(order, options = {}) {
       styleName: item.styleName,
       imageUrl: item.imageUrl,
       thumbnailUrl: item.thumbnailUrl,
+      quantity: Math.max(1, Number(item.quantity || 1)),
       sortOrder: item.sortOrder
     })),
     paymentEvents: includePrivate ? safeOrder.paymentEvents : []

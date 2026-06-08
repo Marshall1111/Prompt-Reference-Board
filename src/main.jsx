@@ -10,6 +10,7 @@ const DEFAULT_ORDER_ADDRESS = {
   address: "",
   remark: ""
 };
+const MAX_ORDER_ITEM_QUANTITY = 99;
 const ORDER_STATUS_LABELS = {
   pending_payment: "待付款",
   pending_shipment: "待发货",
@@ -603,7 +604,7 @@ function FridgeMagnetOrdersPage() {
                 <div className="task-detail">
                   <div className="task-meta-row">
                     <strong>{order.orderNo}</strong>
-                    <span>{order.itemCount} 张</span>
+                    <span>共 {order.itemCount} 只</span>
                     <span>{formatCurrencyCents(order.totalCents)}</span>
                   </div>
                   <p className="storage-note">下单时间 {formatDateTime(order.createdAt)}</p>
@@ -836,6 +837,7 @@ function FridgeMagnetOrderPage() {
                   <article className="draw-card-order-item" key={`${item.jobId}-${index}`}>
                     <img alt={item.styleName || `冰箱贴 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
                     <strong>{item.styleName || `冰箱贴 ${index + 1}`}</strong>
+                    <span className="draw-card-order-item-note">数量 x{Math.max(1, Number(item.quantity || 1))}</span>
                   </article>
                 ))}
               </div>
@@ -929,6 +931,7 @@ function PublicExperiencePage({ config }) {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [manualPaymentOrder, setManualPaymentOrder] = useState(null);
   const [orderForm, setOrderForm] = useState(DEFAULT_ORDER_ADDRESS);
+  const [orderQuantities, setOrderQuantities] = useState({});
   const [orderError, setOrderError] = useState("");
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [manualContactCopied, setManualContactCopied] = useState(false);
@@ -1153,6 +1156,11 @@ function PublicExperiencePage({ config }) {
       isActive = false;
     };
   }, [apiBase, clipErrorMessage, experienceType, latestErrorMessage, readErrorMessage, restoreErrorMessage, sessionStorageKey]);
+
+  useEffect(() => {
+    if (experienceType !== "fridge-magnet") return;
+    setOrderQuantities((current) => syncOrderQuantitiesWithClipItems(current, clipItems));
+  }, [clipItems, experienceType]);
 
   useEffect(() => {
     const sessionStatus = String(session?.status || "");
@@ -1490,6 +1498,34 @@ function PublicExperiencePage({ config }) {
     setOrderForm((current) => ({ ...current, [key]: value }));
   }
 
+  function setOrderItemQuantity(jobId, quantity) {
+    if (!jobId) return;
+    setOrderQuantities((current) => {
+      const safeQuantity = clampOrderItemQuantity(quantity);
+      if (current[jobId] === safeQuantity) return current;
+      return {
+        ...current,
+        [jobId]: safeQuantity
+      };
+    });
+  }
+
+  function increaseOrderItemQuantity(jobId) {
+    if (!jobId) return;
+    setOrderQuantities((current) => ({
+      ...current,
+      [jobId]: clampOrderItemQuantity(getOrderItemQuantity(current, jobId) + 1)
+    }));
+  }
+
+  function decreaseOrderItemQuantity(jobId) {
+    if (!jobId) return;
+    setOrderQuantities((current) => ({
+      ...current,
+      [jobId]: clampOrderItemQuantity(getOrderItemQuantity(current, jobId) - 1)
+    }));
+  }
+
   async function handleCreateOrderAndPay() {
     if (experienceType !== "fridge-magnet") return;
     setIsCreatingOrder(true);
@@ -1497,7 +1533,10 @@ function PublicExperiencePage({ config }) {
     try {
       const created = await createOrderRequest({
         experienceType,
-        jobIds: clipItems.map((item) => item.jobId),
+        items: clipItems.map((item) => ({
+          jobId: item.jobId,
+          quantity: getOrderItemQuantity(orderQuantities, item.jobId)
+        })),
         ...orderForm
       });
       if (created.payment?.mode === "manual" || orderConfig?.paymentMode === "manual") {
@@ -1544,7 +1583,9 @@ function PublicExperiencePage({ config }) {
     }
   }
 
-  const orderAmountPreview = calculateClientOrderAmount(clipItems.length, orderConfig);
+  const orderStyleCount = clipItems.length;
+  const totalOrderItemCount = getTotalOrderItemCount(clipItems, orderQuantities);
+  const orderAmountPreview = calculateClientOrderAmount(totalOrderItemCount, orderConfig);
   const recentManualOrderLink = isActiveLatestManualOrder(latestManualOrder)
     ? buildOrderDetailUrl(latestManualOrder.orderId, latestManualOrder.publicToken)
     : "";
@@ -1885,19 +1926,32 @@ function PublicExperiencePage({ config }) {
               </button>
             </div>
             <div className="draw-card-order-summary">
-              <p>已选 {clipItems.length} 张</p>
-              <p>单价 {formatCurrencyCents(orderAmountPreview.unitPriceCents)} / 张</p>
+              <p>已选 {orderStyleCount} 款，共 {totalOrderItemCount} 只</p>
+              <p>单价 {formatCurrencyCents(orderAmountPreview.unitPriceCents)} / 只</p>
               <p>邮费 {orderAmountPreview.shippingFeeCents > 0 ? formatCurrencyCents(orderAmountPreview.shippingFeeCents) : "包邮"}</p>
               <strong>合计 {formatCurrencyCents(orderAmountPreview.totalCents)}</strong>
-              <span className="storage-note">1 张收邮费，2 张及以上包邮</span>
+              <span className="storage-note">1 只收邮费，2 只及以上包邮</span>
             </div>
             <div className="draw-card-order-items">
-              {clipItems.map((item, index) => (
+              {clipItems.map((item, index) => {
+                const quantity = getOrderItemQuantity(orderQuantities, item.jobId);
+                return (
                 <article className="draw-card-order-item" key={`${item.jobId}-${index}`}>
                   <img alt={item.styleName || `冰箱贴 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
-                  <strong>{item.styleName || `冰箱贴 ${index + 1}`}</strong>
+                  <div className="draw-card-order-item-copy">
+                    <div className="draw-card-order-item-head">
+                      <strong>{item.styleName || `冰箱贴 ${index + 1}`}</strong>
+                      <span className="draw-card-order-item-note">小计 {formatCurrencyCents(orderAmountPreview.unitPriceCents * quantity)}</span>
+                    </div>
+                    <div className="draw-card-order-item-stepper">
+                      <button disabled={quantity <= 1} onClick={() => decreaseOrderItemQuantity(item.jobId)} type="button">-</button>
+                      <span>{quantity}</span>
+                      <button disabled={quantity >= MAX_ORDER_ITEM_QUANTITY} onClick={() => increaseOrderItemQuantity(item.jobId)} type="button">+</button>
+                    </div>
+                  </div>
                 </article>
-              ))}
+              );
+              })}
             </div>
             <div className="draw-card-order-form">
               <label className="field-label">
@@ -1922,7 +1976,7 @@ function PublicExperiencePage({ config }) {
               <button className="draw-card-secondary" onClick={() => setShowOrderModal(false)} type="button">
                 取消
               </button>
-              <button className="draw-card-primary" disabled={!clipItems.length || isCreatingOrder} onClick={handleCreateOrderAndPay} type="button">
+              <button className="draw-card-primary" disabled={!clipItems.length || !totalOrderItemCount || isCreatingOrder} onClick={handleCreateOrderAndPay} type="button">
                 {isCreatingOrder ? <LoaderCircle className="spin" size={18} /> : null}
                 <span>{isCreatingOrder ? "提交中" : "提交订单"}</span>
               </button>
@@ -4416,7 +4470,7 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
             <div className="task-detail">
               <div className="task-meta-row">
                 <strong>{order.orderNo}</strong>
-                <span>{order.itemCount} 张</span>
+                <span>共 {order.itemCount} 只</span>
                 <span>{formatCurrencyCents(order.totalCents)}</span>
               </div>
               <p className="storage-note">{order.receiverName} · {order.receiverPhone}</p>
@@ -4457,6 +4511,7 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
                 <article className="draw-card-order-item" key={`${item.jobId}-${index}`}>
                   <img alt={item.styleName || `订单图片 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
                   <strong>{item.styleName || `订单图片 ${index + 1}`}</strong>
+                  <span className="draw-card-order-item-note">数量 x{Math.max(1, Number(item.quantity || 1))}</span>
                 </article>
               ))}
             </div>
@@ -5057,6 +5112,31 @@ function calculateClientOrderAmount(itemCount, config) {
     subtotalCents,
     totalCents: subtotalCents + shippingFeeCents
   };
+}
+
+function clampOrderItemQuantity(value) {
+  const quantity = Number(value);
+  if (!Number.isFinite(quantity)) return 1;
+  return Math.min(MAX_ORDER_ITEM_QUANTITY, Math.max(1, Math.round(quantity)));
+}
+
+function getOrderItemQuantity(quantities, jobId) {
+  if (!jobId) return 1;
+  return clampOrderItemQuantity(quantities?.[jobId] ?? 1);
+}
+
+function getTotalOrderItemCount(items, quantities) {
+  return (items || []).reduce((sum, item) => sum + getOrderItemQuantity(quantities, item?.jobId), 0);
+}
+
+function syncOrderQuantitiesWithClipItems(currentQuantities, items) {
+  const nextQuantities = {};
+  (items || []).forEach((item) => {
+    const jobId = String(item?.jobId || "");
+    if (!jobId) return;
+    nextQuantities[jobId] = getOrderItemQuantity(currentQuantities, jobId);
+  });
+  return nextQuantities;
 }
 
 function isWechatBrowserClient() {

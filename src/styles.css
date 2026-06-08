@@ -912,6 +912,56 @@ body {
   line-height: 1.4;
 }
 
+.draw-card-order-item-copy,
+.draw-card-order-item-head {
+  display: grid;
+  gap: 8px;
+}
+
+.draw-card-order-item-note {
+  color: rgba(243, 237, 225, 0.7);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.draw-card-order-item-stepper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 128px;
+  padding: 4px;
+  border: 1px solid rgba(239, 225, 198, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.draw-card-order-item-stepper button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(239, 225, 198, 0.14);
+  color: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.draw-card-order-item-stepper button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.draw-card-order-item-stepper span {
+  min-width: 24px;
+  text-align: center;
+  font-weight: 800;
+}
+
 .draw-card-order-form textarea {
   min-height: 96px;
 }
@@ -1067,6 +1117,20 @@ body {
 
 .draw-card-shell.theme-fridge-magnet .draw-card-order-item strong {
   color: #173c43;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-order-item-note {
+  color: rgba(23, 60, 67, 0.72);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-order-item-stepper {
+  border-color: rgba(179, 198, 203, 0.94);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-order-item-stepper button {
+  background: rgba(224, 241, 243, 0.96);
+  color: #1d5760;
 }
 
 .draw-card-shell.theme-fridge-magnet .draw-card-save-button.is-liked,

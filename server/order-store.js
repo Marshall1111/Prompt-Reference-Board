@@ -60,6 +60,7 @@ function mapItemRow(row) {
     styleName: String(row.style_name || ""),
     imageUrl: String(row.image_url || ""),
     thumbnailUrl: String(row.thumbnail_url || ""),
+    quantity: Number(row.quantity || 1),
     sortOrder: Number(row.sort_order || 0)
   };
 }
@@ -141,6 +142,7 @@ export function createOrderStore({ dbPath }) {
       style_name TEXT NOT NULL,
       image_url TEXT NOT NULL,
       thumbnail_url TEXT NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 1,
       sort_order INTEGER NOT NULL,
       PRIMARY KEY (order_id, job_id),
       FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
@@ -168,6 +170,11 @@ export function createOrderStore({ dbPath }) {
     CREATE INDEX IF NOT EXISTS idx_payment_events_order_id ON payment_events(order_id, created_at DESC);
   `);
 
+  const orderItemColumns = db.prepare("PRAGMA table_info(order_items)").all();
+  if (!orderItemColumns.some((column) => String(column.name || "") === "quantity")) {
+    db.exec("ALTER TABLE order_items ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1");
+  }
+
   const insertOrderStatement = db.prepare(`
     INSERT INTO orders (
       id, order_no, visitor_id, public_token, experience_type,
@@ -190,9 +197,9 @@ export function createOrderStore({ dbPath }) {
 
   const insertOrderItemStatement = db.prepare(`
     INSERT INTO order_items (
-      order_id, job_id, style_id, style_name, image_url, thumbnail_url, sort_order
+      order_id, job_id, style_id, style_name, image_url, thumbnail_url, quantity, sort_order
     ) VALUES (
-      @orderId, @jobId, @styleId, @styleName, @imageUrl, @thumbnailUrl, @sortOrder
+      @orderId, @jobId, @styleId, @styleName, @imageUrl, @thumbnailUrl, @quantity, @sortOrder
     )
   `);
 
@@ -258,6 +265,7 @@ export function createOrderStore({ dbPath }) {
           styleName: String(item.styleName || ""),
           imageUrl: String(item.imageUrl || ""),
           thumbnailUrl: String(item.thumbnailUrl || ""),
+          quantity: Math.max(1, Number(item.quantity || 1)),
           sortOrder: Number(item.sortOrder ?? index)
         });
       });
