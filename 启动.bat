@@ -103,12 +103,35 @@ exit /b 0
 
 :build_now
 echo Building local page...
-call npm.cmd run build
+call :run_build
 if errorlevel 1 (
-  echo Build failed.
-  exit /b 1
+  echo Build failed. Trying to repair the output folder and retry once...
+  call :repair_dist
+  call :run_build
+  if errorlevel 1 (
+    echo Build failed.
+    exit /b 1
+  )
 )
 echo.
+exit /b 0
+
+:run_build
+call npm.cmd run build
+exit /b %errorlevel%
+
+:repair_dist
+if not exist dist (
+  exit /b 0
+)
+
+echo Resetting dist folder attributes...
+attrib -R "dist" /S /D >nul 2>nul
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "try { $dist = Join-Path (Resolve-Path '.').Path 'dist'; if (Test-Path $dist) { Get-ChildItem -LiteralPath $dist -Force -Recurse -ErrorAction SilentlyContinue | ForEach-Object { try { $_.IsReadOnly = $false } catch {} }; Remove-Item -LiteralPath $dist -Recurse -Force -ErrorAction Stop }; exit 0 } catch { Write-Host $_.Exception.Message; exit 1 }"
+if errorlevel 1 (
+  echo Unable to fully clear dist. Retrying the build anyway...
+)
 exit /b 0
 
 :failed

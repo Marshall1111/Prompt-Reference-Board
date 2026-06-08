@@ -42,6 +42,12 @@ const DEFAULT_IMAGE_JOB_QUERY = {
   date: "",
   likedOnly: false
 };
+const DEFAULT_ADMIN_ORDER_QUERY = {
+  page: 1,
+  limit: 20,
+  orderStatus: "",
+  search: ""
+};
 
 function getSizeLabel(size) {
   return GENERATION_SIZE_OPTIONS.find((option) => option.value === size)?.label || size || DEFAULT_GENERATION_SIZE;
@@ -218,6 +224,11 @@ function AdminApp({ navigate, route }) {
   const [inviteCodes, setInviteCodes] = useState([]);
   const [visitors, setVisitors] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [ordersMeta, setOrdersMeta] = useState({
+    total: 0,
+    page: DEFAULT_ADMIN_ORDER_QUERY.page,
+    limit: DEFAULT_ADMIN_ORDER_QUERY.limit
+  });
   const [settings, setSettings] = useState(null);
   const [storageSummary, setStorageSummary] = useState(null);
   const [query, setQuery] = useState("");
@@ -255,7 +266,23 @@ function AdminApp({ navigate, route }) {
     refreshStyleGroups().then(setStyleGroups).catch(() => setStyleGroups([]));
     refreshInviteCodes().then(setInviteCodes).catch(() => setInviteCodes([]));
     refreshVisitors().then(setVisitors).catch(() => setVisitors([]));
-    refreshAdminOrders().then((payload) => setOrders(payload.orders || [])).catch(() => setOrders([]));
+    refreshAdminOrders()
+      .then((payload) => {
+        setOrders(payload.orders || []);
+        setOrdersMeta({
+          total: Number(payload.total || 0),
+          page: Number(payload.page || DEFAULT_ADMIN_ORDER_QUERY.page),
+          limit: Number(payload.limit || DEFAULT_ADMIN_ORDER_QUERY.limit)
+        });
+      })
+      .catch(() => {
+        setOrders([]);
+        setOrdersMeta({
+          total: 0,
+          page: DEFAULT_ADMIN_ORDER_QUERY.page,
+          limit: DEFAULT_ADMIN_ORDER_QUERY.limit
+        });
+      });
     refreshAdminSettings().then(setSettings).catch(() => setSettings(null));
     refreshStorageSummary().then(setStorageSummary).catch(() => setStorageSummary(null));
   }, [adminReady, isAuthenticated]);
@@ -443,7 +470,18 @@ function AdminApp({ navigate, route }) {
         ) : route === "admin-orders" ? (
           <OrderAdminPage
             initialOrders={orders}
-            onRefreshOrders={() => refreshAdminOrders().then((payload) => setOrders(payload.orders || []))}
+            initialOrdersMeta={ordersMeta}
+            onRefreshOrders={(params = {}) =>
+              refreshAdminOrders(params).then((payload) => {
+                setOrders(payload.orders || []);
+                setOrdersMeta({
+                  total: Number(payload.total || 0),
+                  page: Number(payload.page || DEFAULT_ADMIN_ORDER_QUERY.page),
+                  limit: Number(payload.limit || DEFAULT_ADMIN_ORDER_QUERY.limit)
+                });
+                return payload;
+              })
+            }
             onRefreshSettings={() => refreshAdminSettings().then(setSettings)}
             settings={settings}
           />
@@ -4279,10 +4317,13 @@ function InviteAdminPage({ inviteCodes, visitors, settings, onRefreshInviteCodes
   );
 }
 
-function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, settings }) {
+function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onRefreshSettings, settings }) {
   const [orders, setOrders] = useState(initialOrders || []);
-  const [orderStatus, setOrderStatus] = useState("");
-  const [search, setSearch] = useState("");
+  const [orderQuery, setOrderQuery] = useState(DEFAULT_ADMIN_ORDER_QUERY);
+  const [orderStatus, setOrderStatus] = useState(DEFAULT_ADMIN_ORDER_QUERY.orderStatus);
+  const [search, setSearch] = useState(DEFAULT_ADMIN_ORDER_QUERY.search);
+  const [orderTotal, setOrderTotal] = useState(Number(initialOrdersMeta?.total || 0));
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [adminRemark, setAdminRemark] = useState("");
   const [fridgeMagnetOrderingEnabled, setFridgeMagnetOrderingEnabled] = useState(settings?.fridgeMagnetOrderingEnabled === true);
@@ -4301,6 +4342,18 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
   }, [initialOrders]);
 
   useEffect(() => {
+    setOrderTotal(Number(initialOrdersMeta?.total || 0));
+    setOrderQuery((current) => {
+      const nextQuery = {
+        ...current,
+        page: Number(initialOrdersMeta?.page || current.page || DEFAULT_ADMIN_ORDER_QUERY.page),
+        limit: Number(initialOrdersMeta?.limit || current.limit || DEFAULT_ADMIN_ORDER_QUERY.limit)
+      };
+      return areAdminOrderQueriesEqual(current, nextQuery) ? current : nextQuery;
+    });
+  }, [initialOrdersMeta]);
+
+  useEffect(() => {
     setFridgeMagnetOrderingEnabled(settings?.fridgeMagnetOrderingEnabled === true);
     setFridgeMagnetUnitPriceCents(settings?.fridgeMagnetUnitPriceCents || 1990);
     setSingleItemShippingFeeCents(settings?.singleItemShippingFeeCents || 800);
@@ -4309,12 +4362,47 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
     setContactWechatId(settings?.contactWechatId || DEFAULT_CONTACT_WECHAT_ID);
   }, [settings]);
 
-  async function refreshList() {
-    const payload = await refreshAdminOrders({
-      orderStatus,
-      search
+  const totalPages = Math.max(1, Math.ceil(orderTotal / Math.max(orderQuery.limit, 1)));
+
+  async function refreshList(nextPartialQuery = {}, options = {}) {
+    const nextQuery = {
+      ...orderQuery,
+      ...nextPartialQuery
+    };
+    const shouldShowLoading = options.showLoading !== false;
+    if (shouldShowLoading) setIsLoadingOrders(true);
+    try {
+      const payload = await onRefreshOrders(nextQuery);
+      setOrders(payload.orders || []);
+      setOrderTotal(Number(payload.total || 0));
+      setOrderQuery({
+        page: Number(payload.page || nextQuery.page || DEFAULT_ADMIN_ORDER_QUERY.page),
+        limit: Number(payload.limit || nextQuery.limit || DEFAULT_ADMIN_ORDER_QUERY.limit),
+        orderStatus: nextQuery.orderStatus,
+        search: nextQuery.search
+      });
+      setError("");
+      return payload;
+    } finally {
+      if (shouldShowLoading) setIsLoadingOrders(false);
+    }
+  }
+
+  function changePage(nextPage) {
+    if (nextPage < 1 || nextPage > totalPages || nextPage === orderQuery.page) return;
+    refreshList({ page: nextPage }).catch((nextError) => {
+      setError(nextError.message || "读取订单列表失败。");
     });
-    setOrders(payload.orders || []);
+  }
+
+  function applyFilters() {
+    refreshList({
+      page: 1,
+      orderStatus,
+      search: search.trim()
+    }).catch((nextError) => {
+      setError(nextError.message || "读取订单列表失败。");
+    });
   }
 
   async function loadOrderDetail(orderId) {
@@ -4361,8 +4449,7 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
       const updated = await updateAdminOrder(selectedOrder.id, payload);
       setSelectedOrder(updated);
       setAdminRemark(updated.adminRemark || "");
-      await refreshList();
-      await onRefreshOrders();
+      await refreshList({}, { showLoading: false });
       setStatusMessage("订单已更新。");
     } catch (nextError) {
       setError(nextError.message || "更新订单失败。");
@@ -4392,11 +4479,11 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
         <div>
           <p className="eyebrow">Orders</p>
           <h2>订单管理</h2>
-          <p className="storage-note">查看冰箱贴订单、订单状态，并维护下单配置。</p>
+          <p className="storage-note">查看冰箱贴订单、订单状态，并维护下单配置。共 {orderTotal} 条，当前第 {orderQuery.page} / {totalPages} 页。</p>
         </div>
-        <button className="secondary-button" onClick={refreshList} type="button">
+        <button className="secondary-button" onClick={() => applyFilters()} type="button">
           <RefreshCw size={18} />
-          <span>刷新订单</span>
+          <span>{isLoadingOrders ? "刷新中" : "刷新订单"}</span>
         </button>
       </div>
 
@@ -4453,7 +4540,7 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
           <Search size={18} />
           <input onChange={(event) => setSearch(event.target.value)} placeholder="订单号 / 姓名 / 手机号" value={search} />
         </label>
-        <button className="secondary-button" onClick={refreshList} type="button">
+        <button className="secondary-button" onClick={applyFilters} type="button">
           <span>筛选</span>
         </button>
       </div>
@@ -4485,6 +4572,21 @@ function OrderAdminPage({ initialOrders, onRefreshOrders, onRefreshSettings, set
           </article>
         ))}
         {!orders.length ? <p className="empty-note">当前没有符合条件的订单。</p> : null}
+      </div>
+      <div className="task-pagination">
+        <p className="storage-note">
+          共 {orderTotal} 条，当前第 {orderQuery.page} / {totalPages} 页，当前页 {orders.length} 条
+        </p>
+        <div className="task-pagination-actions">
+          <button className="secondary-button" disabled={orderQuery.page <= 1 || isLoadingOrders} onClick={() => changePage(orderQuery.page - 1)} type="button">
+            <ArrowUp size={18} />
+            <span>上一页</span>
+          </button>
+          <button className="secondary-button" disabled={orderQuery.page >= totalPages || !orderTotal || isLoadingOrders} onClick={() => changePage(orderQuery.page + 1)} type="button">
+            <ArrowDown size={18} />
+            <span>下一页</span>
+          </button>
+        </div>
       </div>
 
       {selectedOrder ? (
@@ -4885,6 +4987,15 @@ function publicExperienceLabel(experienceType) {
   if (experienceType === "fridge-magnet") return "冰箱贴";
   if (experienceType === "draw-card") return "抽卡";
   return "公开玩法";
+}
+
+function areAdminOrderQueriesEqual(left, right) {
+  return (
+    Number(left?.page || 0) === Number(right?.page || 0) &&
+    Number(left?.limit || 0) === Number(right?.limit || 0) &&
+    String(left?.orderStatus || "") === String(right?.orderStatus || "") &&
+    String(left?.search || "") === String(right?.search || "")
+  );
 }
 
 function areImageJobQueriesEqual(left, right) {

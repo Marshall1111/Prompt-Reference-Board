@@ -436,10 +436,13 @@ export function createOrderStore({ dbPath }) {
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
     const safeLimit = Math.min(Math.max(Number(limit || 20), 1), 100);
-    const safePage = Math.max(Number(page || 1), 1);
-    const offset = (safePage - 1) * safeLimit;
+    const requestedPage = Math.max(Number(page || 1), 1);
 
     const countRow = db.prepare(`SELECT COUNT(*) AS total FROM orders ${where}`).get(params);
+    const total = Number(countRow?.total || 0);
+    const totalPages = total > 0 ? Math.ceil(total / safeLimit) : 1;
+    const safePage = Math.min(requestedPage, totalPages);
+    const offset = (safePage - 1) * safeLimit;
     const rows = db.prepare(`
       SELECT * FROM orders
       ${where}
@@ -452,7 +455,7 @@ export function createOrderStore({ dbPath }) {
     });
 
     return {
-      total: Number(countRow?.total || 0),
+      total,
       page: safePage,
       limit: safeLimit,
       items: rows.map((row) => {
