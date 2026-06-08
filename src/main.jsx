@@ -873,7 +873,7 @@ function FridgeMagnetOrderPage() {
               <div className="draw-card-order-items">
                 {order.items.map((item, index) => (
                   <article className="draw-card-order-item" key={`${item.jobId}-${index}`}>
-                    <img alt={item.styleName || `冰箱贴 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
+                    <OrderItemPreview alt={item.styleName || `冰箱贴 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
                     <strong>{item.styleName || `冰箱贴 ${index + 1}`}</strong>
                     <span className="draw-card-order-item-note">数量 x{Math.max(1, Number(item.quantity || 1))}</span>
                   </article>
@@ -1975,7 +1975,7 @@ function PublicExperiencePage({ config }) {
                 const quantity = getOrderItemQuantity(orderQuantities, item.jobId);
                 return (
                 <article className="draw-card-order-item" key={`${item.jobId}-${index}`}>
-                  <img alt={item.styleName || `冰箱贴 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
+                  <OrderItemPreview alt={item.styleName || `冰箱贴 ${index + 1}`} note="图片准备中" src={item.thumbnailUrl || item.imageUrl} title={item.styleName || `冰箱贴 ${index + 1}`} />
                   <div className="draw-card-order-item-copy">
                     <div className="draw-card-order-item-head">
                       <strong>{item.styleName || `冰箱贴 ${index + 1}`}</strong>
@@ -4611,7 +4611,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
             <div className="draw-card-order-items">
               {selectedOrder.items.map((item, index) => (
                 <article className="draw-card-order-item" key={`${item.jobId}-${index}`}>
-                  <img alt={item.styleName || `订单图片 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
+                  <OrderItemPreview alt={item.styleName || `订单图片 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} title={item.styleName || `订单图片 ${index + 1}`} />
                   <strong>{item.styleName || `订单图片 ${index + 1}`}</strong>
                   <span className="draw-card-order-item-note">数量 x{Math.max(1, Number(item.quantity || 1))}</span>
                 </article>
@@ -4977,6 +4977,26 @@ function getAdminOrderPrimaryStatusLabel(order) {
 
 function getAdminOrderPrimaryStatusTone(order) {
   return orderStatusTone(String(order?.orderStatus || ""));
+}
+
+function OrderItemPreview({ src, alt, title = "订单图片", note = "历史图片资源已缺失" }) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed) {
+    return (
+      <div className="draw-card-order-item-placeholder" aria-label={`${title}不可用`}>
+        <AlertTriangle size={18} />
+        <strong>{title}</strong>
+        <span>{note}</span>
+      </div>
+    );
+  }
+
+  return <img alt={alt} onError={() => setFailed(true)} src={src} />;
 }
 
 function modeLabel(mode) {

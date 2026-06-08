@@ -24,6 +24,8 @@ const appSettingsPath = path.join(rootDir, "data", "app-settings.json");
 const orderDbPath = path.join(rootDir, "data", "orders.sqlite");
 const storageBackupRoot = path.join(rootDir, "data", "storage-backups");
 const storageExportTempRoot = path.join(rootDir, "data", "storage-export-temp");
+const orderAssetPublicRoot = path.join(rootDir, "public", "order-assets");
+const orderOriginalArchiveRoot = path.join(rootDir, "data", "order-original-downloads");
 const previewRoot = path.join(rootDir, "public", "style-previews");
 const generatedImageRoot = path.join(rootDir, "data", "private-generated-images");
 const generatedPreviewRoot = path.join(rootDir, "public", "generated-previews");
@@ -308,6 +310,11 @@ app.post("/api/orders", async (req, res, next) => {
     const paymentMode = normalizeOrderPaymentMode(pricing.paymentMode);
     const expiresAt = new Date(now.getTime() + getOrderExpireMs(pricing)).toISOString();
     const orderId = randomUUID();
+    const storedOrderItems = await buildStoredOrderItems({
+      orderId,
+      requestedItems,
+      likedJobById
+    });
     const created = orderStore.createOrder({
       order: {
         id: orderId,
@@ -338,19 +345,7 @@ app.post("/api/orders", async (req, res, next) => {
         createdAt,
         updatedAt: createdAt
       },
-      items: requestedItems.map((item, index) => {
-        const job = likedJobById.get(item.jobId);
-        return {
-          orderId,
-          jobId: String(job?.jobId || ""),
-          styleId: String(job?.styleId || ""),
-          styleName: String(job?.styleName || ""),
-          imageUrl: String(job?.result?.previewUrl || job?.result?.thumbnailUrl || ""),
-          thumbnailUrl: String(job?.result?.thumbnailUrl || job?.result?.previewUrl || ""),
-          quantity: item.quantity,
-          sortOrder: index
-        };
-      }),
+      items: storedOrderItems,
       initialPaymentEvent: {
         eventType: "order_created",
         eventId: `${orderId}:order_created`,
@@ -1679,6 +1674,7 @@ app.post("/api/styles/:id/image", requireAdmin, upload.single("image"), async (r
 });
 
 app.use("/generated-images", express.static(generatedImageRoot));
+app.use("/order-assets", express.static(orderAssetPublicRoot));
 app.use(express.static(path.join(rootDir, "public")));
 app.use("/images-small", express.static(miniImageRoot));
 app.use(express.static(path.join(rootDir, "dist")));
@@ -2070,6 +2066,11 @@ function extensionForRemoteUrl(url) {
 }
 
 async function resolveOrderOriginalCandidates(order) {
+  const archivedCandidates = await resolveArchivedOrderOriginalCandidates(order);
+  if (archivedCandidates.length) {
+    return archivedCandidates;
+  }
+
   const jobs = await Promise.all((order.items || []).map((item) => readImageJob(item.jobId)));
   const candidates = [];
   const seenKeys = new Set();
@@ -2109,10 +2110,24 @@ async function resolveOrderOriginalCandidates(order) {
   return candidates;
 }
 
+async function resolveArchivedOrderOriginalCandidates(order) {
+  const dir = path.join(orderOriginalArchiveRoot, String(order?.id || ""));
+  if (!(await fileExists(dir))) return [];
+  const entries = await readdir(dir, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile())
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .map((entry) => ({
+      sourceType: "archived",
+      jobId: "",
+      archivedFilePath: path.join(dir, entry.name)
+    }));
+}
+
 async function buildOrderOriginalImageBundle(order) {
   const candidates = await resolveOrderOriginalCandidates(order);
   if (!candidates.length) {
-    throw createHttpError(404, "该订单没有可下载的生成原图。");
+    throw createHttpError(404, "该历史订单关联的任务原图已被清理，当前无法下载。");
   }
 
   const folderName = sanitizeFilesystemSegment(`${order.orderNo}_${order.receiverName}_${order.receiverPhone}`, order.orderNo || "order");
@@ -2131,6 +2146,19 @@ async function buildOrderOriginalImageBundle(order) {
       const candidate = candidates[index];
 
       try {
+        if (candidate.sourceType === "archived") {
+          if (!(await fileExists(candidate.archivedFilePath))) {
+            throw createHttpError(404, "服务器未找到已归档的订单原图。");
+          }
+
+          const ext = path.extname(candidate.archivedFilePath).toLowerCase() || ".png";
+          const filename = `original-${String(downloadedFiles.length + 1).padStart(2, "0")}${ext}`;
+          const filePath = path.join(folderPath, filename);
+          await copyFile(candidate.archivedFilePath, filePath);
+          downloadedFiles.push(filePath);
+          continue;
+        }
+
         if (candidate.sourceType === "generated") {
           if (!(await fileExists(candidate.generatedFilePath))) {
             throw createHttpError(404, "服务器未找到已保存的生成原图。");
@@ -2169,7 +2197,7 @@ async function buildOrderOriginalImageBundle(order) {
     }
 
     if (!downloadedFiles.length) {
-      throw createHttpError(404, failedSources[0]?.message || "该订单没有可下载的生成原图。");
+      throw createHttpError(404, failedSources[0]?.message || "该历史订单关联的任务原图已被清理，当前无法下载。");
     }
 
     await createZipFromDirectory(tempDir, zipPath);
@@ -2186,6 +2214,114 @@ async function buildOrderOriginalImageBundle(order) {
     await rm(zipPath, { force: true });
     throw error;
   }
+}
+
+async function buildStoredOrderItems({ orderId, requestedItems, likedJobById }) {
+  const storedItems = [];
+  const orderAssetDir = path.join(orderAssetPublicRoot, String(orderId || ""));
+  const orderOriginalDir = path.join(orderOriginalArchiveRoot, String(orderId || ""));
+  await mkdir(orderAssetDir, { recursive: true });
+  await mkdir(orderOriginalDir, { recursive: true });
+
+  for (let index = 0; index < requestedItems.length; index += 1) {
+    const item = requestedItems[index];
+    const job = likedJobById.get(item.jobId);
+    const archivedAssets = await archiveOrderItemAssets({
+      orderId,
+      orderAssetDir,
+      orderOriginalDir,
+      job,
+      itemIndex: index
+    });
+
+    storedItems.push({
+      orderId,
+      jobId: String(job?.jobId || ""),
+      styleId: String(job?.styleId || ""),
+      styleName: String(job?.styleName || ""),
+      imageUrl: archivedAssets.imageUrl,
+      thumbnailUrl: archivedAssets.thumbnailUrl,
+      quantity: item.quantity,
+      sortOrder: index
+    });
+  }
+
+  return storedItems;
+}
+
+async function archiveOrderItemAssets({ orderId, orderAssetDir, orderOriginalDir, job, itemIndex }) {
+  const previewFallback = String(job?.result?.previewUrl || job?.result?.thumbnailUrl || "");
+  const thumbnailFallback = String(job?.result?.thumbnailUrl || job?.result?.previewUrl || "");
+  const previewArchivedUrl = await copyOrderAssetFile({
+    assetUrl: previewFallback,
+    targetDir: orderAssetDir,
+    outputName: `item-${String(itemIndex + 1).padStart(2, "0")}-preview`
+  });
+  const thumbnailArchivedUrl = await copyOrderAssetFile({
+    assetUrl: thumbnailFallback,
+    targetDir: orderAssetDir,
+    outputName: `item-${String(itemIndex + 1).padStart(2, "0")}-thumbnail`
+  });
+  await archiveOrderOriginalFile({
+    job,
+    targetDir: orderOriginalDir,
+    outputName: `original-${String(itemIndex + 1).padStart(2, "0")}`
+  });
+
+  return {
+    imageUrl: previewArchivedUrl || previewFallback || thumbnailArchivedUrl || thumbnailFallback,
+    thumbnailUrl: thumbnailArchivedUrl || thumbnailFallback || previewArchivedUrl || previewFallback
+  };
+}
+
+async function copyOrderAssetFile({ assetUrl, targetDir, outputName }) {
+  const sourcePath = resolvePublicAssetFilePath(assetUrl);
+  if (!sourcePath || !(await fileExists(sourcePath))) return "";
+  const ext = path.extname(sourcePath).toLowerCase() || ".webp";
+  const filename = `${outputName}${ext}`;
+  const targetPath = path.join(targetDir, filename);
+  await copyFile(sourcePath, targetPath);
+  return `/order-assets/${path.basename(targetDir)}/${filename}`;
+}
+
+async function archiveOrderOriginalFile({ job, targetDir, outputName }) {
+  const localImagePath = await resolveJobImageFile(job);
+  if (localImagePath && await fileExists(localImagePath)) {
+    const ext = path.extname(localImagePath).toLowerCase() || ".png";
+    await copyFile(localImagePath, path.join(targetDir, `${outputName}${ext}`));
+    return;
+  }
+
+  const remoteUrl = String(job?.result?.originalImageUrl || "").trim();
+  if (!remoteUrl) return;
+
+  try {
+    const response = await fetch(remoteUrl);
+    if (!response.ok) return;
+    const arrayBuffer = await response.arrayBuffer();
+    const contentType = String(response.headers.get("content-type") || "");
+    const ext = extensionForContentType(contentType) || extensionForRemoteUrl(remoteUrl) || ".png";
+    await writeFile(path.join(targetDir, `${outputName}${ext}`), Buffer.from(arrayBuffer));
+  } catch {}
+}
+
+function resolvePublicAssetFilePath(assetUrl) {
+  const value = String(assetUrl || "").trim();
+  if (!value) return "";
+  if (value.startsWith("/generated-previews/")) {
+    return path.join(generatedPreviewRoot, path.basename(value));
+  }
+  if (value.startsWith("/generated-thumbnails/")) {
+    return path.join(generatedThumbnailRoot, path.basename(value));
+  }
+  if (value.startsWith("/generated-images/")) {
+    return path.join(generatedImageRoot, path.basename(value));
+  }
+  if (value.startsWith("/order-assets/")) {
+    const relativePath = value.replace(/^\/order-assets\//, "").split("/").join(path.sep);
+    return path.join(orderAssetPublicRoot, relativePath);
+  }
+  return "";
 }
 
 async function buildStorageSummary() {
