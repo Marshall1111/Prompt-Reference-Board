@@ -3,11 +3,12 @@ import multer from "multer";
 import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { createHash, createPrivateKey, createPublicKey, createSign, createVerify, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, createPrivateKey, createPublicKey, createSign, createVerify, randomUUID, timingSafeEqual } from "node:crypto";
 import { access, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createOrderStore } from "./order-store.js";
+import { createMerchantStore } from "./merchant-store.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,6 +20,7 @@ const drawCardSessionRoot = path.join(rootDir, "data", "draw-card-sessions");
 const tempReferenceRoot = path.join(rootDir, "data", "temp-image-references");
 const visitorStateRoot = path.join(rootDir, "data", "visitor-states");
 const inviteCodePath = path.join(rootDir, "data", "invite-codes.json");
+const merchantDataPath = path.join(rootDir, "data", "merchants.json");
 const adminSessionRoot = path.join(rootDir, "data", "admin-sessions");
 const appSettingsPath = path.join(rootDir, "data", "app-settings.json");
 const orderDbPath = path.join(rootDir, "data", "orders.sqlite");
@@ -70,8 +72,12 @@ const DEFAULT_FREE_SHIPPING_ITEM_COUNT = 2;
 const DEFAULT_ORDER_PAYMENT_MODE = "manual";
 const DEFAULT_MANUAL_PAYMENT_EXPIRE_DAYS = 7;
 const DEFAULT_CONTACT_WECHAT_ID = "PetPaint";
+const MERCHANT_SOURCE_LOCK_MS = 30 * 24 * 60 * 60 * 1000;
+const MERCHANT_SIGNATURE_BYTES = 12;
+const MERCHANT_STATUS_VALUES = new Set(["active", "inactive"]);
 const ORDER_PAYMENT_EXPIRE_MS = 30 * 60 * 1000;
 const ORDER_SEARCH_LIMIT = 100;
+const MERCHANT_SEARCH_LIMIT = 500;
 const ORDER_PAYMENT_STATUS_VALUES = new Set(["unpaid", "paid", "failed", "expired"]);
 const ORDER_FULFILLMENT_STATUS_VALUES = new Set(["new", "in_production", "shipped", "completed", "cancelled"]);
 const ORDER_PAYMENT_MODE_VALUES = new Set(["manual", "wechat"]);
@@ -123,6 +129,7 @@ let sharpModulePromise;
 const visitorRequestLog = new Map();
 const ipRequestLog = new Map();
 const orderStore = createOrderStore({ dbPath: orderDbPath });
+const merchantStore = createMerchantStore({ filePath: merchantDataPath });
 
 loadLocalEnv();
 
@@ -249,6 +256,23 @@ app.get("/api/visitor-state", async (req, res) => {
   }
 });
 
+app.post("/api/public/merchant-source/claim", async (req, res) => {
+  try {
+    const result = await claimMerchantSourceForVisitor(req, req.body?.mid || req.body?.merchantId, req.body?.sig || req.body?.signature);
+    const activeSource = getActiveVisitorMerchantSource(result.visitor);
+    res.json({
+      sourceMerchantId: activeSource?.sourceMerchantId || "",
+      sourceMerchantName: activeSource?.sourceMerchantName || "",
+      claimedNow: result.claimedNow === true,
+      expiresAt: activeSource?.sourceExpiresAt || null,
+      locked: result.locked === true
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 400).json({ message: error.publicMessage || "锁定商户来源失败。" });
+  }
+});
+
 app.get("/api/orders/config", async (_req, res) => {
   try {
     const settings = await readAppSettings();
@@ -305,6 +329,7 @@ app.post("/api/orders", async (req, res, next) => {
     const likedJobById = new Map(likedJobs.map((job) => [String(job.jobId || ""), job]));
     const totalRequestedItemCount = requestedItems.reduce((sum, item) => sum + item.quantity, 0);
     const amount = calculateOrderAmounts(totalRequestedItemCount, pricing);
+    const merchantSource = await resolveOrderMerchantSource(req);
     const now = new Date();
     const createdAt = now.toISOString();
     const paymentMode = normalizeOrderPaymentMode(pricing.paymentMode);
@@ -336,6 +361,10 @@ app.post("/api/orders", async (req, res, next) => {
         city: address.city,
         district: address.district,
         addressDetail: address.addressDetail,
+        sourceMerchantId: merchantSource.sourceMerchantId,
+        sourceMerchantName: merchantSource.sourceMerchantName,
+        commissionRateBps: merchantSource.commissionRateBps,
+        sourceClaimedAt: merchantSource.sourceClaimedAt,
         wechatOpenId: "",
         wechatTransactionId: "",
         outTradeNo: `FM${randomUUID().replace(/-/g, "")}`,
@@ -353,7 +382,9 @@ app.post("/api/orders", async (req, res, next) => {
         payload: {
           itemCount: amount.itemCount,
           totalCents: amount.totalCents,
-          paymentMode
+          paymentMode,
+          sourceMerchantId: merchantSource.sourceMerchantId,
+          commissionRateBps: merchantSource.commissionRateBps
         }
       }
     });
@@ -1269,10 +1300,113 @@ app.get("/api/admin/visitors", requireAdmin, async (_req, res) => {
   }
 });
 
+app.get("/api/admin/merchants", requireAdmin, async (req, res) => {
+  try {
+    const page = Math.max(Number(req.query.page || 1), 1);
+    const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), MERCHANT_SEARCH_LIMIT);
+    const search = String(req.query.search || "").trim().toLowerCase();
+    const merchants = await merchantStore.listMerchants();
+    const filteredMerchants = search
+      ? merchants.filter((merchant) =>
+          `${merchant.id} ${merchant.name} ${merchant.note}`.toLowerCase().includes(search)
+        )
+      : merchants;
+    const total = filteredMerchants.length;
+    const totalPages = total > 0 ? Math.ceil(total / limit) : 1;
+    const safePage = Math.min(page, totalPages);
+    const offset = (safePage - 1) * limit;
+    res.json({
+      total,
+      page: safePage,
+      limit,
+      merchants: filteredMerchants.slice(offset, offset + limit).map((merchant) => toPublicMerchant(req, merchant))
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || error.message || "读取商户列表失败。" });
+  }
+});
+
+app.post("/api/admin/merchants", requireAdmin, async (req, res) => {
+  try {
+    const created = await merchantStore.createMerchant({
+      id: req.body?.id,
+      name: req.body?.name,
+      status: MERCHANT_STATUS_VALUES.has(String(req.body?.status || "").trim()) ? req.body.status : "active",
+      commissionRateBps: req.body?.commissionRateBps,
+      note: req.body?.note
+    });
+    res.status(201).json({ merchant: toPublicMerchant(req, created) });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || error.message || "创建商户失败。" });
+  }
+});
+
+app.patch("/api/admin/merchants/:merchantId", requireAdmin, async (req, res) => {
+  try {
+    const updated = await merchantStore.updateMerchant(req.params.merchantId, {
+      name: req.body?.name,
+      status: MERCHANT_STATUS_VALUES.has(String(req.body?.status || "").trim()) ? req.body.status : undefined,
+      commissionRateBps: req.body?.commissionRateBps,
+      note: req.body?.note
+    });
+    if (!updated) return res.status(404).json({ message: "商户不存在。" });
+    res.json({ merchant: toPublicMerchant(req, updated) });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || error.message || "更新商户失败。" });
+  }
+});
+
+app.delete("/api/admin/merchants/:merchantId", requireAdmin, async (req, res) => {
+  try {
+    const deleted = await merchantStore.deleteMerchant(req.params.merchantId);
+    if (!deleted) return res.status(404).json({ message: "商户不存在。" });
+    res.status(204).end();
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || error.message || "删除商户失败。" });
+  }
+});
+
+app.get("/api/admin/merchant-commissions", requireAdmin, async (req, res) => {
+  try {
+    const merchantId = normalizeMerchantId(String(req.query.merchantId || ""));
+    const startDate = String(req.query.startDate || "").trim();
+    const endDate = String(req.query.endDate || "").trim();
+    const merchants = await merchantStore.listMerchants();
+    const merchantById = new Map(merchants.map((merchant) => [merchant.id, merchant]));
+    const summary = orderStore.listMerchantCommissionSummary({
+      merchantId,
+      startDate,
+      endDate
+    }).map((item) => {
+      const merchant = merchantById.get(item.merchantId);
+      return {
+        merchantId: item.merchantId,
+        merchantName: merchant?.name || item.merchantName || item.merchantId,
+        merchantStatus: merchant?.status || "active",
+        commissionRateBps: merchant?.commissionRateBps ?? 0,
+        paidOrderCount: item.paidOrderCount,
+        paidTotalCents: item.paidTotalCents,
+        commissionAmountCents: item.commissionAmountCents,
+        latestPaidAt: item.latestPaidAt,
+        latestCreatedAt: item.latestCreatedAt
+      };
+    });
+    res.json({ summary });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || error.message || "读取商户佣金汇总失败。" });
+  }
+});
+
 app.get("/api/admin/orders", requireAdmin, async (req, res) => {
   try {
     const page = Math.max(Number(req.query.page || 1), 1);
     const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), ORDER_SEARCH_LIMIT);
+    const merchantId = normalizeMerchantId(String(req.query.merchantId || ""));
     const orderStatus = normalizeOrderStatus(String(req.query.orderStatus || ""), "");
     const search = String(req.query.search || "").trim();
     const startDate = String(req.query.startDate || "").trim();
@@ -1281,6 +1415,7 @@ app.get("/api/admin/orders", requireAdmin, async (req, res) => {
     const payload = orderStore.listOrders({
       page,
       limit,
+      merchantId,
       orderStatus,
       search,
       startDate,
@@ -1954,12 +2089,19 @@ function normalizeVisitorState(visitor) {
   const chargedDrawCardSessionIds = Array.isArray(visitor?.chargedDrawCardSessionIds)
     ? visitor.chargedDrawCardSessionIds.map((sessionId) => String(sessionId || "")).filter(Boolean)
     : [];
+  const rawSourceExpiresAt = visitor?.sourceExpiresAt || null;
+  const sourceExpiresAtTime = rawSourceExpiresAt ? new Date(rawSourceExpiresAt).getTime() : NaN;
+  const sourceIsActive = Number.isFinite(sourceExpiresAtTime) && sourceExpiresAtTime > Date.now();
   return {
     visitorId: String(visitor?.visitorId || randomUUID()),
     tier,
     quotaLimit,
     quotaUsed,
     chargedDrawCardSessionIds,
+    sourceMerchantId: sourceIsActive ? String(visitor?.sourceMerchantId || "").trim() : "",
+    sourceMerchantName: sourceIsActive ? String(visitor?.sourceMerchantName || "").trim() : "",
+    sourceClaimedAt: sourceIsActive ? visitor?.sourceClaimedAt || null : null,
+    sourceExpiresAt: sourceIsActive ? rawSourceExpiresAt : null,
     invitedAt: visitor?.invitedAt || null,
     contactMessage: String(visitor?.contactMessage || DEFAULT_CONTACT_MESSAGE),
     createdAt: visitor?.createdAt || new Date().toISOString(),
@@ -2038,6 +2180,142 @@ function normalizeManualPaymentExpireDays(value) {
 function normalizeContactWechatId(value) {
   const next = String(value || "").trim();
   return next || DEFAULT_CONTACT_WECHAT_ID;
+}
+
+function normalizeMerchantId(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "")
+    .slice(0, 24);
+}
+
+function getMerchantSigningSecret() {
+  return String(
+    process.env.MERCHANT_SOURCE_SIGNING_SECRET ||
+    process.env.ADMIN_PASSWORD ||
+    "prompt-gallery-local-merchant-source"
+  );
+}
+
+function createMerchantSignature(merchantId) {
+  const safeMerchantId = normalizeMerchantId(merchantId);
+  const digest = createHmac("sha256", getMerchantSigningSecret())
+    .update(safeMerchantId)
+    .digest()
+    .subarray(0, MERCHANT_SIGNATURE_BYTES);
+  return Buffer.from(digest).toString("base64url");
+}
+
+function isValidMerchantSignature(merchantId, signature) {
+  return safeCompareString(createMerchantSignature(merchantId), String(signature || "").trim());
+}
+
+function buildRequestOrigin(req) {
+  const forwardedProto = String(req.get("x-forwarded-proto") || "").split(",")[0].trim();
+  const proto = forwardedProto || req.protocol || (shouldUseSecureCookies(req) ? "https" : "http");
+  const host = String(req.get("x-forwarded-host") || req.get("host") || "").split(",")[0].trim();
+  return host ? `${proto}://${host}` : "";
+}
+
+function buildMerchantLandingUrl(req, merchantId) {
+  const origin = buildRequestOrigin(req);
+  const url = new URL("/fridge", origin || "http://localhost");
+  url.searchParams.set("mid", normalizeMerchantId(merchantId));
+  url.searchParams.set("sig", createMerchantSignature(merchantId));
+  return origin ? url.toString() : `${url.pathname}${url.search}`;
+}
+
+function toPublicMerchant(req, merchant) {
+  if (!merchant) return null;
+  return {
+    id: merchant.id,
+    name: merchant.name,
+    status: merchant.status,
+    commissionRateBps: merchant.commissionRateBps,
+    note: merchant.note,
+    landingUrl: buildMerchantLandingUrl(req, merchant.id),
+    signature: createMerchantSignature(merchant.id),
+    createdAt: merchant.createdAt,
+    updatedAt: merchant.updatedAt
+  };
+}
+
+function getActiveVisitorMerchantSource(visitor) {
+  const safeVisitor = normalizeVisitorState(visitor);
+  if (!safeVisitor.sourceMerchantId || !safeVisitor.sourceExpiresAt) return null;
+  return {
+    sourceMerchantId: safeVisitor.sourceMerchantId,
+    sourceMerchantName: safeVisitor.sourceMerchantName,
+    sourceClaimedAt: safeVisitor.sourceClaimedAt,
+    sourceExpiresAt: safeVisitor.sourceExpiresAt
+  };
+}
+
+async function claimMerchantSourceForVisitor(req, merchantId, signature) {
+  const safeMerchantId = normalizeMerchantId(merchantId);
+  if (!safeMerchantId || !signature) throw createHttpError(400, "缺少商户来源参数。");
+  if (!isValidMerchantSignature(safeMerchantId, signature)) throw createHttpError(400, "商户来源签名无效。");
+
+  const merchant = await merchantStore.readMerchantById(safeMerchantId);
+  if (!merchant || merchant.status !== "active") throw createHttpError(404, "商户不存在或已停用。");
+
+  const visitor = await getVisitorState(req);
+  const currentSource = getActiveVisitorMerchantSource(visitor);
+  if (currentSource?.sourceMerchantId) {
+    return {
+      visitor,
+      claimedNow: false,
+      locked: true
+    };
+  }
+
+  const now = new Date();
+  const sourceExpiresAt = new Date(now.getTime() + MERCHANT_SOURCE_LOCK_MS).toISOString();
+  const nextVisitor = await saveVisitorState({
+    ...visitor,
+    sourceMerchantId: merchant.id,
+    sourceMerchantName: merchant.name,
+    sourceClaimedAt: now.toISOString(),
+    sourceExpiresAt,
+    updatedAt: now.toISOString()
+  });
+
+  return {
+    visitor: nextVisitor,
+    claimedNow: true,
+    locked: true
+  };
+}
+
+async function resolveOrderMerchantSource(req) {
+  const visitor = await getVisitorState(req);
+  const activeSource = getActiveVisitorMerchantSource(visitor);
+  if (!activeSource?.sourceMerchantId) {
+    return {
+      sourceMerchantId: "",
+      sourceMerchantName: "",
+      commissionRateBps: 0,
+      sourceClaimedAt: null
+    };
+  }
+
+  const merchant = await merchantStore.readMerchantById(activeSource.sourceMerchantId);
+  if (!merchant || merchant.status !== "active") {
+    return {
+      sourceMerchantId: activeSource.sourceMerchantId,
+      sourceMerchantName: activeSource.sourceMerchantName,
+      commissionRateBps: 0,
+      sourceClaimedAt: activeSource.sourceClaimedAt || null
+    };
+  }
+
+  return {
+    sourceMerchantId: merchant.id,
+    sourceMerchantName: merchant.name,
+    commissionRateBps: merchant.commissionRateBps,
+    sourceClaimedAt: activeSource.sourceClaimedAt || null
+  };
 }
 
 function sanitizeFilesystemSegment(value, fallback = "item") {
@@ -2443,6 +2721,7 @@ async function createStorageBackup() {
       styles: await readStyles(),
       styleGroups: await readStyleGroups(),
       inviteCodes: await readInviteCodes(),
+      merchants: await merchantStore.listMerchants(),
       appSettings: await readAppSettings()
     }
   };
@@ -2960,7 +3239,11 @@ function toPublicVisitorState(visitor) {
     quotaUsed: safeVisitor.quotaUsed,
     quotaRemaining: Math.max(0, safeVisitor.quotaLimit - safeVisitor.quotaUsed),
     canGenerate: safeVisitor.quotaUsed < safeVisitor.quotaLimit,
-    contactMessage: safeVisitor.contactMessage
+    contactMessage: safeVisitor.contactMessage,
+    sourceMerchantId: safeVisitor.sourceMerchantId,
+    sourceMerchantName: safeVisitor.sourceMerchantName,
+    sourceClaimedAt: safeVisitor.sourceClaimedAt,
+    sourceExpiresAt: safeVisitor.sourceExpiresAt
   };
 }
 
@@ -2983,6 +3266,10 @@ function toPublicAdminVisitor(visitor) {
     quotaLimit: safeVisitor.quotaLimit,
     quotaUsed: safeVisitor.quotaUsed,
     quotaRemaining: Math.max(0, safeVisitor.quotaLimit - safeVisitor.quotaUsed),
+    sourceMerchantId: safeVisitor.sourceMerchantId,
+    sourceMerchantName: safeVisitor.sourceMerchantName,
+    sourceClaimedAt: safeVisitor.sourceClaimedAt,
+    sourceExpiresAt: safeVisitor.sourceExpiresAt,
     invitedAt: safeVisitor.invitedAt,
     createdAt: safeVisitor.createdAt,
     updatedAt: safeVisitor.updatedAt
@@ -3314,6 +3601,10 @@ function toPublicOrder(order, options = {}) {
     city: safeOrder.city,
     district: safeOrder.district,
     addressDetail: safeOrder.addressDetail,
+    sourceMerchantId: safeOrder.sourceMerchantId,
+    sourceMerchantName: safeOrder.sourceMerchantName,
+    commissionRateBps: Number(safeOrder.commissionRateBps || 0),
+    sourceClaimedAt: safeOrder.sourceClaimedAt,
     adminRemark: includePrivate ? safeOrder.adminRemark : "",
     lastPaymentChannel: safeOrder.lastPaymentChannel,
     lastPaymentError: safeOrder.lastPaymentError,

@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, QrCode, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
+import { createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
 import "./styles.css";
 
 const DEFAULT_CONTACT_WECHAT_ID = "PetPaint";
@@ -9,6 +10,13 @@ const DEFAULT_ORDER_ADDRESS = {
   receiverPhone: "",
   address: "",
   remark: ""
+};
+const DEFAULT_MERCHANT_FORM = {
+  id: "",
+  name: "",
+  status: "active",
+  commissionRateBps: 1000,
+  note: ""
 };
 const MAX_ORDER_ITEM_QUANTITY = 99;
 const ORDER_STATUS_LABELS = {
@@ -46,7 +54,10 @@ const DEFAULT_ADMIN_ORDER_QUERY = {
   page: 1,
   limit: 20,
   orderStatus: "",
-  search: ""
+  search: "",
+  merchantId: "",
+  startDate: "",
+  endDate: ""
 };
 
 function getSizeLabel(size) {
@@ -165,6 +176,7 @@ function readRoute() {
   if (pathname === "/admin" || pathname === "/admin/") return "admin-styles";
   if (pathname === "/admin/login") return "admin-login";
   if (pathname === "/admin/orders") return "admin-orders";
+  if (pathname === "/admin/merchants") return "admin-merchants";
   if (pathname === "/admin/styles") return "admin-styles";
   if (pathname === "/admin/tasks") return "admin-tasks";
   if (pathname === "/admin/batch") return "admin-batch";
@@ -191,6 +203,7 @@ function App() {
       "admin-gallery": "/gallery",
       "admin-login": "/admin/login",
       "admin-orders": "/admin/orders",
+      "admin-merchants": "/admin/merchants",
       "admin-styles": "/admin/styles",
       "admin-tasks": "/admin/tasks",
       "admin-batch": "/admin/batch",
@@ -223,6 +236,7 @@ function AdminApp({ navigate, route }) {
   const [styleGroups, setStyleGroups] = useState([]);
   const [inviteCodes, setInviteCodes] = useState([]);
   const [visitors, setVisitors] = useState([]);
+  const [merchants, setMerchants] = useState([]);
   const [orders, setOrders] = useState([]);
   const [ordersMeta, setOrdersMeta] = useState({
     total: 0,
@@ -266,6 +280,7 @@ function AdminApp({ navigate, route }) {
     refreshStyleGroups().then(setStyleGroups).catch(() => setStyleGroups([]));
     refreshInviteCodes().then(setInviteCodes).catch(() => setInviteCodes([]));
     refreshVisitors().then(setVisitors).catch(() => setVisitors([]));
+    refreshAdminMerchants({ page: 1, limit: 500 }).then((payload) => setMerchants(payload.merchants || [])).catch(() => setMerchants([]));
     refreshAdminOrders()
       .then((payload) => {
         setOrders(payload.orders || []);
@@ -395,6 +410,7 @@ function AdminApp({ navigate, route }) {
         refreshStyleGroups().then(setStyleGroups),
         refreshInviteCodes().then(setInviteCodes),
         refreshVisitors().then(setVisitors),
+        refreshAdminMerchants({ page: 1, limit: 500 }).then((payload) => setMerchants(payload.merchants || [])),
         refreshAdminSettings().then(setSettings),
         refreshStorageSummary().then(setStorageSummary)
       ]);
@@ -444,6 +460,10 @@ function AdminApp({ navigate, route }) {
               <Clipboard size={18} />
               <span>订单管理</span>
             </button>
+            <button className="nav-button" onClick={() => navigate("admin-merchants")} type="button">
+              <QrCode size={18} />
+              <span>合作商户</span>
+            </button>
             <button className="nav-button" onClick={() => navigate("admin-batch")} type="button">
               <Layers3 size={18} />
               <span>批量生成</span>
@@ -482,8 +502,14 @@ function AdminApp({ navigate, route }) {
                 return payload;
               })
             }
+            merchants={merchants}
             onRefreshSettings={() => refreshAdminSettings().then(setSettings)}
             settings={settings}
+          />
+        ) : route === "admin-merchants" ? (
+          <MerchantAdminPage
+            allMerchants={merchants}
+            onRefreshAllMerchants={() => refreshAdminMerchants({ page: 1, limit: 500 }).then((payload) => setMerchants(payload.merchants || []))}
           />
         ) : route === "admin-batch" ? (
           <BatchGeneratePage
@@ -984,6 +1010,7 @@ function PublicExperiencePage({ config }) {
   const manualContactCopiedTimeoutRef = useRef(null);
   const manualOrderCopiedTimeoutRef = useRef(null);
   const manualMessageCopiedTimeoutRef = useRef(null);
+  const merchantClaimKeyRef = useRef("");
 
   useEffect(() => {
     return () => {
@@ -993,6 +1020,34 @@ function PublicExperiencePage({ config }) {
       if (manualMessageCopiedTimeoutRef.current) window.clearTimeout(manualMessageCopiedTimeoutRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (experienceType !== "fridge-magnet") return undefined;
+    const searchParams = new URLSearchParams(window.location.search);
+    const mid = searchParams.get("mid") || searchParams.get("m") || "";
+    const sig = searchParams.get("sig") || searchParams.get("s") || "";
+    if (!mid || !sig) return undefined;
+
+    const claimKey = `${mid}:${sig}`;
+    if (merchantClaimKeyRef.current === claimKey) return undefined;
+    merchantClaimKeyRef.current = claimKey;
+
+    let isActive = true;
+    claimMerchantSource({ mid, sig })
+      .then(() => fetchVisitorState())
+      .then((payload) => {
+        if (!isActive || !payload) return;
+        setVisitorState(payload);
+      })
+      .catch((nextError) => {
+        if (!isActive) return;
+        setError((current) => current || nextError.message || "锁定商户来源失败。");
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [experienceType]);
 
   function refreshVisitorStateSilently() {
     fetchVisitorState().then(setVisitorState).catch(() => {});
@@ -1688,6 +1743,7 @@ function PublicExperiencePage({ config }) {
 
         <div className="draw-card-clip-empty">
           <p>剩余次数：{visitorState ? `${visitorState.quotaRemaining}` : "--"}</p>
+          {visitorState?.sourceMerchantName ? <p>来源商户：{visitorState.sourceMerchantName}</p> : null}
           <input className="field-inline-input" onChange={(event) => setInviteCode(event.target.value)} placeholder={clipInvitePlaceholder} value={inviteCode} />
           <div className="draw-card-clip-actions">
             <button
@@ -3797,6 +3853,17 @@ async function fetchVisitorState() {
   return payload;
 }
 
+async function claimMerchantSource(payload) {
+  const response = await fetch("/api/public/merchant-source/claim", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "锁定商户来源失败。");
+  return data;
+}
+
 async function fetchOrderConfig() {
   const response = await fetch("/api/orders/config");
   const payload = await response.json();
@@ -3929,6 +3996,64 @@ async function refreshVisitors() {
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取访客额度失败。");
   return payload.visitors || [];
+}
+
+async function refreshAdminMerchants(params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    query.set(key, String(value));
+  });
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const response = await fetch(`/api/admin/merchants${suffix}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取商户列表失败。");
+  return payload;
+}
+
+async function createAdminMerchant(payload) {
+  const response = await fetch("/api/admin/merchants", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "创建商户失败。");
+  return data.merchant;
+}
+
+async function updateAdminMerchant(merchantId, payload) {
+  const response = await fetch(`/api/admin/merchants/${merchantId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "更新商户失败。");
+  return data.merchant;
+}
+
+async function deleteAdminMerchant(merchantId) {
+  const response = await fetch(`/api/admin/merchants/${merchantId}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(data?.message || "删除商户失败。");
+  }
+}
+
+async function refreshMerchantCommissions(params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    query.set(key, String(value));
+  });
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const response = await fetch(`/api/admin/merchant-commissions${suffix}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取商户佣金汇总失败。");
+  return payload.summary || [];
 }
 
 async function refreshAdminOrders(params = {}) {
@@ -4326,11 +4451,14 @@ function InviteAdminPage({ inviteCodes, visitors, settings, onRefreshInviteCodes
   );
 }
 
-function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onRefreshSettings, settings }) {
+function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onRefreshSettings, settings, merchants }) {
   const [orders, setOrders] = useState(initialOrders || []);
   const [orderQuery, setOrderQuery] = useState(DEFAULT_ADMIN_ORDER_QUERY);
   const [orderStatus, setOrderStatus] = useState(DEFAULT_ADMIN_ORDER_QUERY.orderStatus);
   const [search, setSearch] = useState(DEFAULT_ADMIN_ORDER_QUERY.search);
+  const [merchantId, setMerchantId] = useState(DEFAULT_ADMIN_ORDER_QUERY.merchantId);
+  const [startDate, setStartDate] = useState(DEFAULT_ADMIN_ORDER_QUERY.startDate);
+  const [endDate, setEndDate] = useState(DEFAULT_ADMIN_ORDER_QUERY.endDate);
   const [orderTotal, setOrderTotal] = useState(Number(initialOrdersMeta?.total || 0));
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -4388,7 +4516,10 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
         page: Number(payload.page || nextQuery.page || DEFAULT_ADMIN_ORDER_QUERY.page),
         limit: Number(payload.limit || nextQuery.limit || DEFAULT_ADMIN_ORDER_QUERY.limit),
         orderStatus: nextQuery.orderStatus,
-        search: nextQuery.search
+        search: nextQuery.search,
+        merchantId: nextQuery.merchantId || "",
+        startDate: nextQuery.startDate || "",
+        endDate: nextQuery.endDate || ""
       });
       setError("");
       return payload;
@@ -4408,7 +4539,10 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
     refreshList({
       page: 1,
       orderStatus,
-      search: search.trim()
+      search: search.trim(),
+      merchantId,
+      startDate,
+      endDate
     }).catch((nextError) => {
       setError(nextError.message || "读取订单列表失败。");
     });
@@ -4488,7 +4622,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
         <div>
           <p className="eyebrow">Orders</p>
           <h2>订单管理</h2>
-          <p className="storage-note">查看冰箱贴订单、订单状态，并维护下单配置。共 {orderTotal} 条，当前第 {orderQuery.page} / {totalPages} 页。</p>
+          <p className="storage-note">查看冰箱贴订单、来源商户与订单状态。共 {orderTotal} 条，当前第 {orderQuery.page} / {totalPages} 页。</p>
         </div>
         <button className="secondary-button" onClick={() => applyFilters()} type="button">
           <RefreshCw size={18} />
@@ -4545,9 +4679,23 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
           <option value="cancelled">已取消</option>
           <option value="expired">已过期</option>
         </select>
+        <select onChange={(event) => setMerchantId(event.target.value)} value={merchantId}>
+          <option value="">全部来源商户</option>
+          {merchants.map((merchant) => (
+            <option key={`order-merchant-${merchant.id}`} value={merchant.id}>{merchant.name}</option>
+          ))}
+        </select>
+        <label className="field-label task-query-field">
+          开始日期
+          <input onChange={(event) => setStartDate(event.target.value)} type="date" value={startDate} />
+        </label>
+        <label className="field-label task-query-field">
+          结束日期
+          <input onChange={(event) => setEndDate(event.target.value)} type="date" value={endDate} />
+        </label>
         <label className="search-box">
           <Search size={18} />
-          <input onChange={(event) => setSearch(event.target.value)} placeholder="订单号 / 姓名 / 手机号" value={search} />
+          <input onChange={(event) => setSearch(event.target.value)} placeholder="订单号 / 姓名 / 手机号 / 商户名" value={search} />
         </label>
         <button className="secondary-button" onClick={applyFilters} type="button">
           <span>筛选</span>
@@ -4570,6 +4718,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
                 <span>{formatCurrencyCents(order.totalCents)}</span>
               </div>
               <p className="storage-note">{order.receiverName} · {order.receiverPhone}</p>
+              <p className="storage-note">来源商户：{order.sourceMerchantName || "无"}</p>
               <p className="storage-note">创建于 {formatDateTime(order.createdAt)}</p>
             </div>
             <div className="task-actions">
@@ -4616,6 +4765,12 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
             </div>
             <p className="storage-note">{selectedOrder.receiverName} · {selectedOrder.receiverPhone}</p>
             <p className="storage-note">{selectedOrder.addressDetail}</p>
+            <p className="storage-note">来源商户：{selectedOrder.sourceMerchantName || "无"}</p>
+            {selectedOrder.sourceMerchantId ? (
+              <p className="storage-note">
+                商户 ID {selectedOrder.sourceMerchantId}，佣金比例 {formatCommissionRateBps(selectedOrder.commissionRateBps)}，当前订单佣金 {formatCurrencyCents(calculateOrderCommissionCents(selectedOrder))}
+              </p>
+            ) : null}
             {selectedOrder.remark ? <p className="storage-note">备注：{selectedOrder.remark}</p> : null}
             <div className="draw-card-order-items">
               {selectedOrder.items.map((item, index) => (
@@ -4645,9 +4800,6 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
               <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, orderStatus: "completed" })} type="button">
                 <span>标记已完成</span>
               </button>
-              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, orderStatus: "pending_shipment" })} type="button">
-                <span>手动记为待发货</span>
-              </button>
               <button className="danger-button" onClick={() => updateOrderStatus({ adminRemark, orderStatus: "cancelled" })} type="button">
                 <span>取消订单</span>
               </button>
@@ -4655,6 +4807,391 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
           </section>
         </div>
       ) : null}
+    </section>
+  );
+}
+
+function MerchantAdminPage({ allMerchants, onRefreshAllMerchants }) {
+  const [merchantForm, setMerchantForm] = useState(DEFAULT_MERCHANT_FORM);
+  const [editingMerchantId, setEditingMerchantId] = useState("");
+  const [merchantList, setMerchantList] = useState([]);
+  const [merchantListPage, setMerchantListPage] = useState(1);
+  const [merchantListLimit] = useState(8);
+  const [merchantListTotal, setMerchantListTotal] = useState(0);
+  const [merchantSearch, setMerchantSearch] = useState("");
+  const [isLoadingMerchants, setIsLoadingMerchants] = useState(false);
+  const [commissionSummary, setCommissionSummary] = useState([]);
+  const [commissionMerchantId, setCommissionMerchantId] = useState("");
+  const [commissionStartDate, setCommissionStartDate] = useState("");
+  const [commissionEndDate, setCommissionEndDate] = useState("");
+  const [isLoadingCommissions, setIsLoadingCommissions] = useState(false);
+  const [error, setError] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [isBusy, setIsBusy] = useState(false);
+
+  const merchantTotalPages = Math.max(1, Math.ceil(merchantListTotal / Math.max(merchantListLimit, 1)));
+
+  useEffect(() => {
+    refreshMerchantList({ page: 1 }, { showLoading: false }).catch(() => {});
+    refreshCommissionList({}, { showLoading: false }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!editingMerchantId) return;
+    const activeMerchant = allMerchants.find((merchant) => merchant.id === editingMerchantId);
+    if (activeMerchant) {
+      setMerchantForm(toMerchantFormState(activeMerchant));
+      return;
+    }
+    setEditingMerchantId("");
+    setMerchantForm(DEFAULT_MERCHANT_FORM);
+  }, [editingMerchantId, allMerchants]);
+
+  async function refreshMerchantList(nextPatch = {}, options = {}) {
+    const nextQuery = {
+      page: merchantListPage,
+      limit: merchantListLimit,
+      search: merchantSearch.trim(),
+      ...nextPatch
+    };
+    const shouldShowLoading = options.showLoading !== false;
+    if (shouldShowLoading) setIsLoadingMerchants(true);
+    try {
+      const payload = await refreshAdminMerchants(nextQuery);
+      setMerchantList(payload.merchants || []);
+      setMerchantListTotal(Number(payload.total || 0));
+      setMerchantListPage(Number(payload.page || nextQuery.page || 1));
+      if (nextPatch.search !== undefined) setMerchantSearch(nextQuery.search || "");
+      return payload;
+    } finally {
+      if (shouldShowLoading) setIsLoadingMerchants(false);
+    }
+  }
+
+  async function refreshCommissionList(nextPatch = {}, options = {}) {
+    const nextQuery = {
+      merchantId: commissionMerchantId,
+      startDate: commissionStartDate,
+      endDate: commissionEndDate,
+      ...nextPatch
+    };
+    const shouldShowLoading = options.showLoading !== false;
+    if (shouldShowLoading) setIsLoadingCommissions(true);
+    try {
+      const summary = await refreshMerchantCommissions(nextQuery);
+      setCommissionSummary(summary);
+      setCommissionMerchantId(nextQuery.merchantId || "");
+      setCommissionStartDate(nextQuery.startDate || "");
+      setCommissionEndDate(nextQuery.endDate || "");
+      return summary;
+    } finally {
+      if (shouldShowLoading) setIsLoadingCommissions(false);
+    }
+  }
+
+  function resetMerchantForm() {
+    setEditingMerchantId("");
+    setMerchantForm(DEFAULT_MERCHANT_FORM);
+  }
+
+  async function saveMerchant() {
+    setIsBusy(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      if (editingMerchantId) {
+        await updateAdminMerchant(editingMerchantId, {
+          name: merchantForm.name,
+          status: merchantForm.status,
+          commissionRateBps: merchantForm.commissionRateBps,
+          note: merchantForm.note
+        });
+        setStatusMessage("商户已更新。");
+      } else {
+        await createAdminMerchant(merchantForm);
+        setStatusMessage("商户已创建。");
+      }
+      await Promise.all([
+        onRefreshAllMerchants(),
+        refreshMerchantList({}, { showLoading: false }),
+        refreshCommissionList({}, { showLoading: false })
+      ]);
+      resetMerchantForm();
+    } catch (nextError) {
+      setError(nextError.message || "保存商户失败。");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function removeMerchant(merchant) {
+    if (!merchant?.id) return;
+    if (!window.confirm(`确定删除商户 ${merchant.name} 吗？历史订单中的商户快照会保留。`)) return;
+    setIsBusy(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      await deleteAdminMerchant(merchant.id);
+      if (editingMerchantId === merchant.id) resetMerchantForm();
+      await Promise.all([
+        onRefreshAllMerchants(),
+        refreshMerchantList({
+          page: merchantList.length === 1 && merchantListPage > 1 ? merchantListPage - 1 : merchantListPage
+        }, { showLoading: false }),
+        refreshCommissionList({}, { showLoading: false })
+      ]);
+      setStatusMessage("商户已删除。");
+    } catch (nextError) {
+      setError(nextError.message || "删除商户失败。");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function copyMerchantLandingUrl(merchant) {
+    try {
+      await copyText(merchant.landingUrl || "");
+      setStatusMessage(`商户 ${merchant.name} 的落地链接已复制。`);
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "复制商户链接失败。");
+    }
+  }
+
+  async function handleDownloadMerchantQr(merchant, format) {
+    try {
+      if (format === "png") {
+        await downloadQrPng(merchant.landingUrl || "", `${merchant.id}-qr.png`);
+      } else {
+        downloadQrSvg(merchant.landingUrl || "", `${merchant.id}-qr.svg`);
+      }
+      setStatusMessage(`商户 ${merchant.name} 的二维码已开始下载。`);
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "下载二维码失败。");
+    }
+  }
+
+  function changeMerchantPage(nextPage) {
+    if (nextPage < 1 || nextPage > merchantTotalPages || nextPage === merchantListPage) return;
+    refreshMerchantList({ page: nextPage }).catch((nextError) => {
+      setError(nextError.message || "读取商户列表失败。");
+    });
+  }
+
+  return (
+    <section className="task-page" aria-label="合作商户">
+      <div className="task-toolbar">
+        <div>
+          <p className="eyebrow">Partners</p>
+          <h2>合作商户</h2>
+          <p className="storage-note">管理合作商户、二维码链接和佣金汇总。</p>
+        </div>
+      </div>
+
+      <div className="draw-card-upload-panel">
+        <div className="task-toolbar">
+          <div>
+            <p className="eyebrow">Commissions</p>
+            <h3>佣金汇总</h3>
+            <p className="storage-note">仅统计已付款订单，佣金按订单快照中的佣金比例计算。</p>
+          </div>
+          <button className="secondary-button" onClick={() => refreshCommissionList()} type="button">
+            <RefreshCw size={18} />
+            <span>{isLoadingCommissions ? "刷新中" : "刷新汇总"}</span>
+          </button>
+        </div>
+        <div className="task-filters">
+          <select onChange={(event) => setCommissionMerchantId(event.target.value)} value={commissionMerchantId}>
+            <option value="">全部商户</option>
+            {allMerchants.map((merchant) => (
+              <option key={`commission-${merchant.id}`} value={merchant.id}>{merchant.name}</option>
+            ))}
+          </select>
+          <label className="field-label task-query-field">
+            开始日期
+            <input onChange={(event) => setCommissionStartDate(event.target.value)} type="date" value={commissionStartDate} />
+          </label>
+          <label className="field-label task-query-field">
+            结束日期
+            <input onChange={(event) => setCommissionEndDate(event.target.value)} type="date" value={commissionEndDate} />
+          </label>
+          <button className="secondary-button" onClick={() => refreshCommissionList()} type="button">
+            <span>应用汇总筛选</span>
+          </button>
+        </div>
+        <div className="task-list">
+          {commissionSummary.map((item) => (
+            <article className="task-card" key={`commission-row-${item.merchantId}`}>
+              <div className={`task-status ${item.merchantStatus === "inactive" ? "cancelled" : "succeeded"}`}>
+                {item.merchantStatus === "inactive" ? "已停用" : "启用中"}
+              </div>
+              <div className="task-detail">
+                <div className="task-meta-row">
+                  <strong>{item.merchantName}</strong>
+                  <span>{item.merchantId}</span>
+                  <span>{item.paidOrderCount} 单</span>
+                </div>
+                <p className="storage-note">已付款金额 {formatCurrencyCents(item.paidTotalCents)}，应结佣金 {formatCurrencyCents(item.commissionAmountCents)}</p>
+                <p className="storage-note">最新付款 {formatDateTime(item.latestPaidAt || item.latestCreatedAt)}</p>
+              </div>
+            </article>
+          ))}
+          {!commissionSummary.length ? <p className="empty-note">当前筛选条件下还没有可结算佣金的已付款订单。</p> : null}
+        </div>
+      </div>
+
+      <div className="draw-card-upload-panel">
+        <div className="task-toolbar">
+          <div>
+            <p className="eyebrow">Merchants</p>
+            <h3>商户管理</h3>
+            <p className="storage-note">为每个线下商户生成带签名的专属落地链接和二维码，供台卡扫码使用。</p>
+          </div>
+          <button className="secondary-button" onClick={() => refreshMerchantList()} type="button">
+            <RefreshCw size={18} />
+            <span>{isLoadingMerchants ? "刷新中" : "刷新商户"}</span>
+          </button>
+        </div>
+
+        <div className="task-query-fields">
+          {!editingMerchantId ? (
+            <label className="field-label task-query-field">
+              商户 ID（可选）
+              <input
+                onChange={(event) => setMerchantForm((current) => ({ ...current, id: event.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 24) }))}
+                placeholder="留空自动生成"
+                type="text"
+                value={merchantForm.id}
+              />
+            </label>
+          ) : (
+            <label className="field-label task-query-field">
+              商户 ID
+              <input disabled type="text" value={merchantForm.id} />
+            </label>
+          )}
+          <label className="field-label task-query-field">
+            商户名称
+            <input onChange={(event) => setMerchantForm((current) => ({ ...current, name: event.target.value }))} type="text" value={merchantForm.name} />
+          </label>
+          <label className="field-label task-query-field">
+            状态
+            <select onChange={(event) => setMerchantForm((current) => ({ ...current, status: event.target.value }))} value={merchantForm.status}>
+              <option value="active">启用</option>
+              <option value="inactive">停用</option>
+            </select>
+          </label>
+          <label className="field-label task-query-field">
+            佣金比例（BP）
+            <input
+              max="10000"
+              min="0"
+              onChange={(event) => setMerchantForm((current) => ({ ...current, commissionRateBps: Number(event.target.value) || 0 }))}
+              type="number"
+              value={merchantForm.commissionRateBps}
+            />
+          </label>
+        </div>
+        <label className="field-label">
+          备注
+          <textarea onChange={(event) => setMerchantForm((current) => ({ ...current, note: event.target.value }))} rows="3" value={merchantForm.note} />
+        </label>
+        <div className="card-actions generator-actions">
+          <button className="secondary-button" disabled={isBusy} onClick={saveMerchant} type="button">
+            <Save size={18} />
+            <span>{editingMerchantId ? "保存商户" : "创建商户"}</span>
+          </button>
+          <button className="secondary-button" onClick={resetMerchantForm} type="button">
+            <Pencil size={18} />
+            <span>{editingMerchantId ? "取消编辑" : "重置表单"}</span>
+          </button>
+        </div>
+
+        <div className="task-filters">
+          <label className="search-box">
+            <Search size={18} />
+            <input onChange={(event) => setMerchantSearch(event.target.value)} placeholder="搜索商户名 / ID / 备注" value={merchantSearch} />
+          </label>
+          <button className="secondary-button" onClick={() => refreshMerchantList({ page: 1, search: merchantSearch.trim() })} type="button">
+            <span>筛选商户</span>
+          </button>
+        </div>
+
+        <div className="merchant-grid">
+          {merchantList.map((merchant) => {
+            const previewUrl = getMerchantQrPreviewUrl(merchant.landingUrl);
+            return (
+              <article className="task-card merchant-card" key={merchant.id}>
+                <div className={`task-status ${merchant.status === "active" ? "succeeded" : "cancelled"}`}>
+                  {merchant.status === "active" ? "启用中" : "已停用"}
+                </div>
+                <div className="task-detail">
+                  <div className="task-meta-row">
+                    <strong>{merchant.name}</strong>
+                    <span>{merchant.id}</span>
+                    <span>{formatCommissionRateBps(merchant.commissionRateBps)}</span>
+                  </div>
+                  {merchant.note ? <p className="storage-note">{merchant.note}</p> : <p className="storage-note">无备注</p>}
+                  <p className="storage-note merchant-link-text">{merchant.landingUrl}</p>
+                </div>
+                <div className="merchant-qr-preview">
+                  {previewUrl ? <img alt={`${merchant.name} 二维码`} src={previewUrl} /> : <div className="empty-note">二维码暂不可预览</div>}
+                </div>
+                <div className="task-actions merchant-actions">
+                  <button
+                    className="secondary-button"
+                    onClick={() => {
+                      setMerchantForm(toMerchantFormState(merchant));
+                      setEditingMerchantId(merchant.id);
+                    }}
+                    type="button"
+                  >
+                    <Pencil size={18} />
+                    <span>编辑</span>
+                  </button>
+                  <button className="secondary-button" onClick={() => copyMerchantLandingUrl(merchant)} type="button">
+                    <Clipboard size={18} />
+                    <span>复制链接</span>
+                  </button>
+                  <button className="secondary-button" onClick={() => handleDownloadMerchantQr(merchant, "png")} type="button">
+                    <Download size={18} />
+                    <span>下载 PNG</span>
+                  </button>
+                  <button className="secondary-button" onClick={() => handleDownloadMerchantQr(merchant, "svg")} type="button">
+                    <QrCode size={18} />
+                    <span>下载 SVG</span>
+                  </button>
+                  <button className="danger-button" disabled={isBusy} onClick={() => removeMerchant(merchant)} type="button">
+                    <Trash2 size={18} />
+                    <span>删除</span>
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+          {!merchantList.length ? <p className="empty-note">当前没有符合条件的商户。</p> : null}
+        </div>
+
+        <div className="task-pagination">
+          <p className="storage-note">
+            共 {merchantListTotal} 条，当前第 {merchantListPage} / {merchantTotalPages} 页，当前页 {merchantList.length} 条
+          </p>
+          <div className="task-pagination-actions">
+            <button className="secondary-button" disabled={merchantListPage <= 1 || isLoadingMerchants} onClick={() => changeMerchantPage(merchantListPage - 1)} type="button">
+              <ArrowUp size={18} />
+              <span>上一页</span>
+            </button>
+            <button className="secondary-button" disabled={merchantListPage >= merchantTotalPages || !merchantListTotal || isLoadingMerchants} onClick={() => changeMerchantPage(merchantListPage + 1)} type="button">
+              <ArrowDown size={18} />
+              <span>下一页</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {error ? <p className="error-note">{error}</p> : null}
+      {statusMessage ? <p className="success-note">{statusMessage}</p> : null}
     </section>
   );
 }
@@ -5023,8 +5560,37 @@ function areAdminOrderQueriesEqual(left, right) {
     Number(left?.page || 0) === Number(right?.page || 0) &&
     Number(left?.limit || 0) === Number(right?.limit || 0) &&
     String(left?.orderStatus || "") === String(right?.orderStatus || "") &&
-    String(left?.search || "") === String(right?.search || "")
+    String(left?.search || "") === String(right?.search || "") &&
+    String(left?.merchantId || "") === String(right?.merchantId || "") &&
+    String(left?.startDate || "") === String(right?.startDate || "") &&
+    String(left?.endDate || "") === String(right?.endDate || "")
   );
+}
+
+function toMerchantFormState(merchant) {
+  return {
+    id: String(merchant?.id || ""),
+    name: String(merchant?.name || ""),
+    status: String(merchant?.status || "active"),
+    commissionRateBps: Number(merchant?.commissionRateBps || 0),
+    note: String(merchant?.note || "")
+  };
+}
+
+function getMerchantQrPreviewUrl(landingUrl) {
+  try {
+    return createQrSvgDataUrl(landingUrl, { margin: 3 });
+  } catch {
+    return "";
+  }
+}
+
+function formatCommissionRateBps(value) {
+  return `${(Number(value || 0) / 100).toFixed(2)}%`;
+}
+
+function calculateOrderCommissionCents(order) {
+  return Math.round(Number(order?.totalCents || 0) * Number(order?.commissionRateBps || 0) / 10000);
 }
 
 function areImageJobQueriesEqual(left, right) {

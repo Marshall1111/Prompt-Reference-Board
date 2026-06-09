@@ -36,6 +36,10 @@ function mapOrderRow(row) {
     city: String(row.city || ""),
     district: String(row.district || ""),
     addressDetail: String(row.address_detail || ""),
+    sourceMerchantId: String(row.source_merchant_id || ""),
+    sourceMerchantName: String(row.source_merchant_name || ""),
+    commissionRateBps: Number(row.commission_rate_bps || 0),
+    sourceClaimedAt: row.source_claimed_at || null,
     adminRemark: String(row.admin_remark || ""),
     wechatOpenId: String(row.wechat_open_id || ""),
     wechatTransactionId: String(row.wechat_transaction_id || ""),
@@ -120,6 +124,10 @@ export function createOrderStore({ dbPath }) {
       city TEXT NOT NULL,
       district TEXT NOT NULL,
       address_detail TEXT NOT NULL,
+      source_merchant_id TEXT NOT NULL DEFAULT '',
+      source_merchant_name TEXT NOT NULL DEFAULT '',
+      commission_rate_bps INTEGER NOT NULL DEFAULT 0,
+      source_claimed_at TEXT,
       admin_remark TEXT NOT NULL DEFAULT '',
       wechat_open_id TEXT NOT NULL DEFAULT '',
       wechat_transaction_id TEXT NOT NULL DEFAULT '',
@@ -174,6 +182,19 @@ export function createOrderStore({ dbPath }) {
   if (!orderItemColumns.some((column) => String(column.name || "") === "quantity")) {
     db.exec("ALTER TABLE order_items ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1");
   }
+  const orderColumns = db.prepare("PRAGMA table_info(orders)").all();
+  if (!orderColumns.some((column) => String(column.name || "") === "source_merchant_id")) {
+    db.exec("ALTER TABLE orders ADD COLUMN source_merchant_id TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orderColumns.some((column) => String(column.name || "") === "source_merchant_name")) {
+    db.exec("ALTER TABLE orders ADD COLUMN source_merchant_name TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orderColumns.some((column) => String(column.name || "") === "commission_rate_bps")) {
+    db.exec("ALTER TABLE orders ADD COLUMN commission_rate_bps INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!orderColumns.some((column) => String(column.name || "") === "source_claimed_at")) {
+    db.exec("ALTER TABLE orders ADD COLUMN source_claimed_at TEXT");
+  }
 
   const insertOrderStatement = db.prepare(`
     INSERT INTO orders (
@@ -181,6 +202,7 @@ export function createOrderStore({ dbPath }) {
       payment_status, fulfillment_status, item_count,
       unit_price_cents, shipping_fee_cents, subtotal_cents, total_cents,
       remark, receiver_name, receiver_phone, province, city, district, address_detail,
+      source_merchant_id, source_merchant_name, commission_rate_bps, source_claimed_at,
       admin_remark, wechat_open_id, wechat_transaction_id, out_trade_no,
       last_payment_channel, last_payment_error, expires_at, paid_at, shipped_at,
       completed_at, cancelled_at, created_at, updated_at
@@ -189,6 +211,7 @@ export function createOrderStore({ dbPath }) {
       @paymentStatus, @fulfillmentStatus, @itemCount,
       @unitPriceCents, @shippingFeeCents, @subtotalCents, @totalCents,
       @remark, @receiverName, @receiverPhone, @province, @city, @district, @addressDetail,
+      @sourceMerchantId, @sourceMerchantName, @commissionRateBps, @sourceClaimedAt,
       @adminRemark, @wechatOpenId, @wechatTransactionId, @outTradeNo,
       @lastPaymentChannel, @lastPaymentError, @expiresAt, @paidAt, @shippedAt,
       @completedAt, @cancelledAt, @createdAt, @updatedAt
@@ -320,6 +343,10 @@ export function createOrderStore({ dbPath }) {
       city: next.city,
       district: next.district,
       addressDetail: next.addressDetail,
+      sourceMerchantId: next.sourceMerchantId,
+      sourceMerchantName: next.sourceMerchantName,
+      commissionRateBps: next.commissionRateBps,
+      sourceClaimedAt: next.sourceClaimedAt,
       adminRemark: next.adminRemark,
       wechatOpenId: next.wechatOpenId,
       wechatTransactionId: next.wechatTransactionId,
@@ -344,6 +371,10 @@ export function createOrderStore({ dbPath }) {
         city = @city,
         district = @district,
         address_detail = @addressDetail,
+        source_merchant_id = @sourceMerchantId,
+        source_merchant_name = @sourceMerchantName,
+        commission_rate_bps = @commissionRateBps,
+        source_claimed_at = @sourceClaimedAt,
         admin_remark = @adminRemark,
         wechat_open_id = @wechatOpenId,
         wechat_transaction_id = @wechatTransactionId,
@@ -397,7 +428,7 @@ export function createOrderStore({ dbPath }) {
     `).run({ now });
   }
 
-  function listOrders({ visitorId = "", orderStatus = "", search = "", startDate = "", endDate = "", page = 1, limit = 20 } = {}) {
+  function listOrders({ visitorId = "", merchantId = "", orderStatus = "", search = "", startDate = "", endDate = "", page = 1, limit = 20 } = {}) {
     expireUnpaidOrders();
 
     const conditions = [];
@@ -405,6 +436,10 @@ export function createOrderStore({ dbPath }) {
     if (visitorId) {
       conditions.push("visitor_id = @visitorId");
       params.visitorId = visitorId;
+    }
+    if (merchantId) {
+      conditions.push("source_merchant_id = @merchantId");
+      params.merchantId = merchantId;
     }
     if (orderStatus) {
       if (orderStatus === "pending_payment") {
@@ -422,7 +457,7 @@ export function createOrderStore({ dbPath }) {
       }
     }
     if (search) {
-      conditions.push("(order_no LIKE @search OR receiver_name LIKE @search OR receiver_phone LIKE @search)");
+      conditions.push("(order_no LIKE @search OR receiver_name LIKE @search OR receiver_phone LIKE @search OR source_merchant_name LIKE @search)");
       params.search = `%${search}%`;
     }
     if (startDate) {
@@ -468,11 +503,66 @@ export function createOrderStore({ dbPath }) {
     };
   }
 
+  function listMerchantCommissionSummary({ merchantId = "", startDate = "", endDate = "" } = {}) {
+    expireUnpaidOrders();
+
+    const conditions = ["payment_status = 'paid'", "source_merchant_id != ''"];
+    const params = {};
+    if (merchantId) {
+      conditions.push("source_merchant_id = @merchantId");
+      params.merchantId = merchantId;
+    }
+    if (startDate) {
+      conditions.push("created_at >= @startDate");
+      params.startDate = `${startDate}T00:00:00.000Z`;
+    }
+    if (endDate) {
+      conditions.push("created_at <= @endDate");
+      params.endDate = `${endDate}T23:59:59.999Z`;
+    }
+
+    const rows = db.prepare(`
+      SELECT source_merchant_id, source_merchant_name, commission_rate_bps, total_cents, paid_at, created_at
+      FROM orders
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY created_at DESC
+    `).all(params);
+
+    const summaryByMerchantId = new Map();
+    rows.forEach((row) => {
+      const nextMerchantId = String(row.source_merchant_id || "");
+      if (!nextMerchantId) return;
+
+      const current = summaryByMerchantId.get(nextMerchantId) || {
+        merchantId: nextMerchantId,
+        merchantName: String(row.source_merchant_name || ""),
+        paidOrderCount: 0,
+        paidTotalCents: 0,
+        commissionAmountCents: 0,
+        latestPaidAt: row.paid_at || null,
+        latestCreatedAt: row.created_at || null
+      };
+
+      current.paidOrderCount += 1;
+      current.paidTotalCents += Number(row.total_cents || 0);
+      current.commissionAmountCents += Math.round(Number(row.total_cents || 0) * Number(row.commission_rate_bps || 0) / 10000);
+      current.merchantName = current.merchantName || String(row.source_merchant_name || "");
+      current.latestPaidAt = current.latestPaidAt || row.paid_at || null;
+      current.latestCreatedAt = current.latestCreatedAt || row.created_at || null;
+      summaryByMerchantId.set(nextMerchantId, current);
+    });
+
+    return Array.from(summaryByMerchantId.values()).sort(
+      (left, right) => Number(right.commissionAmountCents || 0) - Number(left.commissionAmountCents || 0)
+    );
+  }
+
   return {
     appendPaymentEvent,
     createOrder,
     expireUnpaidOrders,
     listOrders,
+    listMerchantCommissionSummary,
     readOrder,
     readOrderByOutTradeNo,
     readOrderItems,
