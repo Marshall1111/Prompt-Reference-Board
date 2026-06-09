@@ -73,7 +73,7 @@ const DEFAULT_ORDER_PAYMENT_MODE = "manual";
 const DEFAULT_MANUAL_PAYMENT_EXPIRE_DAYS = 7;
 const DEFAULT_CONTACT_WECHAT_ID = "PetPaint";
 const MERCHANT_SOURCE_LOCK_MS = 30 * 24 * 60 * 60 * 1000;
-const MERCHANT_SIGNATURE_BYTES = 12;
+const MERCHANT_SIGNATURE_BYTES = 8;
 const MERCHANT_STATUS_VALUES = new Set(["active", "inactive"]);
 const ORDER_PAYMENT_EXPIRE_MS = 30 * 60 * 1000;
 const ORDER_SEARCH_LIMIT = 100;
@@ -271,6 +271,18 @@ app.post("/api/public/merchant-source/claim", async (req, res) => {
     console.error(error);
     res.status(error.status || 400).json({ message: error.publicMessage || "锁定商户来源失败。" });
   }
+});
+
+app.get("/q/:merchantId/:signature", async (req, res) => {
+  const merchantId = normalizeMerchantId(req.params.merchantId);
+  const signature = String(req.params.signature || "").trim();
+  if (!merchantId || !signature) {
+    return res.redirect(302, "/fridge");
+  }
+  const target = new URL("/fridge", "http://localhost");
+  target.searchParams.set("mid", merchantId);
+  target.searchParams.set("sig", signature);
+  return res.redirect(302, `${target.pathname}${target.search}`);
 });
 
 app.get("/api/orders/config", async (_req, res) => {
@@ -2212,6 +2224,13 @@ function isValidMerchantSignature(merchantId, signature) {
 }
 
 function buildRequestOrigin(req) {
+  const configuredOrigin = String(
+    process.env.PUBLIC_SITE_URL ||
+    process.env.APP_PUBLIC_BASE_URL ||
+    process.env.PUBLIC_BASE_URL ||
+    ""
+  ).trim().replace(/\/+$/g, "");
+  if (configuredOrigin) return configuredOrigin;
   const forwardedProto = String(req.get("x-forwarded-proto") || "").split(",")[0].trim();
   const proto = forwardedProto || req.protocol || (shouldUseSecureCookies(req) ? "https" : "http");
   const host = String(req.get("x-forwarded-host") || req.get("host") || "").split(",")[0].trim();
@@ -2220,9 +2239,9 @@ function buildRequestOrigin(req) {
 
 function buildMerchantLandingUrl(req, merchantId) {
   const origin = buildRequestOrigin(req);
-  const url = new URL("/fridge", origin || "http://localhost");
-  url.searchParams.set("mid", normalizeMerchantId(merchantId));
-  url.searchParams.set("sig", createMerchantSignature(merchantId));
+  const safeMerchantId = normalizeMerchantId(merchantId);
+  const signature = createMerchantSignature(safeMerchantId);
+  const url = new URL(`/q/${safeMerchantId}/${signature}`, origin || "http://localhost");
   return origin ? url.toString() : `${url.pathname}${url.search}`;
 }
 

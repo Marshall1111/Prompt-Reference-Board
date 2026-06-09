@@ -5579,7 +5579,11 @@ function toMerchantFormState(merchant) {
 
 function getMerchantQrPreviewUrl(landingUrl) {
   try {
-    return createQrSvgDataUrl(landingUrl, { margin: 3 });
+    return createQrSvgDataUrl(landingUrl, {
+      margin: 4,
+      dark: "#000000",
+      light: "#ffffff"
+    });
   } catch {
     return "";
   }
