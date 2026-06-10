@@ -1389,10 +1389,14 @@ app.get("/api/admin/merchant-commissions", requireAdmin, async (req, res) => {
     const endDate = String(req.query.endDate || "").trim();
     const merchants = await merchantStore.listMerchants();
     const merchantById = new Map(merchants.map((merchant) => [merchant.id, merchant]));
+    const fallbackCommissionRateByMerchantId = Object.fromEntries(
+      merchants.map((merchant) => [merchant.id, merchant.commissionRateBps])
+    );
     const summary = orderStore.listMerchantCommissionSummary({
       merchantId,
       startDate,
-      endDate
+      endDate,
+      fallbackCommissionRateByMerchantId
     }).map((item) => {
       const merchant = merchantById.get(item.merchantId);
       return {
@@ -1443,6 +1447,48 @@ app.get("/api/admin/orders", requireAdmin, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "读取订单列表失败。" });
+  }
+});
+
+app.get("/api/admin/orders/export", requireAdmin, async (req, res) => {
+  try {
+    const merchantId = normalizeMerchantId(String(req.query.merchantId || ""));
+    const orderStatus = normalizeOrderStatus(String(req.query.orderStatus || ""), "");
+    const search = String(req.query.search || "").trim();
+    const startDate = String(req.query.startDate || "").trim();
+    const endDate = String(req.query.endDate || "").trim();
+
+    const orders = orderStore.listOrdersForExport({
+      merchantId,
+      orderStatus,
+      search,
+      startDate,
+      endDate
+    });
+
+    const rows = [
+      ["下单日期", "付款日期", "订单状态", "收件人", "电话", "地址", "备注", "订单金额", "来源商户"],
+      ...orders.map((order) => [
+        formatOrderExportDate(order.createdAt),
+        formatOrderExportDate(order.paidAt),
+        getOrderStatusLabel(order),
+        String(order.receiverName || ""),
+        String(order.receiverPhone || ""),
+        formatOrderExportAddress(order),
+        String(order.remark || ""),
+        formatOrderAmount(order.totalCents),
+        String(order.sourceMerchantName || "")
+      ])
+    ];
+
+    const csv = `\uFEFF${rows.map((row) => row.map(toCsvCell).join(",")).join("\r\n")}\r\n`;
+    const filename = `orders-${formatFilenameDate(new Date())}.csv`;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    res.send(csv);
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "导出订单明细失败。" });
   }
 });
 
@@ -1846,6 +1892,15 @@ app.use((req, res) => {
   res.sendFile(path.join(rootDir, "dist", "index.html"));
 });
 
+async function repairHistoricalCommissionSnapshots() {
+  const merchants = await merchantStore.listMerchants();
+  const merchantById = Object.fromEntries(merchants.map((merchant) => [merchant.id, merchant]));
+  const result = orderStore.backfillMissingCommissionSnapshots({ merchantById });
+  if (result.updatedOrderCount > 0) {
+    console.log(`Backfilled commission snapshots for ${result.updatedOrderCount} orders.`);
+  }
+}
+
 app.listen(port, () => {
   console.log(`Prompt gallery listening on http://127.0.0.1:${port}`);
   if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {
@@ -1853,6 +1908,7 @@ app.listen(port, () => {
   }
   prepareImageJobStorage()
     .then(migrateLegacyGeneratedImages)
+    .then(repairHistoricalCommissionSnapshots)
     .then(readStyles)
     .then(syncMiniProgram)
     .then(() => console.log("Mini program files synced."))
@@ -3659,6 +3715,57 @@ function getOrderStatus(order) {
   if (paymentStatus === "paid") return "pending_shipment";
   if (paymentStatus === "expired") return "expired";
   return "pending_payment";
+}
+
+function getOrderStatusLabel(order) {
+  const status = getOrderStatus(order);
+  if (status === "pending_payment") return "待付款";
+  if (status === "pending_shipment") return "待发货";
+  if (status === "shipped") return "已发货";
+  if (status === "completed") return "已完成";
+  if (status === "cancelled") return "已取消";
+  if (status === "expired") return "已过期";
+  return status || "未知";
+}
+
+function formatOrderExportDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  const second = String(date.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+}
+
+function formatOrderExportAddress(order) {
+  const detail = String(order?.addressDetail || "").trim();
+  const region = [order?.province, order?.city, order?.district].map((item) => String(item || "").trim()).filter(Boolean).join("");
+  if (!region) return detail;
+  if (!detail) return region;
+  return detail.startsWith(region) ? detail : `${region}${detail}`;
+}
+
+function formatOrderAmount(value) {
+  return (Number(value || 0) / 100).toFixed(2);
+}
+
+function toCsvCell(value) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, "\"\"")}"`;
+}
+
+function formatFilenameDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  const second = String(date.getSeconds()).padStart(2, "0");
+  return `${year}${month}${day}-${hour}${minute}${second}`;
 }
 
 async function readInviteCodes() {

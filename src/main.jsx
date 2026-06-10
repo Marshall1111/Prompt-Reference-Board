@@ -4043,19 +4043,6 @@ async function deleteAdminMerchant(merchantId) {
   }
 }
 
-async function refreshMerchantCommissions(params = {}) {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === "") return;
-    query.set(key, String(value));
-  });
-  const suffix = query.toString() ? `?${query.toString()}` : "";
-  const response = await fetch(`/api/admin/merchant-commissions${suffix}`);
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message || "读取商户佣金汇总失败。");
-  return payload.summary || [];
-}
-
 async function refreshAdminOrders(params = {}) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -4117,6 +4104,41 @@ async function downloadAdminOrderOriginals(orderId) {
   }
 
   const filename = parseDownloadFilename(response.headers.get("content-disposition"), `order-${orderId}.zip`);
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+
+  return {
+    filename,
+    sizeBytes: blob.size
+  };
+}
+
+async function downloadAdminOrdersExport(params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    query.set(key, String(value));
+  });
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const response = await fetch(`/api/admin/orders/export${suffix}`);
+  const contentType = String(response.headers.get("content-type") || "");
+  if (!response.ok) {
+    if (contentType.includes("application/json")) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.message || "导出订单明细失败。");
+    }
+    const text = await response.text().catch(() => "");
+    throw new Error(text || "导出订单明细失败。");
+  }
+
+  const filename = parseDownloadFilename(response.headers.get("content-disposition"), "orders.csv");
   const blob = await response.blob();
   const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -4473,6 +4495,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
   const [statusMessage, setStatusMessage] = useState("");
   const [downloadStatus, setDownloadStatus] = useState("");
   const [isBusy, setIsBusy] = useState(false);
+  const [isOrderSettingsExpanded, setIsOrderSettingsExpanded] = useState(false);
 
   useEffect(() => {
     setOrders(initialOrders || []);
@@ -4616,6 +4639,26 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
     }
   }
 
+  async function exportOrderList() {
+    setIsBusy(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      const payload = await downloadAdminOrdersExport({
+        orderStatus: orderQuery.orderStatus,
+        search: orderQuery.search,
+        merchantId: orderQuery.merchantId,
+        startDate: orderQuery.startDate,
+        endDate: orderQuery.endDate
+      });
+      setStatusMessage(`订单明细已开始下载：${payload.filename}`);
+    } catch (nextError) {
+      setError(nextError.message || "导出订单明细失败。");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   return (
     <section className="task-page" aria-label="订单管理">
       <div className="task-toolbar">
@@ -4624,49 +4667,73 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
           <h2>订单管理</h2>
           <p className="storage-note">查看冰箱贴订单、来源商户与订单状态。共 {orderTotal} 条，当前第 {orderQuery.page} / {totalPages} 页。</p>
         </div>
-        <button className="secondary-button" onClick={() => applyFilters()} type="button">
-          <RefreshCw size={18} />
-          <span>{isLoadingOrders ? "刷新中" : "刷新订单"}</span>
-        </button>
+        <div className="task-actions">
+          <button className="secondary-button" disabled={isBusy} onClick={exportOrderList} type="button">
+            <Download size={18} />
+            <span>导出明细</span>
+          </button>
+          <button className="secondary-button" onClick={() => applyFilters()} type="button">
+            <RefreshCw size={18} />
+            <span>{isLoadingOrders ? "刷新中" : "刷新订单"}</span>
+          </button>
+        </div>
       </div>
 
       <div className="draw-card-upload-panel">
-        <h3>下单配置</h3>
-        <label className="toggle-field">
-          <input checked={fridgeMagnetOrderingEnabled} onChange={(event) => setFridgeMagnetOrderingEnabled(event.target.checked)} type="checkbox" />
-          <span>开启冰箱贴下单</span>
-        </label>
-        <label className="field-label">
-          单张价格（分）
-          <input min="0" onChange={(event) => setFridgeMagnetUnitPriceCents(Number(event.target.value) || 0)} type="number" value={fridgeMagnetUnitPriceCents} />
-        </label>
-        <label className="field-label">
-          单张邮费（分）
-          <input min="0" onChange={(event) => setSingleItemShippingFeeCents(Number(event.target.value) || 0)} type="number" value={singleItemShippingFeeCents} />
-        </label>
-        <label className="field-label">
-          支付模式
-          <select onChange={(event) => setPaymentMode(event.target.value)} value={paymentMode}>
-            <option value="manual">人工支付</option>
-            <option value="wechat">微信支付</option>
-          </select>
-        </label>
-        <label className="field-label">
-          人工支付有效期（天）
-          <input min="1" onChange={(event) => setManualPaymentExpireDays(Number(event.target.value) || 1)} type="number" value={manualPaymentExpireDays} />
-        </label>
-        <label className="field-label">
-          客服微信号
-          <input onChange={(event) => setContactWechatId(event.target.value)} type="text" value={contactWechatId} />
-        </label>
-        <p className="storage-note">金额规则固定为：1 张收邮费，2 张及以上包邮。</p>
-        <p className="storage-note">人工支付模式下，用户提交订单后会看到客服微信与订单号复制入口，并在 {manualPaymentExpireDays} 天内完成付款。</p>
-        <div className="card-actions generator-actions">
-          <button className="secondary-button" disabled={isBusy} onClick={saveOrderSettings} type="button">
-            <Save size={18} />
-            <span>保存下单配置</span>
+        <div className="task-toolbar compact-toolbar">
+          <div>
+            <h3>下单配置</h3>
+            <p className="storage-note">默认折叠，展开后可修改价格、支付方式和客服信息。</p>
+          </div>
+          <button
+            aria-expanded={isOrderSettingsExpanded}
+            className="secondary-button settings-collapse-toggle"
+            onClick={() => setIsOrderSettingsExpanded((current) => !current)}
+            type="button"
+          >
+            {isOrderSettingsExpanded ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
+            <span>{isOrderSettingsExpanded ? "收起配置" : "展开配置"}</span>
           </button>
         </div>
+        {isOrderSettingsExpanded ? (
+          <>
+            <label className="toggle-field">
+              <input checked={fridgeMagnetOrderingEnabled} onChange={(event) => setFridgeMagnetOrderingEnabled(event.target.checked)} type="checkbox" />
+              <span>开启冰箱贴下单</span>
+            </label>
+            <label className="field-label">
+              单张价格（分）
+              <input min="0" onChange={(event) => setFridgeMagnetUnitPriceCents(Number(event.target.value) || 0)} type="number" value={fridgeMagnetUnitPriceCents} />
+            </label>
+            <label className="field-label">
+              单张邮费（分）
+              <input min="0" onChange={(event) => setSingleItemShippingFeeCents(Number(event.target.value) || 0)} type="number" value={singleItemShippingFeeCents} />
+            </label>
+            <label className="field-label">
+              支付模式
+              <select onChange={(event) => setPaymentMode(event.target.value)} value={paymentMode}>
+                <option value="manual">人工支付</option>
+                <option value="wechat">微信支付</option>
+              </select>
+            </label>
+            <label className="field-label">
+              人工支付有效期（天）
+              <input min="1" onChange={(event) => setManualPaymentExpireDays(Number(event.target.value) || 1)} type="number" value={manualPaymentExpireDays} />
+            </label>
+            <label className="field-label">
+              客服微信号
+              <input onChange={(event) => setContactWechatId(event.target.value)} type="text" value={contactWechatId} />
+            </label>
+            <p className="storage-note">金额规则固定为：1 张收邮费，2 张及以上包邮。</p>
+            <p className="storage-note">人工支付模式下，用户提交订单后会看到客服微信与订单号复制入口，并在 {manualPaymentExpireDays} 天内完成付款。</p>
+            <div className="card-actions generator-actions">
+              <button className="secondary-button" disabled={isBusy} onClick={saveOrderSettings} type="button">
+                <Save size={18} />
+                <span>保存下单配置</span>
+              </button>
+            </div>
+          </>
+        ) : null}
       </div>
 
       <div className="task-filters">
@@ -4820,11 +4887,6 @@ function MerchantAdminPage({ allMerchants, onRefreshAllMerchants }) {
   const [merchantListTotal, setMerchantListTotal] = useState(0);
   const [merchantSearch, setMerchantSearch] = useState("");
   const [isLoadingMerchants, setIsLoadingMerchants] = useState(false);
-  const [commissionSummary, setCommissionSummary] = useState([]);
-  const [commissionMerchantId, setCommissionMerchantId] = useState("");
-  const [commissionStartDate, setCommissionStartDate] = useState("");
-  const [commissionEndDate, setCommissionEndDate] = useState("");
-  const [isLoadingCommissions, setIsLoadingCommissions] = useState(false);
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [isBusy, setIsBusy] = useState(false);
@@ -4833,7 +4895,6 @@ function MerchantAdminPage({ allMerchants, onRefreshAllMerchants }) {
 
   useEffect(() => {
     refreshMerchantList({ page: 1 }, { showLoading: false }).catch(() => {});
-    refreshCommissionList({}, { showLoading: false }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -4868,27 +4929,6 @@ function MerchantAdminPage({ allMerchants, onRefreshAllMerchants }) {
     }
   }
 
-  async function refreshCommissionList(nextPatch = {}, options = {}) {
-    const nextQuery = {
-      merchantId: commissionMerchantId,
-      startDate: commissionStartDate,
-      endDate: commissionEndDate,
-      ...nextPatch
-    };
-    const shouldShowLoading = options.showLoading !== false;
-    if (shouldShowLoading) setIsLoadingCommissions(true);
-    try {
-      const summary = await refreshMerchantCommissions(nextQuery);
-      setCommissionSummary(summary);
-      setCommissionMerchantId(nextQuery.merchantId || "");
-      setCommissionStartDate(nextQuery.startDate || "");
-      setCommissionEndDate(nextQuery.endDate || "");
-      return summary;
-    } finally {
-      if (shouldShowLoading) setIsLoadingCommissions(false);
-    }
-  }
-
   function resetMerchantForm() {
     setEditingMerchantId("");
     setMerchantForm(DEFAULT_MERCHANT_FORM);
@@ -4913,8 +4953,7 @@ function MerchantAdminPage({ allMerchants, onRefreshAllMerchants }) {
       }
       await Promise.all([
         onRefreshAllMerchants(),
-        refreshMerchantList({}, { showLoading: false }),
-        refreshCommissionList({}, { showLoading: false })
+        refreshMerchantList({}, { showLoading: false })
       ]);
       resetMerchantForm();
     } catch (nextError) {
@@ -4937,8 +4976,7 @@ function MerchantAdminPage({ allMerchants, onRefreshAllMerchants }) {
         onRefreshAllMerchants(),
         refreshMerchantList({
           page: merchantList.length === 1 && merchantListPage > 1 ? merchantListPage - 1 : merchantListPage
-        }, { showLoading: false }),
-        refreshCommissionList({}, { showLoading: false })
+        }, { showLoading: false })
       ]);
       setStatusMessage("商户已删除。");
     } catch (nextError) {
@@ -4985,59 +5023,7 @@ function MerchantAdminPage({ allMerchants, onRefreshAllMerchants }) {
         <div>
           <p className="eyebrow">Partners</p>
           <h2>合作商户</h2>
-          <p className="storage-note">管理合作商户、二维码链接和佣金汇总。</p>
-        </div>
-      </div>
-
-      <div className="draw-card-upload-panel">
-        <div className="task-toolbar">
-          <div>
-            <p className="eyebrow">Commissions</p>
-            <h3>佣金汇总</h3>
-            <p className="storage-note">仅统计已付款订单，佣金按订单快照中的佣金比例计算。</p>
-          </div>
-          <button className="secondary-button" onClick={() => refreshCommissionList()} type="button">
-            <RefreshCw size={18} />
-            <span>{isLoadingCommissions ? "刷新中" : "刷新汇总"}</span>
-          </button>
-        </div>
-        <div className="task-filters">
-          <select onChange={(event) => setCommissionMerchantId(event.target.value)} value={commissionMerchantId}>
-            <option value="">全部商户</option>
-            {allMerchants.map((merchant) => (
-              <option key={`commission-${merchant.id}`} value={merchant.id}>{merchant.name}</option>
-            ))}
-          </select>
-          <label className="field-label task-query-field">
-            开始日期
-            <input onChange={(event) => setCommissionStartDate(event.target.value)} type="date" value={commissionStartDate} />
-          </label>
-          <label className="field-label task-query-field">
-            结束日期
-            <input onChange={(event) => setCommissionEndDate(event.target.value)} type="date" value={commissionEndDate} />
-          </label>
-          <button className="secondary-button" onClick={() => refreshCommissionList()} type="button">
-            <span>应用汇总筛选</span>
-          </button>
-        </div>
-        <div className="task-list">
-          {commissionSummary.map((item) => (
-            <article className="task-card" key={`commission-row-${item.merchantId}`}>
-              <div className={`task-status ${item.merchantStatus === "inactive" ? "cancelled" : "succeeded"}`}>
-                {item.merchantStatus === "inactive" ? "已停用" : "启用中"}
-              </div>
-              <div className="task-detail">
-                <div className="task-meta-row">
-                  <strong>{item.merchantName}</strong>
-                  <span>{item.merchantId}</span>
-                  <span>{item.paidOrderCount} 单</span>
-                </div>
-                <p className="storage-note">已付款金额 {formatCurrencyCents(item.paidTotalCents)}，应结佣金 {formatCurrencyCents(item.commissionAmountCents)}</p>
-                <p className="storage-note">最新付款 {formatDateTime(item.latestPaidAt || item.latestCreatedAt)}</p>
-              </div>
-            </article>
-          ))}
-          {!commissionSummary.length ? <p className="empty-note">当前筛选条件下还没有可结算佣金的已付款订单。</p> : null}
+          <p className="storage-note">管理合作商户、二维码链接和落地链接。</p>
         </div>
       </div>
 

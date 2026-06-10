@@ -2176,6 +2176,10 @@ textarea {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.settings-collapse-toggle {
+  align-self: start;
+}
+
 .file-button {
   position: relative;
   overflow: hidden;

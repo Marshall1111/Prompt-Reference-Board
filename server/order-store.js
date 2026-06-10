@@ -6,6 +6,12 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function normalizeCommissionRateBps(value) {
+  const next = Number(value);
+  if (!Number.isFinite(next)) return 0;
+  return Math.min(Math.max(Math.round(next), 0), 10000);
+}
+
 function safeJsonParse(text, fallback) {
   try {
     return text ? JSON.parse(text) : fallback;
@@ -503,7 +509,59 @@ export function createOrderStore({ dbPath }) {
     };
   }
 
-  function listMerchantCommissionSummary({ merchantId = "", startDate = "", endDate = "" } = {}) {
+  function listOrdersForExport({ visitorId = "", merchantId = "", orderStatus = "", search = "", startDate = "", endDate = "" } = {}) {
+    expireUnpaidOrders();
+
+    const conditions = [];
+    const params = {};
+    if (visitorId) {
+      conditions.push("visitor_id = @visitorId");
+      params.visitorId = visitorId;
+    }
+    if (merchantId) {
+      conditions.push("source_merchant_id = @merchantId");
+      params.merchantId = merchantId;
+    }
+    if (orderStatus) {
+      if (orderStatus === "pending_payment") {
+        conditions.push("payment_status = 'unpaid' AND fulfillment_status != 'cancelled'");
+      } else if (orderStatus === "pending_shipment") {
+        conditions.push("payment_status = 'paid' AND fulfillment_status NOT IN ('shipped', 'completed', 'cancelled')");
+      } else if (orderStatus === "shipped") {
+        conditions.push("fulfillment_status = 'shipped'");
+      } else if (orderStatus === "completed") {
+        conditions.push("fulfillment_status = 'completed'");
+      } else if (orderStatus === "cancelled") {
+        conditions.push("fulfillment_status = 'cancelled'");
+      } else if (orderStatus === "expired") {
+        conditions.push("payment_status = 'expired' AND fulfillment_status != 'cancelled'");
+      }
+    }
+    if (search) {
+      conditions.push("(order_no LIKE @search OR receiver_name LIKE @search OR receiver_phone LIKE @search OR source_merchant_name LIKE @search)");
+      params.search = `%${search}%`;
+    }
+    if (startDate) {
+      conditions.push("created_at >= @startDate");
+      params.startDate = `${startDate}T00:00:00.000Z`;
+    }
+    if (endDate) {
+      conditions.push("created_at <= @endDate");
+      params.endDate = `${endDate}T23:59:59.999Z`;
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const rows = db.prepare(`
+      SELECT *
+      FROM orders
+      ${where}
+      ORDER BY created_at DESC
+    `).all(params);
+
+    return rows.map((row) => mapOrderRow(row));
+  }
+
+  function listMerchantCommissionSummary({ merchantId = "", startDate = "", endDate = "", fallbackCommissionRateByMerchantId = {} } = {}) {
     expireUnpaidOrders();
 
     const conditions = ["payment_status = 'paid'", "source_merchant_id != ''"];
@@ -528,10 +586,19 @@ export function createOrderStore({ dbPath }) {
       ORDER BY created_at DESC
     `).all(params);
 
+    const fallbackCommissionRateMap = new Map(
+      Object.entries(fallbackCommissionRateByMerchantId).map(([nextMerchantId, nextRate]) => [
+        String(nextMerchantId || ""),
+        normalizeCommissionRateBps(nextRate)
+      ])
+    );
+
     const summaryByMerchantId = new Map();
     rows.forEach((row) => {
       const nextMerchantId = String(row.source_merchant_id || "");
       if (!nextMerchantId) return;
+      const snapshotCommissionRateBps = normalizeCommissionRateBps(row.commission_rate_bps);
+      const effectiveCommissionRateBps = snapshotCommissionRateBps || fallbackCommissionRateMap.get(nextMerchantId) || 0;
 
       const current = summaryByMerchantId.get(nextMerchantId) || {
         merchantId: nextMerchantId,
@@ -545,7 +612,7 @@ export function createOrderStore({ dbPath }) {
 
       current.paidOrderCount += 1;
       current.paidTotalCents += Number(row.total_cents || 0);
-      current.commissionAmountCents += Math.round(Number(row.total_cents || 0) * Number(row.commission_rate_bps || 0) / 10000);
+      current.commissionAmountCents += Math.round(Number(row.total_cents || 0) * effectiveCommissionRateBps / 10000);
       current.merchantName = current.merchantName || String(row.source_merchant_name || "");
       current.latestPaidAt = current.latestPaidAt || row.paid_at || null;
       current.latestCreatedAt = current.latestCreatedAt || row.created_at || null;
@@ -557,11 +624,63 @@ export function createOrderStore({ dbPath }) {
     );
   }
 
+  function backfillMissingCommissionSnapshots({ merchantById = {} } = {}) {
+    const merchantEntries = Object.entries(merchantById).map(([merchantId, merchant]) => [
+      String(merchantId || ""),
+      {
+        id: String(merchant?.id || merchantId || ""),
+        name: String(merchant?.name || ""),
+        commissionRateBps: normalizeCommissionRateBps(merchant?.commissionRateBps)
+      }
+    ]);
+    const safeMerchantById = new Map(merchantEntries.filter(([merchantId]) => merchantId));
+
+    if (!safeMerchantById.size) {
+      return { updatedOrderCount: 0 };
+    }
+
+    const ordersToRepair = db.prepare(`
+      SELECT id, source_merchant_id, source_merchant_name, commission_rate_bps
+      FROM orders
+      WHERE source_merchant_id != ''
+        AND commission_rate_bps = 0
+    `).all();
+
+    let updatedOrderCount = 0;
+    withTransaction(db, () => {
+      const statement = db.prepare(`
+        UPDATE orders
+        SET source_merchant_name = @sourceMerchantName,
+            commission_rate_bps = @commissionRateBps,
+            updated_at = @updatedAt
+        WHERE id = @id
+      `);
+
+      ordersToRepair.forEach((row) => {
+        const merchantId = String(row.source_merchant_id || "");
+        const merchant = safeMerchantById.get(merchantId);
+        if (!merchant || !merchant.commissionRateBps) return;
+
+        statement.run({
+          id: String(row.id || ""),
+          sourceMerchantName: merchant.name || String(row.source_merchant_name || ""),
+          commissionRateBps: merchant.commissionRateBps,
+          updatedAt: nowIso()
+        });
+        updatedOrderCount += 1;
+      });
+    });
+
+    return { updatedOrderCount };
+  }
+
   return {
     appendPaymentEvent,
+    backfillMissingCommissionSnapshots,
     createOrder,
     expireUnpaidOrders,
     listOrders,
+    listOrdersForExport,
     listMerchantCommissionSummary,
     readOrder,
     readOrderByOutTradeNo,
