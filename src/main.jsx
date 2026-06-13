@@ -125,8 +125,8 @@ const FRIDGE_MAGNET_EXPERIENCE_CONFIG = {
   sessionStorageKey: FRIDGE_MAGNET_SESSION_STORAGE_KEY,
   themeClass: "theme-fridge-magnet",
   titleKicker: "Fridge magnet studio",
-  title: "上传一张图片，开始制作一整组冰箱贴。",
-  subtitle: "沿用同一套上传、轮询、收藏与恢复流程，只是固定改走“冰箱贴”风格组。",
+  title: "上传一张照片，生成一组冰箱贴。",
+  subtitle: "系统会基于同一张图批量产出多种冰箱贴效果，完成后统一查看、收藏和下单。",
   waitingLines: ["预计共需要2~3分钟", "美图值得等待", "不妨放下手机，抱抱身边的人"],
   waitingFallback: "请保持当前页面开启，整组冰箱贴完成后会一次性揭晓。",
   startButtonIdle: "开始制作",
@@ -194,6 +194,15 @@ function App() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
+  useEffect(() => {
+    const titleByRoute = {
+      "public-fridge": "冰箱贴工作室",
+      "public-fridge-order": "冰箱贴订单",
+      "public-fridge-orders": "我的冰箱贴订单"
+    };
+    document.title = titleByRoute[route] || "风格提示词图库";
+  }, [route]);
+
   function navigate(nextRoute) {
     const pathByRoute = {
       "public-draw": "/",
@@ -235,7 +244,7 @@ function AdminApp({ navigate, route }) {
   const [styles, setStyles] = useState([]);
   const [styleGroups, setStyleGroups] = useState([]);
   const [inviteCodes, setInviteCodes] = useState([]);
-  const [visitors, setVisitors] = useState([]);
+  const [visitorRecords, setVisitorRecords] = useState([]);
   const [merchants, setMerchants] = useState([]);
   const [orders, setOrders] = useState([]);
   const [ordersMeta, setOrdersMeta] = useState({
@@ -279,7 +288,7 @@ function AdminApp({ navigate, route }) {
     refreshStyles().then(setStyles).catch(() => setStyles([]));
     refreshStyleGroups().then(setStyleGroups).catch(() => setStyleGroups([]));
     refreshInviteCodes().then(setInviteCodes).catch(() => setInviteCodes([]));
-    refreshVisitors().then(setVisitors).catch(() => setVisitors([]));
+    refreshVisitorRecords().then(setVisitorRecords).catch(() => setVisitorRecords([]));
     refreshAdminMerchants({ page: 1, limit: 500 }).then((payload) => setMerchants(payload.merchants || [])).catch(() => setMerchants([]));
     refreshAdminOrders()
       .then((payload) => {
@@ -409,7 +418,7 @@ function AdminApp({ navigate, route }) {
         refreshStyles().then(setStyles),
         refreshStyleGroups().then(setStyleGroups),
         refreshInviteCodes().then(setInviteCodes),
-        refreshVisitors().then(setVisitors),
+        refreshVisitorRecords().then(setVisitorRecords),
         refreshAdminMerchants({ page: 1, limit: 500 }).then((payload) => setMerchants(payload.merchants || [])),
         refreshAdminSettings().then(setSettings),
         refreshStorageSummary().then(setStorageSummary)
@@ -523,10 +532,10 @@ function AdminApp({ navigate, route }) {
           <InviteAdminPage
             inviteCodes={inviteCodes}
             onRefreshInviteCodes={() => refreshInviteCodes().then(setInviteCodes)}
-            onRefreshVisitors={() => refreshVisitors().then(setVisitors)}
+            onRefreshVisitorRecords={() => refreshVisitorRecords().then(setVisitorRecords)}
             onRefreshSettings={() => refreshAdminSettings().then(setSettings)}
             settings={settings}
-            visitors={visitors}
+            visitorRecords={visitorRecords}
           />
         ) : route === "admin-storage" ? (
           <StorageAdminPage
@@ -1002,6 +1011,7 @@ function PublicExperiencePage({ config }) {
   const [manualOrderCopied, setManualOrderCopied] = useState(false);
   const [manualMessageCopied, setManualMessageCopied] = useState(false);
   const [manualPaymentCardUrl, setManualPaymentCardUrl] = useState("");
+  const [visitTrackingReady, setVisitTrackingReady] = useState(false);
   const resultMediaRefs = useRef(new Map());
   const cardClipPanelRef = useRef(null);
   const flightTimeoutRef = useRef(null);
@@ -1011,6 +1021,8 @@ function PublicExperiencePage({ config }) {
   const manualOrderCopiedTimeoutRef = useRef(null);
   const manualMessageCopiedTimeoutRef = useRef(null);
   const merchantClaimKeyRef = useRef("");
+  const visitSessionIdRef = useRef("");
+  const visitLifecycleTokenRef = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -1022,14 +1034,24 @@ function PublicExperiencePage({ config }) {
   }, []);
 
   useEffect(() => {
-    if (experienceType !== "fridge-magnet") return undefined;
+    setVisitTrackingReady(false);
+    if (experienceType !== "fridge-magnet") {
+      setVisitTrackingReady(true);
+      return undefined;
+    }
     const searchParams = new URLSearchParams(window.location.search);
     const mid = searchParams.get("mid") || searchParams.get("m") || "";
     const sig = searchParams.get("sig") || searchParams.get("s") || "";
-    if (!mid || !sig) return undefined;
+    if (!mid || !sig) {
+      setVisitTrackingReady(true);
+      return undefined;
+    }
 
     const claimKey = `${mid}:${sig}`;
-    if (merchantClaimKeyRef.current === claimKey) return undefined;
+    if (merchantClaimKeyRef.current === claimKey) {
+      setVisitTrackingReady(true);
+      return undefined;
+    }
     merchantClaimKeyRef.current = claimKey;
 
     let isActive = true;
@@ -1042,12 +1064,105 @@ function PublicExperiencePage({ config }) {
       .catch((nextError) => {
         if (!isActive) return;
         setError((current) => current || nextError.message || "锁定商户来源失败。");
+      })
+      .finally(() => {
+        if (isActive) setVisitTrackingReady(true);
       });
 
     return () => {
       isActive = false;
     };
   }, [experienceType]);
+
+  useEffect(() => {
+    if (!visitTrackingReady) return undefined;
+
+    let isActive = true;
+
+    async function beginVisit() {
+      if (!isActive || document.visibilityState === "hidden") return;
+      const lifecycleToken = ++visitLifecycleTokenRef.current;
+      try {
+        const payload = await reportVisitSessionEvent({
+          eventType: "enter",
+          experienceType,
+          route: window.location.pathname || "/"
+        });
+        const nextSessionId = String(payload?.session?.sessionId || "");
+        if (!nextSessionId) return;
+        if (!isActive || lifecycleToken !== visitLifecycleTokenRef.current || document.visibilityState === "hidden") {
+          sendVisitSessionLeaveEvent({
+            eventType: "leave",
+            experienceType,
+            route: window.location.pathname || "/",
+            currentSessionId: nextSessionId
+          });
+          return;
+        }
+        visitSessionIdRef.current = nextSessionId;
+      } catch {}
+    }
+
+    function endVisit() {
+      visitLifecycleTokenRef.current += 1;
+      const currentSessionId = visitSessionIdRef.current;
+      visitSessionIdRef.current = "";
+      if (!currentSessionId) return;
+      sendVisitSessionLeaveEvent({
+        eventType: "leave",
+        experienceType,
+        route: window.location.pathname || "/",
+        currentSessionId
+      });
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "hidden") {
+        endVisit();
+        return;
+      }
+      if (!visitSessionIdRef.current) {
+        void beginVisit();
+      }
+    }
+
+    function heartbeatVisit() {
+      const currentSessionId = visitSessionIdRef.current;
+      if (!currentSessionId || document.visibilityState === "hidden") return;
+      reportVisitSessionEvent({
+        eventType: "heartbeat",
+        experienceType,
+        route: window.location.pathname || "/",
+        currentSessionId
+      })
+        .then((payload) => {
+          const nextSession = payload?.session;
+          if (!nextSession) {
+            visitSessionIdRef.current = "";
+            return;
+          }
+          if (nextSession.status !== "active") {
+            visitSessionIdRef.current = "";
+            return;
+          }
+          visitSessionIdRef.current = String(nextSession.sessionId || currentSessionId);
+        })
+        .catch(() => {});
+    }
+
+    void beginVisit();
+    const timer = window.setInterval(heartbeatVisit, 30000);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", endVisit);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", endVisit);
+      endVisit();
+    };
+  }, [experienceType, visitTrackingReady]);
 
   function refreshVisitorStateSilently() {
     fetchVisitorState().then(setVisitorState).catch(() => {});
@@ -3998,6 +4113,40 @@ async function refreshVisitors() {
   return payload.visitors || [];
 }
 
+async function refreshVisitorRecords() {
+  const response = await fetch("/api/admin/visitor-records");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取访问记录失败。");
+  return payload.records || [];
+}
+
+async function reportVisitSessionEvent(payload) {
+  const response = await fetch("/api/visit-sessions/report", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || "记录访问状态失败。");
+  return data;
+}
+
+function sendVisitSessionLeaveEvent(payload) {
+  const body = JSON.stringify(payload);
+  if (navigator.sendBeacon) {
+    try {
+      const blob = new Blob([body], { type: "application/json" });
+      if (navigator.sendBeacon("/api/visit-sessions/report", blob)) return;
+    } catch {}
+  }
+  fetch("/api/visit-sessions/report", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true
+  }).catch(() => {});
+}
+
 async function refreshAdminMerchants(params = {}) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -4299,7 +4448,7 @@ function AdminLoginPage({ onLogin }) {
   );
 }
 
-function InviteAdminPage({ inviteCodes, visitors, settings, onRefreshInviteCodes, onRefreshVisitors, onRefreshSettings }) {
+function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInviteCodes, onRefreshVisitorRecords, onRefreshSettings }) {
   const [count, setCount] = useState(5);
   const [prefix, setPrefix] = useState("");
   const [anonymousQuotaLimit, setAnonymousQuotaLimit] = useState(settings?.anonymousQuotaLimit || 5);
@@ -4324,7 +4473,7 @@ function InviteAdminPage({ inviteCodes, visitors, settings, onRefreshInviteCodes
     setError("");
     try {
       await createInviteCodesRequest({ count, prefix });
-      await Promise.all([onRefreshInviteCodes(), onRefreshVisitors()]);
+      await onRefreshInviteCodes();
       setPrefix("");
     } catch (nextError) {
       setError(nextError.message || "创建邀请码失败。");
@@ -4338,7 +4487,7 @@ function InviteAdminPage({ inviteCodes, visitors, settings, onRefreshInviteCodes
     setError("");
     try {
       await updateAdminSettings({ anonymousQuotaLimit });
-      await Promise.all([onRefreshSettings(), onRefreshVisitors()]);
+      await onRefreshSettings();
     } catch (nextError) {
       setError(nextError.message || "更新系统设置失败。");
     } finally {
@@ -4357,14 +4506,14 @@ function InviteAdminPage({ inviteCodes, visitors, settings, onRefreshInviteCodes
   }
 
   return (
-    <section className="task-page" aria-label="邀请码与访客额度">
+    <section className="task-page" aria-label="邀请码与访问记录">
       <div className="task-toolbar">
         <div>
           <p className="eyebrow">Invites</p>
-          <h2>邀请码与访客额度</h2>
-          <p className="storage-note">创建邀请码、停用邀请码，并查看访客额度消耗情况。</p>
+          <h2>邀请码与访问记录</h2>
+          <p className="storage-note">创建邀请码、设置匿名免费次数，并查看最近访客的来源、停留、生成与下单情况。</p>
         </div>
-        <button className="secondary-button" onClick={() => Promise.all([onRefreshInviteCodes(), onRefreshVisitors()])} type="button">
+        <button className="secondary-button" onClick={() => Promise.all([onRefreshInviteCodes(), onRefreshVisitorRecords(), onRefreshSettings()])} type="button">
           <RefreshCw size={18} />
           <span>刷新</span>
         </button>
@@ -4446,28 +4595,50 @@ function InviteAdminPage({ inviteCodes, visitors, settings, onRefreshInviteCodes
         </div>
       ) : null}
 
-      <section className="task-page" aria-label="访客额度列表">
+      <section className="task-page" aria-label="访问记录列表">
         <div className="task-toolbar">
           <div>
-            <p className="eyebrow">Visitors</p>
-            <h2>访客额度</h2>
+            <p className="eyebrow">Visitor records</p>
+            <h2>访问记录</h2>
+            <p className="storage-note">按访客聚合展示最近活跃、最近停留、生成次数与累计订单金额。</p>
           </div>
         </div>
-        <div className="task-list">
-          {visitors.map((visitor) => (
-            <article className="task-card" key={visitor.visitorId}>
-              <div className={`task-status ${visitor.tier === "invited" ? "succeeded" : "queued"}`}>{visitor.tier === "invited" ? "已提权" : "匿名"}</div>
-              <div className="task-detail">
-                <div className="task-meta-row">
-                  <strong>{shortJobId(visitor.visitorId)}</strong>
-                  <span>已用 {visitor.quotaUsed}</span>
-                  <span>剩余 {visitor.quotaRemaining}</span>
-                </div>
-                <p className="storage-note">最近更新 {formatDateTime(visitor.updatedAt)}</p>
-              </div>
-            </article>
-          ))}
-        </div>
+        {visitorRecords.length ? (
+          <div className="visitor-record-table">
+            <div className="visitor-record-head" role="presentation">
+              <span>访客</span>
+              <span>来源商户</span>
+              <span>最近活跃</span>
+              <span>最近停留</span>
+              <span>生成次数</span>
+              <span>订单金额</span>
+            </div>
+            {visitorRecords.map((record) => (
+              <article className="visitor-record-row" key={record.visitorId}>
+                <strong className="visitor-record-cell" data-label="访客" title={record.visitorId}>
+                  {shortJobId(record.visitorId)}
+                </strong>
+                <span className="visitor-record-cell" data-label="来源商户" title={record.sourceMerchantName || "无"}>
+                  {record.sourceMerchantName || "无"}
+                </span>
+                <span className="visitor-record-cell" data-label="最近活跃">
+                  {formatDateTime(record.lastActiveAt)}
+                </span>
+                <span className="visitor-record-cell" data-label="最近停留">
+                  {formatStayDuration(record.lastVisitDurationSeconds)}
+                </span>
+                <span className="visitor-record-cell" data-label="生成次数">
+                  {Math.max(0, Number(record.generationCount || 0))}
+                </span>
+                <span className="visitor-record-cell" data-label="订单金额">
+                  {formatCurrencyCents(record.orderTotalCents)}
+                </span>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="empty-note">还没有访问记录。</p>
+        )}
       </section>
     </section>
   );
@@ -5861,6 +6032,18 @@ function formatDuration(seconds) {
   const hours = Math.floor(minutes / 60);
   const restMinutes = minutes % 60;
   return restMinutes ? `${hours}h ${restMinutes}m` : `${hours}h`;
+}
+
+function formatStayDuration(seconds) {
+  if (seconds === null || seconds === undefined || Number.isNaN(Number(seconds))) return "--";
+  const safeSeconds = Math.max(0, Math.round(Number(seconds)));
+  if (safeSeconds < 60) return `${safeSeconds}秒`;
+  const minutes = Math.floor(safeSeconds / 60);
+  const restSeconds = safeSeconds % 60;
+  if (minutes < 60) return restSeconds ? `${minutes}分${restSeconds}秒` : `${minutes}分`;
+  const hours = Math.floor(minutes / 60);
+  const restMinutes = minutes % 60;
+  return restMinutes ? `${hours}小时${restMinutes}分` : `${hours}小时`;
 }
 
 function formatDurationMs(value) {

@@ -17,6 +17,7 @@ const dataPath = path.join(rootDir, "data", "styles.json");
 const styleGroupsPath = path.join(rootDir, "data", "style-groups.json");
 const imageJobRoot = path.join(rootDir, "data", "image-jobs");
 const drawCardSessionRoot = path.join(rootDir, "data", "draw-card-sessions");
+const visitSessionRoot = path.join(rootDir, "data", "visit-sessions");
 const tempReferenceRoot = path.join(rootDir, "data", "temp-image-references");
 const visitorStateRoot = path.join(rootDir, "data", "visitor-states");
 const inviteCodePath = path.join(rootDir, "data", "invite-codes.json");
@@ -90,6 +91,8 @@ const DEFAULT_IMAGE_JOB_PAGE = 1;
 const DEFAULT_IMAGE_JOB_LIMIT = 20;
 const MAX_IMAGE_JOB_LIMIT = 100;
 const DEFAULT_PUBLIC_EXPERIENCE_TYPE = "draw-card";
+const VISIT_SESSION_TIMEOUT_MS = 90 * 1000;
+const ADMIN_VISITOR_RECORD_LIMIT = 50;
 const PUBLIC_EXPERIENCE_CONFIGS = {
   "draw-card": {
     experienceType: "draw-card",
@@ -270,6 +273,104 @@ app.post("/api/public/merchant-source/claim", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(error.status || 400).json({ message: error.publicMessage || "锁定商户来源失败。" });
+  }
+});
+
+app.post("/api/visit-sessions/report", async (req, res) => {
+  try {
+    const eventType = String(req.body?.eventType || "").trim().toLowerCase();
+    if (!["enter", "heartbeat", "leave"].includes(eventType)) {
+      return res.status(400).json({ message: "访问事件类型无效。" });
+    }
+
+    if (eventType === "enter") {
+      await closeTimedOutVisitSessions();
+      const visitor = await getVisitorState(req);
+      const now = new Date().toISOString();
+      const previousSessionId = visitor.activeVisitSessionId;
+      if (previousSessionId && isSafeVisitSessionId(previousSessionId)) {
+        const previousSession = await readVisitSession(previousSessionId);
+        if (previousSession && previousSession.status === "active" && previousSession.visitorId === visitor.visitorId) {
+          await finalizeVisitSession(previousSession, {
+            status: "timed_out",
+            endedAt: previousSession.lastHeartbeatAt || previousSession.startedAt || now,
+            updatedAt: now
+          });
+        }
+      }
+
+      const activeSource = getActiveVisitorMerchantSource(visitor);
+      const session = await saveVisitSession({
+        sessionId: randomUUID(),
+        visitorId: visitor.visitorId,
+        experienceType: req.body?.experienceType,
+        route: req.body?.route,
+        sourceMerchantId: activeSource?.sourceMerchantId || "",
+        sourceMerchantName: activeSource?.sourceMerchantName || "",
+        startedAt: now,
+        lastHeartbeatAt: now,
+        endedAt: null,
+        durationSeconds: null,
+        status: "active",
+        createdAt: now,
+        updatedAt: now
+      });
+
+      await saveVisitorState({
+        ...visitor,
+        lastActiveAt: now,
+        activeVisitSessionId: session.sessionId,
+        updatedAt: now
+      });
+
+      return res.json({ session: toPublicVisitSession(session) });
+    }
+
+    const currentSessionId = String(req.body?.currentSessionId || "").trim();
+    if (!isSafeVisitSessionId(currentSessionId)) {
+      return res.status(400).json({ message: "访问会话不存在。" });
+    }
+
+    const visitor = await getVisitorState(req);
+    const currentSession = await readVisitSession(currentSessionId);
+    if (!currentSession || currentSession.visitorId !== visitor.visitorId) {
+      if (eventType === "leave") return res.json({ session: null });
+      return res.status(404).json({ message: "访问会话不存在。" });
+    }
+
+    if (eventType === "heartbeat") {
+      if (currentSession.status !== "active") {
+        return res.json({ session: toPublicVisitSession(currentSession) });
+      }
+      const now = new Date().toISOString();
+      const nextSession = await saveVisitSession({
+        ...currentSession,
+        lastHeartbeatAt: now,
+        updatedAt: now
+      });
+      await saveVisitorState({
+        ...visitor,
+        lastActiveAt: now,
+        activeVisitSessionId: nextSession.sessionId,
+        updatedAt: now
+      });
+      return res.json({ session: toPublicVisitSession(nextSession) });
+    }
+
+    if (currentSession.status !== "active") {
+      return res.json({ session: toPublicVisitSession(currentSession) });
+    }
+
+    const now = new Date().toISOString();
+    const endedSession = await finalizeVisitSession(currentSession, {
+      status: "ended",
+      endedAt: now,
+      updatedAt: now
+    });
+    return res.json({ session: toPublicVisitSession(endedSession) });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "记录访问状态失败，请稍后再试。" });
   }
 });
 
@@ -1312,6 +1413,99 @@ app.get("/api/admin/visitors", requireAdmin, async (_req, res) => {
   }
 });
 
+app.get("/api/admin/visitor-records", requireAdmin, async (_req, res) => {
+  try {
+    await closeTimedOutVisitSessions();
+    const [visitors, visitSessions, drawCardSessions] = await Promise.all([
+      listVisitorStates(),
+      listVisitSessions(),
+      listDrawCardSessions()
+    ]);
+    const orders = orderStore.listOrdersForExport();
+
+    const visitorById = new Map(visitors.map((visitor) => [visitor.visitorId, normalizeVisitorState(visitor)]));
+    const sessionsByVisitorId = new Map();
+    const latestOrderSourceByVisitorId = new Map();
+    const orderTotalByVisitorId = new Map();
+    const generationCountByVisitorId = new Map();
+    const visitorIds = new Set(visitorById.keys());
+
+    visitSessions.forEach((session) => {
+      const safeSession = normalizeVisitSession(session);
+      if (!safeSession.visitorId) return;
+      visitorIds.add(safeSession.visitorId);
+      const current = sessionsByVisitorId.get(safeSession.visitorId) || [];
+      current.push(safeSession);
+      sessionsByVisitorId.set(safeSession.visitorId, current);
+    });
+
+    drawCardSessions.forEach((session) => {
+      const visitorId = String(session?.ownerVisitorId || "");
+      if (!visitorId) return;
+      visitorIds.add(visitorId);
+      generationCountByVisitorId.set(visitorId, Number(generationCountByVisitorId.get(visitorId) || 0) + 1);
+    });
+
+    orders.forEach((order) => {
+      const visitorId = String(order?.visitorId || "");
+      if (!visitorId) return;
+      visitorIds.add(visitorId);
+      if (String(order?.fulfillmentStatus || "") !== "cancelled" && !order?.cancelledAt) {
+        orderTotalByVisitorId.set(visitorId, Number(orderTotalByVisitorId.get(visitorId) || 0) + Number(order?.totalCents || 0));
+      }
+      const hasMerchantSource = String(order?.sourceMerchantId || "").trim() || String(order?.sourceMerchantName || "").trim();
+      const currentOrder = latestOrderSourceByVisitorId.get(visitorId);
+      const currentCreatedAt = String(currentOrder?.createdAt || "");
+      const nextCreatedAt = String(order?.createdAt || "");
+      if (hasMerchantSource && (!currentOrder || nextCreatedAt.localeCompare(currentCreatedAt) > 0)) {
+        latestOrderSourceByVisitorId.set(visitorId, {
+          sourceMerchantId: String(order?.sourceMerchantId || ""),
+          sourceMerchantName: String(order?.sourceMerchantName || ""),
+          createdAt: nextCreatedAt
+        });
+      }
+    });
+
+    const records = Array.from(visitorIds)
+      .map((visitorId) => {
+        const visitor = visitorById.get(visitorId) || normalizeVisitorState({
+          visitorId,
+          tier: "anonymous",
+          quotaLimit: DEFAULT_VISITOR_ANONYMOUS_LIMIT,
+          quotaUsed: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        const visitorSessions = (sessionsByVisitorId.get(visitorId) || []).sort((left, right) =>
+          String(getVisitSessionLastActivityAt(right) || "").localeCompare(String(getVisitSessionLastActivityAt(left) || ""))
+        );
+        const latestVisitSession = visitorSessions[0] || null;
+        const latestOrderSource = latestOrderSourceByVisitorId.get(visitorId) || null;
+        const sourceMerchantId = visitor.sourceMerchantId || latestVisitSession?.sourceMerchantId || latestOrderSource?.sourceMerchantId || "";
+        const sourceMerchantName = visitor.sourceMerchantName || latestVisitSession?.sourceMerchantName || latestOrderSource?.sourceMerchantName || "";
+        const lastActiveAt = getVisitSessionLastActivityAt(latestVisitSession) || visitor.lastActiveAt || visitor.updatedAt || visitor.createdAt || null;
+        return toPublicAdminVisitorRecord({
+          visitorId,
+          sourceMerchantId,
+          sourceMerchantName,
+          lastActiveAt,
+          lastVisitDurationSeconds: latestVisitSession?.durationSeconds ?? null,
+          generationCount: Number(generationCountByVisitorId.get(visitorId) || 0),
+          orderTotalCents: Number(orderTotalByVisitorId.get(visitorId) || 0),
+          createdAt: visitor.createdAt || null,
+          updatedAt: lastActiveAt || visitor.updatedAt || visitor.createdAt || null
+        });
+      })
+      .sort((left, right) => String(right.lastActiveAt || "").localeCompare(String(left.lastActiveAt || "")))
+      .slice(0, ADMIN_VISITOR_RECORD_LIMIT);
+
+    res.json({ records });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取访问记录失败。" });
+  }
+});
+
 app.get("/api/admin/merchants", requireAdmin, async (req, res) => {
   try {
     const page = Math.max(Number(req.query.page || 1), 1);
@@ -2172,9 +2366,143 @@ function normalizeVisitorState(visitor) {
     sourceExpiresAt: sourceIsActive ? rawSourceExpiresAt : null,
     invitedAt: visitor?.invitedAt || null,
     contactMessage: String(visitor?.contactMessage || DEFAULT_CONTACT_MESSAGE),
+    lastActiveAt: visitor?.lastActiveAt || visitor?.updatedAt || visitor?.createdAt || new Date().toISOString(),
+    activeVisitSessionId: isSafeVisitSessionId(visitor?.activeVisitSessionId) ? String(visitor.activeVisitSessionId) : "",
     createdAt: visitor?.createdAt || new Date().toISOString(),
     updatedAt: visitor?.updatedAt || new Date().toISOString()
   };
+}
+
+async function readVisitSession(sessionId) {
+  if (!isSafeVisitSessionId(sessionId)) return null;
+  try {
+    return normalizeVisitSession(JSON.parse(await readFile(getVisitSessionPath(sessionId), "utf-8")));
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function saveVisitSession(session) {
+  await mkdir(visitSessionRoot, { recursive: true });
+  const safeSession = normalizeVisitSession(session);
+  await writeFile(getVisitSessionPath(safeSession.sessionId), `${JSON.stringify(safeSession, null, 2)}\n`, "utf-8");
+  return safeSession;
+}
+
+async function listVisitSessions() {
+  await mkdir(visitSessionRoot, { recursive: true });
+  const entries = await readdir(visitSessionRoot, { withFileTypes: true });
+  const sessions = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .map((entry) => readVisitSession(entry.name.replace(/\.json$/, "")))
+  );
+  return sessions.filter(Boolean);
+}
+
+function normalizeVisitSessionRoute(route) {
+  const current = String(route || "").trim();
+  if (!current) return "/";
+  if (!current.startsWith("/")) return `/${current}`;
+  return current.slice(0, 200);
+}
+
+function parseIsoTime(value) {
+  const time = value ? new Date(value).getTime() : NaN;
+  return Number.isFinite(time) ? time : NaN;
+}
+
+function computeElapsedSeconds(startedAt, endedAt) {
+  const startedAtMs = parseIsoTime(startedAt);
+  const endedAtMs = parseIsoTime(endedAt);
+  if (!Number.isFinite(startedAtMs) || !Number.isFinite(endedAtMs)) return null;
+  return Math.max(0, Math.round((endedAtMs - startedAtMs) / 1000));
+}
+
+function getVisitSessionLastActivityAt(session) {
+  if (!session) return null;
+  return session.lastHeartbeatAt || session.endedAt || session.startedAt || session.updatedAt || session.createdAt || null;
+}
+
+function normalizeVisitSession(session) {
+  const now = new Date().toISOString();
+  const startedAt = session?.startedAt || session?.createdAt || now;
+  const lastHeartbeatAt = session?.lastHeartbeatAt || startedAt;
+  const status = ["active", "ended", "timed_out"].includes(String(session?.status || "").trim())
+    ? String(session.status || "").trim()
+    : "active";
+  const endedAt = status === "active" ? null : session?.endedAt || lastHeartbeatAt || startedAt;
+  const durationSeconds = status === "active"
+    ? null
+    : (() => {
+        const next = Number(session?.durationSeconds);
+        if (Number.isFinite(next)) return Math.max(0, Math.round(next));
+        return computeElapsedSeconds(startedAt, endedAt);
+      })();
+
+  return {
+    sessionId: String(session?.sessionId || randomUUID()),
+    visitorId: String(session?.visitorId || ""),
+    experienceType: normalizePublicExperienceType(session?.experienceType),
+    route: normalizeVisitSessionRoute(session?.route),
+    sourceMerchantId: String(session?.sourceMerchantId || "").trim(),
+    sourceMerchantName: String(session?.sourceMerchantName || "").trim(),
+    startedAt,
+    lastHeartbeatAt,
+    endedAt,
+    durationSeconds,
+    status,
+    createdAt: session?.createdAt || startedAt,
+    updatedAt: session?.updatedAt || endedAt || lastHeartbeatAt || startedAt
+  };
+}
+
+async function finalizeVisitSession(session, { status = "ended", endedAt = "", updatedAt = "" } = {}) {
+  const current = normalizeVisitSession(session);
+  if (current.status !== "active") return current;
+  const nextUpdatedAt = updatedAt || new Date().toISOString();
+  const safeEndedAt = endedAt || (status === "timed_out" ? current.lastHeartbeatAt || current.startedAt : nextUpdatedAt);
+  const nextSession = await saveVisitSession({
+    ...current,
+    endedAt: safeEndedAt,
+    durationSeconds: computeElapsedSeconds(current.startedAt, safeEndedAt),
+    status,
+    updatedAt: nextUpdatedAt
+  });
+
+  const visitor = await readVisitorState(current.visitorId);
+  if (visitor?.activeVisitSessionId === current.sessionId) {
+    await saveVisitorState({
+      ...visitor,
+      activeVisitSessionId: "",
+      lastActiveAt: getVisitSessionLastActivityAt(nextSession) || visitor.lastActiveAt || visitor.updatedAt,
+      updatedAt: nextUpdatedAt
+    });
+  }
+
+  return nextSession;
+}
+
+async function closeTimedOutVisitSessions(referenceTime = Date.now()) {
+  const sessions = await listVisitSessions();
+  const nowMs = Number(referenceTime);
+  const timedOutSessions = sessions.filter((session) => {
+    if (session.status !== "active") return false;
+    const lastActivityAtMs = parseIsoTime(getVisitSessionLastActivityAt(session));
+    if (!Number.isFinite(lastActivityAtMs)) return false;
+    return nowMs - lastActivityAtMs >= VISIT_SESSION_TIMEOUT_MS;
+  });
+
+  await Promise.all(
+    timedOutSessions.map((session) =>
+      finalizeVisitSession(session, {
+        status: "timed_out",
+        endedAt: session.lastHeartbeatAt || session.startedAt || new Date(nowMs).toISOString(),
+        updatedAt: new Date(nowMs).toISOString()
+      })
+    )
+  );
 }
 
 async function getVisitorState(req) {
@@ -3348,6 +3676,44 @@ function toPublicAdminVisitor(visitor) {
     invitedAt: safeVisitor.invitedAt,
     createdAt: safeVisitor.createdAt,
     updatedAt: safeVisitor.updatedAt
+  };
+}
+
+function toPublicVisitSession(session) {
+  const safeSession = normalizeVisitSession(session);
+  return {
+    sessionId: safeSession.sessionId,
+    visitorId: safeSession.visitorId,
+    experienceType: safeSession.experienceType,
+    route: safeSession.route,
+    sourceMerchantId: safeSession.sourceMerchantId,
+    sourceMerchantName: safeSession.sourceMerchantName,
+    startedAt: safeSession.startedAt,
+    lastHeartbeatAt: safeSession.lastHeartbeatAt,
+    endedAt: safeSession.endedAt,
+    durationSeconds: safeSession.durationSeconds,
+    status: safeSession.status,
+    createdAt: safeSession.createdAt,
+    updatedAt: safeSession.updatedAt
+  };
+}
+
+function toPublicAdminVisitorRecord(record) {
+  const rawLastVisitDurationSeconds = record?.lastVisitDurationSeconds;
+  return {
+    visitorId: String(record?.visitorId || ""),
+    sourceMerchantId: String(record?.sourceMerchantId || ""),
+    sourceMerchantName: String(record?.sourceMerchantName || ""),
+    lastActiveAt: record?.lastActiveAt || null,
+    lastVisitDurationSeconds: rawLastVisitDurationSeconds === null || rawLastVisitDurationSeconds === undefined || rawLastVisitDurationSeconds === ""
+      ? null
+      : Number.isFinite(Number(rawLastVisitDurationSeconds))
+        ? Math.max(0, Math.round(Number(rawLastVisitDurationSeconds)))
+        : null,
+    generationCount: Math.max(0, Number(record?.generationCount || 0)),
+    orderTotalCents: Math.max(0, Number(record?.orderTotalCents || 0)),
+    createdAt: record?.createdAt || null,
+    updatedAt: record?.updatedAt || null
   };
 }
 
@@ -4690,6 +5056,7 @@ function toPublicDrawCardSession(session) {
 async function prepareImageJobStorage() {
   await mkdir(imageJobRoot, { recursive: true });
   await mkdir(drawCardSessionRoot, { recursive: true });
+  await mkdir(visitSessionRoot, { recursive: true });
   await mkdir(tempReferenceRoot, { recursive: true });
   await mkdir(visitorStateRoot, { recursive: true });
   await mkdir(adminSessionRoot, { recursive: true });
@@ -5467,11 +5834,19 @@ function getDrawCardSessionPath(sessionId) {
   return path.join(drawCardSessionRoot, `${sessionId}.json`);
 }
 
+function getVisitSessionPath(sessionId) {
+  return path.join(visitSessionRoot, `${sessionId}.json`);
+}
+
 function getImageJobPath(jobId) {
   return path.join(imageJobRoot, `${jobId}.json`);
 }
 
 function isSafeDrawCardSessionId(sessionId) {
+  return /^[a-f0-9-]{36}$/i.test(String(sessionId || ""));
+}
+
+function isSafeVisitSessionId(sessionId) {
   return /^[a-f0-9-]{36}$/i.test(String(sessionId || ""));
 }
 

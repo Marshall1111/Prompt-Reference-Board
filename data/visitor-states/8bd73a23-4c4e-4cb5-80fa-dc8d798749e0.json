@@ -13,8 +13,14 @@
     "a321d726-c210-41cb-9021-573337640a6a",
     "135baa9f-eeb3-468b-8a2c-6e195d2276b6"
   ],
+  "sourceMerchantId": "",
+  "sourceMerchantName": "",
+  "sourceClaimedAt": null,
+  "sourceExpiresAt": null,
   "invitedAt": "2026-06-04T03:50:31.612Z",
   "contactMessage": "如需更多生图机会，请联系客服填写邀请码。",
+  "lastActiveAt": "2026-06-13T02:26:07.903Z",
+  "activeVisitSessionId": "",
   "createdAt": "2026-06-04T03:06:50.518Z",
-  "updatedAt": "2026-06-07T03:56:04.004Z"
+  "updatedAt": "2026-06-13T02:26:11.969Z"
 }
