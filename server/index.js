@@ -91,6 +91,17 @@ const DEFAULT_IMAGE_JOB_PAGE = 1;
 const DEFAULT_IMAGE_JOB_LIMIT = 20;
 const MAX_IMAGE_JOB_LIMIT = 100;
 const DEFAULT_PUBLIC_EXPERIENCE_TYPE = "draw-card";
+const DEFAULT_SUBJECT_CLASSIFIER_MODEL = "gpt-5.4-mini";
+const DEFAULT_SUBJECT_CLASSIFIER_BASE_URL = "https://api.openai.com/v1";
+const SUBJECT_CLASSIFIER_TIMEOUT_MS = 30000;
+const SUBJECT_CLASSIFIER_CONFIDENCE_THRESHOLD = 0.55;
+const DRAW_CARD_RANDOM_STYLE_COUNT = 3;
+const DEFAULT_DRAW_CARD_WEIGHT = 100;
+const SUBJECT_PERSON = "person";
+const SUBJECT_PET = "pet";
+const SUBJECT_MIXED = "mixed";
+const SUBJECT_UNKNOWN = "unknown";
+const SUBJECT_BOTH = "both";
 const VISIT_SESSION_TIMEOUT_MS = 90 * 1000;
 const ADMIN_VISITOR_RECORD_LIMIT = 50;
 const PUBLIC_EXPERIENCE_CONFIGS = {
@@ -239,6 +250,360 @@ function buildPublicExperiencePrompt(prompt, config) {
   if (!suffix) return basePrompt;
   if (!basePrompt) return suffix;
   return `${basePrompt}\n\n${suffix}`;
+}
+
+function clampConfidence(value) {
+  const confidence = Number(value);
+  if (!Number.isFinite(confidence)) return null;
+  return Math.min(Math.max(confidence, 0), 1);
+}
+
+function normalizeDrawCardWeight(value) {
+  const weight = Math.round(Number(value));
+  if (!Number.isFinite(weight)) return DEFAULT_DRAW_CARD_WEIGHT;
+  return Math.min(Math.max(weight, 0), 999999);
+}
+
+function normalizeDrawCardEnabled(value, fallback = true) {
+  if (value === undefined || value === null || value === "") return Boolean(fallback);
+  if (typeof value === "boolean") return value;
+  const raw = String(value).trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(raw)) return true;
+  if (["0", "false", "no", "off"].includes(raw)) return false;
+  return Boolean(fallback);
+}
+
+function getConfiguredSubjectClassifierIds() {
+  const configured = String(process.env.VISION_API_PROVIDERS || process.env.IMAGE_API_PROVIDERS || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return configured.filter((id, index, list) => list.indexOf(id) === index);
+}
+
+function readConfiguredSubjectClassifier(id) {
+  const key = providerEnvKey(id);
+  const apiKey = process.env[`VISION_API_${key}_KEY`] || process.env[`IMAGE_API_${key}_KEY`];
+  const baseUrl =
+    process.env[`VISION_API_${key}_BASE_URL`] ||
+    process.env[`IMAGE_API_${key}_BASE_URL`] ||
+    process.env.OPENAI_RESPONSES_BASE_URL ||
+    process.env.OPENAI_BASE_URL;
+  if (!isUsableApiKey(apiKey) || !baseUrl) return null;
+
+  return {
+    id,
+    name: process.env[`VISION_API_${key}_NAME`] || process.env[`IMAGE_API_${key}_NAME`] || id,
+    apiKey,
+    baseUrl: String(baseUrl).trim(),
+    model:
+      String(
+        process.env[`VISION_API_${key}_MODEL`] ||
+          process.env[`IMAGE_API_${key}_VISION_MODEL`] ||
+          process.env.OPENAI_VISION_MODEL ||
+          DEFAULT_SUBJECT_CLASSIFIER_MODEL
+      ).trim() || DEFAULT_SUBJECT_CLASSIFIER_MODEL
+  };
+}
+
+function readFallbackOpenAiSubjectClassifier() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!isUsableApiKey(apiKey)) return null;
+
+  return {
+    id: "openai",
+    name: "OpenAI",
+    apiKey,
+    baseUrl: String(process.env.OPENAI_RESPONSES_BASE_URL || process.env.OPENAI_BASE_URL || DEFAULT_SUBJECT_CLASSIFIER_BASE_URL).trim(),
+    model: String(process.env.OPENAI_VISION_MODEL || DEFAULT_SUBJECT_CLASSIFIER_MODEL).trim() || DEFAULT_SUBJECT_CLASSIFIER_MODEL
+  };
+}
+
+function getSubjectClassifierConfigs() {
+  const classifiers = getConfiguredSubjectClassifierIds().map(readConfiguredSubjectClassifier).filter(Boolean);
+  const openAiFallback = readFallbackOpenAiSubjectClassifier();
+  if (openAiFallback && !classifiers.some((item) => item.id === openAiFallback.id)) {
+    classifiers.push(openAiFallback);
+  }
+  return classifiers;
+}
+
+function getDefaultSubjectClassifierId(classifiers) {
+  const configured = String(process.env.VISION_API_PROVIDER || process.env.IMAGE_API_PROVIDER || "").trim();
+  if (configured && classifiers.some((classifier) => classifier.id === configured)) return configured;
+  return classifiers[0]?.id || "";
+}
+
+function getSubjectClassifierChain(requestedId = "") {
+  const classifiers = getSubjectClassifierConfigs();
+  if (!classifiers.length) return [];
+
+  const selectedId = String(requestedId || getDefaultSubjectClassifierId(classifiers)).trim();
+  const selected = classifiers.find((classifier) => classifier.id === selectedId) || classifiers[0];
+  return [selected]
+    .concat(classifiers.filter((classifier) => classifier.id !== selected.id))
+    .filter((classifier, index, list) => list.findIndex((item) => item.id === classifier.id) === index);
+}
+
+function normalizeDetectedSubject(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return SUBJECT_UNKNOWN;
+
+  const personValues = new Set(["person", "people", "human", "portrait", "人物", "人像"]);
+  const petValues = new Set(["pet", "animal", "cat", "dog", "宠物", "动物", "猫", "狗"]);
+  const mixedValues = new Set(["mixed", "both", "person_and_pet", "pet_and_person", "组合", "混合"]);
+  const unknownValues = new Set(["unknown", "unclear", "other", "不确定", "未知"]);
+
+  if (personValues.has(raw)) return SUBJECT_PERSON;
+  if (petValues.has(raw)) return SUBJECT_PET;
+  if (mixedValues.has(raw)) return SUBJECT_MIXED;
+  if (unknownValues.has(raw)) return SUBJECT_UNKNOWN;
+  return SUBJECT_UNKNOWN;
+}
+
+function normalizeStyleSubjectType(value, fallbackStyle = null) {
+  const raw = String(value || "").trim().toLowerCase();
+  const personValues = new Set([SUBJECT_PERSON, "human", "人物", "人像"]);
+  const petValues = new Set([SUBJECT_PET, "animal", "宠物", "动物"]);
+  const bothValues = new Set([SUBJECT_BOTH, SUBJECT_MIXED, "all", "通用", "全部"]);
+
+  if (personValues.has(raw)) return SUBJECT_PERSON;
+  if (petValues.has(raw)) return SUBJECT_PET;
+  if (bothValues.has(raw)) return SUBJECT_BOTH;
+  if (fallbackStyle) return inferLegacyStyleSubjectType(fallbackStyle);
+  return SUBJECT_BOTH;
+}
+
+function extractResponseText(payload) {
+  if (typeof payload?.output_text === "string" && payload.output_text.trim()) {
+    return payload.output_text.trim();
+  }
+
+  const parts = [];
+  for (const item of Array.isArray(payload?.output) ? payload.output : []) {
+    for (const content of Array.isArray(item?.content) ? item.content : []) {
+      if (typeof content?.text === "string" && content.text.trim()) {
+        parts.push(content.text.trim());
+        continue;
+      }
+      if (typeof content?.output_text === "string" && content.output_text.trim()) {
+        parts.push(content.output_text.trim());
+        continue;
+      }
+      if (typeof content?.value === "string" && content.value.trim()) {
+        parts.push(content.value.trim());
+        continue;
+      }
+      if (typeof content?.text?.value === "string" && content.text.value.trim()) {
+        parts.push(content.text.value.trim());
+      }
+    }
+  }
+
+  return parts.join("\n").trim();
+}
+
+function parseSubjectClassificationResult(text) {
+  const rawText = String(text || "").trim();
+  if (!rawText) {
+    return { subject: SUBJECT_UNKNOWN, confidence: null, raw: "" };
+  }
+
+  const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+  const candidate = jsonMatch ? jsonMatch[0] : rawText;
+
+  try {
+    const parsed = JSON.parse(candidate);
+    const confidence = clampConfidence(parsed?.confidence);
+    const subject = normalizeDetectedSubject(parsed?.subject);
+    if (confidence !== null && confidence < SUBJECT_CLASSIFIER_CONFIDENCE_THRESHOLD) {
+      return { subject: SUBJECT_UNKNOWN, confidence, raw: rawText };
+    }
+    return { subject, confidence, raw: rawText };
+  } catch {
+    return { subject: SUBJECT_UNKNOWN, confidence: null, raw: rawText };
+  }
+}
+
+async function classifyUploadedSubject(file, options = {}) {
+  const classifiers = getSubjectClassifierChain(options?.providerId);
+  if (!classifiers.length || !file?.buffer?.length) {
+    return {
+      enabled: false,
+      subject: SUBJECT_UNKNOWN,
+      confidence: null,
+      providerId: "",
+      provider: "",
+      model: "",
+      reason: classifiers.length ? "missing_file" : "missing_config"
+    };
+  }
+
+  const traceId = String(options?.traceId || "").trim();
+  const base64Image = Buffer.from(file.buffer).toString("base64");
+
+  for (const classifier of classifiers) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), SUBJECT_CLASSIFIER_TIMEOUT_MS);
+    const startedAtMs = nowMs();
+
+    try {
+      const response = await fetch(`${classifier.baseUrl.replace(/\/+$/, "")}/responses`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${classifier.apiKey}`
+        },
+        body: JSON.stringify({
+          model: classifier.model,
+          input: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "input_text",
+                  text: [
+                    "判断这张上传图片的主体类别，只返回 JSON。",
+                    '可选值: "person", "pet", "mixed", "unknown"。',
+                    '返回格式: {"subject":"pet","confidence":0.98}。',
+                    "规则：",
+                    "1. 主体是人物时返回 person。",
+                    "2. 主体是猫狗等宠物时返回 pet。",
+                    "3. 人和宠物都明显时返回 mixed。",
+                    "4. 无法可靠判断时返回 unknown。",
+                    "5. confidence 取 0 到 1 之间的小数。"
+                  ].join("\n")
+                },
+                {
+                  type: "input_image",
+                  image_url: `data:${file.mimetype || "image/jpeg"};base64,${base64Image}`
+                }
+              ]
+            }
+          ]
+        }),
+        signal: controller.signal
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message =
+          String(payload?.error?.message || payload?.message || "").trim() || `HTTP ${response.status}`;
+        throw new Error(message);
+      }
+
+      const parsed = parseSubjectClassificationResult(extractResponseText(payload));
+      const result = {
+        enabled: true,
+        subject: parsed.subject,
+        confidence: parsed.confidence,
+        providerId: classifier.id,
+        provider: classifier.name,
+        model: classifier.model,
+        durationMs: elapsedMs(startedAtMs),
+        reason: "classified"
+      };
+
+      logDrawCardTelemetry("subject_classification_succeeded", {
+        traceId,
+        providerId: result.providerId,
+        subject: result.subject,
+        confidence: result.confidence,
+        provider: result.provider,
+        model: result.model,
+        classificationMs: result.durationMs
+      });
+
+      return result;
+    } catch (error) {
+      logDrawCardTelemetry("subject_classification_failed", {
+        traceId,
+        providerId: classifier.id,
+        provider: classifier.name,
+        model: classifier.model,
+        classificationMs: elapsedMs(startedAtMs),
+        message: error?.name === "AbortError" ? "timeout" : String(error?.message || "unknown_error")
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  return {
+    enabled: true,
+    subject: SUBJECT_UNKNOWN,
+    confidence: null,
+    providerId: classifiers[0]?.id || "",
+    provider: classifiers[0]?.name || "",
+    model: classifiers[0]?.model || "",
+    reason: "all_failed"
+  };
+}
+
+function inferLegacyStyleSubjectType(style) {
+  const text = `${normalizeTags(style?.tags).join(" ")} ${String(style?.prompt || "")}`.toLowerCase();
+  const personKeywords = ["人物", "人像", "真人", "五官", "穿搭", "person", "human", "people"];
+  const petKeywords = ["宠物", "猫", "狗", "毛发", "pet", "animal", "cat", "dog"];
+  const hasPerson = personKeywords.some((keyword) => text.includes(keyword));
+  const hasPet = petKeywords.some((keyword) => text.includes(keyword));
+
+  if (hasPerson && hasPet) return SUBJECT_BOTH;
+  if (hasPerson) return SUBJECT_PERSON;
+  if (hasPet) return SUBJECT_PET;
+  return SUBJECT_BOTH;
+}
+
+function supportsDetectedSubject(style, subject) {
+  const styleSubject = normalizeStyleSubjectType(style?.subjectType, style);
+  if (subject === SUBJECT_PERSON) return styleSubject === SUBJECT_PERSON || styleSubject === SUBJECT_BOTH;
+  if (subject === SUBJECT_PET) return styleSubject === SUBJECT_PET || styleSubject === SUBJECT_BOTH;
+  if (subject === SUBJECT_MIXED) return styleSubject === SUBJECT_BOTH;
+  return true;
+}
+
+function selectStylesForDetectedSubject(styles, subject) {
+  if (!Array.isArray(styles) || !styles.length || !subject || subject === SUBJECT_UNKNOWN) {
+    return Array.isArray(styles) ? styles.slice() : [];
+  }
+
+  const matched = styles.filter((style) => supportsDetectedSubject(style, subject));
+  return matched.length ? matched : styles.slice();
+}
+
+function filterDrawCardEligibleStyles(styles) {
+  return Array.isArray(styles)
+    ? styles.filter((style) => normalizeDrawCardEnabled(style?.drawCardEnabled, true))
+    : [];
+}
+
+function sampleWeightedStyles(styles, count) {
+  const limit = Math.max(0, Number(count || 0));
+  if (!limit) return [];
+  if (!Array.isArray(styles) || styles.length <= limit) return Array.isArray(styles) ? styles.slice() : [];
+
+  const remaining = styles.slice();
+  const selected = [];
+
+  while (remaining.length && selected.length < limit) {
+    const totalWeight = remaining.reduce((sum, style) => sum + Math.max(0, normalizeDrawCardWeight(style?.drawCardWeight)), 0);
+    let chosenIndex = 0;
+
+    if (totalWeight <= 0) {
+      chosenIndex = Math.floor(Math.random() * remaining.length);
+    } else {
+      let threshold = Math.random() * totalWeight;
+      chosenIndex = remaining.findIndex((style) => {
+        threshold -= Math.max(0, normalizeDrawCardWeight(style?.drawCardWeight));
+        return threshold < 0;
+      });
+      if (chosenIndex < 0) chosenIndex = remaining.length - 1;
+    }
+
+    selected.push(remaining[chosenIndex]);
+    remaining.splice(chosenIndex, 1);
+  }
+
+  return selected;
 }
 
 app.use(express.json({ limit: "1mb" }));
@@ -1984,6 +2349,9 @@ app.post("/api/styles", requireAdmin, async (req, res) => {
   const style = {
     id: `style_${Date.now()}`,
     tags: normalizeTags(req.body.tags).length ? normalizeTags(req.body.tags) : ["新风格"],
+    subjectType: normalizeStyleSubjectType(req.body.subjectType),
+    drawCardEnabled: normalizeDrawCardEnabled(req.body.drawCardEnabled, true),
+    drawCardWeight: normalizeDrawCardWeight(req.body.drawCardWeight),
     image: "/style-previews/default/cover.svg",
     imageUpdatedAt: now,
     prompt: String(req.body.prompt || "在这里填写这个风格对应的提示词。").trim(),
@@ -2014,6 +2382,9 @@ app.put("/api/styles/:id", requireAdmin, async (req, res) => {
   if (!style) return res.status(404).json({ message: "风格不存在。" });
 
   style.tags = normalizeTags(req.body.tags);
+  style.subjectType = normalizeStyleSubjectType(req.body.subjectType, style);
+  style.drawCardEnabled = normalizeDrawCardEnabled(req.body.drawCardEnabled, style.drawCardEnabled);
+  style.drawCardWeight = normalizeDrawCardWeight(req.body.drawCardWeight);
   style.prompt = String(req.body.prompt || "").trim();
   style.useStyleImageAsReference = Boolean(req.body.useStyleImageAsReference);
   await saveStyles(styles);
@@ -2115,6 +2486,9 @@ async function readStyles() {
     styles.map(async (style) => ({
       id: style.id,
       tags: normalizeTags(style.tags?.length ? style.tags : [style.label, style.description]),
+      subjectType: normalizeStyleSubjectType(style.subjectType, style),
+      drawCardEnabled: normalizeDrawCardEnabled(style.drawCardEnabled, true),
+      drawCardWeight: normalizeDrawCardWeight(style.drawCardWeight),
       image: style.image || "/style-previews/default/cover.svg",
       imageUpdatedAt: style.imageUpdatedAt || null,
       galleryImage: await getWebGalleryImage(style),
@@ -4464,7 +4838,14 @@ async function createDrawCardSession(file, visitor, options = {}) {
   const clientMetrics = options?.clientMetrics && typeof options.clientMetrics === "object" ? options.clientMetrics : {};
   const sessionCreateStartedAtMs = nowMs();
   const [groups, styles] = await Promise.all([readStyleGroups(), readStyles()]);
-  const group = groups.find((item) => String(item.name || "").trim() === config.styleGroupName);
+  const usesAllStylesForExperience = config.experienceType === "draw-card";
+  const group = usesAllStylesForExperience
+    ? {
+        id: "all-styles-random",
+        name: "全部风格随机",
+        size: DRAW_CARD_DEFAULT_SIZE
+      }
+    : groups.find((item) => String(item.name || "").trim() === config.styleGroupName);
   if (!group) {
     const error = new Error(`${config.label} group not found`);
     error.status = 503;
@@ -4473,9 +4854,29 @@ async function createDrawCardSession(file, visitor, options = {}) {
   }
 
   const styleMap = new Map(styles.map((style) => [style.id, style]));
-  const groupStyles = (group.styleIds || []).map((styleId) => styleMap.get(styleId)).filter(Boolean);
-  if (!groupStyles.length) {
-    const error = new Error(`${config.label} group is empty`);
+  const sourceStyles = usesAllStylesForExperience
+    ? styles.slice()
+    : (group.styleIds || []).map((styleId) => styleMap.get(styleId)).filter(Boolean);
+  if (!sourceStyles.length) {
+    const error = new Error(`${config.label} styles are empty`);
+    error.status = 503;
+    error.publicMessage = config.unavailableMessage;
+    throw error;
+  }
+
+  const subjectClassification = await classifyUploadedSubject(file, {
+    traceId,
+    providerId: options?.subjectClassifierProviderId
+  });
+  const matchedStyles = selectStylesForDetectedSubject(sourceStyles, subjectClassification.subject);
+  const drawCardEligibleStyles = usesAllStylesForExperience ? filterDrawCardEligibleStyles(matchedStyles) : matchedStyles;
+  const selectedStyles = usesAllStylesForExperience ? sampleWeightedStyles(drawCardEligibleStyles, DRAW_CARD_RANDOM_STYLE_COUNT) : matchedStyles;
+  const originalStyleCount = sourceStyles.length;
+  const matchedStyleCount = matchedStyles.length;
+  const drawCardEligibleStyleCount = drawCardEligibleStyles.length;
+  const filteredStyleCount = selectedStyles.length;
+  if (!selectedStyles.length) {
+    const error = new Error(`${config.label} styles are empty after filtering`);
     error.status = 503;
     error.publicMessage = config.unavailableMessage;
     throw error;
@@ -4513,13 +4914,20 @@ async function createDrawCardSession(file, visitor, options = {}) {
     traceId,
     sessionId,
     visitorId: ownerVisitorId,
-    styleCount: groupStyles.length,
+    subject: subjectClassification.subject,
+    subjectConfidence: subjectClassification.confidence,
+    subjectProviderId: subjectClassification.providerId,
+    styleSource: usesAllStylesForExperience ? "all_styles" : "group",
+    originalStyleCount,
+    matchedStyleCount,
+    drawCardEligibleStyleCount,
+    styleCount: filteredStyleCount,
     uploadedBytes,
     uploadParseMs: elapsedMs(requestStartedAtMs)
   });
 
   try {
-    for (const [order, style] of groupStyles.entries()) {
+    for (const [order, style] of selectedStyles.entries()) {
       const prompt = String(style.prompt || "").trim();
       const styleStartedAtMs = nowMs();
       const referenceFiles = await buildBatchReferenceFiles(style, sharedReferenceFiles);
@@ -4657,6 +5065,17 @@ async function createDrawCardSession(file, visitor, options = {}) {
           uploadParseMs: elapsedMs(requestStartedAtMs),
           sessionCreateMs: elapsedMs(sessionCreateStartedAtMs),
           requestAcceptedMs: elapsedMs(requestStartedAtMs),
+          subject: subjectClassification.subject,
+          subjectConfidence: subjectClassification.confidence,
+          subjectProviderId: subjectClassification.providerId,
+          subjectProvider: subjectClassification.provider,
+          subjectModel: subjectClassification.model,
+          subjectClassificationMs: normalizeTelemetryNumber(subjectClassification.durationMs),
+          styleSource: usesAllStylesForExperience ? "all_styles" : "group",
+          originalStyleCount,
+          matchedStyleCount,
+          drawCardEligibleStyleCount,
+          filteredStyleCount,
           totalReferencePersistMs,
           totalReferenceThumbnailMs,
           totalReferenceBytes,
@@ -4675,7 +5094,14 @@ async function createDrawCardSession(file, visitor, options = {}) {
       traceId,
       sessionId,
       visitorId: ownerVisitorId,
-      styleCount: groupStyles.length,
+      subject: subjectClassification.subject,
+      subjectConfidence: subjectClassification.confidence,
+      subjectProviderId: subjectClassification.providerId,
+      styleSource: usesAllStylesForExperience ? "all_styles" : "group",
+      originalStyleCount,
+      matchedStyleCount,
+      drawCardEligibleStyleCount,
+      styleCount: filteredStyleCount,
       sessionCreateMs: elapsedMs(sessionCreateStartedAtMs),
       requestAcceptedMs: elapsedMs(requestStartedAtMs),
       totalReferencePersistMs,
@@ -5015,6 +5441,17 @@ function normalizeDrawCardSession(session) {
         uploadParseMs: normalizeTelemetryNumber(telemetryServer.uploadParseMs),
         sessionCreateMs: normalizeTelemetryNumber(telemetryServer.sessionCreateMs),
         requestAcceptedMs: normalizeTelemetryNumber(telemetryServer.requestAcceptedMs),
+        subject: normalizeDetectedSubject(telemetryServer.subject),
+        subjectConfidence: clampConfidence(telemetryServer.subjectConfidence),
+        subjectProviderId: String(telemetryServer.subjectProviderId || ""),
+        subjectProvider: String(telemetryServer.subjectProvider || ""),
+        subjectModel: String(telemetryServer.subjectModel || ""),
+        subjectClassificationMs: normalizeTelemetryNumber(telemetryServer.subjectClassificationMs),
+        styleSource: String(telemetryServer.styleSource || ""),
+        originalStyleCount: normalizeTelemetryNumber(telemetryServer.originalStyleCount),
+        matchedStyleCount: normalizeTelemetryNumber(telemetryServer.matchedStyleCount),
+        drawCardEligibleStyleCount: normalizeTelemetryNumber(telemetryServer.drawCardEligibleStyleCount),
+        filteredStyleCount: normalizeTelemetryNumber(telemetryServer.filteredStyleCount),
         totalReferencePersistMs: normalizeTelemetryNumber(telemetryServer.totalReferencePersistMs),
         totalReferenceThumbnailMs: normalizeTelemetryNumber(telemetryServer.totalReferenceThumbnailMs),
         totalReferenceBytes: normalizeTelemetryNumber(telemetryServer.totalReferenceBytes),
@@ -6093,6 +6530,9 @@ async function saveStyles(styles) {
   const storedStyles = styles.map((style) => ({
     id: String(style?.id || "").trim(),
     tags: normalizeTags(style?.tags),
+    subjectType: normalizeStyleSubjectType(style?.subjectType, style),
+    drawCardEnabled: normalizeDrawCardEnabled(style?.drawCardEnabled, true),
+    drawCardWeight: normalizeDrawCardWeight(style?.drawCardWeight),
     image: String(style?.image || "/style-previews/default/cover.svg").trim() || "/style-previews/default/cover.svg",
     imageUpdatedAt: style?.imageUpdatedAt || null,
     prompt: String(style?.prompt || ""),
@@ -6112,6 +6552,9 @@ async function syncMiniProgram(styles) {
         id: style.id,
         sort: index,
         tags: normalizeTags(style.tags),
+        subjectType: normalizeStyleSubjectType(style.subjectType, style),
+        drawCardEnabled: normalizeDrawCardEnabled(style.drawCardEnabled, true),
+        drawCardWeight: normalizeDrawCardWeight(style.drawCardWeight),
         image: miniImage,
         prompt: String(style.prompt || ""),
         useStyleImageAsReference: Boolean(style.useStyleImageAsReference)

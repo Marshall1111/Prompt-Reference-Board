@@ -1,0 +1,15 @@
+{
+  "sessionId": "659295b9-021a-42d1-9fcb-cc2ecff873e1",
+  "visitorId": "5f323334-6528-4dfb-94e2-2dd326fd1673",
+  "experienceType": "fridge-magnet",
+  "route": "/fridge",
+  "sourceMerchantId": "",
+  "sourceMerchantName": "",
+  "startedAt": "2026-06-15T11:23:23.214Z",
+  "lastHeartbeatAt": "2026-06-15T11:23:24.452Z",
+  "endedAt": "2026-06-15T11:23:27.709Z",
+  "durationSeconds": 4,
+  "status": "ended",
+  "createdAt": "2026-06-15T11:23:23.214Z",
+  "updatedAt": "2026-06-15T11:23:27.709Z"
+}

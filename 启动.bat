@@ -68,11 +68,17 @@ echo.
 exit /b 0
 
 :ensure_dependencies
-if exist node_modules (
-  echo Dependencies found.
-  echo.
-  exit /b 0
-)
+if not exist node_modules goto install_dependencies
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "try { $root = (Resolve-Path '.').Path; $packageJson = Join-Path $root 'package.json'; $nodeModules = Join-Path $root 'node_modules'; if (-not (Test-Path $packageJson) -or -not (Test-Path $nodeModules)) { exit 1 }; $package = Get-Content $packageJson -Raw | ConvertFrom-Json; $dependencies = @(); if ($package.dependencies) { $dependencies += $package.dependencies.PSObject.Properties.Name }; if ($package.devDependencies) { $dependencies += $package.devDependencies.PSObject.Properties.Name }; $missing = @(); foreach ($dependency in $dependencies | Sort-Object -Unique) { $dependencyPath = Join-Path $nodeModules $dependency; if (-not (Test-Path $dependencyPath)) { $missing += $dependency } }; if ($missing.Count -gt 0) { Write-Host ('Missing dependencies: ' + ($missing -join ', ')); exit 1 }; exit 0 } catch { Write-Host $_.Exception.Message; exit 1 }"
+if errorlevel 1 goto install_dependencies
+
+echo Dependencies found.
+echo.
+exit /b 0
+
+:install_dependencies
 
 echo Installing dependencies...
 call npm.cmd install

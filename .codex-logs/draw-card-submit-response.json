@@ -1,0 +1,1 @@
+{"message":"请先在 .env 中配置 DRAW_CARD_PROVIDER，并确保该 provider 可用。"}

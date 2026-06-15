@@ -67,6 +67,12 @@ const GALLERY_INITIAL_BATCH = 18;
 const GALLERY_BATCH_STEP = 12;
 const MANAGE_INITIAL_BATCH = 6;
 const MANAGE_BATCH_STEP = 8;
+const STYLE_SUBJECT_TYPE_OPTIONS = [
+  { value: "both", label: "通用（人物/宠物都可）" },
+  { value: "person", label: "仅人物" },
+  { value: "pet", label: "仅宠物" }
+];
+const DEFAULT_DRAW_CARD_WEIGHT = 100;
 
 const REFERENCE_UPLOAD_LIMITS = {
   maxBytes: 4 * 1024 * 1024,
@@ -327,7 +333,13 @@ function AdminApp({ navigate, route }) {
     const response = await fetch("/api/styles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tags: ["新风格"], prompt: "在这里填写这个风格对应的提示词。" })
+      body: JSON.stringify({
+        tags: ["新风格"],
+        subjectType: "both",
+        drawCardEnabled: true,
+        drawCardWeight: DEFAULT_DRAW_CARD_WEIGHT,
+        prompt: "在这里填写这个风格对应的提示词。"
+      })
     });
     const created = await response.json();
     setStyles((current) => [created, ...current]);
@@ -3803,6 +3815,9 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
           style.id,
           {
             tags: style.tags.join("，"),
+            subjectType: style.subjectType || "both",
+            drawCardEnabled: style.drawCardEnabled !== false,
+            drawCardWeight: Number(style.drawCardWeight ?? DEFAULT_DRAW_CARD_WEIGHT),
             prompt: style.prompt,
             useStyleImageAsReference: Boolean(style.useStyleImageAsReference)
           }
@@ -3813,7 +3828,14 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
 
   async function saveStyle(style) {
     setSavingId(style.id);
-    await onStyleChange(style.id, drafts[style.id] || { tags: "", prompt: "", useStyleImageAsReference: false });
+    await onStyleChange(style.id, drafts[style.id] || {
+      tags: "",
+      subjectType: "both",
+      drawCardEnabled: true,
+      drawCardWeight: DEFAULT_DRAW_CARD_WEIGHT,
+      prompt: "",
+      useStyleImageAsReference: false
+    });
     setSavingId("");
   }
 
@@ -3853,7 +3875,14 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
       </button>
 
       {visibleItems.map((style, index) => {
-        const draft = drafts[style.id] || { tags: "", prompt: "", useStyleImageAsReference: false };
+        const draft = drafts[style.id] || {
+          tags: "",
+          subjectType: "both",
+          drawCardEnabled: true,
+          drawCardWeight: DEFAULT_DRAW_CARD_WEIGHT,
+          prompt: "",
+          useStyleImageAsReference: false
+        };
         return (
           <article className={`manage-card ${draggingId === style.id ? "is-dragging" : ""}`} key={style.id} onDragOver={(event) => event.preventDefault()} onDrop={() => dropStyle(style.id)}>
             <div
@@ -3885,6 +3914,58 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
                   }
                   placeholder="例如：人像，宠物，动漫"
                   value={draft.tags}
+                />
+              </label>
+              <label className="field-label">
+                适用主体
+                <select
+                  onChange={(event) =>
+                    setDrafts((current) => ({
+                      ...current,
+                      [style.id]: { ...draft, subjectType: event.target.value }
+                    }))
+                  }
+                  value={draft.subjectType || "both"}
+                >
+                  {STYLE_SUBJECT_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-label checkbox-field">
+                <span>参与抽卡</span>
+                <div className="toggle-field">
+                  <input
+                    checked={Boolean(draft.drawCardEnabled)}
+                    onChange={(event) =>
+                      setDrafts((current) => ({
+                        ...current,
+                        [style.id]: { ...draft, drawCardEnabled: event.target.checked }
+                      }))
+                    }
+                    type="checkbox"
+                  />
+                  <span>{draft.drawCardEnabled ? "参与" : "不参与"}</span>
+                </div>
+              </label>
+              <label className="field-label">
+                抽卡权重
+                <input
+                  min="0"
+                  onChange={(event) =>
+                    setDrafts((current) => ({
+                      ...current,
+                      [style.id]: {
+                        ...draft,
+                        drawCardWeight: event.target.value
+                      }
+                    }))
+                  }
+                  placeholder="100"
+                  type="number"
+                  value={draft.drawCardWeight}
                 />
               </label>
               <label className="field-label">
@@ -3930,7 +4011,7 @@ function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChan
                   <span>删除</span>
                 </button>
               </div>
-              <p className="storage-note">图片保存在 public/style-previews/{style.id}/cover.*，标签和提示词保存在 data/styles.json。</p>
+              <p className="storage-note">图片保存在 public/style-previews/{style.id}/cover.*，标签、适用主体、抽卡开关、抽卡权重和提示词保存在 data/styles.json。</p>
             </div>
           </article>
         );
