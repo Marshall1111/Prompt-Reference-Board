@@ -4743,6 +4743,9 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
   const [paymentMode, setPaymentMode] = useState(settings?.paymentMode || "manual");
   const [manualPaymentExpireDays, setManualPaymentExpireDays] = useState(settings?.manualPaymentExpireDays || 7);
   const [contactWechatId, setContactWechatId] = useState(settings?.contactWechatId || DEFAULT_CONTACT_WECHAT_ID);
+  const [imageProviders, setImageProviders] = useState([]);
+  const [effectiveDefaultProviderId, setEffectiveDefaultProviderId] = useState("");
+  const [defaultImageProviderId, setDefaultImageProviderId] = useState(settings?.defaultImageProviderId || "");
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [downloadStatus, setDownloadStatus] = useState("");
@@ -4772,9 +4775,44 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
     setPaymentMode(settings?.paymentMode || "manual");
     setManualPaymentExpireDays(settings?.manualPaymentExpireDays || 7);
     setContactWechatId(settings?.contactWechatId || DEFAULT_CONTACT_WECHAT_ID);
+    setDefaultImageProviderId(settings?.defaultImageProviderId || "");
   }, [settings]);
 
+  async function loadImageProviders() {
+    const payload = await refreshImageProviders();
+    setImageProviders(Array.isArray(payload.providers) ? payload.providers : []);
+    setEffectiveDefaultProviderId(payload.defaultProvider || payload.providers?.[0]?.id || "");
+  }
+
+  useEffect(() => {
+    let isActive = true;
+    refreshImageProviders()
+      .then((payload) => {
+        if (!isActive) return;
+        setImageProviders(Array.isArray(payload.providers) ? payload.providers : []);
+        setEffectiveDefaultProviderId(payload.defaultProvider || payload.providers?.[0]?.id || "");
+      })
+      .catch(() => {
+        if (!isActive) return;
+        setImageProviders([]);
+        setEffectiveDefaultProviderId("");
+      });
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   const totalPages = Math.max(1, Math.ceil(orderTotal / Math.max(orderQuery.limit, 1)));
+  const currentDefaultProviderId = settings?.defaultImageProviderId || effectiveDefaultProviderId || "";
+  const currentDefaultProvider = useMemo(
+    () => imageProviders.find((provider) => provider.id === currentDefaultProviderId) || null,
+    [currentDefaultProviderId, imageProviders]
+  );
+  const pendingDefaultProvider = useMemo(
+    () => imageProviders.find((provider) => provider.id === defaultImageProviderId) || null,
+    [defaultImageProviderId, imageProviders]
+  );
+  const hasPendingDefaultProviderChange = defaultImageProviderId !== (settings?.defaultImageProviderId || "");
 
   async function refreshList(nextPartialQuery = {}, options = {}) {
     const nextQuery = {
@@ -4842,6 +4880,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
     try {
       await updateAdminSettings({
         anonymousQuotaLimit: settings?.anonymousQuotaLimit,
+        defaultImageProviderId,
         fridgeMagnetOrderingEnabled,
         fridgeMagnetUnitPriceCents,
         singleItemShippingFeeCents,
@@ -4849,7 +4888,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
         manualPaymentExpireDays,
         contactWechatId
       });
-      await onRefreshSettings();
+      await Promise.all([onRefreshSettings(), loadImageProviders()]);
       setStatusMessage("下单配置已更新。");
     } catch (nextError) {
       setError(nextError.message || "更新系统设置失败。");
@@ -4972,6 +5011,26 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
               人工支付有效期（天）
               <input min="1" onChange={(event) => setManualPaymentExpireDays(Number(event.target.value) || 1)} type="number" value={manualPaymentExpireDays} />
             </label>
+            <label className="field-label">
+              默认图片供应商
+              <select onChange={(event) => setDefaultImageProviderId(event.target.value)} value={defaultImageProviderId}>
+                <option value="">自动（跟随环境变量 / 第一可用供应商）</option>
+                {imageProviders.map((provider) => (
+                  <option key={`image-provider-${provider.id}`} value={provider.id}>{provider.name} · {provider.model}</option>
+                ))}
+              </select>
+            </label>
+            {!imageProviders.length ? (
+              <p className="storage-note">当前未检测到可用图片供应商，请先在 `.env` 中完成配置。</p>
+            ) : hasPendingDefaultProviderChange ? (
+              <p className="storage-note">
+                保存后会优先使用 {pendingDefaultProvider?.name || "自动选择的默认供应商"}，若请求失败仍会自动切换到备用供应商。
+              </p>
+            ) : (
+              <p className="storage-note">
+                当前默认供应商为 {currentDefaultProvider?.name || "第一可用供应商"}，未手动指定时会优先使用它，失败后仍会自动切换到备用供应商。
+              </p>
+            )}
             <label className="field-label">
               客服微信号
               <input onChange={(event) => setContactWechatId(event.target.value)} type="text" value={contactWechatId} />

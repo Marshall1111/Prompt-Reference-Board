@@ -64,20 +64,24 @@
     "code": "VIP-1396B040",
     "enabled": true,
     "maxRedemptions": 1,
-    "redeemedCount": 0,
-    "redeemedByVisitorIds": [],
+    "redeemedCount": 1,
+    "redeemedByVisitorIds": [
+      "8bd73a23-4c4e-4cb5-80fa-dc8d798749e0"
+    ],
     "createdAt": "2026-06-15T11:21:57.795Z",
-    "updatedAt": "2026-06-15T11:21:57.795Z"
+    "updatedAt": "2026-06-16T12:52:17.953Z"
   },
   {
     "id": "12314e24-2e93-430a-9198-5a4c5be5cf54",
     "code": "VIP-FC6BE9CF",
     "enabled": true,
     "maxRedemptions": 1,
-    "redeemedCount": 0,
-    "redeemedByVisitorIds": [],
+    "redeemedCount": 1,
+    "redeemedByVisitorIds": [
+      "8bd73a23-4c4e-4cb5-80fa-dc8d798749e0"
+    ],
     "createdAt": "2026-06-15T11:21:57.795Z",
-    "updatedAt": "2026-06-15T11:21:57.795Z"
+    "updatedAt": "2026-06-16T12:52:30.850Z"
   },
   {
     "id": "8775c07c-a7b3-4edb-a7c7-08ad0df7ce09",

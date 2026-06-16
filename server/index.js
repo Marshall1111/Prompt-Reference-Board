@@ -1190,16 +1190,22 @@ app.get("/api/style-groups", requireAdmin, async (_req, res) => {
   res.json(await readStyleGroups());
 });
 
-app.get("/api/image-providers", requireAdmin, (_req, res) => {
-  const providers = getImageProviders();
-  res.json({
-    defaultProvider: getDefaultProviderId(providers),
-    providers: providers.map((provider) => ({
-      id: provider.id,
-      name: provider.name,
-      model: provider.model
-    }))
-  });
+app.get("/api/image-providers", requireAdmin, async (_req, res) => {
+  try {
+    const providers = getImageProviders();
+    const settings = await readAppSettings();
+    res.json({
+      defaultProvider: getDefaultProviderId(providers, settings),
+      providers: providers.map((provider) => ({
+        id: provider.id,
+        name: provider.name,
+        model: provider.model
+      }))
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取图片供应商失败。" });
+  }
 });
 
 app.post("/api/draw-card/sessions", beginDrawCardRequestTelemetry, upload.single("image"), async (req, res) => {
@@ -1321,8 +1327,9 @@ app.post("/api/generate-image", requireAdmin, upload.array("reference", 10), asy
     if (!prompt) return res.status(400).json({ message: "请先填写提示词。" });
 
     const providers = getImageProviders();
-    const provider = resolveImageProvider(body.provider, providers);
-    const providerChain = getProviderFallbackChain(body.provider, providers);
+    const settings = await readAppSettings();
+    const provider = resolveImageProvider(body.provider, providers, settings);
+    const providerChain = getProviderFallbackChain(body.provider, providers, settings);
     if (!provider) {
       return res.status(400).json({ message: "请先在 .env 中配置至少一个可用的图片接口供应商。" });
     }
@@ -1337,17 +1344,18 @@ app.post("/api/generate-image", requireAdmin, upload.array("reference", 10), asy
     }
 
     const outputFormat = normalizeOption(body.output_format, ["png", "jpeg", "webp"], "png");
-    const result = referenceFiles.length
-      ? await createImageEdit(referenceFiles, prompt, outputFormat, provider, body)
-      : await createImageGeneration(prompt, outputFormat, provider, body);
+    const execution = await executeImageJobWithFailover({
+      body,
+      files: referenceFiles,
+      outputFormat,
+      prompt,
+      provider,
+      providers: providerChain
+    });
 
     res.json({
-      ...result,
-      provider: {
-        id: provider.id,
-        name: provider.name,
-        model: provider.model
-      }
+      ...execution.result,
+      provider: execution.provider
     });
   } catch (error) {
     if (error.message === "UNSUPPORTED_IMAGE_TYPE") {
@@ -1383,8 +1391,9 @@ app.post("/api/image-jobs", requireAdmin, upload.array("reference", 10), async (
     if (!prompt) return res.status(400).json({ message: "请先填写提示词。" });
 
     const providers = getImageProviders();
-    const provider = resolveImageProvider(body.provider, providers);
-    const providerChain = getProviderFallbackChain(body.provider, providers);
+    const settings = await readAppSettings();
+    const provider = resolveImageProvider(body.provider, providers, settings);
+    const providerChain = getProviderFallbackChain(body.provider, providers, settings);
     if (!provider) {
       return res.status(400).json({ message: "请先在 .env 中配置至少一个可用的图片接口供应商。" });
     }
@@ -1461,8 +1470,9 @@ app.post("/api/image-jobs/batch", requireAdmin, async (req, res) => {
     const styleGroupId = String(body.styleGroupId || "").trim();
     const promptOverride = String(body.promptOverride || "").trim();
     const providers = getImageProviders();
-    const provider = resolveImageProvider(body.provider, providers);
-    const providerChain = getProviderFallbackChain(body.provider, providers);
+    const settings = await readAppSettings();
+    const provider = resolveImageProvider(body.provider, providers, settings);
+    const providerChain = getProviderFallbackChain(body.provider, providers, settings);
     let sharedReferenceFiles = [];
     let groups = [];
     let styles = [];
@@ -2182,6 +2192,7 @@ app.patch("/api/admin/settings", requireAdmin, async (req, res) => {
     const updated = await saveAppSettings({
       ...(await readAppSettings()),
       anonymousQuotaLimit: normalizeAnonymousQuotaLimit(req.body?.anonymousQuotaLimit),
+      defaultImageProviderId: normalizeImageProviderId(req.body?.defaultImageProviderId),
       fridgeMagnetOrderingEnabled: req.body?.fridgeMagnetOrderingEnabled === true,
       fridgeMagnetUnitPriceCents: normalizeMoneyCents(req.body?.fridgeMagnetUnitPriceCents, DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS),
       singleItemShippingFeeCents: normalizeMoneyCents(req.body?.singleItemShippingFeeCents, DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS),
@@ -2701,10 +2712,194 @@ function enforcePublicRateLimits(req) {
   ipEntries.push(now);
 }
 
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function readJsonStringFieldFromText(text, fieldName) {
+  const pattern = new RegExp(`"${escapeRegExp(fieldName)}"\\s*:\\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`);
+  const match = String(text || "").match(pattern);
+  if (!match) return "";
+  try {
+    return JSON.parse(`"${match[1]}"`);
+  } catch {
+    return String(match[1] || "");
+  }
+}
+
+function readJsonNullableStringFieldFromText(text, fieldName) {
+  const pattern = new RegExp(`"${escapeRegExp(fieldName)}"\\s*:\\s*(null|"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)")`);
+  const match = String(text || "").match(pattern);
+  if (!match) return null;
+  if (match[1] === "null") return null;
+  try {
+    return JSON.parse(`"${match[2]}"`);
+  } catch {
+    return String(match[2] || "");
+  }
+}
+
+function readJsonNumberFieldFromText(text, fieldName) {
+  const pattern = new RegExp(`"${escapeRegExp(fieldName)}"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`);
+  const match = String(text || "").match(pattern);
+  if (!match) return NaN;
+  return Number(match[1]);
+}
+
+function readJsonRawValueFromText(text, fieldName) {
+  const pattern = new RegExp(`"${escapeRegExp(fieldName)}"\\s*:\\s*(null|true|false|-?\\d+(?:\\.\\d+)?|"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)")`);
+  const match = String(text || "").match(pattern);
+  return match?.[1] || "";
+}
+
+function pickLatestIsoString(...values) {
+  return values
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .sort((left, right) => left.localeCompare(right))
+    .at(-1) || "";
+}
+
+function pickEarliestIsoString(...values) {
+  return values
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .sort((left, right) => left.localeCompare(right))[0] || "";
+}
+
+async function inferVisitorStateFromArtifacts(visitorId, currentText = "") {
+  const [settings, inviteCodes] = await Promise.all([readAppSettings(), readInviteCodes()]);
+  const anonymousQuotaLimit = normalizeAnonymousQuotaLimit(settings?.anonymousQuotaLimit);
+  const matchingInvites = inviteCodes
+    .filter((invite) => Array.isArray(invite?.redeemedByVisitorIds) && invite.redeemedByVisitorIds.map(String).includes(visitorId))
+    .sort((left, right) => String(left.updatedAt || "").localeCompare(String(right.updatedAt || "")));
+  const invitedAtFromInvite = matchingInvites[0]?.updatedAt || "";
+  const chargedDrawCardSessionIds = [];
+  let latestDrawCardActivityAt = "";
+  let earliestDrawCardCreatedAt = "";
+
+  await mkdir(drawCardSessionRoot, { recursive: true });
+  const drawCardEntries = await readdir(drawCardSessionRoot, { withFileTypes: true });
+  for (const entry of drawCardEntries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    const text = await readFile(path.join(drawCardSessionRoot, entry.name), "utf-8");
+    if (!text.includes(`"ownerVisitorId": "${visitorId}"`)) continue;
+
+    const sessionId = readJsonStringFieldFromText(text, "sessionId") || entry.name.replace(/\.json$/, "");
+    const quotaChargedAt = readJsonRawValueFromText(text, "quotaChargedAt");
+    if (sessionId && quotaChargedAt && quotaChargedAt !== "null") {
+      chargedDrawCardSessionIds.push(sessionId);
+    }
+
+    latestDrawCardActivityAt = pickLatestIsoString(
+      latestDrawCardActivityAt,
+      readJsonStringFieldFromText(text, "updatedAt"),
+      readJsonStringFieldFromText(text, "completedAt"),
+      readJsonStringFieldFromText(text, "createdAt")
+    );
+    earliestDrawCardCreatedAt = pickEarliestIsoString(
+      earliestDrawCardCreatedAt,
+      readJsonStringFieldFromText(text, "createdAt")
+    );
+  }
+
+  let latestVisitActivityAt = "";
+  let earliestVisitCreatedAt = "";
+  let activeVisitSessionId = "";
+  let sourceMerchantId = readJsonStringFieldFromText(currentText, "sourceMerchantId");
+  let sourceMerchantName = readJsonStringFieldFromText(currentText, "sourceMerchantName");
+
+  await mkdir(visitSessionRoot, { recursive: true });
+  const visitEntries = await readdir(visitSessionRoot, { withFileTypes: true });
+  for (const entry of visitEntries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    const text = await readFile(path.join(visitSessionRoot, entry.name), "utf-8");
+    if (!text.includes(`"visitorId": "${visitorId}"`)) continue;
+
+    const status = readJsonStringFieldFromText(text, "status");
+    const updatedAt = pickLatestIsoString(
+      readJsonStringFieldFromText(text, "updatedAt"),
+      readJsonStringFieldFromText(text, "endedAt"),
+      readJsonStringFieldFromText(text, "lastHeartbeatAt"),
+      readJsonStringFieldFromText(text, "startedAt")
+    );
+    if (updatedAt && updatedAt >= latestVisitActivityAt) {
+      latestVisitActivityAt = updatedAt;
+      if (status === "active") {
+        activeVisitSessionId = readJsonStringFieldFromText(text, "sessionId");
+      }
+      sourceMerchantId = readJsonStringFieldFromText(text, "sourceMerchantId") || sourceMerchantId;
+      sourceMerchantName = readJsonStringFieldFromText(text, "sourceMerchantName") || sourceMerchantName;
+    }
+    earliestVisitCreatedAt = pickEarliestIsoString(
+      earliestVisitCreatedAt,
+      readJsonStringFieldFromText(text, "createdAt"),
+      readJsonStringFieldFromText(text, "startedAt")
+    );
+  }
+
+  const uniqueChargedSessionIds = [...new Set(chargedDrawCardSessionIds)];
+  const invited = matchingInvites.length > 0 || readJsonStringFieldFromText(currentText, "tier") === "invited";
+  const recoveredQuotaLimit = readJsonNumberFieldFromText(currentText, "quotaLimit");
+  const recoveredQuotaUsed = readJsonNumberFieldFromText(currentText, "quotaUsed");
+  const recoveredCreatedAt = readJsonStringFieldFromText(currentText, "createdAt");
+  const recoveredUpdatedAt = readJsonStringFieldFromText(currentText, "updatedAt");
+  const recoveredLastActiveAt = readJsonStringFieldFromText(currentText, "lastActiveAt");
+  const recoveredInvitedAt = readJsonNullableStringFieldFromText(currentText, "invitedAt");
+  const recoveredContactMessage = readJsonStringFieldFromText(currentText, "contactMessage");
+  const recoveredSourceClaimedAt = readJsonNullableStringFieldFromText(currentText, "sourceClaimedAt");
+  const recoveredSourceExpiresAt = readJsonNullableStringFieldFromText(currentText, "sourceExpiresAt");
+  const createdAt = pickEarliestIsoString(recoveredCreatedAt, invitedAtFromInvite, earliestVisitCreatedAt, earliestDrawCardCreatedAt) || new Date().toISOString();
+  const updatedAt = pickLatestIsoString(recoveredUpdatedAt, latestVisitActivityAt, latestDrawCardActivityAt, invitedAtFromInvite, createdAt) || createdAt;
+  const lastActiveAt = pickLatestIsoString(recoveredLastActiveAt, latestVisitActivityAt, latestDrawCardActivityAt, updatedAt) || updatedAt;
+
+  return {
+    visitorId,
+    tier: invited ? "invited" : "anonymous",
+    quotaLimit: Number.isFinite(recoveredQuotaLimit)
+      ? Math.max(0, Math.round(recoveredQuotaLimit))
+      : anonymousQuotaLimit + (invited ? VISITOR_INVITE_BONUS : 0),
+    quotaUsed: Math.max(uniqueChargedSessionIds.length, Number.isFinite(recoveredQuotaUsed) ? Math.max(0, Math.round(recoveredQuotaUsed)) : 0),
+    chargedDrawCardSessionIds: uniqueChargedSessionIds,
+    sourceMerchantId,
+    sourceMerchantName,
+    sourceClaimedAt: recoveredSourceClaimedAt,
+    sourceExpiresAt: recoveredSourceExpiresAt,
+    invitedAt: invited ? recoveredInvitedAt || invitedAtFromInvite || createdAt : null,
+    contactMessage: recoveredContactMessage || DEFAULT_CONTACT_MESSAGE,
+    lastActiveAt,
+    activeVisitSessionId,
+    createdAt,
+    updatedAt
+  };
+}
+
+async function backupCorruptedVisitorStateFile(visitorId) {
+  const sourcePath = getVisitorStatePath(visitorId);
+  const destinationPath = path.join(visitorStateRoot, `${visitorId}.corrupt-${formatFilenameDate(new Date())}.bak`);
+  await copyFile(sourcePath, destinationPath);
+  return destinationPath;
+}
+
+async function recoverCorruptedVisitorState(visitorId, rawText, parseError) {
+  const backupPath = await backupCorruptedVisitorStateFile(visitorId);
+  const recoveredVisitor = await saveVisitorState(await inferVisitorStateFromArtifacts(visitorId, rawText));
+  console.warn(`Recovered corrupted visitor state for ${visitorId}. Backup: ${backupPath}`);
+  if (parseError) {
+    console.warn(parseError);
+  }
+  return recoveredVisitor;
+}
+
 async function readVisitorState(visitorId) {
   if (!isSafeVisitorId(visitorId)) return null;
   try {
-    return normalizeVisitorState(JSON.parse(await readFile(getVisitorStatePath(visitorId), "utf-8")));
+    const rawText = await readFile(getVisitorStatePath(visitorId), "utf-8");
+    try {
+      return normalizeVisitorState(JSON.parse(rawText));
+    } catch (error) {
+      return recoverCorruptedVisitorState(visitorId, rawText, error);
+    }
   } catch (error) {
     if (error.code === "ENOENT") return null;
     throw error;
@@ -2915,6 +3110,7 @@ async function saveAppSettings(settings) {
 function normalizeAppSettings(settings) {
   return {
     anonymousQuotaLimit: normalizeAnonymousQuotaLimit(settings?.anonymousQuotaLimit),
+    defaultImageProviderId: normalizeImageProviderId(settings?.defaultImageProviderId),
     fridgeMagnetOrderingEnabled: settings?.fridgeMagnetOrderingEnabled === true,
     fridgeMagnetUnitPriceCents: normalizeMoneyCents(settings?.fridgeMagnetUnitPriceCents, DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS),
     singleItemShippingFeeCents: normalizeMoneyCents(settings?.singleItemShippingFeeCents, DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS),
@@ -2928,6 +3124,12 @@ function normalizeAnonymousQuotaLimit(value) {
   const next = Number(value);
   if (!Number.isFinite(next)) return DEFAULT_VISITOR_ANONYMOUS_LIMIT;
   return Math.min(Math.max(Math.round(next), 1), 50);
+}
+
+function normalizeImageProviderId(value, providers = getImageProviders()) {
+  const next = String(value || "").trim();
+  if (!next) return "";
+  return providers.some((provider) => provider.id === next) ? next : "";
 }
 
 function normalizeMoneyCents(value, fallback) {
@@ -4883,7 +5085,8 @@ async function createDrawCardSession(file, visitor, options = {}) {
   }
 
   const providers = getImageProviders();
-  const provider = resolveImageProvider("", providers);
+  const settings = await readAppSettings();
+  const provider = resolveImageProvider("", providers, settings);
   if (!provider) {
     const error = new Error("No image providers configured");
     error.status = 503;
@@ -4903,7 +5106,7 @@ async function createDrawCardSession(file, visitor, options = {}) {
       buffer: Buffer.from(file.buffer)
     }
   ];
-  const providerChain = getProviderFallbackChain(provider.id, providers);
+  const providerChain = getProviderFallbackChain("", providers, settings);
   const preparedJobs = [];
   const sessionItems = [];
   let totalReferencePersistMs = 0;
@@ -5138,7 +5341,14 @@ async function createDrawCardSession(file, visitor, options = {}) {
 async function readDrawCardSession(sessionId) {
   if (!isSafeDrawCardSessionId(sessionId)) return null;
   try {
-    return normalizeDrawCardSession(JSON.parse(await readFile(getDrawCardSessionPath(sessionId), "utf-8")));
+    const rawText = await readFile(getDrawCardSessionPath(sessionId), "utf-8");
+    try {
+      return normalizeDrawCardSession(JSON.parse(rawText));
+    } catch (error) {
+      console.warn(`Skipping unreadable draw card session: ${sessionId}`);
+      console.warn(error);
+      return null;
+    }
   } catch (error) {
     if (error.code === "ENOENT") return null;
     throw error;
@@ -6365,6 +6575,13 @@ async function executeImageJobWithFailover({ body, files, outputFormat, prompt, 
     }
   }
 
+  if (lastError && providerChain.length > 1 && lastError.name !== "AbortError") {
+    const wrappedError = new Error(lastError.message || "Image generation failed");
+    wrappedError.status = lastError.status || 502;
+    wrappedError.publicMessage = appendImageFailoverSummary(lastError.publicMessage || "图片生成失败，请稍后再试。");
+    throw wrappedError;
+  }
+
   throw lastError || new Error("Image generation failed");
 }
 
@@ -6408,6 +6625,9 @@ async function callImageProviderApi(provider, endpoint, options, externalSignal)
       error.status = 504;
     } else if (error instanceof SyntaxError) {
       error.publicMessage = "中转接口返回了无法解析的结果。";
+      error.status = 502;
+    } else if (isLikelyImageProviderConnectionError(error)) {
+      error.publicMessage = buildImageProviderConnectionErrorMessage(provider, endpoint);
       error.status = 502;
     }
     throw error;
@@ -6492,14 +6712,14 @@ function readLegacyKuaipaoProvider() {
   };
 }
 
-function resolveImageProvider(requestedId, providers) {
+function resolveImageProvider(requestedId, providers, settings = null) {
   if (!providers.length) return null;
-  const id = String(requestedId || getDefaultProviderId(providers)).trim();
+  const id = normalizeImageProviderId(requestedId, providers) || getDefaultProviderId(providers, settings);
   return providers.find((provider) => provider.id === id) || providers[0];
 }
 
-function getProviderFallbackChain(requestedId, providers) {
-  const selected = resolveImageProvider(requestedId, providers);
+function getProviderFallbackChain(requestedId, providers, settings = null) {
+  const selected = resolveImageProvider(requestedId, providers, settings);
   if (!selected) return [];
 
   return [selected]
@@ -6507,10 +6727,45 @@ function getProviderFallbackChain(requestedId, providers) {
     .filter((provider, index, list) => list.findIndex((item) => item.id === provider.id) === index);
 }
 
-function getDefaultProviderId(providers) {
-  const configured = String(process.env.IMAGE_API_PROVIDER || "").trim();
+function getDefaultProviderId(providers, settings = null) {
+  const saved = normalizeImageProviderId(settings?.defaultImageProviderId, providers);
+  if (saved) return saved;
+  const configured = normalizeImageProviderId(process.env.IMAGE_API_PROVIDER, providers);
   if (configured && providers.some((provider) => provider.id === configured)) return configured;
   return providers[0]?.id || "";
+}
+
+function isLikelyImageProviderConnectionError(error) {
+  if (!error || error.name === "AbortError" || error instanceof SyntaxError) return false;
+  const message = String(error.message || "").toLowerCase();
+  const causeCode = String(error.cause?.code || "").toUpperCase();
+  return (
+    error instanceof TypeError ||
+    message === "fetch failed" ||
+    message.includes("econn") ||
+    message.includes("network") ||
+    message.includes("socket") ||
+    message.includes("timed out") ||
+    causeCode === "ECONNREFUSED" ||
+    causeCode === "ECONNRESET" ||
+    causeCode === "ENOTFOUND" ||
+    causeCode === "EAI_AGAIN" ||
+    causeCode === "ETIMEDOUT" ||
+    causeCode === "UND_ERR_CONNECT_TIMEOUT" ||
+    causeCode === "UND_ERR_HEADERS_TIMEOUT" ||
+    causeCode === "UND_ERR_SOCKET"
+  );
+}
+
+function buildImageProviderConnectionErrorMessage(provider, endpoint) {
+  const label = endpoint === "/images/edits" ? "参考图编辑接口" : "生图接口";
+  return `${provider.name} ${label}连接失败，请检查网络、接口地址和密钥配置，或稍后再试。`;
+}
+
+function appendImageFailoverSummary(message) {
+  const base = String(message || "").trim() || "图片生成失败，请稍后再试。";
+  if (base.includes("已尝试切换备用供应商")) return base;
+  return `${base} 已尝试切换备用供应商，但当前配置的供应商都未成功响应。`;
 }
 
 function providerEnvKey(id) {

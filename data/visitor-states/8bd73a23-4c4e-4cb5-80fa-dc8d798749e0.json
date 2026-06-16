@@ -1,26 +1,28 @@
 {
   "visitorId": "8bd73a23-4c4e-4cb5-80fa-dc8d798749e0",
   "tier": "invited",
-  "quotaLimit": 20,
-  "quotaUsed": 14,
+  "quotaLimit": 17,
+  "quotaUsed": 10,
   "chargedDrawCardSessionIds": [
     "29cfe381-d3de-4f73-8742-223ecf743ec2",
     "668a1ad4-700c-4657-9047-28a0c51a1f7a",
     "894d1cbb-a9d3-41db-8e7b-7bfe1c82b31c",
     "96eb0765-c29d-4185-a8a0-a4aa82aa51e2",
     "597d2870-6304-4724-86f5-4eac7761ac89",
+    "db57f5e8-72ef-41cd-8029-177838db425c",
     "832465e7-4597-4035-8e28-bf7ac02654f5",
     "a321d726-c210-41cb-9021-573337640a6a",
-    "135baa9f-eeb3-468b-8a2c-6e195d2276b6"
+    "135baa9f-eeb3-468b-8a2c-6e195d2276b6",
+    "d4ec363e-3e67-4862-8159-e56660baba5a"
   ],
   "sourceMerchantId": "",
   "sourceMerchantName": "",
   "sourceClaimedAt": null,
   "sourceExpiresAt": null,
-  "invitedAt": "2026-06-04T03:50:31.612Z",
+  "invitedAt": "2026-06-04T03:50:31.606Z",
   "contactMessage": "如需更多生图机会，请联系客服填写邀请码。",
-  "lastActiveAt": "2026-06-13T02:26:07.903Z",
-  "activeVisitSessionId": "",
-  "createdAt": "2026-06-04T03:06:50.518Z",
-  "updatedAt": "2026-06-13T02:26:11.969Z"
+  "lastActiveAt": "2026-06-16T14:00:52.373Z",
+  "activeVisitSessionId": "6ad29e1a-1dc7-4efb-8193-a3c19fc1a319",
+  "createdAt": "2026-06-04T03:50:31.606Z",
+  "updatedAt": "2026-06-16T14:00:52.373Z"
 }
