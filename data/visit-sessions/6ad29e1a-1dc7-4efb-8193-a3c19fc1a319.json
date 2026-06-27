@@ -7,9 +7,9 @@
   "sourceMerchantName": "",
   "startedAt": "2026-06-16T13:59:52.544Z",
   "lastHeartbeatAt": "2026-06-16T14:00:52.373Z",
-  "endedAt": null,
-  "durationSeconds": null,
-  "status": "active",
+  "endedAt": "2026-06-16T14:00:52.373Z",
+  "durationSeconds": 60,
+  "status": "timed_out",
   "createdAt": "2026-06-16T13:59:52.544Z",
-  "updatedAt": "2026-06-16T14:00:52.373Z"
+  "updatedAt": "2026-06-27T07:00:47.059Z"
 }

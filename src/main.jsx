@@ -18,6 +18,15 @@ const DEFAULT_MERCHANT_FORM = {
   commissionRateBps: 1000,
   note: ""
 };
+const DEFAULT_API_PROVIDER_FORM = {
+  id: "",
+  name: "",
+  baseUrl: "",
+  apiKey: "",
+  model: "gpt-image-2",
+  visionModel: "gpt-5.4-mini",
+  enabled: true
+};
 const MAX_ORDER_ITEM_QUANTITY = 99;
 const ORDER_STATUS_LABELS = {
   pending_payment: "待付款",
@@ -187,6 +196,7 @@ function readRoute() {
   if (pathname === "/admin/tasks") return "admin-tasks";
   if (pathname === "/admin/batch") return "admin-batch";
   if (pathname === "/admin/invites") return "admin-invites";
+  if (pathname === "/admin/api-providers") return "admin-api-providers";
   if (pathname === "/admin/storage") return "admin-storage";
   return "public-draw";
 }
@@ -204,7 +214,8 @@ function App() {
     const titleByRoute = {
       "public-fridge": "冰箱贴工作室",
       "public-fridge-order": "冰箱贴订单",
-      "public-fridge-orders": "我的冰箱贴订单"
+      "public-fridge-orders": "我的冰箱贴订单",
+      "admin-api-providers": "API 配置"
     };
     document.title = titleByRoute[route] || "风格提示词图库";
   }, [route]);
@@ -223,6 +234,7 @@ function App() {
       "admin-tasks": "/admin/tasks",
       "admin-batch": "/admin/batch",
       "admin-invites": "/admin/invites",
+      "admin-api-providers": "/admin/api-providers",
       "admin-storage": "/admin/storage"
     };
     const path = pathByRoute[nextRoute] || "/";
@@ -493,6 +505,10 @@ function AdminApp({ navigate, route }) {
               <Sparkles size={18} />
               <span>邀请码</span>
             </button>
+            <button className="nav-button" onClick={() => navigate("admin-api-providers")} type="button">
+              <ImageUp size={18} />
+              <span>API配置</span>
+            </button>
             <button className="nav-button" onClick={() => navigate("admin-storage")} type="button">
               <HardDrive size={18} />
               <span>存储管理</span>
@@ -549,6 +565,8 @@ function AdminApp({ navigate, route }) {
             settings={settings}
             visitorRecords={visitorRecords}
           />
+        ) : route === "admin-api-providers" ? (
+          <ApiProviderAdminPage />
         ) : route === "admin-storage" ? (
           <StorageAdminPage
             storageSummary={storageSummary}
@@ -4042,6 +4060,44 @@ async function refreshImageProviders() {
   return payload;
 }
 
+async function refreshAdminApiProviders() {
+  const response = await fetch("/api/admin/api-providers");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取 API 供应商配置失败。");
+  return payload;
+}
+
+async function createAdminApiProviderRequest(payload) {
+  const response = await fetch("/api/admin/api-providers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "保存 API 供应商失败。");
+  return data;
+}
+
+async function updateAdminApiProviderRequest(providerId, payload) {
+  const response = await fetch(`/api/admin/api-providers/${encodeURIComponent(providerId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "更新 API 供应商失败。");
+  return data;
+}
+
+async function deleteAdminApiProviderRequest(providerId) {
+  const response = await fetch(`/api/admin/api-providers/${encodeURIComponent(providerId)}`, {
+    method: "DELETE"
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "删除 API 供应商失败。");
+  return data;
+}
+
 async function fetchVisitorState() {
   const response = await fetch("/api/visitor-state");
   const payload = await response.json();
@@ -4725,6 +4781,247 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
   );
 }
 
+function ApiProviderAdminPage() {
+  const [providers, setProviders] = useState([]);
+  const [defaultProviderId, setDefaultProviderId] = useState("");
+  const [editingId, setEditingId] = useState("");
+  const [form, setForm] = useState(() => createEmptyApiProviderFormState());
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+
+  useEffect(() => {
+    let isActive = true;
+
+    refreshAdminApiProviders()
+      .then((payload) => {
+        if (!isActive) return;
+        setProviders(Array.isArray(payload.providers) ? payload.providers : []);
+        setDefaultProviderId(String(payload.defaultProviderId || ""));
+      })
+      .catch((nextError) => {
+        if (!isActive) return;
+        setError(nextError.message || "读取 API 供应商配置失败。");
+      })
+      .finally(() => {
+        if (isActive) setIsLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!editingId) return;
+    const current = providers.find((provider) => provider.id === editingId);
+    if (current) {
+      setForm(toApiProviderFormState(current));
+      return;
+    }
+    setEditingId("");
+    setForm(createEmptyApiProviderFormState());
+  }, [editingId, providers]);
+
+  function applyPayload(payload) {
+    setProviders(Array.isArray(payload?.providers) ? payload.providers : []);
+    setDefaultProviderId(String(payload?.defaultProviderId || ""));
+  }
+
+  function startCreate() {
+    setEditingId("");
+    setForm(createEmptyApiProviderFormState());
+    setError("");
+    setStatusMessage("");
+  }
+
+  function startEdit(provider) {
+    setEditingId(provider.id);
+    setForm(toApiProviderFormState(provider));
+    setError("");
+    setStatusMessage("");
+  }
+
+  async function saveProvider() {
+    setIsSubmitting(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      const payload = editingId
+        ? await updateAdminApiProviderRequest(editingId, form)
+        : await createAdminApiProviderRequest(form);
+      applyPayload(payload);
+      setEditingId(normalizeApiProviderIdInput(form.id));
+      setStatusMessage(editingId ? "API 供应商已更新。" : "API 供应商已创建。");
+    } catch (nextError) {
+      setError(nextError.message || "保存 API 供应商失败。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function deleteProvider(provider) {
+    const message = provider.hasEnvFallback
+      ? `确认禁用供应商“${provider.name || provider.id}”吗？这不会改写 .env，只会在页面配置里覆盖并停用它。`
+      : `确认删除供应商“${provider.name || provider.id}”吗？`;
+    if (!window.confirm(message)) return;
+
+    setIsSubmitting(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      const payload = await deleteAdminApiProviderRequest(provider.id);
+      applyPayload(payload);
+      if (editingId === provider.id) {
+        setEditingId("");
+        setForm(createEmptyApiProviderFormState());
+      }
+      setStatusMessage(provider.hasEnvFallback ? "供应商已禁用。" : "供应商已删除。");
+    } catch (nextError) {
+      setError(nextError.message || "删除 API 供应商失败。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  const isEditing = Boolean(editingId);
+
+  return (
+    <section className="task-page" aria-label="API 配置">
+      <div className="task-toolbar">
+        <div>
+          <p className="eyebrow">API providers</p>
+          <h2>API 配置</h2>
+          <p className="storage-note">在后台维护生图供应商。页面配置会立即生效；如果供应商原本来自 `.env`，这里会以覆盖或禁用的方式管理它。</p>
+        </div>
+        <div className="task-actions">
+          <button className="add-button" disabled={isSubmitting} onClick={startCreate} type="button">
+            <Plus size={18} />
+            <span>新增供应商</span>
+          </button>
+        </div>
+      </div>
+
+      {statusMessage ? <p className="success-note">{statusMessage}</p> : null}
+      {error ? <p className="error-note">{error}</p> : null}
+
+      <div className="api-provider-layout">
+        <div className="task-list">
+          {isLoading ? <p className="empty-note">正在读取 API 供应商配置…</p> : null}
+          {!isLoading && !providers.length ? <p className="empty-note">当前还没有可管理的供应商。你可以先新建一个页面配置供应商。</p> : null}
+          {!isLoading
+            ? providers.map((provider) => {
+                const isDefault = provider.id === defaultProviderId;
+                const providerStatusClass = provider.enabled ? "succeeded" : "cancelled";
+                return (
+                  <article className={`api-provider-card ${provider.enabled ? "" : "is-disabled"}`} key={provider.id}>
+                    <div className="api-provider-card-head">
+                      <div>
+                        <h3>{provider.name || provider.id}</h3>
+                        <p className="storage-note">ID：{provider.id}</p>
+                      </div>
+                      <div className="api-provider-badges">
+                        <span className={`task-status ${providerStatusClass}`}>{provider.enabled ? "启用中" : "已禁用"}</span>
+                        <span className="api-provider-chip">{provider.sourceLabel}</span>
+                        {isDefault ? <span className="api-provider-chip is-primary">默认</span> : null}
+                      </div>
+                    </div>
+                    <div className="api-provider-meta">
+                      <p className="storage-note">Base URL：{provider.baseUrl || "未配置"}</p>
+                      <p className="storage-note">生图模型：{provider.model || "未配置"}</p>
+                      <p className="storage-note">识图模型：{provider.visionModel || "未配置"}</p>
+                      {provider.hasEnvFallback ? <p className="storage-note">该供应商来自 `.env`。在这里保存会覆盖它，删除会仅在页面配置里禁用它。</p> : null}
+                    </div>
+                    <div className="task-actions">
+                      <button className="secondary-button" disabled={isSubmitting} onClick={() => startEdit(provider)} type="button">
+                        <Pencil size={18} />
+                        <span>编辑</span>
+                      </button>
+                      <button className="danger-button" disabled={isSubmitting} onClick={() => deleteProvider(provider)} type="button">
+                        <Trash2 size={18} />
+                        <span>{provider.hasEnvFallback ? "禁用" : "删除"}</span>
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
+            : null}
+        </div>
+
+        <div className="draw-card-upload-panel api-provider-form-panel">
+          <div className="task-toolbar compact-toolbar">
+            <div>
+              <h3>{isEditing ? "编辑供应商" : "新增供应商"}</h3>
+              <p className="storage-note">
+                {isEditing
+                  ? "编辑现有供应商。已存在的供应商 ID 不再修改，避免影响默认供应商和历史配置。"
+                  : "新增一个可立即参与轮询与故障切换的供应商。"}
+              </p>
+            </div>
+          </div>
+
+          <div className="api-provider-form-grid">
+            <label className="field-label">
+              供应商 ID
+              <input
+                onChange={(event) => setForm((current) => ({ ...current, id: normalizeApiProviderIdInput(event.target.value) }))}
+                placeholder="例如 llmtoken"
+                readOnly={isEditing}
+                type="text"
+                value={form.id}
+              />
+            </label>
+            <label className="field-label">
+              显示名称
+              <input onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="例如 LLM Token" type="text" value={form.name} />
+            </label>
+            <label className="field-label api-provider-form-span">
+              Base URL
+              <input onChange={(event) => setForm((current) => ({ ...current, baseUrl: event.target.value }))} placeholder="https://example.com/v1" type="text" value={form.baseUrl} />
+            </label>
+            <label className="field-label api-provider-form-span">
+              API Key
+              <input onChange={(event) => setForm((current) => ({ ...current, apiKey: event.target.value }))} placeholder="sk-..." type="password" value={form.apiKey} />
+            </label>
+            <label className="field-label">
+              生图模型
+              <input onChange={(event) => setForm((current) => ({ ...current, model: event.target.value }))} placeholder="gpt-image-2" type="text" value={form.model} />
+            </label>
+            <label className="field-label">
+              识图模型
+              <input onChange={(event) => setForm((current) => ({ ...current, visionModel: event.target.value }))} placeholder="gpt-5.4-mini" type="text" value={form.visionModel} />
+            </label>
+            <label className="toggle-field api-provider-form-span">
+              <input checked={form.enabled} onChange={(event) => setForm((current) => ({ ...current, enabled: event.target.checked }))} type="checkbox" />
+              <span>启用这个供应商</span>
+            </label>
+          </div>
+
+          <p className="storage-note">当前默认供应商：{defaultProviderId || "自动选择第一可用供应商"}。默认供应商切换仍可在“订单管理 &gt; 下单配置”里设置。</p>
+          <p className="storage-note">如果你保存一个和 `.env` 同 ID 的供应商，这里的配置会优先于 `.env` 生效；删除 `.env` 供应商时不会改写文件，只会在页面配置里将它禁用。</p>
+
+          <div className="card-actions generator-actions">
+            <button className="secondary-button" disabled={isSubmitting} onClick={startCreate} type="button">
+              <RefreshCw size={18} />
+              <span>{isEditing ? "新建空白配置" : "重置表单"}</span>
+            </button>
+            <button
+              className="copy-button"
+              disabled={isSubmitting || !form.id.trim() || (form.enabled && (!form.baseUrl.trim() || !form.apiKey.trim()))}
+              onClick={saveProvider}
+              type="button"
+            >
+              {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Save size={18} />}
+              <span>{isSubmitting ? "保存中" : "保存供应商"}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onRefreshSettings, settings, merchants }) {
   const [orders, setOrders] = useState(initialOrders || []);
   const [orderQuery, setOrderQuery] = useState(DEFAULT_ADMIN_ORDER_QUERY);
@@ -5014,14 +5311,14 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
             <label className="field-label">
               默认图片供应商
               <select onChange={(event) => setDefaultImageProviderId(event.target.value)} value={defaultImageProviderId}>
-                <option value="">自动（跟随环境变量 / 第一可用供应商）</option>
+                <option value="">自动（跟随当前可用列表 / 第一可用供应商）</option>
                 {imageProviders.map((provider) => (
                   <option key={`image-provider-${provider.id}`} value={provider.id}>{provider.name} · {provider.model}</option>
                 ))}
               </select>
             </label>
             {!imageProviders.length ? (
-              <p className="storage-note">当前未检测到可用图片供应商，请先在 `.env` 中完成配置。</p>
+              <p className="storage-note">当前未检测到可用图片供应商，请先在“API配置”页面或 `.env` 中完成配置。</p>
             ) : hasPendingDefaultProviderChange ? (
               <p className="storage-note">
                 保存后会优先使用 {pendingDefaultProvider?.name || "自动选择的默认供应商"}，若请求失败仍会自动切换到备用供应商。
@@ -5871,6 +6168,30 @@ function toMerchantFormState(merchant) {
     status: String(merchant?.status || "active"),
     commissionRateBps: Number(merchant?.commissionRateBps || 0),
     note: String(merchant?.note || "")
+  };
+}
+
+function createEmptyApiProviderFormState() {
+  return { ...DEFAULT_API_PROVIDER_FORM };
+}
+
+function normalizeApiProviderIdInput(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "")
+    .slice(0, 48);
+}
+
+function toApiProviderFormState(provider) {
+  return {
+    id: String(provider?.id || ""),
+    name: String(provider?.name || ""),
+    baseUrl: String(provider?.baseUrl || ""),
+    apiKey: String(provider?.apiKey || ""),
+    model: String(provider?.model || DEFAULT_API_PROVIDER_FORM.model),
+    visionModel: String(provider?.visionModel || DEFAULT_API_PROVIDER_FORM.visionModel),
+    enabled: provider?.enabled !== false
   };
 }
 

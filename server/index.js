@@ -24,6 +24,7 @@ const inviteCodePath = path.join(rootDir, "data", "invite-codes.json");
 const merchantDataPath = path.join(rootDir, "data", "merchants.json");
 const adminSessionRoot = path.join(rootDir, "data", "admin-sessions");
 const appSettingsPath = path.join(rootDir, "data", "app-settings.json");
+const apiProviderDataPath = path.join(rootDir, "data", "api-providers.json");
 const orderDbPath = path.join(rootDir, "data", "orders.sqlite");
 const storageBackupRoot = path.join(rootDir, "data", "storage-backups");
 const storageExportTempRoot = path.join(rootDir, "data", "storage-export-temp");
@@ -274,35 +275,21 @@ function normalizeDrawCardEnabled(value, fallback = true) {
 }
 
 function getConfiguredSubjectClassifierIds() {
-  const configured = String(process.env.VISION_API_PROVIDERS || process.env.IMAGE_API_PROVIDERS || "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-  return configured.filter((id, index, list) => list.indexOf(id) === index);
+  return getImageProviders()
+    .map((provider) => provider.id)
+    .filter((id, index, list) => list.indexOf(id) === index);
 }
 
 function readConfiguredSubjectClassifier(id) {
-  const key = providerEnvKey(id);
-  const apiKey = process.env[`VISION_API_${key}_KEY`] || process.env[`IMAGE_API_${key}_KEY`];
-  const baseUrl =
-    process.env[`VISION_API_${key}_BASE_URL`] ||
-    process.env[`IMAGE_API_${key}_BASE_URL`] ||
-    process.env.OPENAI_RESPONSES_BASE_URL ||
-    process.env.OPENAI_BASE_URL;
-  if (!isUsableApiKey(apiKey) || !baseUrl) return null;
+  const provider = getImageProviders().find((item) => item.id === id);
+  if (!provider) return null;
 
   return {
     id,
-    name: process.env[`VISION_API_${key}_NAME`] || process.env[`IMAGE_API_${key}_NAME`] || id,
-    apiKey,
-    baseUrl: String(baseUrl).trim(),
-    model:
-      String(
-        process.env[`VISION_API_${key}_MODEL`] ||
-          process.env[`IMAGE_API_${key}_VISION_MODEL`] ||
-          process.env.OPENAI_VISION_MODEL ||
-          DEFAULT_SUBJECT_CLASSIFIER_MODEL
-      ).trim() || DEFAULT_SUBJECT_CLASSIFIER_MODEL
+    name: provider.name,
+    apiKey: provider.apiKey,
+    baseUrl: provider.baseUrl,
+    model: provider.visionModel || DEFAULT_SUBJECT_CLASSIFIER_MODEL
   };
 }
 
@@ -1205,6 +1192,119 @@ app.get("/api/image-providers", requireAdmin, async (_req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "读取图片供应商失败。" });
+  }
+});
+
+app.get("/api/admin/api-providers", requireAdmin, async (_req, res) => {
+  try {
+    const settings = await readAppSettings();
+    res.json({
+      defaultProviderId: getDefaultProviderId(getImageProviders(), settings),
+      providers: getAdminApiProviderConfigs()
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取 API 供应商配置失败。" });
+  }
+});
+
+app.post("/api/admin/api-providers", requireAdmin, async (req, res) => {
+  try {
+    const provider = normalizeAdminApiProviderPayload(req.body);
+    const storedProviders = await readStoredApiProviders();
+    const existingIndex = storedProviders.findIndex((item) => item.id === provider.id);
+
+    if (existingIndex === -1) {
+      storedProviders.push(provider);
+    } else {
+      storedProviders[existingIndex] = provider;
+    }
+
+    await saveStoredApiProviders(storedProviders);
+    const settings = await saveAppSettings(await readAppSettings());
+    res.status(existingIndex === -1 ? 201 : 200).json({
+      defaultProviderId: getDefaultProviderId(getImageProviders(), settings),
+      providers: getAdminApiProviderConfigs()
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 400).json({ message: error.publicMessage || "保存 API 供应商失败。" });
+  }
+});
+
+app.put("/api/admin/api-providers/:providerId", requireAdmin, async (req, res) => {
+  try {
+    const providerId = normalizeApiProviderId(req.params.providerId);
+    if (!providerId) {
+      return res.status(400).json({ message: "供应商 ID 不能为空。" });
+    }
+
+    const provider = normalizeAdminApiProviderPayload(req.body, { providerId });
+    const storedProviders = await readStoredApiProviders();
+    const existingIndex = storedProviders.findIndex((item) => item.id === provider.id);
+
+    if (existingIndex === -1) {
+      storedProviders.push(provider);
+    } else {
+      storedProviders[existingIndex] = provider;
+    }
+
+    await saveStoredApiProviders(storedProviders);
+    const settings = await saveAppSettings(await readAppSettings());
+    res.json({
+      defaultProviderId: getDefaultProviderId(getImageProviders(), settings),
+      providers: getAdminApiProviderConfigs()
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 400).json({ message: error.publicMessage || "更新 API 供应商失败。" });
+  }
+});
+
+app.delete("/api/admin/api-providers/:providerId", requireAdmin, async (req, res) => {
+  try {
+    const providerId = normalizeApiProviderId(req.params.providerId);
+    if (!providerId) {
+      return res.status(400).json({ message: "供应商 ID 不能为空。" });
+    }
+
+    const storedProviders = await readStoredApiProviders();
+    const storedIndex = storedProviders.findIndex((item) => item.id === providerId);
+    const envProvider = getEnvImageProviders().find((item) => item.id === providerId) || null;
+
+    if (!envProvider && storedIndex === -1) {
+      return res.status(404).json({ message: "供应商不存在。" });
+    }
+
+    if (envProvider) {
+      const disabledOverride = {
+        id: providerId,
+        name: envProvider.name,
+        baseUrl: envProvider.baseUrl,
+        apiKey: envProvider.apiKey,
+        model: envProvider.model,
+        visionModel: envProvider.visionModel,
+        enabled: false
+      };
+
+      if (storedIndex === -1) {
+        storedProviders.push(disabledOverride);
+      } else {
+        storedProviders[storedIndex] = disabledOverride;
+      }
+    } else {
+      storedProviders.splice(storedIndex, 1);
+    }
+
+    await saveStoredApiProviders(storedProviders);
+    const settings = await saveAppSettings(await readAppSettings());
+    res.json({
+      defaultProviderId: getDefaultProviderId(getImageProviders(), settings),
+      providers: getAdminApiProviderConfigs()
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 400).json({ message: error.publicMessage || "删除 API 供应商失败。" });
   }
 });
 
@@ -3107,6 +3207,16 @@ async function saveAppSettings(settings) {
   return safeSettings;
 }
 
+async function readStoredApiProviders() {
+  return readStoredApiProvidersSync();
+}
+
+async function saveStoredApiProviders(providers) {
+  const safeProviders = normalizeStoredApiProviders(providers);
+  await writeFile(apiProviderDataPath, `${JSON.stringify(safeProviders, null, 2)}\n`, "utf-8");
+  return safeProviders;
+}
+
 function normalizeAppSettings(settings) {
   return {
     anonymousQuotaLimit: normalizeAnonymousQuotaLimit(settings?.anonymousQuotaLimit),
@@ -3124,6 +3234,165 @@ function normalizeAnonymousQuotaLimit(value) {
   const next = Number(value);
   if (!Number.isFinite(next)) return DEFAULT_VISITOR_ANONYMOUS_LIMIT;
   return Math.min(Math.max(Math.round(next), 1), 50);
+}
+
+function normalizeApiProviderId(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "")
+    .slice(0, 48);
+}
+
+function normalizeApiProviderName(value, fallback = "") {
+  const next = String(value || "").trim();
+  return next || String(fallback || "").trim();
+}
+
+function normalizeApiProviderBaseUrl(value) {
+  return String(value || "").trim().replace(/\/+$/g, "");
+}
+
+function normalizeApiProviderModel(value, fallback) {
+  const next = String(value || "").trim();
+  return next || fallback;
+}
+
+function normalizeStoredApiProvider(provider) {
+  const id = normalizeApiProviderId(provider?.id);
+  if (!id) return null;
+
+  return {
+    id,
+    name: normalizeApiProviderName(provider?.name, id),
+    baseUrl: normalizeApiProviderBaseUrl(provider?.baseUrl),
+    apiKey: String(provider?.apiKey || "").trim(),
+    model: normalizeApiProviderModel(provider?.model, process.env.OPENAI_IMAGE_MODEL || "gpt-image-2"),
+    visionModel: normalizeApiProviderModel(provider?.visionModel, process.env.OPENAI_VISION_MODEL || DEFAULT_SUBJECT_CLASSIFIER_MODEL),
+    enabled: provider?.enabled !== false
+  };
+}
+
+function normalizeStoredApiProviders(providers) {
+  if (!Array.isArray(providers)) return [];
+
+  const normalized = [];
+  const seenIds = new Set();
+
+  providers.forEach((provider) => {
+    const safeProvider = normalizeStoredApiProvider(provider);
+    if (!safeProvider || seenIds.has(safeProvider.id)) return;
+    seenIds.add(safeProvider.id);
+    normalized.push(safeProvider);
+  });
+
+  return normalized;
+}
+
+function readStoredApiProvidersSync() {
+  try {
+    if (!existsSync(apiProviderDataPath)) return [];
+    const parsed = JSON.parse(readFileSync(apiProviderDataPath, "utf-8"));
+    return normalizeStoredApiProviders(parsed);
+  } catch (error) {
+    console.warn("Failed to read stored API providers.", error?.message || error);
+    return [];
+  }
+}
+
+function createPublicError(message, status = 400) {
+  const error = new Error(message);
+  error.status = status;
+  error.publicMessage = message;
+  return error;
+}
+
+function normalizeAdminApiProviderPayload(payload, options = {}) {
+  const providerId = normalizeApiProviderId(options.providerId || payload?.id);
+  if (!providerId) {
+    throw createPublicError("供应商 ID 只能包含字母、数字、- 和 _。");
+  }
+
+  const safeProvider = normalizeStoredApiProvider({
+    ...payload,
+    id: providerId
+  });
+
+  if (!safeProvider) {
+    throw createPublicError("供应商配置无效。");
+  }
+
+  if (safeProvider.enabled) {
+    if (!safeProvider.baseUrl) {
+      throw createPublicError("启用中的供应商必须填写 Base URL。");
+    }
+    if (!isUsableApiKey(safeProvider.apiKey)) {
+      throw createPublicError("启用中的供应商必须填写有效的 API Key。");
+    }
+  }
+
+  return safeProvider;
+}
+
+function getApiProviderSourceLabel(source) {
+  if (source === "env") return ".env";
+  if (source === "env+page") return "页面覆盖 .env";
+  return "页面配置";
+}
+
+function toAdminApiProvider(provider) {
+  return {
+    id: provider.id,
+    name: provider.name,
+    baseUrl: provider.baseUrl,
+    apiKey: provider.apiKey,
+    model: provider.model,
+    visionModel: provider.visionModel,
+    enabled: provider.enabled !== false,
+    source: provider.source,
+    sourceLabel: getApiProviderSourceLabel(provider.source),
+    hasEnvFallback: provider.hasEnvFallback === true
+  };
+}
+
+function mergeConfiguredProviders(envProviders, storedProviders) {
+  const mergedProviders = [];
+  const storedById = new Map((storedProviders || []).map((provider) => [provider.id, provider]));
+
+  (envProviders || []).forEach((envProvider) => {
+    const override = storedById.get(envProvider.id);
+    if (override) {
+      storedById.delete(envProvider.id);
+    }
+
+    mergedProviders.push({
+      ...envProvider,
+      ...(override || {}),
+      id: envProvider.id,
+      name: normalizeApiProviderName(override?.name, envProvider.name),
+      baseUrl: normalizeApiProviderBaseUrl(override?.baseUrl || envProvider.baseUrl),
+      apiKey: String(override?.apiKey || envProvider.apiKey || "").trim(),
+      model: normalizeApiProviderModel(override?.model, envProvider.model),
+      visionModel: normalizeApiProviderModel(override?.visionModel, envProvider.visionModel),
+      enabled: override ? override.enabled !== false : envProvider.enabled !== false,
+      source: override ? "env+page" : "env",
+      hasEnvFallback: true
+    });
+  });
+
+  storedById.forEach((provider) => {
+    mergedProviders.push({
+      ...provider,
+      source: "page",
+      hasEnvFallback: false
+    });
+  });
+
+  return mergedProviders;
+}
+
+function getAdminApiProviderConfigs() {
+  return mergeConfiguredProviders(getEnvImageProviders(), readStoredApiProvidersSync()).map(toAdminApiProvider);
 }
 
 function normalizeImageProviderId(value, providers = getImageProviders()) {
@@ -6676,6 +6945,20 @@ function normalizeTimeout(value) {
 }
 
 function getImageProviders() {
+  const mergedProviders = mergeConfiguredProviders(getEnvImageProviders(), readStoredApiProvidersSync());
+  return mergedProviders
+    .filter((provider) => provider.enabled !== false && isUsableApiKey(provider.apiKey) && provider.baseUrl)
+    .map((provider) => ({
+      id: provider.id,
+      name: provider.name,
+      baseUrl: provider.baseUrl,
+      apiKey: provider.apiKey,
+      model: provider.model,
+      visionModel: provider.visionModel || DEFAULT_SUBJECT_CLASSIFIER_MODEL
+    }));
+}
+
+function getEnvImageProviders() {
   const ids = String(process.env.IMAGE_API_PROVIDERS || "")
     .split(",")
     .map((item) => item.trim())
@@ -6689,14 +6972,16 @@ function getImageProviders() {
 function readConfiguredProvider(id) {
   const key = providerEnvKey(id);
   const apiKey = process.env[`IMAGE_API_${key}_KEY`];
-  const baseUrl = process.env[`IMAGE_API_${key}_BASE_URL`];
+  const baseUrl = normalizeApiProviderBaseUrl(process.env[`IMAGE_API_${key}_BASE_URL`]);
   if (!isUsableApiKey(apiKey) || !baseUrl) return null;
   return {
     id,
     name: process.env[`IMAGE_API_${key}_NAME`] || id,
     baseUrl,
     apiKey,
-    model: process.env[`IMAGE_API_${key}_MODEL`] || process.env.OPENAI_IMAGE_MODEL || "gpt-image-2"
+    model: process.env[`IMAGE_API_${key}_MODEL`] || process.env.OPENAI_IMAGE_MODEL || "gpt-image-2",
+    visionModel: process.env[`IMAGE_API_${key}_VISION_MODEL`] || process.env.OPENAI_VISION_MODEL || DEFAULT_SUBJECT_CLASSIFIER_MODEL,
+    enabled: true
   };
 }
 
@@ -6706,9 +6991,11 @@ function readLegacyKuaipaoProvider() {
   return {
     id: "kuaipao",
     name: "蹇窇",
-    baseUrl: process.env.KUAIPAO_BASE_URL || "https://kuaipao.pro/v1",
+    baseUrl: normalizeApiProviderBaseUrl(process.env.KUAIPAO_BASE_URL || "https://kuaipao.pro/v1"),
     apiKey,
-    model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2"
+    model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2",
+    visionModel: process.env.OPENAI_VISION_MODEL || DEFAULT_SUBJECT_CLASSIFIER_MODEL,
+    enabled: true
   };
 }
 

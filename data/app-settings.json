@@ -1,5 +1,6 @@
 {
   "anonymousQuotaLimit": 2,
+  "defaultImageProviderId": "",
   "fridgeMagnetOrderingEnabled": true,
   "fridgeMagnetUnitPriceCents": 1990,
   "singleItemShippingFeeCents": 800,
