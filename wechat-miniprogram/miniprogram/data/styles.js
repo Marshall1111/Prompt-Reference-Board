@@ -1,7 +1,59 @@
 const styles = [
   {
-    "id": "style_1780884090064",
+    "id": "style_1782539050463",
     "sort": 0,
+    "tags": [
+      "美式卡通"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782539050463.jpg",
+    "prompt": "Transform this photo into a vintage retro American cartoon illustration in the exact\nstyle of 1970s-1990s nostalgic children's book art. Solid warm textured background with grainy printed paper texture.\nStyle details: playful and charming aesthetic, thick bold black outlines, flat vibrant colors, limited color palette, clean vector-like shapes with slight hand-drawn warmth. Add rosy red circular cheeks on the subject, simple black dot eyes, and an expressive joyful smile.\nExaggerate features slightly for cuteness while keeping the original likeness recognizable.\nMain subject should be stylized as a cute waist-up character, wearing the original clothing reinterpreted in flat cartoon style. both in vintage style.",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1782538975049",
+    "sort": 1,
+    "tags": [
+      "复古，扁平，动画人像"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782538975049.jpg",
+    "prompt": "【任务】把用户上传真实人像转成复古扁平动画人像，像90s/early-2000s TV anime截帧。人物占画面75–90%。\n\t\n【参考】真实照片作identity source，保留本人2–5个识别锚点：脸型轮廓、发型轮廓、头部角度、眉眼气质、嘴部状态、肤色深浅印象、眼镜/耳饰/帽子/衣领等。风格参考只学retro flat anime：粗黑轮廓、黑色豆形瞳孔、平涂色块、清晰硬边阴影、高饱和纯色背景，不复制已有角色。\n\t\n【主体】必须像上传照片本人。眼睛简化成黑色豆形/椭圆瞳孔，眼白干净，无虹膜和高光。眉毛负责情绪，可压低、上挑、不对称，表达困、冷、拽、紧张、委屈或呆萌。鼻子只用1–2根细线+一块明显鼻侧阴影。嘴巴小而克制，保留照片中的微笑、抿嘴、撇嘴或微张状态。\n\t\n【构图】极近裁切，背景只保留纯色空间。\n\t\n【风格】retro anime, flat cel animation, bold outline, solid color blocks, subtle rosy-peach skin, hard-edged shadows, awkward cute, graphic, nostalgic。\n\t\n【色彩光影】肤色不要红色滤镜，要淡粉桃色、浅peach pink、light salmon peach，整体干净明亮。脸部必须有2–4块明显硬边阴影，颜色用暖灰褐、粉褐、淡紫灰、dusty beige-pink、muted mauve。阴影放在鼻侧、眼下、脸颊、嘴下、下巴、脖子侧面，必须比肤色更深，边缘锐利，不要柔光渐变。背景用钴蓝/橙/热粉/绿色/黑色高饱和纯色。\n\t\n【限制】避免写实、3D、半写实二次元、红色滤镜、整脸泛红、深红皮肤、阴影太弱、柔和渐变、复杂虹膜、眼睛高光、厚涂、真实皮肤纹理、复杂背景、全身、Q版、过度装饰、改变本人核心脸型和发型。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1782538907748",
+    "sort": 2,
+    "tags": [
+      "潮流海报"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782538907748.jpg",
+    "prompt": "将这张照片改造成一张 Y2K 街头潮流杂志封面海报。保留原图人物/主体的脸、姿势、衣服、表情和主要道具，不改变身份和构图核心。\n把主体抠图放在前景，略微放大，添加粗白色贴纸描边和轻微阴影，形成贴纸剪纸效果。背景保留原照片场景，但增强饱和度、对比度、清晰度，不要影响主体人物。\n加入复古印刷颗粒、轻微噪点和海报质感。人物皮肤白皙，肤色均匀。\n在主体背后加入巨大的黑白漫画泡泡字标题，粗体、倾斜、夸张、带黑色描边，像滑板品牌 logo、复古运动队字体、日系街头杂志标题。\n画面周围加入大量可爱贴纸元素：小星星、彩虹、卡通徽章、涂鸦标签、小图标、趣味标识。叠加红色手写涂鸦签名线条，营造街头感。左下角加入条形码，右下角加入大号 “2026” 白色数字黑色描边。\n整体风格：Y2K、日系街头杂志、潮牌海报、贴纸拼贴、复古印刷、鲜艳高饱和、活泼、夸张、年轻、潮流封面设计。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1782538556729",
+    "sort": 3,
+    "tags": [
+      "混搭插画风"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782538556729.jpg",
+    "prompt": "将照片转化为一幅卡通人物叠加真实场景照片的混搭插画\n \n核心风格（重点）\n \n采用「2D 扁平卡通 + 写实照片」混搭的拼贴手法；背景保留真实照片质感（街景、建筑、城市等高清实景，色调略微降饱和）；人物与装饰元素则用扁平卡通风绘制，二者形成鲜明又和谐的\"贴纸 / 叠加\"效果；整体呈现清新、治愈、故事绘本般的氛围。\n \n卡通人物画风\n \n扁平2D动画风，线条干净利落、轮廓粗黑描边（bold outline）；造型简洁可爱，比例略Q版，表情自然生动、轻松愉快；色彩明亮饱和，服饰配色活泼（如亮黄、天蓝、粉色等）；人物姿态自然，融入场景（如坐在长椅 / 凳子上、行走、互动）。\n \n装饰元素（卡通风叠加）\n \n卡通云朵：白色蓬松的扁平卡通云点缀天空；\n卡通植物：明亮的绿色灌木、草丛，搭配黄白小花，框住画面边缘；\n小动物：可爱的卡通小鸟、小猫等点缀；\n漂浮的彩色小圆点（黄、粉、绿）等图形装饰，散布画面增添活泼感。\n \n文字标题（重点特色）\n \n顶部添加大号粗体气泡字（bubble letter）标题，如 \"hello summer\"；字体圆润可爱、明黄色填充、黑色描边，带轻微投影效果。\n \n色彩与光线\n \n整体明亮阳光、清新治愈，营造晴朗夏日般的氛围；卡通元素鲜艳活泼，与写实背景的柔和质感形成趣味对比。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1780884090064",
+    "sort": 4,
     "tags": [
       "宠物，蜡笔"
     ],
@@ -14,7 +66,7 @@ const styles = [
   },
   {
     "id": "style_1780637137263",
-    "sort": 1,
+    "sort": 5,
     "tags": [
       "认知书"
     ],
@@ -27,7 +79,7 @@ const styles = [
   },
   {
     "id": "style_1780359249273",
-    "sort": 2,
+    "sort": 6,
     "tags": [
       "治愈系插画"
     ],
@@ -40,7 +92,7 @@ const styles = [
   },
   {
     "id": "style_1780214860370",
-    "sort": 3,
+    "sort": 7,
     "tags": [
       "宠物，油画，厚涂，肖像"
     ],
@@ -53,7 +105,7 @@ const styles = [
   },
   {
     "id": "style_1780183870275",
-    "sort": 4,
+    "sort": 8,
     "tags": [
       "宠物，角色卡"
     ],
@@ -66,7 +118,7 @@ const styles = [
   },
   {
     "id": "style_1780183785792",
-    "sort": 5,
+    "sort": 9,
     "tags": [
       "水墨肖像，宠物"
     ],
@@ -79,7 +131,7 @@ const styles = [
   },
   {
     "id": "style_1779944352617",
-    "sort": 6,
+    "sort": 10,
     "tags": [
       "潮流",
       "宠物"
@@ -93,7 +145,7 @@ const styles = [
   },
   {
     "id": "style_1779931156452",
-    "sort": 7,
+    "sort": 11,
     "tags": [
       "莫奈",
       "印象派",
@@ -109,7 +161,7 @@ const styles = [
   },
   {
     "id": "style_1780636884368",
-    "sort": 8,
+    "sort": 12,
     "tags": [
       "异形，不带背景"
     ],
@@ -122,7 +174,7 @@ const styles = [
   },
   {
     "id": "style_1780636102242",
-    "sort": 9,
+    "sort": 13,
     "tags": [
       "异形，带背景"
     ],
@@ -135,7 +187,7 @@ const styles = [
   },
   {
     "id": "style_1779179574408",
-    "sort": 10,
+    "sort": 14,
     "tags": [
       "丑萌，手绘，随意"
     ],
@@ -148,7 +200,7 @@ const styles = [
   },
   {
     "id": "style_1779180012171",
-    "sort": 11,
+    "sort": 15,
     "tags": [
       "方形，可爱手绘"
     ],
@@ -161,7 +213,7 @@ const styles = [
   },
   {
     "id": "style_1779181030715",
-    "sort": 12,
+    "sort": 16,
     "tags": [
       "皮克斯，可爱，动画，宠物，儿童"
     ],
@@ -174,7 +226,7 @@ const styles = [
   },
   {
     "id": "style_1779179958695",
-    "sort": 13,
+    "sort": 17,
     "tags": [
       "方形，平面插画"
     ],
@@ -187,7 +239,7 @@ const styles = [
   },
   {
     "id": "pencil",
-    "sort": 14,
+    "sort": 18,
     "tags": [
       "涂鸦，速写，儿童，插画，宠物"
     ],
@@ -200,7 +252,7 @@ const styles = [
   },
   {
     "id": "style_1779323084946",
-    "sort": 15,
+    "sort": 19,
     "tags": [
       "艺术"
     ],
@@ -213,7 +265,7 @@ const styles = [
   },
   {
     "id": "style_1779179444790",
-    "sort": 16,
+    "sort": 20,
     "tags": [
       "复古，海报，儿童，宠物"
     ],
@@ -221,12 +273,12 @@ const styles = [
     "drawCardEnabled": true,
     "drawCardWeight": 100,
     "image": "/images-small/style_1779179444790.jpg",
-    "prompt": "把参考图中的主体转绘成矢量平面插画，放到复古漫画风格的海报中，半色调网点印刷纹理，波普艺术风格，\n复古漫画书艺术，怀旧儿童绘本插画，网点印刷风格,\n图形设计，可爱俏皮，清晰线条，点状纹理，粗糙印刷质感，\n2D平面设计，无真实阴影，通过半色调网点密度表现阴影，\n有限色彩方案，鲜艳饱和色彩，有限色彩选择，无渐变，\n无复杂细节，简洁造型，高对比度，粗黑轮廓线，\n儿童绘本风格，怀旧1950-60年代印刷艺术，画面无字，\n突出手绘质感，手工绘制不完善、不固定，\n整个画面背景是复古漫画海报风格，增加合适的文字和装饰",
+    "prompt": "把参考图中的主体转绘成矢量平面插画，放到复古漫画风格的海报中，半色调网点印刷纹理，波普艺术风格，\n复古漫画书艺术，怀旧儿童绘本插画，网点印刷风格,\n图形设计，可爱俏皮，清晰线条，点状纹理，粗糙印刷质感，\n2D平面设计，无真实阴影，通过半色调网点密度表现阴影，\n有限色彩方案，鲜艳饱和色彩，有限色彩选择，无渐变，\n无复杂细节，简洁造型，高对比度，粗黑轮廓线，\n儿童绘本风格，怀旧1950-60年代印刷艺术，突出手绘质感，手工绘制不完善、不固定，\n整个画面背景是复古漫画海报风格，增加合适的文字和装饰",
     "useStyleImageAsReference": false
   },
   {
     "id": "style_1780029542441",
-    "sort": 17,
+    "sort": 21,
     "tags": [
       "剪纸"
     ],
@@ -239,7 +291,7 @@ const styles = [
   },
   {
     "id": "style_1779762562660",
-    "sort": 18,
+    "sort": 22,
     "tags": [
       "潮流",
       "海报",
@@ -254,7 +306,7 @@ const styles = [
   },
   {
     "id": "style_1779961220177",
-    "sort": 19,
+    "sort": 23,
     "tags": [
       "Plog",
       "日常"
@@ -268,7 +320,7 @@ const styles = [
   },
   {
     "id": "style_1779179665778",
-    "sort": 20,
+    "sort": 24,
     "tags": [
       "随意，手绘，丑萌，速写"
     ],
@@ -281,7 +333,7 @@ const styles = [
   },
   {
     "id": "style_1779845065374",
-    "sort": 21,
+    "sort": 25,
     "tags": [
       "剪纸，旅行，可爱"
     ],
@@ -294,7 +346,7 @@ const styles = [
   },
   {
     "id": "style_1779844966340",
-    "sort": 22,
+    "sort": 26,
     "tags": [
       "剪纸，简约"
     ],
@@ -307,7 +359,7 @@ const styles = [
   },
   {
     "id": "style_1779931260825",
-    "sort": 23,
+    "sort": 27,
     "tags": [
       "表情包"
     ],
@@ -320,7 +372,7 @@ const styles = [
   },
   {
     "id": "style_1779322951275",
-    "sort": 24,
+    "sort": 28,
     "tags": [
       "表情包"
     ],
@@ -333,7 +385,7 @@ const styles = [
   },
   {
     "id": "style_1779180072956",
-    "sort": 25,
+    "sort": 29,
     "tags": [
       "Plog",
       "可爱",
@@ -349,7 +401,7 @@ const styles = [
   },
   {
     "id": "style_1779179914765",
-    "sort": 26,
+    "sort": 30,
     "tags": [
       "儿童",
       "插画",
@@ -365,7 +417,7 @@ const styles = [
   },
   {
     "id": "style_1779179882103",
-    "sort": 27,
+    "sort": 31,
     "tags": [
       "艺术",
       "宠物"
@@ -379,7 +431,7 @@ const styles = [
   },
   {
     "id": "style_1779179828722",
-    "sort": 28,
+    "sort": 32,
     "tags": [
       "手绘",
       "插画",
@@ -394,7 +446,7 @@ const styles = [
   },
   {
     "id": "style_1779179773582",
-    "sort": 29,
+    "sort": 33,
     "tags": [
       "卡通"
     ],
@@ -407,7 +459,7 @@ const styles = [
   },
   {
     "id": "style_1779179722094",
-    "sort": 30,
+    "sort": 34,
     "tags": [
       "卡通",
       "丑萌",
@@ -423,7 +475,7 @@ const styles = [
   },
   {
     "id": "style_1779179649152",
-    "sort": 31,
+    "sort": 35,
     "tags": [
       "随意",
       "手绘",
@@ -438,7 +490,7 @@ const styles = [
   },
   {
     "id": "style_1779179490072",
-    "sort": 32,
+    "sort": 36,
     "tags": [
       "插画",
       "手绘",
@@ -455,7 +507,7 @@ const styles = [
   },
   {
     "id": "style_1779179328013",
-    "sort": 33,
+    "sort": 37,
     "tags": [
       "卡通",
       "插画",
@@ -474,7 +526,7 @@ const styles = [
   },
   {
     "id": "clay",
-    "sort": 34,
+    "sort": 38,
     "tags": [
       "手绘，儿童，可爱，随意，宠物"
     ],
@@ -487,7 +539,7 @@ const styles = [
   },
   {
     "id": "style_1779165306174",
-    "sort": 35,
+    "sort": 39,
     "tags": [
       "像素，头像，儿童，宠物，卡通"
     ],
@@ -500,7 +552,7 @@ const styles = [
   },
   {
     "id": "oil_painting",
-    "sort": 36,
+    "sort": 40,
     "tags": [
       "宠物",
       "随意",
@@ -518,7 +570,7 @@ const styles = [
   },
   {
     "id": "style_1780359396127",
-    "sort": 37,
+    "sort": 41,
     "tags": [
       "艺术肖像海报"
     ],
@@ -531,7 +583,7 @@ const styles = [
   },
   {
     "id": "cyberpunk",
-    "sort": 38,
+    "sort": 42,
     "tags": [
       "手绘，蜡笔，儿童，宠物，可爱"
     ],
@@ -544,7 +596,7 @@ const styles = [
   },
   {
     "id": "pixel",
-    "sort": 39,
+    "sort": 43,
     "tags": [
       "丑萌",
       "插画",
@@ -559,7 +611,7 @@ const styles = [
   },
   {
     "id": "style_1779179392820",
-    "sort": 40,
+    "sort": 44,
     "tags": [
       "诡异，童话，猎奇"
     ],
@@ -572,7 +624,7 @@ const styles = [
   },
   {
     "id": "style_1779268159068",
-    "sort": 41,
+    "sort": 45,
     "tags": [
       "人物"
     ],
