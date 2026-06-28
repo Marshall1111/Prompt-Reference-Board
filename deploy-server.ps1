@@ -43,7 +43,6 @@ $tarArgs = @(
   "--exclude=.git",
   "--exclude=node_modules",
   "--exclude=dist",
-  "--exclude=.env",
   "--exclude=public/generated-images",
   "--exclude=public/generated-thumbnails",
   "--exclude=public/job-references",
