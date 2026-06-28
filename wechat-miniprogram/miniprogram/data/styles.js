@@ -1,7 +1,72 @@
 const styles = [
   {
-    "id": "style_1782608242639",
+    "id": "style_1782659145280",
     "sort": 0,
+    "tags": [
+      "搞怪漫画涂鸦海报"
+    ],
+    "subjectType": "pet",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782659145280.jpg",
+    "prompt": "原图转为插画\n整体画风：搞怪漫画涂鸦海报，画面风格统一；剔除原图光影、透视、纹理，保留场景物体与布局；画面活泼热血、搞怪卡通\n造型优化：完全保留人物/动物动作、装备、场地、背景、镜头角度，强化动感、表情夸张效果\n线条上色：粗黑勾线，夸张面部表情，添加动态速度线，彩色马克笔涂色，带蜡笔颗粒纹理\n背景处理：添加速度线、感叹号、星星、汗滴、气泡文字、火焰、闪电涂鸦元素",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1782658718166",
+    "sort": 1,
+    "tags": [
+      "森系水彩"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782658718166.jpg",
+    "prompt": "原图转为插画\n整体画风：韩系软萌手绘涂鸦插画，画面风格统一，温柔干净治愈\n线条上色：细黑手绘线条，低饱和柔和配色，彩铅+淡水彩通透肌理\n造型优化：轻微Q版可爱化，脸部圆润，表情柔和，五官朝向、肢体动作不变\n背景处理：点缀小爱心、小花、星星、贴纸、手写小字",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1782658589405",
+    "sort": 2,
+    "tags": [
+      "粗线条简笔"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782658589405.jpg",
+    "prompt": "原图转为插画\n整体画风：手绘儿童简笔画，极简造型，无刻意修饰\n线条规范：粗黑外轮廓，手绘线条粗糙质感\n背景基底：细腻颗粒纸质纹理背景",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1782658440886",
+    "sort": 3,
+    "tags": [
+      "手绘速写"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782658440886.jpg",
+    "prompt": "原图转为插画\n整体画风：极简拙朴手绘插画，造型高度概括符号化，比例笨拙可爱，仅保留核心识别特征；复古丝网印刷肌理，随性松弛，不追求完美精致\n线条上色：深蓝色歪扭轮廓线，粗细不均、断续断线，带手绘自然抖动动感，刻意粗糙不工整；单色系平涂纯色，无渐变、阴影、明暗过渡，低饱和度色彩，正面平视无透视\n背景处理：暖调米白底色，主体居中，大面积留白，无多余装饰",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1782657237052",
+    "sort": 4,
+    "tags": [
+      "涂鸦，插画"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782657237052.jpg",
+    "prompt": "Transform the image into a minimalist hand-drawn doodle illustration. Outlines are sketched using a simple green brush, with slightly curved and irregular strokes. While retaining the subject and composition, all details are simplified to cute, naive shapes. The style features a rustic sketchbook aesthetic, lively and whimsical character designs, all colors consistent with the original image, minimalist lines, expressive simplicity, a hand-drawn doodle style, black ink, charming imperfections, and simple cartoon illustrations.",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1782608242639",
+    "sort": 5,
     "tags": [
       "平面，剪纸，插画"
     ],
@@ -14,7 +79,7 @@ const styles = [
   },
   {
     "id": "style_1782539050463",
-    "sort": 1,
+    "sort": 6,
     "tags": [
       "美式卡通"
     ],
@@ -27,7 +92,7 @@ const styles = [
   },
   {
     "id": "style_1782538975049",
-    "sort": 2,
+    "sort": 7,
     "tags": [
       "复古，扁平，动画人像"
     ],
@@ -40,7 +105,7 @@ const styles = [
   },
   {
     "id": "style_1782538907748",
-    "sort": 3,
+    "sort": 8,
     "tags": [
       "潮流海报"
     ],
@@ -53,7 +118,7 @@ const styles = [
   },
   {
     "id": "style_1782538556729",
-    "sort": 4,
+    "sort": 9,
     "tags": [
       "混搭插画风"
     ],
@@ -66,7 +131,7 @@ const styles = [
   },
   {
     "id": "style_1780884090064",
-    "sort": 5,
+    "sort": 10,
     "tags": [
       "宠物，蜡笔"
     ],
@@ -79,7 +144,7 @@ const styles = [
   },
   {
     "id": "style_1780637137263",
-    "sort": 6,
+    "sort": 11,
     "tags": [
       "认知书"
     ],
@@ -92,7 +157,7 @@ const styles = [
   },
   {
     "id": "style_1780359249273",
-    "sort": 7,
+    "sort": 12,
     "tags": [
       "治愈系插画"
     ],
@@ -105,7 +170,7 @@ const styles = [
   },
   {
     "id": "style_1780214860370",
-    "sort": 8,
+    "sort": 13,
     "tags": [
       "宠物，油画，厚涂，肖像"
     ],
@@ -118,7 +183,7 @@ const styles = [
   },
   {
     "id": "style_1780183870275",
-    "sort": 9,
+    "sort": 14,
     "tags": [
       "宠物，角色卡"
     ],
@@ -131,7 +196,7 @@ const styles = [
   },
   {
     "id": "style_1780183785792",
-    "sort": 10,
+    "sort": 15,
     "tags": [
       "水墨肖像，宠物"
     ],
@@ -144,7 +209,7 @@ const styles = [
   },
   {
     "id": "style_1779944352617",
-    "sort": 11,
+    "sort": 16,
     "tags": [
       "潮流",
       "宠物"
@@ -158,7 +223,7 @@ const styles = [
   },
   {
     "id": "style_1779931156452",
-    "sort": 12,
+    "sort": 17,
     "tags": [
       "莫奈",
       "印象派",
@@ -174,7 +239,7 @@ const styles = [
   },
   {
     "id": "style_1780636884368",
-    "sort": 13,
+    "sort": 18,
     "tags": [
       "异形，不带背景"
     ],
@@ -187,7 +252,7 @@ const styles = [
   },
   {
     "id": "style_1780636102242",
-    "sort": 14,
+    "sort": 19,
     "tags": [
       "异形，带背景"
     ],
@@ -200,7 +265,7 @@ const styles = [
   },
   {
     "id": "style_1779179574408",
-    "sort": 15,
+    "sort": 20,
     "tags": [
       "丑萌，手绘，随意"
     ],
@@ -213,7 +278,7 @@ const styles = [
   },
   {
     "id": "style_1779180012171",
-    "sort": 16,
+    "sort": 21,
     "tags": [
       "方形，可爱手绘"
     ],
@@ -226,7 +291,7 @@ const styles = [
   },
   {
     "id": "style_1779181030715",
-    "sort": 17,
+    "sort": 22,
     "tags": [
       "皮克斯，可爱，动画，宠物，儿童"
     ],
@@ -239,7 +304,7 @@ const styles = [
   },
   {
     "id": "style_1779179958695",
-    "sort": 18,
+    "sort": 23,
     "tags": [
       "方形，平面插画"
     ],
@@ -252,7 +317,7 @@ const styles = [
   },
   {
     "id": "pencil",
-    "sort": 19,
+    "sort": 24,
     "tags": [
       "涂鸦，速写，儿童，插画，宠物"
     ],
@@ -265,7 +330,7 @@ const styles = [
   },
   {
     "id": "style_1779323084946",
-    "sort": 20,
+    "sort": 25,
     "tags": [
       "艺术"
     ],
@@ -278,7 +343,7 @@ const styles = [
   },
   {
     "id": "style_1779179444790",
-    "sort": 21,
+    "sort": 26,
     "tags": [
       "复古，海报，儿童，宠物"
     ],
@@ -291,7 +356,7 @@ const styles = [
   },
   {
     "id": "style_1780029542441",
-    "sort": 22,
+    "sort": 27,
     "tags": [
       "剪纸"
     ],
@@ -304,7 +369,7 @@ const styles = [
   },
   {
     "id": "style_1779762562660",
-    "sort": 23,
+    "sort": 28,
     "tags": [
       "潮流",
       "海报",
@@ -319,7 +384,7 @@ const styles = [
   },
   {
     "id": "style_1779961220177",
-    "sort": 24,
+    "sort": 29,
     "tags": [
       "Plog",
       "日常"
@@ -333,7 +398,7 @@ const styles = [
   },
   {
     "id": "style_1779179665778",
-    "sort": 25,
+    "sort": 30,
     "tags": [
       "随意，手绘，丑萌，速写"
     ],
@@ -346,7 +411,7 @@ const styles = [
   },
   {
     "id": "style_1779845065374",
-    "sort": 26,
+    "sort": 31,
     "tags": [
       "剪纸，旅行，可爱"
     ],
@@ -359,7 +424,7 @@ const styles = [
   },
   {
     "id": "style_1779844966340",
-    "sort": 27,
+    "sort": 32,
     "tags": [
       "剪纸，简约"
     ],
@@ -372,7 +437,7 @@ const styles = [
   },
   {
     "id": "style_1779931260825",
-    "sort": 28,
+    "sort": 33,
     "tags": [
       "表情包"
     ],
@@ -385,7 +450,7 @@ const styles = [
   },
   {
     "id": "style_1779322951275",
-    "sort": 29,
+    "sort": 34,
     "tags": [
       "表情包"
     ],
@@ -398,7 +463,7 @@ const styles = [
   },
   {
     "id": "style_1779180072956",
-    "sort": 30,
+    "sort": 35,
     "tags": [
       "Plog",
       "可爱",
@@ -414,7 +479,7 @@ const styles = [
   },
   {
     "id": "style_1779179914765",
-    "sort": 31,
+    "sort": 36,
     "tags": [
       "儿童",
       "插画",
@@ -430,7 +495,7 @@ const styles = [
   },
   {
     "id": "style_1779179882103",
-    "sort": 32,
+    "sort": 37,
     "tags": [
       "艺术",
       "宠物"
@@ -444,7 +509,7 @@ const styles = [
   },
   {
     "id": "style_1779179828722",
-    "sort": 33,
+    "sort": 38,
     "tags": [
       "手绘",
       "插画",
@@ -459,7 +524,7 @@ const styles = [
   },
   {
     "id": "style_1779179773582",
-    "sort": 34,
+    "sort": 39,
     "tags": [
       "卡通"
     ],
@@ -472,7 +537,7 @@ const styles = [
   },
   {
     "id": "style_1779179722094",
-    "sort": 35,
+    "sort": 40,
     "tags": [
       "卡通",
       "丑萌",
@@ -488,7 +553,7 @@ const styles = [
   },
   {
     "id": "style_1779179649152",
-    "sort": 36,
+    "sort": 41,
     "tags": [
       "随意",
       "手绘",
@@ -503,7 +568,7 @@ const styles = [
   },
   {
     "id": "style_1779179490072",
-    "sort": 37,
+    "sort": 42,
     "tags": [
       "插画",
       "手绘",
@@ -520,7 +585,7 @@ const styles = [
   },
   {
     "id": "style_1779179328013",
-    "sort": 38,
+    "sort": 43,
     "tags": [
       "卡通",
       "插画",
@@ -539,7 +604,7 @@ const styles = [
   },
   {
     "id": "clay",
-    "sort": 39,
+    "sort": 44,
     "tags": [
       "手绘，儿童，可爱，随意，宠物"
     ],
@@ -552,7 +617,7 @@ const styles = [
   },
   {
     "id": "style_1779165306174",
-    "sort": 40,
+    "sort": 45,
     "tags": [
       "像素，头像，儿童，宠物，卡通"
     ],
@@ -565,7 +630,7 @@ const styles = [
   },
   {
     "id": "oil_painting",
-    "sort": 41,
+    "sort": 46,
     "tags": [
       "宠物",
       "随意",
@@ -583,7 +648,7 @@ const styles = [
   },
   {
     "id": "style_1780359396127",
-    "sort": 42,
+    "sort": 47,
     "tags": [
       "艺术肖像海报"
     ],
@@ -596,7 +661,7 @@ const styles = [
   },
   {
     "id": "cyberpunk",
-    "sort": 43,
+    "sort": 48,
     "tags": [
       "手绘，蜡笔，儿童，宠物，可爱"
     ],
@@ -609,7 +674,7 @@ const styles = [
   },
   {
     "id": "pixel",
-    "sort": 44,
+    "sort": 49,
     "tags": [
       "丑萌",
       "插画",
@@ -624,7 +689,7 @@ const styles = [
   },
   {
     "id": "style_1779179392820",
-    "sort": 45,
+    "sort": 50,
     "tags": [
       "诡异，童话，猎奇"
     ],
@@ -637,7 +702,7 @@ const styles = [
   },
   {
     "id": "style_1779268159068",
-    "sort": 46,
+    "sort": 51,
     "tags": [
       "人物"
     ],
