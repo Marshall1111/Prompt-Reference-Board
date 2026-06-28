@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, QrCode, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, QrCode, RefreshCw, Save, Search, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import { createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
 import "./styles.css";
@@ -74,8 +74,6 @@ function getSizeLabel(size) {
 }
 const GALLERY_INITIAL_BATCH = 18;
 const GALLERY_BATCH_STEP = 12;
-const MANAGE_INITIAL_BATCH = 6;
-const MANAGE_BATCH_STEP = 8;
 const STYLE_SUBJECT_TYPE_OPTIONS = [
   { value: "both", label: "通用（人物/宠物都可）" },
   { value: "person", label: "仅人物" },
@@ -188,11 +186,11 @@ function readRoute() {
   if (pathname.startsWith("/fridge/orders/")) return "public-fridge-order";
   if (pathname === "/fridge") return "public-fridge";
   if (pathname === "/gallery") return "admin-gallery";
-  if (pathname === "/admin" || pathname === "/admin/") return "admin-styles";
+  if (pathname === "/admin" || pathname === "/admin/") return "admin-gallery";
   if (pathname === "/admin/login") return "admin-login";
   if (pathname === "/admin/orders") return "admin-orders";
   if (pathname === "/admin/merchants") return "admin-merchants";
-  if (pathname === "/admin/styles") return "admin-styles";
+  if (pathname === "/admin/styles") return "admin-gallery";
   if (pathname === "/admin/tasks") return "admin-tasks";
   if (pathname === "/admin/batch") return "admin-batch";
   if (pathname === "/admin/invites") return "admin-invites";
@@ -230,7 +228,6 @@ function App() {
       "admin-login": "/admin/login",
       "admin-orders": "/admin/orders",
       "admin-merchants": "/admin/merchants",
-      "admin-styles": "/admin/styles",
       "admin-tasks": "/admin/tasks",
       "admin-batch": "/admin/batch",
       "admin-invites": "/admin/invites",
@@ -355,6 +352,7 @@ function AdminApp({ navigate, route }) {
     });
     const created = await response.json();
     setStyles((current) => [created, ...current]);
+    return created;
   }
 
   async function updateStyle(styleId, payload) {
@@ -447,7 +445,7 @@ function AdminApp({ navigate, route }) {
         refreshAdminSettings().then(setSettings),
         refreshStorageSummary().then(setStorageSummary)
       ]);
-    navigate("admin-styles");
+    navigate("admin-gallery");
   }
 
   async function handleLogout() {
@@ -477,10 +475,6 @@ function AdminApp({ navigate, route }) {
               <Search size={18} />
               <input aria-label="搜索标签或提示词" onChange={(event) => setQuery(event.target.value)} placeholder="搜索标签" value={query} />
             </label>
-            <button className="nav-button" onClick={() => navigate("admin-styles")} type="button">
-              <Settings size={18} />
-              <span>风格维护</span>
-            </button>
             <button className="nav-button" onClick={() => navigate("admin-gallery")} type="button">
               <Home size={18} />
               <span>图库</span>
@@ -521,7 +515,16 @@ function AdminApp({ navigate, route }) {
         </header>
 
         {route === "admin-gallery" ? (
-          <GalleryPage copiedId={copiedId} onCopy={copyPrompt} onGenerate={setActiveGenerator} onViewPrompt={setActivePrompt} styles={filteredStyles} />
+          <GalleryPage
+            onCreateStyle={createStyle}
+            onDeleteStyle={deleteStyle}
+            onGenerate={setActiveGenerator}
+            onReorderStyles={reorderVisibleStyles}
+            onStyleChange={updateStyle}
+            onUploadImage={uploadStyleImage}
+            onViewPrompt={setActivePrompt}
+            styles={filteredStyles}
+          />
         ) : route === "admin-tasks" ? (
           <ImageJobsPage />
         ) : route === "admin-orders" ? (
@@ -572,22 +575,15 @@ function AdminApp({ navigate, route }) {
             storageSummary={storageSummary}
             onRefreshStorage={() => refreshStorageSummary().then(setStorageSummary)}
           />
-        ) : route === "admin-styles" ? (
-          <ManagePage
-            onCreateStyle={createStyle}
-            onDeleteStyle={deleteStyle}
-            onReorderStyles={reorderVisibleStyles}
-            onStyleChange={updateStyle}
-            onUploadImage={uploadStyleImage}
-            styles={filteredStyles}
-          />
         ) : (
-          <ManagePage
+          <GalleryPage
             onCreateStyle={createStyle}
             onDeleteStyle={deleteStyle}
+            onGenerate={setActiveGenerator}
             onReorderStyles={reorderVisibleStyles}
             onStyleChange={updateStyle}
             onUploadImage={uploadStyleImage}
+            onViewPrompt={setActivePrompt}
             styles={filteredStyles}
           />
         )}
@@ -2303,78 +2299,274 @@ function PublicExperiencePage({ config }) {
   );
 }
 
-function GalleryPage({ copiedId, onCopy, onGenerate, onViewPrompt, styles }) {
-  const columnCount = useResponsiveColumnCount();
+function createStyleDraft(style) {
+  return {
+    tags: style?.tags?.join("，") || "",
+    subjectType: style?.subjectType || "both",
+    drawCardEnabled: style?.drawCardEnabled !== false,
+    drawCardWeight: Number(style?.drawCardWeight ?? DEFAULT_DRAW_CARD_WEIGHT),
+    prompt: style?.prompt || "",
+    useStyleImageAsReference: Boolean(style?.useStyleImageAsReference)
+  };
+}
+
+function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onReorderStyles, onStyleChange, onUploadImage, onViewPrompt, styles }) {
+  const [drafts, setDrafts] = useState({});
+  const [savingId, setSavingId] = useState("");
+  const [draggingId, setDraggingId] = useState("");
+  const [editingId, setEditingId] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState("");
   const { visibleItems, canLoadMore, sentinelRef, loadMore } = useProgressiveItems(styles, {
     initialCount: GALLERY_INITIAL_BATCH,
     step: GALLERY_BATCH_STEP
   });
-  const columns = useMemo(() => splitStylesByColumns(visibleItems, columnCount), [visibleItems, columnCount]);
-
-  return (
-    <section className="masonry-gallery" aria-label="风格提示词列表">
-      {columns.map((column, columnIndex) => (
-        <div className="masonry-column" key={columnIndex}>
-          {column.map((style) => (
-        <article className="style-card" key={style.id}>
-          <div className="image-frame">
-            <img alt={`${style.tags.join("、")}示例图`} decoding="async" loading="lazy" src={cacheBust(style.galleryImage || style.image, style.imageUpdatedAt)} />
-          </div>
-          <div className="tag-row">
-            {style.tags.map((tag) => (
-              <span className="tag" key={tag}>
-                {tag}
-              </span>
-            ))}
-          </div>
-          <div className="card-actions gallery-actions">
-            <button className="copy-button" onClick={() => onCopy(style)} type="button">
-              {copiedId === style.id ? <Check size={18} /> : <Clipboard size={18} />}
-              <span>{copiedId === style.id ? "已复制" : "复制提示词"}</span>
-            </button>
-            <button className="secondary-button" onClick={() => onViewPrompt(style)} type="button">
-              <Eye size={18} />
-              <span>查看提示词</span>
-            </button>
-            <button className="generate-button" onClick={() => onGenerate(style)} type="button">
-              <Sparkles size={18} />
-              <span>AI 生图</span>
-            </button>
-          </div>
-        </article>
-          ))}
-        </div>
-      ))}
-      {canLoadMore ? <button className="progressive-loader" onClick={loadMore} ref={sentinelRef} type="button">Load more styles</button> : null}
-    </section>
+  const orderById = useMemo(
+    () => Object.fromEntries(styles.map((style, index) => [style.id, index + 1])),
+    [styles]
   );
-}
-
-function useResponsiveColumnCount() {
-  const [columnCount, setColumnCount] = useState(() => getResponsiveColumnCount());
+  const activeEditingStyle = useMemo(
+    () => styles.find((style) => style.id === editingId) || null,
+    [editingId, styles]
+  );
+  const activeDraft = activeEditingStyle ? drafts[activeEditingStyle.id] || createStyleDraft(activeEditingStyle) : null;
 
   useEffect(() => {
-    const updateColumnCount = () => setColumnCount(getResponsiveColumnCount());
-    window.addEventListener("resize", updateColumnCount);
-    return () => window.removeEventListener("resize", updateColumnCount);
-  }, []);
+    setDrafts(Object.fromEntries(styles.map((style) => [style.id, createStyleDraft(style)])));
+    if (editingId && !styles.some((style) => style.id === editingId)) {
+      setEditingId("");
+    }
+    if (confirmDeleteId && !styles.some((style) => style.id === confirmDeleteId)) {
+      setConfirmDeleteId("");
+    }
+  }, [confirmDeleteId, editingId, styles]);
 
-  return columnCount;
-}
+  async function handleCreateStyle() {
+    const created = await onCreateStyle();
+    if (!created?.id) return;
+    setEditingId(created.id);
+    setDrafts((current) => ({
+      ...current,
+      [created.id]: createStyleDraft(created)
+    }));
+  }
 
-function getResponsiveColumnCount() {
-  if (window.matchMedia("(max-width: 820px)").matches) return 1;
-  if (window.matchMedia("(max-width: 1120px)").matches) return 2;
-  return 3;
-}
+  function updateDraft(style, patch) {
+    setDrafts((current) => ({
+      ...current,
+      [style.id]: { ...(current[style.id] || createStyleDraft(style)), ...patch }
+    }));
+  }
 
-function splitStylesByColumns(styles, columnCount) {
-  return styles.reduce(
-    (columns, style, index) => {
-      columns[index % columnCount].push(style);
-      return columns;
-    },
-    Array.from({ length: columnCount }, () => [])
+  async function saveStyle(style) {
+    setSavingId(style.id);
+    try {
+      await onStyleChange(style.id, drafts[style.id] || createStyleDraft(style));
+    } finally {
+      setSavingId("");
+    }
+  }
+
+  async function handleFile(style, file) {
+    if (!file) return;
+    setSavingId(style.id);
+    try {
+      await onUploadImage(style.id, file);
+    } finally {
+      setSavingId("");
+    }
+  }
+
+  async function handleDelete(style) {
+    if (confirmDeleteId !== style.id) {
+      setConfirmDeleteId(style.id);
+      return;
+    }
+    setConfirmDeleteId("");
+    if (editingId === style.id) setEditingId("");
+    await onDeleteStyle(style.id);
+  }
+
+  function dropStyle(targetId) {
+    if (!draggingId || draggingId === targetId) return;
+    const nextIds = styles.map((style) => style.id);
+    const fromIndex = nextIds.indexOf(draggingId);
+    const targetIndex = nextIds.indexOf(targetId);
+    if (fromIndex < 0 || targetIndex < 0) return;
+    const [movedId] = nextIds.splice(fromIndex, 1);
+    nextIds.splice(targetIndex, 0, movedId);
+    onReorderStyles(nextIds);
+  }
+
+  return (
+    <>
+      <section className="gallery-page" aria-label="风格提示词图库">
+        <div className="gallery-toolbar">
+          <button className="add-button" onClick={handleCreateStyle} type="button">
+            <Plus size={18} />
+            <span>新增风格</span>
+          </button>
+          <p className="storage-note">直接拖拽卡片左上角手柄可以排序，点击“编辑”会弹出窗口修改风格内容。</p>
+        </div>
+        <div className="gallery-grid" aria-label="风格提示词列表">
+          {visibleItems.map((style) => {
+            const isEditing = editingId === style.id;
+            return (
+              <article
+                className={`style-card gallery-style-card ${draggingId === style.id ? "is-dragging" : ""}`}
+                key={style.id}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => dropStyle(style.id)}
+              >
+                <div className="gallery-card-head">
+                  <div
+                    aria-label="拖拽排序"
+                    className="gallery-drag-handle"
+                    draggable
+                    onDragEnd={() => setDraggingId("")}
+                    onDragStart={() => setDraggingId(style.id)}
+                  >
+                    <GripVertical size={16} />
+                    <span>#{orderById[style.id] || 0}</span>
+                  </div>
+                </div>
+                <div className="image-frame">
+                  <StylePreviewImage alt={`${style.tags.join("、")}示例图`} style={style} />
+                </div>
+                <div className="tag-row">
+                  {style.tags.map((tag) => (
+                    <span className="tag" key={tag}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                <div className="card-actions gallery-actions">
+                  <button
+                    aria-expanded={isEditing}
+                    className="copy-button"
+                    onClick={() => setEditingId(style.id)}
+                    type="button"
+                  >
+                    <Pencil size={18} />
+                    <span>编辑</span>
+                  </button>
+                  <button className="secondary-button" onClick={() => onViewPrompt(style)} type="button">
+                    <Eye size={18} />
+                    <span>查看提示词</span>
+                  </button>
+                  <button className="generate-button" onClick={() => onGenerate(style)} type="button">
+                    <Sparkles size={18} />
+                    <span>AI 生图</span>
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+          {canLoadMore ? <button className="progressive-loader" onClick={loadMore} ref={sentinelRef} type="button">Load more styles</button> : null}
+        </div>
+      </section>
+
+      {activeEditingStyle && activeDraft ? (
+        <div className="modal-backdrop" onClick={() => setEditingId("")} role="presentation">
+          <section
+            aria-modal="true"
+            className="prompt-modal style-editor-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <div className="modal-head">
+              <div className="tag-row">
+                {activeEditingStyle.tags.map((tag) => (
+                  <span className="tag" key={tag}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="style-editor-preview">
+              <div className="image-frame">
+                <StylePreviewImage alt={`${activeEditingStyle.tags.join("、")}示例图`} style={activeEditingStyle} />
+              </div>
+              <p className="storage-note">图片保存在 public/style-previews/{activeEditingStyle.id}/cover.*，标签、适用主体、抽卡开关、抽卡权重和提示词保存在 data/styles.json。</p>
+            </div>
+            <div className="manage-body style-editor-fields">
+              <label className="field-label">
+                标签
+                <input
+                  onChange={(event) => updateDraft(activeEditingStyle, { tags: event.target.value })}
+                  placeholder="例如：人像，宠物，动漫"
+                  value={activeDraft.tags}
+                />
+              </label>
+              <label className="field-label">
+                适用主体
+                <select onChange={(event) => updateDraft(activeEditingStyle, { subjectType: event.target.value })} value={activeDraft.subjectType || "both"}>
+                  {STYLE_SUBJECT_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-label checkbox-field">
+                <span>参与抽卡</span>
+                <div className="toggle-field">
+                  <input
+                    checked={Boolean(activeDraft.drawCardEnabled)}
+                    onChange={(event) => updateDraft(activeEditingStyle, { drawCardEnabled: event.target.checked })}
+                    type="checkbox"
+                  />
+                  <span>{activeDraft.drawCardEnabled ? "参与" : "不参与"}</span>
+                </div>
+              </label>
+              <label className="field-label">
+                抽卡权重
+                <input
+                  min="0"
+                  onChange={(event) => updateDraft(activeEditingStyle, { drawCardWeight: event.target.value })}
+                  placeholder="100"
+                  type="number"
+                  value={activeDraft.drawCardWeight}
+                />
+              </label>
+              <label className="field-label style-editor-prompt">
+                提示词
+                <textarea onChange={(event) => updateDraft(activeEditingStyle, { prompt: event.target.value })} value={activeDraft.prompt} />
+              </label>
+              <label className="field-label checkbox-field style-editor-reference">
+                <span>是否将示例图作为生图参考图</span>
+                <div className="toggle-field">
+                  <input
+                    checked={Boolean(activeDraft.useStyleImageAsReference)}
+                    onChange={(event) => updateDraft(activeEditingStyle, { useStyleImageAsReference: event.target.checked })}
+                    type="checkbox"
+                  />
+                  <span>{activeDraft.useStyleImageAsReference ? "是" : "否"}</span>
+                </div>
+              </label>
+            </div>
+            <div className="card-actions manage-actions style-editor-actions">
+              <button className="secondary-button" onClick={() => setEditingId("")} type="button">
+                关闭
+              </button>
+              <label className="secondary-button file-button">
+                <ImageUp size={18} />
+                <span>替换图片</span>
+                <input accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => handleFile(activeEditingStyle, event.target.files?.[0])} type="file" />
+              </label>
+              <button className="copy-button" disabled={savingId === activeEditingStyle.id} onClick={() => saveStyle(activeEditingStyle)} type="button">
+                <Save size={18} />
+                <span>{savingId === activeEditingStyle.id ? "保存中" : "保存"}</span>
+              </button>
+              <button className="danger-button" onClick={() => handleDelete(activeEditingStyle)} type="button">
+                <Trash2 size={18} />
+                <span>{confirmDeleteId === activeEditingStyle.id ? "确认删除" : "删除"}</span>
+              </button>
+            </div>
+            {confirmDeleteId === activeEditingStyle.id ? <p className="storage-note danger-note">再次点击“确认删除”才会真正删除这个风格。</p> : null}
+          </section>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -3814,228 +4006,6 @@ function JobEditModal({ job, onClose }) {
         </div>
       </section>
     </div>
-  );
-}
-
-function ManagePage({ onCreateStyle, onDeleteStyle, onReorderStyles, onStyleChange, onUploadImage, styles }) {
-  const [drafts, setDrafts] = useState({});
-  const [savingId, setSavingId] = useState("");
-  const [draggingId, setDraggingId] = useState("");
-  const { visibleItems, canLoadMore, sentinelRef, loadMore } = useProgressiveItems(styles, {
-    initialCount: MANAGE_INITIAL_BATCH,
-    step: MANAGE_BATCH_STEP
-  });
-
-  useEffect(() => {
-    setDrafts(
-      Object.fromEntries(
-        styles.map((style) => [
-          style.id,
-          {
-            tags: style.tags.join("，"),
-            subjectType: style.subjectType || "both",
-            drawCardEnabled: style.drawCardEnabled !== false,
-            drawCardWeight: Number(style.drawCardWeight ?? DEFAULT_DRAW_CARD_WEIGHT),
-            prompt: style.prompt,
-            useStyleImageAsReference: Boolean(style.useStyleImageAsReference)
-          }
-        ])
-      )
-    );
-  }, [styles]);
-
-  async function saveStyle(style) {
-    setSavingId(style.id);
-    await onStyleChange(style.id, drafts[style.id] || {
-      tags: "",
-      subjectType: "both",
-      drawCardEnabled: true,
-      drawCardWeight: DEFAULT_DRAW_CARD_WEIGHT,
-      prompt: "",
-      useStyleImageAsReference: false
-    });
-    setSavingId("");
-  }
-
-  async function handleFile(style, file) {
-    if (!file) return;
-    setSavingId(style.id);
-    await onUploadImage(style.id, file);
-    setSavingId("");
-  }
-
-  function moveStyle(styleId, offset) {
-    const index = styles.findIndex((style) => style.id === styleId);
-    const nextIndex = index + offset;
-    if (index < 0 || nextIndex < 0 || nextIndex >= styles.length) return;
-    const nextIds = styles.map((style) => style.id);
-    const [movedId] = nextIds.splice(index, 1);
-    nextIds.splice(nextIndex, 0, movedId);
-    onReorderStyles(nextIds);
-  }
-
-  function dropStyle(targetId) {
-    if (!draggingId || draggingId === targetId) return;
-    const nextIds = styles.map((style) => style.id);
-    const fromIndex = nextIds.indexOf(draggingId);
-    const targetIndex = nextIds.indexOf(targetId);
-    if (fromIndex < 0 || targetIndex < 0) return;
-    const [movedId] = nextIds.splice(fromIndex, 1);
-    nextIds.splice(targetIndex, 0, movedId);
-    onReorderStyles(nextIds);
-  }
-
-  return (
-    <section className="manage-list" aria-label="维护风格内容">
-      <button className="add-button" onClick={onCreateStyle} type="button">
-        <Plus size={18} />
-        <span>新增风格</span>
-      </button>
-
-      {visibleItems.map((style, index) => {
-        const draft = drafts[style.id] || {
-          tags: "",
-          subjectType: "both",
-          drawCardEnabled: true,
-          drawCardWeight: DEFAULT_DRAW_CARD_WEIGHT,
-          prompt: "",
-          useStyleImageAsReference: false
-        };
-        return (
-          <article className={`manage-card ${draggingId === style.id ? "is-dragging" : ""}`} key={style.id} onDragOver={(event) => event.preventDefault()} onDrop={() => dropStyle(style.id)}>
-            <div
-              className="manage-order-tools"
-              aria-label="排序"
-              draggable
-              onDragEnd={() => setDraggingId("")}
-              onDragStart={() => setDraggingId(style.id)}
-            >
-              <GripVertical size={18} />
-              <span>#{index + 1}</span>
-              <button className="icon-button" disabled={index === 0} onClick={() => moveStyle(style.id, -1)} type="button" aria-label="上移">
-                <ArrowUp size={18} />
-              </button>
-              <button className="icon-button" disabled={index === styles.length - 1} onClick={() => moveStyle(style.id, 1)} type="button" aria-label="下移">
-                <ArrowDown size={18} />
-              </button>
-            </div>
-            <StylePreviewImage alt="当前示例图" style={style} />
-            <div className="manage-body">
-              <label className="field-label">
-                标签
-                <input
-                  onChange={(event) =>
-                    setDrafts((current) => ({
-                      ...current,
-                      [style.id]: { ...draft, tags: event.target.value }
-                    }))
-                  }
-                  placeholder="例如：人像，宠物，动漫"
-                  value={draft.tags}
-                />
-              </label>
-              <label className="field-label">
-                适用主体
-                <select
-                  onChange={(event) =>
-                    setDrafts((current) => ({
-                      ...current,
-                      [style.id]: { ...draft, subjectType: event.target.value }
-                    }))
-                  }
-                  value={draft.subjectType || "both"}
-                >
-                  {STYLE_SUBJECT_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field-label checkbox-field">
-                <span>参与抽卡</span>
-                <div className="toggle-field">
-                  <input
-                    checked={Boolean(draft.drawCardEnabled)}
-                    onChange={(event) =>
-                      setDrafts((current) => ({
-                        ...current,
-                        [style.id]: { ...draft, drawCardEnabled: event.target.checked }
-                      }))
-                    }
-                    type="checkbox"
-                  />
-                  <span>{draft.drawCardEnabled ? "参与" : "不参与"}</span>
-                </div>
-              </label>
-              <label className="field-label">
-                抽卡权重
-                <input
-                  min="0"
-                  onChange={(event) =>
-                    setDrafts((current) => ({
-                      ...current,
-                      [style.id]: {
-                        ...draft,
-                        drawCardWeight: event.target.value
-                      }
-                    }))
-                  }
-                  placeholder="100"
-                  type="number"
-                  value={draft.drawCardWeight}
-                />
-              </label>
-              <label className="field-label">
-                提示词
-                <textarea
-                  onChange={(event) =>
-                    setDrafts((current) => ({
-                      ...current,
-                      [style.id]: { ...draft, prompt: event.target.value }
-                    }))
-                  }
-                  value={draft.prompt}
-                />
-              </label>
-              <label className="field-label checkbox-field">
-                <span>是否将示例图作为生图参考图</span>
-                <div className="toggle-field">
-                  <input
-                    checked={Boolean(draft.useStyleImageAsReference)}
-                    onChange={(event) =>
-                      setDrafts((current) => ({
-                        ...current,
-                        [style.id]: { ...draft, useStyleImageAsReference: event.target.checked }
-                      }))
-                    }
-                    type="checkbox"
-                  />
-                  <span>{draft.useStyleImageAsReference ? "是" : "否"}</span>
-                </div>
-              </label>
-              <div className="card-actions manage-actions">
-                <label className="secondary-button file-button">
-                  <ImageUp size={18} />
-                  <span>替换图片</span>
-                  <input accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => handleFile(style, event.target.files?.[0])} type="file" />
-                </label>
-                <button className="copy-button" disabled={savingId === style.id} onClick={() => saveStyle(style)} type="button">
-                  <Save size={18} />
-                  <span>{savingId === style.id ? "保存中" : "保存"}</span>
-                </button>
-                <button className="danger-button" onClick={() => onDeleteStyle(style.id)} type="button">
-                  <Trash2 size={18} />
-                  <span>删除</span>
-                </button>
-              </div>
-              <p className="storage-note">图片保存在 public/style-previews/{style.id}/cover.*，标签、适用主体、抽卡开关、抽卡权重和提示词保存在 data/styles.json。</p>
-            </div>
-          </article>
-        );
-      })}
-      {canLoadMore ? <button className="progressive-loader" onClick={loadMore} ref={sentinelRef} type="button">Load more styles</button> : null}
-    </section>
   );
 }
 

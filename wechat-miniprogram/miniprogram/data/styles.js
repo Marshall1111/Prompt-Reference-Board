@@ -1,20 +1,46 @@
 const styles = [
   {
-    "id": "style_1782659145280",
+    "id": "style_1782608242639",
     "sort": 0,
     "tags": [
-      "搞怪漫画涂鸦海报"
+      "平面，剪纸，插画"
     ],
-    "subjectType": "pet",
+    "subjectType": "both",
     "drawCardEnabled": true,
     "drawCardWeight": 100,
-    "image": "/images-small/style_1782659145280.jpg",
-    "prompt": "原图转为插画\n整体画风：搞怪漫画涂鸦海报，画面风格统一；剔除原图光影、透视、纹理，保留场景物体与布局；画面活泼热血、搞怪卡通\n造型优化：完全保留人物/动物动作、装备、场地、背景、镜头角度，强化动感、表情夸张效果\n线条上色：粗黑勾线，夸张面部表情，添加动态速度线，彩色马克笔涂色，带蜡笔颗粒纹理\n背景处理：添加速度线、感叹号、星星、汗滴、气泡文字、火焰、闪电涂鸦元素",
+    "image": "/images-small/style_1782608242639.jpg",
+    "prompt": "Transform the entire image into a single decorative folk flat illustration with playful doodle elements. Preserve the main subject and overall composition, but simplify all objects into clean, flat shapes with minimal detail. Use a bold, whimsical color palette that is clearly different from the original image. Add a handmade, slightly imperfect feel, as if illustrated with cut-paper shapes and simple hand-drawn marks on white paper. Keep the background clean and bright, with a clear white-paper look. Make the final result cute, childlike, cohesive, charming, and whimsical.",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1782538556729",
+    "sort": 1,
+    "tags": [
+      "混搭插画风"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782538556729.jpg",
+    "prompt": "将照片转化为一幅卡通人物叠加真实场景照片的混搭插画\n \n核心风格（重点）\n \n采用「2D 扁平卡通 + 写实照片」混搭的拼贴手法；背景保留真实照片质感（街景、建筑、城市等高清实景，色调略微降饱和）；人物与装饰元素则用扁平卡通风绘制，二者形成鲜明又和谐的\"贴纸 / 叠加\"效果；整体呈现清新、治愈、故事绘本般的氛围。\n \n卡通人物画风\n \n扁平2D动画风，线条干净利落、轮廓粗黑描边（bold outline）；造型简洁可爱，比例略Q版，表情自然生动、轻松愉快；色彩明亮饱和，服饰配色活泼（如亮黄、天蓝、粉色等）；人物姿态自然，融入场景（如坐在长椅 / 凳子上、行走、互动）。\n \n装饰元素（卡通风叠加）\n \n卡通云朵：白色蓬松的扁平卡通云点缀天空；\n卡通植物：明亮的绿色灌木、草丛，搭配黄白小花，框住画面边缘；\n小动物：可爱的卡通小鸟、小猫等点缀；\n漂浮的彩色小圆点（黄、粉、绿）等图形装饰，散布画面增添活泼感。\n \n文字标题（重点特色）\n \n顶部添加大号粗体气泡字（bubble letter）标题，如 \"hello summer\"；字体圆润可爱、明黄色填充、黑色描边，带轻微投影效果。\n \n色彩与光线\n \n整体明亮阳光、清新治愈，营造晴朗夏日般的氛围；卡通元素鲜艳活泼，与写实背景的柔和质感形成趣味对比。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1782658440886",
+    "sort": 2,
+    "tags": [
+      "手绘速写"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782658440886.jpg",
+    "prompt": "原图转为插画\n整体画风：极简拙朴手绘插画，造型高度概括符号化，比例笨拙可爱，仅保留核心识别特征；复古丝网印刷肌理，随性松弛，不追求完美精致\n线条上色：深蓝色歪扭轮廓线，粗细不均、断续断线，带手绘自然抖动动感，刻意粗糙不工整；单色系平涂纯色，无渐变、阴影、明暗过渡，低饱和度色彩，正面平视无透视\n背景处理：暖调米白底色，主体居中，大面积留白，无多余装饰",
     "useStyleImageAsReference": false
   },
   {
     "id": "style_1782658718166",
-    "sort": 1,
+    "sort": 3,
     "tags": [
       "森系水彩"
     ],
@@ -27,7 +53,7 @@ const styles = [
   },
   {
     "id": "style_1782658589405",
-    "sort": 2,
+    "sort": 4,
     "tags": [
       "粗线条简笔"
     ],
@@ -39,21 +65,21 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1782658440886",
-    "sort": 3,
+    "id": "style_1782659145280",
+    "sort": 5,
     "tags": [
-      "手绘速写"
+      "搞怪漫画涂鸦海报"
     ],
-    "subjectType": "both",
+    "subjectType": "pet",
     "drawCardEnabled": true,
     "drawCardWeight": 100,
-    "image": "/images-small/style_1782658440886.jpg",
-    "prompt": "原图转为插画\n整体画风：极简拙朴手绘插画，造型高度概括符号化，比例笨拙可爱，仅保留核心识别特征；复古丝网印刷肌理，随性松弛，不追求完美精致\n线条上色：深蓝色歪扭轮廓线，粗细不均、断续断线，带手绘自然抖动动感，刻意粗糙不工整；单色系平涂纯色，无渐变、阴影、明暗过渡，低饱和度色彩，正面平视无透视\n背景处理：暖调米白底色，主体居中，大面积留白，无多余装饰",
+    "image": "/images-small/style_1782659145280.jpg",
+    "prompt": "原图转为插画\n整体画风：搞怪漫画涂鸦海报，画面风格统一；剔除原图光影、透视、纹理，保留场景物体与布局；画面活泼热血、搞怪卡通\n造型优化：完全保留人物/动物动作、装备、场地、背景、镜头角度，强化动感、表情夸张效果\n线条上色：粗黑勾线，夸张面部表情，添加动态速度线，彩色马克笔涂色，带蜡笔颗粒纹理\n背景处理：添加速度线、感叹号、星星、汗滴、气泡文字、火焰、闪电涂鸦元素",
     "useStyleImageAsReference": false
   },
   {
     "id": "style_1782657237052",
-    "sort": 4,
+    "sort": 6,
     "tags": [
       "涂鸦，插画"
     ],
@@ -65,21 +91,8 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1782608242639",
-    "sort": 5,
-    "tags": [
-      "平面，剪纸，插画"
-    ],
-    "subjectType": "both",
-    "drawCardEnabled": true,
-    "drawCardWeight": 100,
-    "image": "/images-small/style_1782608242639.jpg",
-    "prompt": "Transform the entire image into a single decorative folk flat illustration with playful doodle elements. Preserve the main subject and overall composition, but simplify all objects into clean, flat shapes with minimal detail. Use a bold, whimsical color palette that is clearly different from the original image. Add a handmade, slightly imperfect feel, as if illustrated with cut-paper shapes and simple hand-drawn marks on white paper. Keep the background clean and bright, with a clear white-paper look. Make the final result cute, childlike, cohesive, charming, and whimsical.",
-    "useStyleImageAsReference": false
-  },
-  {
     "id": "style_1782539050463",
-    "sort": 6,
+    "sort": 7,
     "tags": [
       "美式卡通"
     ],
@@ -92,7 +105,7 @@ const styles = [
   },
   {
     "id": "style_1782538975049",
-    "sort": 7,
+    "sort": 8,
     "tags": [
       "复古，扁平，动画人像"
     ],
@@ -105,7 +118,7 @@ const styles = [
   },
   {
     "id": "style_1782538907748",
-    "sort": 8,
+    "sort": 9,
     "tags": [
       "潮流海报"
     ],
@@ -114,19 +127,6 @@ const styles = [
     "drawCardWeight": 100,
     "image": "/images-small/style_1782538907748.jpg",
     "prompt": "将这张照片改造成一张 Y2K 街头潮流杂志封面海报。保留原图人物/主体的脸、姿势、衣服、表情和主要道具，不改变身份和构图核心。\n把主体抠图放在前景，略微放大，添加粗白色贴纸描边和轻微阴影，形成贴纸剪纸效果。背景保留原照片场景，但增强饱和度、对比度、清晰度，不要影响主体人物。\n加入复古印刷颗粒、轻微噪点和海报质感。人物皮肤白皙，肤色均匀。\n在主体背后加入巨大的黑白漫画泡泡字标题，粗体、倾斜、夸张、带黑色描边，像滑板品牌 logo、复古运动队字体、日系街头杂志标题。\n画面周围加入大量可爱贴纸元素：小星星、彩虹、卡通徽章、涂鸦标签、小图标、趣味标识。叠加红色手写涂鸦签名线条，营造街头感。左下角加入条形码，右下角加入大号 “2026” 白色数字黑色描边。\n整体风格：Y2K、日系街头杂志、潮牌海报、贴纸拼贴、复古印刷、鲜艳高饱和、活泼、夸张、年轻、潮流封面设计。",
-    "useStyleImageAsReference": false
-  },
-  {
-    "id": "style_1782538556729",
-    "sort": 9,
-    "tags": [
-      "混搭插画风"
-    ],
-    "subjectType": "both",
-    "drawCardEnabled": true,
-    "drawCardWeight": 100,
-    "image": "/images-small/style_1782538556729.jpg",
-    "prompt": "将照片转化为一幅卡通人物叠加真实场景照片的混搭插画\n \n核心风格（重点）\n \n采用「2D 扁平卡通 + 写实照片」混搭的拼贴手法；背景保留真实照片质感（街景、建筑、城市等高清实景，色调略微降饱和）；人物与装饰元素则用扁平卡通风绘制，二者形成鲜明又和谐的\"贴纸 / 叠加\"效果；整体呈现清新、治愈、故事绘本般的氛围。\n \n卡通人物画风\n \n扁平2D动画风，线条干净利落、轮廓粗黑描边（bold outline）；造型简洁可爱，比例略Q版，表情自然生动、轻松愉快；色彩明亮饱和，服饰配色活泼（如亮黄、天蓝、粉色等）；人物姿态自然，融入场景（如坐在长椅 / 凳子上、行走、互动）。\n \n装饰元素（卡通风叠加）\n \n卡通云朵：白色蓬松的扁平卡通云点缀天空；\n卡通植物：明亮的绿色灌木、草丛，搭配黄白小花，框住画面边缘；\n小动物：可爱的卡通小鸟、小猫等点缀；\n漂浮的彩色小圆点（黄、粉、绿）等图形装饰，散布画面增添活泼感。\n \n文字标题（重点特色）\n \n顶部添加大号粗体气泡字（bubble letter）标题，如 \"hello summer\"；字体圆润可爱、明黄色填充、黑色描边，带轻微投影效果。\n \n色彩与光线\n \n整体明亮阳光、清新治愈，营造晴朗夏日般的氛围；卡通元素鲜艳活泼，与写实背景的柔和质感形成趣味对比。",
     "useStyleImageAsReference": false
   },
   {
@@ -143,16 +143,16 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1780637137263",
+    "id": "style_1779179958695",
     "sort": 11,
     "tags": [
-      "认知书"
+      "方形，平面插画"
     ],
-    "subjectType": "person",
-    "drawCardEnabled": false,
+    "subjectType": "both",
+    "drawCardEnabled": true,
     "drawCardWeight": 100,
-    "image": "/images-small/style_1780637137263.jpg",
-    "prompt": "生成一张严格3×3九宫格绘本页面总览图，\n共9格，必须铺满整张正方形画面，不留空\n白。每一格都是独立1:1正方形页面。内容只\n包含：封面、Eyes眼睛、Ears耳朵、Nose鼻\n子、Mouth嘴巴、Hands手、Tummy肚子、\nLegs腿、Feet脚。不要生成第10页，每一\n页都要不同的人物动作或姿势，不出现相似\n页，中英双语儿童启蒙书，绘本封面标题“My\nFirst Body 我的第一本身体认知书”，真实摄\n影风格，真实皮肤纹理，白色摄影棚背景，柔\n和自然光,极简留白设计，高级母婴杂志感，\n儿童认知卡片布局，每页一个身体部位主题，\n包含英文标题、中文标题、彩色编号、虚线\n箭头标注、小器官图标（可爱幼稚)、简洁双\n语文案，文案类似：这是我的眼睛，文字可\n爱一点，字体粗一点，文字颜色可以五颜六\n色，DK百科式排版，浅景深，商业儿童摄影,\n温暖奶油白色调，低饱和莫兰迪配色，治愈\n系儿童绘本风格，高清8k, ultra detailed,\nrealistic baby portrait, editorial layout, soft\nlighting, minimal background",
+    "image": "/images-small/style_1779179958695.jpg",
+    "prompt": "请将整个图像转化为单一的装饰性民间平面插图，带有涂鸦元素。使用大胆而俏皮的色彩调色板，与原图像完全不同。\n将所有细节简化为干净、平面的形状，带有手工制作的、略显不完美感，仿佛绘制在一张白纸上。整体风格应显得可爱、童趣十足且异想天开。",
     "useStyleImageAsReference": false
   },
   {
@@ -290,34 +290,8 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1779181030715",
-    "sort": 22,
-    "tags": [
-      "皮克斯，可爱，动画，宠物，儿童"
-    ],
-    "subjectType": "both",
-    "drawCardEnabled": true,
-    "drawCardWeight": 100,
-    "image": "/images-small/style_1779181030715.jpg",
-    "prompt": "将图片风格化为皮克斯动画风格，角色造型圆润可爱，光影层次分明，保留人物或宠物原有姿态和互动关系，画面明亮。",
-    "useStyleImageAsReference": false
-  },
-  {
-    "id": "style_1779179958695",
-    "sort": 23,
-    "tags": [
-      "方形，平面插画"
-    ],
-    "subjectType": "both",
-    "drawCardEnabled": true,
-    "drawCardWeight": 100,
-    "image": "/images-small/style_1779179958695.jpg",
-    "prompt": "请将整个图像转化为单一的装饰性民间平面插图，带有涂鸦元素。使用大胆而俏皮的色彩调色板，与原图像完全不同。\n将所有细节简化为干净、平面的形状，带有手工制作的、略显不完美感，仿佛绘制在一张白纸上。整体风格应显得可爱、童趣十足且异想天开。",
-    "useStyleImageAsReference": false
-  },
-  {
     "id": "pencil",
-    "sort": 24,
+    "sort": 22,
     "tags": [
       "涂鸦，速写，儿童，插画，宠物"
     ],
@@ -329,8 +303,21 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
+    "id": "style_1779181030715",
+    "sort": 23,
+    "tags": [
+      "皮克斯，可爱，动画，宠物，儿童"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1779181030715.jpg",
+    "prompt": "将图片风格化为皮克斯动画风格，角色造型圆润可爱，光影层次分明，保留人物或宠物原有姿态和互动关系，画面明亮。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1779323084946",
-    "sort": 25,
+    "sort": 24,
     "tags": [
       "艺术"
     ],
@@ -343,7 +330,7 @@ const styles = [
   },
   {
     "id": "style_1779179444790",
-    "sort": 26,
+    "sort": 25,
     "tags": [
       "复古，海报，儿童，宠物"
     ],
@@ -356,7 +343,7 @@ const styles = [
   },
   {
     "id": "style_1780029542441",
-    "sort": 27,
+    "sort": 26,
     "tags": [
       "剪纸"
     ],
@@ -369,7 +356,7 @@ const styles = [
   },
   {
     "id": "style_1779762562660",
-    "sort": 28,
+    "sort": 27,
     "tags": [
       "潮流",
       "海报",
@@ -384,7 +371,7 @@ const styles = [
   },
   {
     "id": "style_1779961220177",
-    "sort": 29,
+    "sort": 28,
     "tags": [
       "Plog",
       "日常"
@@ -398,7 +385,7 @@ const styles = [
   },
   {
     "id": "style_1779179665778",
-    "sort": 30,
+    "sort": 29,
     "tags": [
       "随意，手绘，丑萌，速写"
     ],
@@ -411,7 +398,7 @@ const styles = [
   },
   {
     "id": "style_1779845065374",
-    "sort": 31,
+    "sort": 30,
     "tags": [
       "剪纸，旅行，可爱"
     ],
@@ -424,7 +411,7 @@ const styles = [
   },
   {
     "id": "style_1779844966340",
-    "sort": 32,
+    "sort": 31,
     "tags": [
       "剪纸，简约"
     ],
@@ -436,21 +423,8 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1779931260825",
-    "sort": 33,
-    "tags": [
-      "表情包"
-    ],
-    "subjectType": "both",
-    "drawCardEnabled": false,
-    "drawCardWeight": 100,
-    "image": "/images-small/style_1779931260825.jpg",
-    "prompt": "参照上传图片里的主体形象，将其改编成可爱的卡通萌系造型。设计16款各不相同的LINE风格表情包贴纸。搭配丰富多变的动作姿势与文字排版，组成款式多样的贴纸套装，确保任意两款贴纸外观都不重复。所有对话文案均使用中文，选用时下热门潮流话术。背景统一设置为纯白色。打造一套适配日常各类聊天场景、日常使用便捷的贴纸套装。",
-    "useStyleImageAsReference": false
-  },
-  {
     "id": "style_1779322951275",
-    "sort": 34,
+    "sort": 32,
     "tags": [
       "表情包"
     ],
@@ -463,7 +437,7 @@ const styles = [
   },
   {
     "id": "style_1779180072956",
-    "sort": 35,
+    "sort": 33,
     "tags": [
       "Plog",
       "可爱",
@@ -479,7 +453,7 @@ const styles = [
   },
   {
     "id": "style_1779179914765",
-    "sort": 36,
+    "sort": 34,
     "tags": [
       "儿童",
       "插画",
@@ -495,7 +469,7 @@ const styles = [
   },
   {
     "id": "style_1779179882103",
-    "sort": 37,
+    "sort": 35,
     "tags": [
       "艺术",
       "宠物"
@@ -509,7 +483,7 @@ const styles = [
   },
   {
     "id": "style_1779179828722",
-    "sort": 38,
+    "sort": 36,
     "tags": [
       "手绘",
       "插画",
@@ -524,7 +498,7 @@ const styles = [
   },
   {
     "id": "style_1779179773582",
-    "sort": 39,
+    "sort": 37,
     "tags": [
       "卡通"
     ],
@@ -537,7 +511,7 @@ const styles = [
   },
   {
     "id": "style_1779179722094",
-    "sort": 40,
+    "sort": 38,
     "tags": [
       "卡通",
       "丑萌",
@@ -553,7 +527,7 @@ const styles = [
   },
   {
     "id": "style_1779179649152",
-    "sort": 41,
+    "sort": 39,
     "tags": [
       "随意",
       "手绘",
@@ -568,7 +542,7 @@ const styles = [
   },
   {
     "id": "style_1779179490072",
-    "sort": 42,
+    "sort": 40,
     "tags": [
       "插画",
       "手绘",
@@ -585,7 +559,7 @@ const styles = [
   },
   {
     "id": "style_1779179328013",
-    "sort": 43,
+    "sort": 41,
     "tags": [
       "卡通",
       "插画",
@@ -604,7 +578,7 @@ const styles = [
   },
   {
     "id": "clay",
-    "sort": 44,
+    "sort": 42,
     "tags": [
       "手绘，儿童，可爱，随意，宠物"
     ],
@@ -617,7 +591,7 @@ const styles = [
   },
   {
     "id": "style_1779165306174",
-    "sort": 45,
+    "sort": 43,
     "tags": [
       "像素，头像，儿童，宠物，卡通"
     ],
@@ -630,7 +604,7 @@ const styles = [
   },
   {
     "id": "oil_painting",
-    "sort": 46,
+    "sort": 44,
     "tags": [
       "宠物",
       "随意",
@@ -648,7 +622,7 @@ const styles = [
   },
   {
     "id": "style_1780359396127",
-    "sort": 47,
+    "sort": 45,
     "tags": [
       "艺术肖像海报"
     ],
@@ -661,7 +635,7 @@ const styles = [
   },
   {
     "id": "cyberpunk",
-    "sort": 48,
+    "sort": 46,
     "tags": [
       "手绘，蜡笔，儿童，宠物，可爱"
     ],
@@ -674,7 +648,7 @@ const styles = [
   },
   {
     "id": "pixel",
-    "sort": 49,
+    "sort": 47,
     "tags": [
       "丑萌",
       "插画",
@@ -689,7 +663,7 @@ const styles = [
   },
   {
     "id": "style_1779179392820",
-    "sort": 50,
+    "sort": 48,
     "tags": [
       "诡异，童话，猎奇"
     ],
@@ -702,7 +676,7 @@ const styles = [
   },
   {
     "id": "style_1779268159068",
-    "sort": 51,
+    "sort": 49,
     "tags": [
       "人物"
     ],
@@ -711,6 +685,32 @@ const styles = [
     "drawCardWeight": 100,
     "image": "/images-small/style_1779268159068.jpg",
     "prompt": "Turn the person from the photo into a grotesque humorous fashion caricature sketch. Strongly exaggerated anatomy, elongated proportions, expressive crooked hands, dramatic face, awkward elegant posture, satirical fashion energy, messy ink lines, rough watercolor, sketchbook style, vintage magazine illustration on beige aged paper. Add handwritten Chinese notes, arrows, funny observations, doodles, and absurd personality analysis around the character.",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1779931260825",
+    "sort": 50,
+    "tags": [
+      "表情包"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": false,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1779931260825.jpg",
+    "prompt": "参照上传图片里的主体形象，将其改编成可爱的卡通萌系造型。设计16款各不相同的LINE风格表情包贴纸。搭配丰富多变的动作姿势与文字排版，组成款式多样的贴纸套装，确保任意两款贴纸外观都不重复。所有对话文案均使用中文，选用时下热门潮流话术。背景统一设置为纯白色。打造一套适配日常各类聊天场景、日常使用便捷的贴纸套装。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1780637137263",
+    "sort": 51,
+    "tags": [
+      "认知书"
+    ],
+    "subjectType": "person",
+    "drawCardEnabled": false,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1780637137263.jpg",
+    "prompt": "生成一张严格3×3九宫格绘本页面总览图，\n共9格，必须铺满整张正方形画面，不留空\n白。每一格都是独立1:1正方形页面。内容只\n包含：封面、Eyes眼睛、Ears耳朵、Nose鼻\n子、Mouth嘴巴、Hands手、Tummy肚子、\nLegs腿、Feet脚。不要生成第10页，每一\n页都要不同的人物动作或姿势，不出现相似\n页，中英双语儿童启蒙书，绘本封面标题“My\nFirst Body 我的第一本身体认知书”，真实摄\n影风格，真实皮肤纹理，白色摄影棚背景，柔\n和自然光,极简留白设计，高级母婴杂志感，\n儿童认知卡片布局，每页一个身体部位主题，\n包含英文标题、中文标题、彩色编号、虚线\n箭头标注、小器官图标（可爱幼稚)、简洁双\n语文案，文案类似：这是我的眼睛，文字可\n爱一点，字体粗一点，文字颜色可以五颜六\n色，DK百科式排版，浅景深，商业儿童摄影,\n温暖奶油白色调，低饱和莫兰迪配色，治愈\n系儿童绘本风格，高清8k, ultra detailed,\nrealistic baby portrait, editorial layout, soft\nlighting, minimal background",
     "useStyleImageAsReference": false
   }
 ];
