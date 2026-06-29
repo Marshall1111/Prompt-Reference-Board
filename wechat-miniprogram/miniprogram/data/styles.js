@@ -26,60 +26,21 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1782658440886",
+    "id": "style_1779179958695",
     "sort": 2,
     "tags": [
-      "手绘速写"
+      "方形，平面插画"
     ],
     "subjectType": "both",
     "drawCardEnabled": true,
     "drawCardWeight": 100,
-    "image": "/images-small/style_1782658440886.jpg",
-    "prompt": "原图转为插画\n整体画风：极简拙朴手绘插画，造型高度概括符号化，比例笨拙可爱，仅保留核心识别特征；复古丝网印刷肌理，随性松弛，不追求完美精致\n线条上色：深蓝色歪扭轮廓线，粗细不均、断续断线，带手绘自然抖动动感，刻意粗糙不工整；单色系平涂纯色，无渐变、阴影、明暗过渡，低饱和度色彩，正面平视无透视\n背景处理：暖调米白底色，主体居中，大面积留白，无多余装饰",
-    "useStyleImageAsReference": false
-  },
-  {
-    "id": "style_1782658718166",
-    "sort": 3,
-    "tags": [
-      "森系水彩"
-    ],
-    "subjectType": "both",
-    "drawCardEnabled": true,
-    "drawCardWeight": 100,
-    "image": "/images-small/style_1782658718166.jpg",
-    "prompt": "原图转为插画\n整体画风：韩系软萌手绘涂鸦插画，画面风格统一，温柔干净治愈\n线条上色：细黑手绘线条，低饱和柔和配色，彩铅+淡水彩通透肌理\n造型优化：轻微Q版可爱化，脸部圆润，表情柔和，五官朝向、肢体动作不变\n背景处理：点缀小爱心、小花、星星、贴纸、手写小字",
-    "useStyleImageAsReference": false
-  },
-  {
-    "id": "style_1782658589405",
-    "sort": 4,
-    "tags": [
-      "粗线条简笔"
-    ],
-    "subjectType": "both",
-    "drawCardEnabled": true,
-    "drawCardWeight": 100,
-    "image": "/images-small/style_1782658589405.jpg",
-    "prompt": "原图转为插画\n整体画风：手绘儿童简笔画，极简造型，无刻意修饰\n线条规范：粗黑外轮廓，手绘线条粗糙质感\n背景基底：细腻颗粒纸质纹理背景",
-    "useStyleImageAsReference": false
-  },
-  {
-    "id": "style_1782659145280",
-    "sort": 5,
-    "tags": [
-      "搞怪漫画涂鸦海报"
-    ],
-    "subjectType": "pet",
-    "drawCardEnabled": true,
-    "drawCardWeight": 100,
-    "image": "/images-small/style_1782659145280.jpg",
-    "prompt": "原图转为插画\n整体画风：搞怪漫画涂鸦海报，画面风格统一；剔除原图光影、透视、纹理，保留场景物体与布局；画面活泼热血、搞怪卡通\n造型优化：完全保留人物/动物动作、装备、场地、背景、镜头角度，强化动感、表情夸张效果\n线条上色：粗黑勾线，夸张面部表情，添加动态速度线，彩色马克笔涂色，带蜡笔颗粒纹理\n背景处理：添加速度线、感叹号、星星、汗滴、气泡文字、火焰、闪电涂鸦元素",
+    "image": "/images-small/style_1779179958695.jpg",
+    "prompt": "请将整个图像转化为单一的装饰性民间平面插图，带有涂鸦元素。使用大胆而俏皮的色彩调色板，与原图像完全不同。\n将所有细节简化为干净、平面的形状，带有手工制作的、略显不完美感，仿佛绘制在一张白纸上。整体风格应显得可爱、童趣十足且异想天开。",
     "useStyleImageAsReference": false
   },
   {
     "id": "style_1782657237052",
-    "sort": 6,
+    "sort": 3,
     "tags": [
       "涂鸦，插画"
     ],
@@ -91,8 +52,34 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
+    "id": "style_1779180012171",
+    "sort": 4,
+    "tags": [
+      "方形，可爱手绘"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1779180012171.jpg",
+    "prompt": "把参考图中的主体变成一个萌风Q版角色，凌乱粗糙的黑色线稿，幼态比例，像小孩随手涂鸦但极具设计感，粗笔触、水粉厚涂、蜡笔质感，边缘随意外扩，留白背景、可爱、手绘感极强，不精致，故意画歪，松散构图，低饱和奶油色调，艺术涂鸦插画。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "pencil",
+    "sort": 5,
+    "tags": [
+      "涂鸦，速写，儿童，插画，宠物"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/pencil.jpg",
+    "prompt": "以涂鸦速写风表现【主题/主体】，整体呈现快速勾勒、自由变形、即兴手绘与草稿式的视觉效果。线条随手、夸张、可粗细不一，略显凌乱但具有节奏和表现力，强调概括、夸张、趣味和随性，而不是严谨写实或精细刻画。\n\n颜色采用粗糙、干刷感明显的块面表现，可保留不均匀的涂抹痕迹、刷痕、飞白与覆盖感，色彩根据【主题/主体】自动适配，但整体保持涂鸦式、速写式、概括式的表达。不要透明水彩晕染效果，不要细腻水彩过渡，不要纸纹理，不要柔和雾化，不要梦幻质感。\n\n背景以留白为主，保持简洁、轻松、未完成感和设计感，可加入少量辅助性符号、箭头、记号、圈画、重复线、随手写的文字或其他涂鸦元素，以增强速写本或随笔式视觉语言，但不可过于拥挤，不可破坏主体和留白气质。\n\n画面内容不需要预先写清楚，由【主题/主体】自动推演并生成最适合的主体形象、动作、相关元素、符号或简化场景，整体保持统一的涂鸦速写风和夸张概括的表现方式，避免复杂写实背景和过度铺陈。\n画面中需自然加入专属签名“Marshall”，作为画面的一部分，位置低调但清晰，可放在左下角、右下角或标题附近，风格需与整体版式统一，像作品署名或设计落款；签名字体精致、克制、高级，不可过大，不可破坏主体构图，不可显得突兀或廉价。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1782539050463",
-    "sort": 7,
+    "sort": 6,
     "tags": [
       "美式卡通"
     ],
@@ -104,21 +91,21 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1782538975049",
-    "sort": 8,
+    "id": "style_1782658440886",
+    "sort": 7,
     "tags": [
-      "复古，扁平，动画人像"
+      "手绘速写"
     ],
     "subjectType": "both",
     "drawCardEnabled": true,
     "drawCardWeight": 100,
-    "image": "/images-small/style_1782538975049.jpg",
-    "prompt": "【任务】把用户上传真实人像转成复古扁平动画人像，像90s/early-2000s TV anime截帧。人物占画面75–90%。\n\t\n【参考】真实照片作identity source，保留本人2–5个识别锚点：脸型轮廓、发型轮廓、头部角度、眉眼气质、嘴部状态、肤色深浅印象、眼镜/耳饰/帽子/衣领等。风格参考只学retro flat anime：粗黑轮廓、黑色豆形瞳孔、平涂色块、清晰硬边阴影、高饱和纯色背景，不复制已有角色。\n\t\n【主体】必须像上传照片本人。眼睛简化成黑色豆形/椭圆瞳孔，眼白干净，无虹膜和高光。眉毛负责情绪，可压低、上挑、不对称，表达困、冷、拽、紧张、委屈或呆萌。鼻子只用1–2根细线+一块明显鼻侧阴影。嘴巴小而克制，保留照片中的微笑、抿嘴、撇嘴或微张状态。\n\t\n【构图】极近裁切，背景只保留纯色空间。\n\t\n【风格】retro anime, flat cel animation, bold outline, solid color blocks, subtle rosy-peach skin, hard-edged shadows, awkward cute, graphic, nostalgic。\n\t\n【色彩光影】肤色不要红色滤镜，要淡粉桃色、浅peach pink、light salmon peach，整体干净明亮。脸部必须有2–4块明显硬边阴影，颜色用暖灰褐、粉褐、淡紫灰、dusty beige-pink、muted mauve。阴影放在鼻侧、眼下、脸颊、嘴下、下巴、脖子侧面，必须比肤色更深，边缘锐利，不要柔光渐变。背景用钴蓝/橙/热粉/绿色/黑色高饱和纯色。\n\t\n【限制】避免写实、3D、半写实二次元、红色滤镜、整脸泛红、深红皮肤、阴影太弱、柔和渐变、复杂虹膜、眼睛高光、厚涂、真实皮肤纹理、复杂背景、全身、Q版、过度装饰、改变本人核心脸型和发型。",
+    "image": "/images-small/style_1782658440886.jpg",
+    "prompt": "原图转为插画\n整体画风：极简拙朴手绘插画，造型高度概括符号化，比例笨拙可爱，仅保留核心识别特征；复古丝网印刷肌理，随性松弛，不追求完美精致\n线条上色：深蓝色歪扭轮廓线，粗细不均、断续断线，带手绘自然抖动动感，刻意粗糙不工整；单色系平涂纯色，无渐变、阴影、明暗过渡，低饱和度色彩，正面平视无透视\n背景处理：暖调米白底色，主体居中，大面积留白，无多余装饰",
     "useStyleImageAsReference": false
   },
   {
     "id": "style_1782538907748",
-    "sort": 9,
+    "sort": 8,
     "tags": [
       "潮流海报"
     ],
@@ -131,7 +118,7 @@ const styles = [
   },
   {
     "id": "style_1780884090064",
-    "sort": 10,
+    "sort": 9,
     "tags": [
       "宠物，蜡笔"
     ],
@@ -143,21 +130,21 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1779179958695",
-    "sort": 11,
+    "id": "style_1782658589405",
+    "sort": 10,
     "tags": [
-      "方形，平面插画"
+      "粗线条简笔"
     ],
     "subjectType": "both",
     "drawCardEnabled": true,
     "drawCardWeight": 100,
-    "image": "/images-small/style_1779179958695.jpg",
-    "prompt": "请将整个图像转化为单一的装饰性民间平面插图，带有涂鸦元素。使用大胆而俏皮的色彩调色板，与原图像完全不同。\n将所有细节简化为干净、平面的形状，带有手工制作的、略显不完美感，仿佛绘制在一张白纸上。整体风格应显得可爱、童趣十足且异想天开。",
+    "image": "/images-small/style_1782658589405.jpg",
+    "prompt": "原图转为插画\n整体画风：手绘儿童简笔画，极简造型，无刻意修饰\n线条规范：粗黑外轮廓，手绘线条粗糙质感\n背景基底：细腻颗粒纸质纹理背景",
     "useStyleImageAsReference": false
   },
   {
     "id": "style_1780359249273",
-    "sort": 12,
+    "sort": 11,
     "tags": [
       "治愈系插画"
     ],
@@ -169,8 +156,34 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1780214860370",
+    "id": "style_1782658718166",
+    "sort": 12,
+    "tags": [
+      "森系水彩"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782658718166.jpg",
+    "prompt": "原图转为插画\n整体画风：韩系软萌手绘涂鸦插画，画面风格统一，温柔干净治愈\n线条上色：细黑手绘线条，低饱和柔和配色，彩铅+淡水彩通透肌理\n造型优化：轻微Q版可爱化，脸部圆润，表情柔和，五官朝向、肢体动作不变\n背景处理：点缀小爱心、小花、星星、贴纸、手写小字",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1782659145280",
     "sort": 13,
+    "tags": [
+      "搞怪漫画涂鸦海报"
+    ],
+    "subjectType": "pet",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782659145280.jpg",
+    "prompt": "原图转为插画\n整体画风：搞怪漫画涂鸦海报，画面风格统一；剔除原图光影、透视、纹理，保留场景物体与布局；画面活泼热血、搞怪卡通\n造型优化：完全保留人物/动物动作、装备、场地、背景、镜头角度，强化动感、表情夸张效果\n线条上色：粗黑勾线，夸张面部表情，添加动态速度线，彩色马克笔涂色，带蜡笔颗粒纹理\n背景处理：添加速度线、感叹号、星星、汗滴、气泡文字、火焰、闪电涂鸦元素",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1780214860370",
+    "sort": 14,
     "tags": [
       "宠物，油画，厚涂，肖像"
     ],
@@ -183,7 +196,7 @@ const styles = [
   },
   {
     "id": "style_1780183870275",
-    "sort": 14,
+    "sort": 15,
     "tags": [
       "宠物，角色卡"
     ],
@@ -196,7 +209,7 @@ const styles = [
   },
   {
     "id": "style_1780183785792",
-    "sort": 15,
+    "sort": 16,
     "tags": [
       "水墨肖像，宠物"
     ],
@@ -209,7 +222,7 @@ const styles = [
   },
   {
     "id": "style_1779944352617",
-    "sort": 16,
+    "sort": 17,
     "tags": [
       "潮流",
       "宠物"
@@ -223,7 +236,7 @@ const styles = [
   },
   {
     "id": "style_1779931156452",
-    "sort": 17,
+    "sort": 18,
     "tags": [
       "莫奈",
       "印象派",
@@ -238,8 +251,21 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
+    "id": "style_1782538975049",
+    "sort": 19,
+    "tags": [
+      "复古，扁平，动画人像"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782538975049.jpg",
+    "prompt": "【任务】把用户上传真实人像转成复古扁平动画人像，像90s/early-2000s TV anime截帧。人物占画面75–90%。\n\t\n【参考】真实照片作identity source，保留本人2–5个识别锚点：脸型轮廓、发型轮廓、头部角度、眉眼气质、嘴部状态、肤色深浅印象、眼镜/耳饰/帽子/衣领等。风格参考只学retro flat anime：粗黑轮廓、黑色豆形瞳孔、平涂色块、清晰硬边阴影、高饱和纯色背景，不复制已有角色。\n\t\n【主体】必须像上传照片本人。眼睛简化成黑色豆形/椭圆瞳孔，眼白干净，无虹膜和高光。眉毛负责情绪，可压低、上挑、不对称，表达困、冷、拽、紧张、委屈或呆萌。鼻子只用1–2根细线+一块明显鼻侧阴影。嘴巴小而克制，保留照片中的微笑、抿嘴、撇嘴或微张状态。\n\t\n【构图】极近裁切，背景只保留纯色空间。\n\t\n【风格】retro anime, flat cel animation, bold outline, solid color blocks, subtle rosy-peach skin, hard-edged shadows, awkward cute, graphic, nostalgic。\n\t\n【色彩光影】肤色不要红色滤镜，要淡粉桃色、浅peach pink、light salmon peach，整体干净明亮。脸部必须有2–4块明显硬边阴影，颜色用暖灰褐、粉褐、淡紫灰、dusty beige-pink、muted mauve。阴影放在鼻侧、眼下、脸颊、嘴下、下巴、脖子侧面，必须比肤色更深，边缘锐利，不要柔光渐变。背景用钴蓝/橙/热粉/绿色/黑色高饱和纯色。\n\t\n【限制】避免写实、3D、半写实二次元、红色滤镜、整脸泛红、深红皮肤、阴影太弱、柔和渐变、复杂虹膜、眼睛高光、厚涂、真实皮肤纹理、复杂背景、全身、Q版、过度装饰、改变本人核心脸型和发型。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1780636884368",
-    "sort": 18,
+    "sort": 20,
     "tags": [
       "异形，不带背景"
     ],
@@ -252,7 +278,7 @@ const styles = [
   },
   {
     "id": "style_1780636102242",
-    "sort": 19,
+    "sort": 21,
     "tags": [
       "异形，带背景"
     ],
@@ -265,7 +291,7 @@ const styles = [
   },
   {
     "id": "style_1779179574408",
-    "sort": 20,
+    "sort": 22,
     "tags": [
       "丑萌，手绘，随意"
     ],
@@ -274,32 +300,6 @@ const styles = [
     "drawCardWeight": 100,
     "image": "/images-small/style_1779179574408.jpg",
     "prompt": "把这 张照片改成画风笨拙又搞笑的涂鸦风插画 。 特点： - 营造出像是用平价马克笔、蜡笔随手画出来的潦草速写质感- 线条杂乱随性，充满孩子气画风- 透视扭曲失衡，整体构图比例不协调- 脸部五官稍作夸张处理，打造滑稽喜感, 眼睛俏皮可爱 额外添加元素：- 简约漫画风背景（结合参考照片联想绘制即可）- 添上无意义的乱涂线条、细碎随性的小细节- 保留上色不均、涂色出界、明显的笔触痕迹 整体风格：- 透着敷衍潦草、毫无用心去画的随性感- 切勿画得太过精致完整- 沙雕搞笑的表情包趣味画风- 贴合网络轻松趣味的氛围 禁止要求：- 不要画得写实- 不要刻画得太过精致细腻- 不要做出专业规整的绘画效果。",
-    "useStyleImageAsReference": false
-  },
-  {
-    "id": "style_1779180012171",
-    "sort": 21,
-    "tags": [
-      "方形，可爱手绘"
-    ],
-    "subjectType": "both",
-    "drawCardEnabled": true,
-    "drawCardWeight": 100,
-    "image": "/images-small/style_1779180012171.jpg",
-    "prompt": "把参考图中的主体变成一个萌风Q版角色，凌乱粗糙的黑色线稿，幼态比例，像小孩随手涂鸦但极具设计感，粗笔触、水粉厚涂、蜡笔质感，边缘随意外扩，留白背景、可爱、手绘感极强，不精致，故意画歪，松散构图，低饱和奶油色调，艺术涂鸦插画。",
-    "useStyleImageAsReference": false
-  },
-  {
-    "id": "pencil",
-    "sort": 22,
-    "tags": [
-      "涂鸦，速写，儿童，插画，宠物"
-    ],
-    "subjectType": "both",
-    "drawCardEnabled": true,
-    "drawCardWeight": 100,
-    "image": "/images-small/pencil.jpg",
-    "prompt": "以涂鸦速写风表现【主题/主体】，整体呈现快速勾勒、自由变形、即兴手绘与草稿式的视觉效果。线条随手、夸张、可粗细不一，略显凌乱但具有节奏和表现力，强调概括、夸张、趣味和随性，而不是严谨写实或精细刻画。\n\n颜色采用粗糙、干刷感明显的块面表现，可保留不均匀的涂抹痕迹、刷痕、飞白与覆盖感，色彩根据【主题/主体】自动适配，但整体保持涂鸦式、速写式、概括式的表达。不要透明水彩晕染效果，不要细腻水彩过渡，不要纸纹理，不要柔和雾化，不要梦幻质感。\n\n背景以留白为主，保持简洁、轻松、未完成感和设计感，可加入少量辅助性符号、箭头、记号、圈画、重复线、随手写的文字或其他涂鸦元素，以增强速写本或随笔式视觉语言，但不可过于拥挤，不可破坏主体和留白气质。\n\n画面内容不需要预先写清楚，由【主题/主体】自动推演并生成最适合的主体形象、动作、相关元素、符号或简化场景，整体保持统一的涂鸦速写风和夸张概括的表现方式，避免复杂写实背景和过度铺陈。\n画面中需自然加入专属签名“Marshall”，作为画面的一部分，位置低调但清晰，可放在左下角、右下角或标题附近，风格需与整体版式统一，像作品署名或设计落款；签名字体精致、克制、高级，不可过大，不可破坏主体构图，不可显得突兀或廉价。",
     "useStyleImageAsReference": false
   },
   {
