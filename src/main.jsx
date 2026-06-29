@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowDown, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, QrCode, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowLeft, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, QrCode, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import { createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
 import "./styles.css";
@@ -67,6 +67,12 @@ const DEFAULT_ADMIN_ORDER_QUERY = {
   merchantId: "",
   startDate: "",
   endDate: ""
+};
+const MAX_PUBLIC_STYLE_SELECTION = 3;
+const SUBJECT_TYPE_LABELS = {
+  both: "通用",
+  person: "人物",
+  pet: "宠物"
 };
 
 function getSizeLabel(size) {
@@ -466,9 +472,18 @@ function AdminApp({ navigate, route }) {
     <main className="app-shell">
       <section className="workspace">
         <header className="topbar">
-          <div>
+          <div className="topbar-main">
             <p className="eyebrow">Prompt reference board</p>
             <h1>后台管理</h1>
+            <div className="subtle-entry-row" aria-label="公开页面入口">
+              <span>公开页</span>
+              <a className="subtle-entry-link" href="/">
+                抽卡页
+              </a>
+              <a className="subtle-entry-link" href="/fridge">
+                冰箱贴页
+              </a>
+            </div>
           </div>
           <div className="top-actions">
             <label className="search-box">
@@ -1038,6 +1053,10 @@ function PublicExperiencePage({ config }) {
   const [manualMessageCopied, setManualMessageCopied] = useState(false);
   const [manualPaymentCardUrl, setManualPaymentCardUrl] = useState("");
   const [visitTrackingReady, setVisitTrackingReady] = useState(false);
+  const [stylePickerStyles, setStylePickerStyles] = useState([]);
+  const [selectedStyleIds, setSelectedStyleIds] = useState([]);
+  const [stylePickerError, setStylePickerError] = useState("");
+  const [isLoadingStylePicker, setIsLoadingStylePicker] = useState(false);
   const resultMediaRefs = useRef(new Map());
   const cardClipPanelRef = useRef(null);
   const flightTimeoutRef = useRef(null);
@@ -1192,6 +1211,23 @@ function PublicExperiencePage({ config }) {
 
   function refreshVisitorStateSilently() {
     fetchVisitorState().then(setVisitorState).catch(() => {});
+  }
+
+  async function openStylePicker() {
+    setPhase("style-picker");
+    setError("");
+    setStylePickerError("");
+    if (stylePickerStyles.length || isLoadingStylePicker || experienceType !== "draw-card") return;
+
+    setIsLoadingStylePicker(true);
+    try {
+      const payload = await fetchPublicDrawCardStyles();
+      setStylePickerStyles(Array.isArray(payload.styles) ? payload.styles : []);
+    } catch (nextError) {
+      setStylePickerError(nextError.message || "读取抽卡风格失败，请稍后再试。");
+    } finally {
+      setIsLoadingStylePicker(false);
+    }
   }
 
   function clearPersistedSession() {
@@ -1446,7 +1482,13 @@ function PublicExperiencePage({ config }) {
     };
   }, []);
 
+  const selectedDrawCardStyles = useMemo(() => {
+    const styleById = new Map(stylePickerStyles.map((style) => [style.id, style]));
+    return selectedStyleIds.map((styleId) => styleById.get(styleId)).filter(Boolean);
+  }, [selectedStyleIds, stylePickerStyles]);
+
   const canStart = Boolean(referenceFile) && !isSubmitting;
+  const canStartCustomDraw = Boolean(referenceFile) && selectedStyleIds.length > 0 && !isSubmitting;
   const activeResult = activeResultIndex >= 0 ? toDisplayResult(displayItems[activeResultIndex]) : activeResultIndex === -3 ? activeClipPreview : null;
   const succeededCount = Number(session?.summary?.succeeded ?? displayItems.filter((item) => item.status === "succeeded").length);
   const totalCount = Number(session?.summary?.total ?? displayItems.length);
@@ -1481,6 +1523,7 @@ function PublicExperiencePage({ config }) {
     setActiveClipPreview(null);
     setFlyingCard(null);
     setClipReceiving(false);
+    setStylePickerError("");
     resultMediaRefs.current.clear();
   }
 
@@ -1490,11 +1533,13 @@ function PublicExperiencePage({ config }) {
     resetExperience();
   }
 
-  function handleFileChange(file) {
+  function handleFileChange(file, options = {}) {
+    const successPhase = options.successPhase || "ready";
+    const invalidPhase = options.invalidPhase || successPhase;
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       setError("请上传 JPG、PNG 或 WebP 图片。");
-      setPhase("error");
+      setPhase(invalidPhase);
       return;
     }
 
@@ -1504,7 +1549,8 @@ function PublicExperiencePage({ config }) {
     setSession(null);
     setResults([]);
     setError("");
-    setPhase("ready");
+    setStylePickerError("");
+    setPhase(successPhase);
   }
 
   function updateResultCardState(jobId, patch) {
@@ -1592,16 +1638,34 @@ function PublicExperiencePage({ config }) {
     else resultMediaRefs.current.delete(jobId);
   }
 
-  async function startDrawCard() {
+  function toggleSelectedStyle(styleId) {
+    if (!styleId) return;
+    setStylePickerError("");
+    setSelectedStyleIds((current) => {
+      if (current.includes(styleId)) {
+        return current.filter((item) => item !== styleId);
+      }
+      if (current.length >= MAX_PUBLIC_STYLE_SELECTION) {
+        setStylePickerError(`最多选择 ${MAX_PUBLIC_STYLE_SELECTION} 种风格。`);
+        return current;
+      }
+      return [...current, styleId];
+    });
+  }
+
+  async function startDrawCard(options = {}) {
     if (!referenceFile) return;
+    const requestedStyleIds = Array.isArray(options.selectedStyleIds) ? options.selectedStyleIds.filter(Boolean).slice(0, MAX_PUBLIC_STYLE_SELECTION) : [];
 
     setIsSubmitting(true);
     setError("");
+    setStylePickerError("");
     try {
       const latestVisitorState = await fetchVisitorState();
       setVisitorState(latestVisitorState);
       if (!latestVisitorState?.canGenerate) {
         setError(latestVisitorState?.contactMessage || clipContactFallback);
+        if (requestedStyleIds.length) setStylePickerError(latestVisitorState?.contactMessage || clipContactFallback);
         return;
       }
 
@@ -1617,6 +1681,9 @@ function PublicExperiencePage({ config }) {
       formData.append("clientUploadedWidth", String(preparedReference.telemetry?.uploadedWidth ?? ""));
       formData.append("clientUploadedHeight", String(preparedReference.telemetry?.uploadedHeight ?? ""));
       formData.append("clientWasCompressed", preparedReference.telemetry?.wasCompressed ? "1" : "0");
+      if (requestedStyleIds.length) {
+        formData.append("selectedStyleIds", JSON.stringify(requestedStyleIds));
+      }
 
       const response = await fetch(`${apiBase}/sessions`, {
         method: "POST",
@@ -1630,7 +1697,12 @@ function PublicExperiencePage({ config }) {
       refreshVisitorStateSilently();
     } catch (nextError) {
       setError(nextError.message || createErrorMessage);
-      setPhase("ready");
+      if (requestedStyleIds.length) {
+        setStylePickerError(nextError.message || createErrorMessage);
+        setPhase("style-picker");
+      } else {
+        setPhase("ready");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1931,6 +2003,11 @@ function PublicExperiencePage({ config }) {
     <main className={`draw-card-shell ${themeClass} ${route} phase-${phase}`}>
       <div className="draw-card-ambient draw-card-ambient-a" />
       <div className="draw-card-ambient draw-card-ambient-b" />
+      <div className="draw-card-utility-bar">
+        <a className="draw-card-utility-link" href="/admin" aria-label="进入后台管理">
+          后台入口
+        </a>
+      </div>
 
       {(phase === "idle" || phase === "ready") && (
         <section className="draw-card-stage">
@@ -1969,6 +2046,11 @@ function PublicExperiencePage({ config }) {
                     {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
                     <span>{isSubmitting ? startButtonLoading : startButtonIdle}</span>
                   </button>
+                  {experienceType === "draw-card" ? (
+                    <button className="draw-card-secondary" disabled={isSubmitting} onClick={() => openStylePicker()} type="button">
+                      <span>自选风格</span>
+                    </button>
+                  ) : null}
                   {referenceFile ? (
                     <button className="draw-card-secondary" onClick={resetExperience} type="button">
                       <RefreshCw size={18} />
@@ -1985,6 +2067,116 @@ function PublicExperiencePage({ config }) {
           </div>
         </section>
       )}
+
+      {phase === "style-picker" && experienceType === "draw-card" ? (
+        <section className="draw-card-stage">
+          <div className="draw-card-style-picker-page">
+            <div className="draw-card-style-picker-head">
+              <div>
+                <p className="draw-card-kicker">Custom selection</p>
+                <h2>自选最多 3 种风格</h2>
+                <p className="draw-card-subtitle">这里不会随机抽取。你选中的风格会直接用于这一轮生成，所以缩略图做得更密一些，方便一屏快速挑选。</p>
+              </div>
+              <button
+                className="draw-card-secondary"
+                onClick={() => {
+                  setError("");
+                  setStylePickerError("");
+                  setPhase(referenceFile ? "ready" : "idle");
+                }}
+                type="button"
+              >
+                <ArrowLeft size={18} />
+                <span>返回抽卡页</span>
+              </button>
+            </div>
+
+            <section className="draw-card-upload-panel draw-card-style-picker-panel">
+              <div className="draw-card-style-picker-toolbar">
+                <label className={`draw-card-style-upload ${referencePreviewUrl ? "has-image" : ""}`} htmlFor="draw-card-style-picker-input">
+                  {referencePreviewUrl ? (
+                    <img alt={previewAlt} className="draw-card-upload-preview" src={referencePreviewUrl} />
+                  ) : (
+                    <div className="draw-card-upload-empty">
+                      <ImageUp size={20} />
+                      <strong>先上传图片</strong>
+                      <span>上传后再挑风格</span>
+                    </div>
+                  )}
+                  <input
+                    accept="image/png,image/jpeg,image/webp"
+                    id="draw-card-style-picker-input"
+                    onChange={(event) => {
+                      handleFileChange(event.target.files?.[0] || null, { successPhase: "style-picker", invalidPhase: "style-picker" });
+                      event.target.value = "";
+                    }}
+                    type="file"
+                  />
+                </label>
+
+                <div className="draw-card-style-picker-summary">
+                  <div className="draw-card-style-picker-count">已选 {selectedStyleIds.length} / {MAX_PUBLIC_STYLE_SELECTION}</div>
+                  <p className="draw-card-meta-note">每次最多选择 3 种风格。选好后会直接按这些风格出图，不再走随机抽取。</p>
+                  {selectedDrawCardStyles.length ? (
+                    <div className="draw-card-style-picker-selected">
+                      {selectedDrawCardStyles.map((style, index) => (
+                        <span className="draw-card-style-chip" key={style.id}>
+                          {index + 1}. {style.name || style.id}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="draw-card-meta-note">还没选风格，先点下面的小卡片。</p>
+                  )}
+
+                  <div className="draw-card-actions">
+                    <button className="draw-card-primary" disabled={!canStartCustomDraw} onClick={() => startDrawCard({ selectedStyleIds })} type="button">
+                      {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+                      <span>{isSubmitting ? "生成中" : "用选中风格开始"}</span>
+                    </button>
+                    <button
+                      className="draw-card-secondary"
+                      disabled={!selectedStyleIds.length}
+                      onClick={() => {
+                        setStylePickerError("");
+                        setSelectedStyleIds([]);
+                      }}
+                      type="button"
+                    >
+                      <span>清空已选</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {stylePickerError ? <p className="error-note draw-card-inline-error">{stylePickerError}</p> : null}
+              {isLoadingStylePicker ? <p className="storage-note">正在加载可选风格…</p> : null}
+              {!isLoadingStylePicker && !stylePickerStyles.length ? <p className="empty-note">当前没有可选的抽卡风格。</p> : null}
+
+              <div className="draw-card-style-grid" aria-label="可选抽卡风格">
+                {stylePickerStyles.map((style) => {
+                  const isSelected = selectedStyleIds.includes(style.id);
+                  return (
+                    <button
+                      className={`draw-card-style-card ${isSelected ? "is-selected" : ""}`}
+                      key={style.id}
+                      onClick={() => toggleSelectedStyle(style.id)}
+                      type="button"
+                    >
+                      <div className="draw-card-style-card-media">
+                        <StylePreviewImage alt={style.name || "风格示意图"} className="draw-card-style-card-image" style={style} />
+                        <span className="draw-card-style-card-subject">{SUBJECT_TYPE_LABELS[style.subjectType] || SUBJECT_TYPE_LABELS.both}</span>
+                        {isSelected ? <span className="draw-card-style-card-check"><Check size={14} /></span> : null}
+                      </div>
+                      <span className="draw-card-style-card-name">{style.name || style.id}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
+        </section>
+      ) : null}
 
       {phase === "results" && (
         <section className="draw-card-stage draw-card-stage-results">
@@ -4156,6 +4348,34 @@ async function fetchPublicClipItems(experienceType = "") {
   const response = await fetch(`/api/public/clip-items${query}`);
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取卡夹失败。");
+  return payload;
+}
+
+async function readJsonPayload(response, fallbackMessage, options = {}) {
+  const contentType = String(response.headers.get("content-type") || "");
+  const text = await response.text().catch(() => "");
+  if (!text) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    const looksLikeHtml = contentType.includes("text/html") || /^\s*</.test(text);
+    const error = new Error(
+      looksLikeHtml
+        ? options.htmlMessage || fallbackMessage
+        : fallbackMessage
+    );
+    error.status = response.status;
+    throw error;
+  }
+}
+
+async function fetchPublicDrawCardStyles() {
+  const response = await fetch("/api/public/draw-card-styles");
+  const payload = await readJsonPayload(response, "读取抽卡风格失败。", {
+    htmlMessage: "抽卡风格接口返回了页面内容。请重启当前 Node 服务后再试。"
+  });
+  if (!response.ok) throw new Error(payload.message || "读取抽卡风格失败。");
   return payload;
 }
 

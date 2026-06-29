@@ -236,6 +236,31 @@ function parseDrawCardClientMetrics(body) {
   };
 }
 
+function parseSelectedStyleIds(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+      .filter((item, index, list) => list.indexOf(item) === index);
+  }
+
+  const raw = String(value || "").trim();
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parseSelectedStyleIds(parsed);
+    }
+  } catch {}
+
+  return raw
+    .split(",")
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .filter((item, index, list) => list.indexOf(item) === index);
+}
+
 function normalizePublicExperienceType(value) {
   const normalized = String(value || "").trim().toLowerCase();
   return PUBLIC_EXPERIENCE_CONFIGS[normalized] ? normalized : DEFAULT_PUBLIC_EXPERIENCE_TYPE;
@@ -608,6 +633,18 @@ app.get("/api/visitor-state", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "读取访客状态失败，请稍后再试。" });
+  }
+});
+
+app.get("/api/public/draw-card-styles", async (_req, res) => {
+  try {
+    const styles = filterDrawCardEligibleStyles(await readStyles());
+    res.json({
+      styles: styles.map(toPublicDrawCardStyle)
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取抽卡风格失败，请稍后再试。" });
   }
 });
 
@@ -1344,6 +1381,7 @@ async function handleCreatePublicExperienceSession(req, res, experienceType) {
     }
 
     const clientMetrics = parseDrawCardClientMetrics(req.body);
+    const selectedStyleIds = config.experienceType === "draw-card" ? parseSelectedStyleIds(req.body?.selectedStyleIds) : [];
     logDrawCardTelemetry("request_parsed", {
       traceId: req.drawCardTraceId,
       visitorId: visitor.visitorId,
@@ -1357,7 +1395,8 @@ async function handleCreatePublicExperienceSession(req, res, experienceType) {
       clientOriginalHeight: clientMetrics.originalHeight,
       clientUploadedWidth: clientMetrics.uploadedWidth,
       clientUploadedHeight: clientMetrics.uploadedHeight,
-      clientWasCompressed: clientMetrics.wasCompressed
+      clientWasCompressed: clientMetrics.wasCompressed,
+      requestedStyleCount: selectedStyleIds.length
     });
 
     const estimatedCost = await estimateDrawCardQuotaCost();
@@ -1369,7 +1408,8 @@ async function handleCreatePublicExperienceSession(req, res, experienceType) {
       experienceType: config.experienceType,
       traceId: req.drawCardTraceId,
       requestStartedAtMs: req.drawCardRequestStartedAtMs,
-      clientMetrics
+      clientMetrics,
+      selectedStyleIds
     });
     res.status(202).json(toPublicDrawCardSession(session));
   } catch (error) {
@@ -5216,6 +5256,18 @@ function toPublicClipItem(job) {
   };
 }
 
+function toPublicDrawCardStyle(style) {
+  return {
+    id: String(style?.id || ""),
+    name: formatStyleName(style),
+    tags: Array.isArray(style?.tags) ? style.tags.filter(Boolean) : [],
+    subjectType: normalizeStyleSubjectType(style?.subjectType, style),
+    image: String(style?.image || ""),
+    galleryImage: String(style?.galleryImage || style?.image || ""),
+    imageUpdatedAt: style?.imageUpdatedAt || null
+  };
+}
+
 function summarizeTelemetryPhases(telemetry) {
   const safeTelemetry = telemetry && typeof telemetry === "object" ? telemetry : {};
   const client = safeTelemetry.client && typeof safeTelemetry.client === "object" ? safeTelemetry.client : {};
@@ -5309,13 +5361,28 @@ async function createDrawCardSession(file, visitor, options = {}) {
   const clientMetrics = options?.clientMetrics && typeof options.clientMetrics === "object" ? options.clientMetrics : {};
   const sessionCreateStartedAtMs = nowMs();
   const [groups, styles] = await Promise.all([readStyleGroups(), readStyles()]);
-  const usesAllStylesForExperience = config.experienceType === "draw-card";
+  const requestedStyleIds = config.experienceType === "draw-card" ? parseSelectedStyleIds(options?.selectedStyleIds) : [];
+  if (requestedStyleIds.length > DRAW_CARD_RANDOM_STYLE_COUNT) {
+    const error = new Error("Too many selected styles");
+    error.status = 400;
+    error.publicMessage = `最多选择 ${DRAW_CARD_RANDOM_STYLE_COUNT} 种风格。`;
+    throw error;
+  }
+
+  const usesManualSelectedStyles = config.experienceType === "draw-card" && requestedStyleIds.length > 0;
+  const usesAllStylesForExperience = config.experienceType === "draw-card" && !usesManualSelectedStyles;
   const group = usesAllStylesForExperience
     ? {
         id: "all-styles-random",
         name: "全部风格随机",
         size: DRAW_CARD_DEFAULT_SIZE
       }
+    : usesManualSelectedStyles
+      ? {
+          id: "manual-selected-styles",
+          name: "自选风格",
+          size: DRAW_CARD_DEFAULT_SIZE
+        }
     : groups.find((item) => String(item.name || "").trim() === config.styleGroupName);
   if (!group) {
     const error = new Error(`${config.label} group not found`);
@@ -5327,7 +5394,21 @@ async function createDrawCardSession(file, visitor, options = {}) {
   const styleMap = new Map(styles.map((style) => [style.id, style]));
   const sourceStyles = usesAllStylesForExperience
     ? styles.slice()
-    : (group.styleIds || []).map((styleId) => styleMap.get(styleId)).filter(Boolean);
+    : usesManualSelectedStyles
+      ? requestedStyleIds.map((styleId) => styleMap.get(styleId)).filter(Boolean)
+      : (group.styleIds || []).map((styleId) => styleMap.get(styleId)).filter(Boolean);
+  if (usesManualSelectedStyles && sourceStyles.length !== requestedStyleIds.length) {
+    const error = new Error("Selected styles are invalid");
+    error.status = 400;
+    error.publicMessage = "所选风格不存在，或已被删除。";
+    throw error;
+  }
+  if (usesManualSelectedStyles && filterDrawCardEligibleStyles(sourceStyles).length !== sourceStyles.length) {
+    const error = new Error("Selected styles are not available for draw card");
+    error.status = 400;
+    error.publicMessage = "所选风格当前不可用于抽卡，请重新选择。";
+    throw error;
+  }
   if (!sourceStyles.length) {
     const error = new Error(`${config.label} styles are empty`);
     error.status = 503;
@@ -5335,13 +5416,19 @@ async function createDrawCardSession(file, visitor, options = {}) {
     throw error;
   }
 
-  const subjectClassification = await classifyUploadedSubject(file, {
-    traceId,
-    providerId: options?.subjectClassifierProviderId
-  });
-  const matchedStyles = selectStylesForDetectedSubject(sourceStyles, subjectClassification.subject);
+  const subjectClassification = usesManualSelectedStyles
+    ? { subject: SUBJECT_UNKNOWN, confidence: null, providerId: "" }
+    : await classifyUploadedSubject(file, {
+        traceId,
+        providerId: options?.subjectClassifierProviderId
+      });
+  const matchedStyles = usesManualSelectedStyles ? sourceStyles : selectStylesForDetectedSubject(sourceStyles, subjectClassification.subject);
   const drawCardEligibleStyles = usesAllStylesForExperience ? filterDrawCardEligibleStyles(matchedStyles) : matchedStyles;
-  const selectedStyles = usesAllStylesForExperience ? sampleWeightedStyles(drawCardEligibleStyles, DRAW_CARD_RANDOM_STYLE_COUNT) : matchedStyles;
+  const selectedStyles = usesManualSelectedStyles
+    ? sourceStyles
+    : usesAllStylesForExperience
+      ? sampleWeightedStyles(drawCardEligibleStyles, DRAW_CARD_RANDOM_STYLE_COUNT)
+      : matchedStyles;
   const originalStyleCount = sourceStyles.length;
   const matchedStyleCount = matchedStyles.length;
   const drawCardEligibleStyleCount = drawCardEligibleStyles.length;
@@ -5389,7 +5476,8 @@ async function createDrawCardSession(file, visitor, options = {}) {
     subject: subjectClassification.subject,
     subjectConfidence: subjectClassification.confidence,
     subjectProviderId: subjectClassification.providerId,
-    styleSource: usesAllStylesForExperience ? "all_styles" : "group",
+    styleSource: usesManualSelectedStyles ? "manual_selection" : usesAllStylesForExperience ? "all_styles" : "group",
+    requestedStyleCount: requestedStyleIds.length,
     originalStyleCount,
     matchedStyleCount,
     drawCardEligibleStyleCount,
