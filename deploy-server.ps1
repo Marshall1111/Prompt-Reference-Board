@@ -54,6 +54,9 @@ $tarArgs = @(
   "--exclude=data/private-job-references",
   "--exclude=data/storage-backups",
   "--exclude=data/storage-export-temp",
+  "--exclude=data/orders.sqlite",
+  "--exclude=data/orders.sqlite-shm",
+  "--exclude=data/orders.sqlite-wal",
   "--exclude=*.log",
   "-C", $repoRoot,
   "."
