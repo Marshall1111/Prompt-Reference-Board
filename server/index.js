@@ -13,6 +13,7 @@ import { createMerchantStore } from "./merchant-store.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
+const localEnvPath = path.join(rootDir, ".env");
 const dataPath = path.join(rootDir, "data", "styles.json");
 const styleGroupsPath = path.join(rootDir, "data", "style-groups.json");
 const imageJobRoot = path.join(rootDir, "data", "image-jobs");
@@ -174,6 +175,45 @@ function elapsedMs(startMs) {
 function normalizeTelemetryNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function normalizeTelemetryText(value, maxLength = 240) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  return text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 1))}…` : text;
+}
+
+function toTelemetryProvider(provider) {
+  if (!provider || typeof provider !== "object") return null;
+  const id = String(provider.id || "").trim();
+  const name = String(provider.name || "").trim();
+  const model = String(provider.model || "").trim();
+  if (!id && !name && !model) return null;
+  return { id, name, model };
+}
+
+function toTelemetryProviderList(providers) {
+  return Array.isArray(providers) ? providers.map((provider) => toTelemetryProvider(provider)).filter(Boolean) : [];
+}
+
+function toTelemetryProviderAttempts(attempts) {
+  return Array.isArray(attempts)
+    ? attempts
+        .map((attempt) => {
+          const provider = toTelemetryProvider(attempt?.provider || attempt);
+          const status = String(attempt?.status || "").trim().toLowerCase();
+          if (!provider && !status) return null;
+          return {
+            provider,
+            endpoint: String(attempt?.endpoint || "").trim(),
+            status: status || "failed",
+            durationMs: normalizeTelemetryNumber(attempt?.durationMs),
+            statusCode: normalizeTelemetryNumber(attempt?.statusCode),
+            message: normalizeTelemetryText(attempt?.message, 180)
+          };
+        })
+        .filter(Boolean)
+    : [];
 }
 
 function summarizeDrawCardJobStatuses(items) {
@@ -1234,35 +1274,28 @@ app.get("/api/image-providers", requireAdmin, async (_req, res) => {
 
 app.get("/api/admin/api-providers", requireAdmin, async (_req, res) => {
   try {
-    const settings = await readAppSettings();
-    res.json({
-      defaultProviderId: getDefaultProviderId(getImageProviders(), settings),
-      providers: getAdminApiProviderConfigs()
-    });
+    res.json(await buildAdminApiProviderResponse());
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "读取 API 供应商配置失败。" });
   }
 });
 
+app.patch("/api/admin/api-providers/settings", requireAdmin, async (req, res) => {
+  try {
+    res.json(await saveAdminApiProviderSettings(req.body || {}));
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 400).json({ message: error.publicMessage || "保存 API 全局配置失败。" });
+  }
+});
+
 app.post("/api/admin/api-providers", requireAdmin, async (req, res) => {
   try {
     const provider = normalizeAdminApiProviderPayload(req.body);
-    const storedProviders = await readStoredApiProviders();
-    const existingIndex = storedProviders.findIndex((item) => item.id === provider.id);
-
-    if (existingIndex === -1) {
-      storedProviders.push(provider);
-    } else {
-      storedProviders[existingIndex] = provider;
-    }
-
-    await saveStoredApiProviders(storedProviders);
-    const settings = await saveAppSettings(await readAppSettings());
-    res.status(existingIndex === -1 ? 201 : 200).json({
-      defaultProviderId: getDefaultProviderId(getImageProviders(), settings),
-      providers: getAdminApiProviderConfigs()
-    });
+    const existing = getAdminApiProviderConfigs().find((item) => item.id === provider.id) || null;
+    const payload = await saveAdminApiProviderToEnv(provider, { appendToPriority: !existing });
+    res.status(existing ? 200 : 201).json(payload);
   } catch (error) {
     console.error(error);
     res.status(error.status || 400).json({ message: error.publicMessage || "保存 API 供应商失败。" });
@@ -1277,21 +1310,7 @@ app.put("/api/admin/api-providers/:providerId", requireAdmin, async (req, res) =
     }
 
     const provider = normalizeAdminApiProviderPayload(req.body, { providerId });
-    const storedProviders = await readStoredApiProviders();
-    const existingIndex = storedProviders.findIndex((item) => item.id === provider.id);
-
-    if (existingIndex === -1) {
-      storedProviders.push(provider);
-    } else {
-      storedProviders[existingIndex] = provider;
-    }
-
-    await saveStoredApiProviders(storedProviders);
-    const settings = await saveAppSettings(await readAppSettings());
-    res.json({
-      defaultProviderId: getDefaultProviderId(getImageProviders(), settings),
-      providers: getAdminApiProviderConfigs()
-    });
+    res.json(await saveAdminApiProviderToEnv(provider, { appendToPriority: false }));
   } catch (error) {
     console.error(error);
     res.status(error.status || 400).json({ message: error.publicMessage || "更新 API 供应商失败。" });
@@ -1307,38 +1326,13 @@ app.delete("/api/admin/api-providers/:providerId", requireAdmin, async (req, res
 
     const storedProviders = await readStoredApiProviders();
     const storedIndex = storedProviders.findIndex((item) => item.id === providerId);
-    const envProvider = getEnvImageProviders().find((item) => item.id === providerId) || null;
+    const envProvider = getAdminApiProviderConfigs().find((item) => item.id === providerId) || null;
 
     if (!envProvider && storedIndex === -1) {
       return res.status(404).json({ message: "供应商不存在。" });
     }
 
-    if (envProvider) {
-      const disabledOverride = {
-        id: providerId,
-        name: envProvider.name,
-        baseUrl: envProvider.baseUrl,
-        apiKey: envProvider.apiKey,
-        model: envProvider.model,
-        visionModel: envProvider.visionModel,
-        enabled: false
-      };
-
-      if (storedIndex === -1) {
-        storedProviders.push(disabledOverride);
-      } else {
-        storedProviders[storedIndex] = disabledOverride;
-      }
-    } else {
-      storedProviders.splice(storedIndex, 1);
-    }
-
-    await saveStoredApiProviders(storedProviders);
-    const settings = await saveAppSettings(await readAppSettings());
-    res.json({
-      defaultProviderId: getDefaultProviderId(getImageProviders(), settings),
-      providers: getAdminApiProviderConfigs()
-    });
+    res.json(await deleteAdminApiProviderFromEnv(providerId));
   } catch (error) {
     console.error(error);
     res.status(error.status || 400).json({ message: error.publicMessage || "删除 API 供应商失败。" });
@@ -1575,7 +1569,15 @@ app.post("/api/image-jobs", requireAdmin, upload.array("reference", 10), async (
       },
       mode: referenceFiles.length ? "edit" : "generation",
       ownerVisitorId: "",
-      visibility: "admin"
+      visibility: "admin",
+      telemetry: {
+        requestedProviderIdRaw: String(body.provider || "").trim(),
+        requestedProvider: toTelemetryProvider(provider),
+        providerChain: toTelemetryProviderList(providerChain),
+        attempts: [],
+        finalProvider: null,
+        finalError: ""
+      }
     };
 
     await saveImageJob(job);
@@ -1588,7 +1590,10 @@ app.post("/api/image-jobs", requireAdmin, upload.array("reference", 10), async (
       outputFormat: normalizeOption(body.output_format, ["png", "jpeg", "webp"], "png"),
       prompt,
       provider,
-      providers: providerChain
+      providers: providerChain,
+      telemetry: {
+        requestedProviderIdRaw: String(body.provider || "").trim()
+      }
     }).catch((error) => {
       console.error("Image job failed.", error);
     });
@@ -1673,7 +1678,15 @@ app.post("/api/image-jobs/batch", requireAdmin, async (req, res) => {
           name: provider.name,
           model: provider.model
         },
-        mode: referenceFiles.length ? "edit" : "generation"
+        mode: referenceFiles.length ? "edit" : "generation",
+        telemetry: {
+          requestedProviderIdRaw: String(body.provider || "").trim(),
+          requestedProvider: toTelemetryProvider(provider),
+          providerChain: toTelemetryProviderList(providerChain),
+          attempts: [],
+          finalProvider: null,
+          finalError: ""
+        }
       };
 
       preparedJobs.push({
@@ -1685,7 +1698,10 @@ app.post("/api/image-jobs/batch", requireAdmin, async (req, res) => {
           outputFormat: normalizeOption(body.output_format, ["png", "jpeg", "webp"], "png"),
           prompt: prompt,
           provider: provider,
-          providers: providerChain
+          providers: providerChain,
+          telemetry: {
+            requestedProviderIdRaw: String(body.provider || "").trim()
+          }
         }
       });
     }
@@ -2329,16 +2345,33 @@ app.get("/api/admin/settings", requireAdmin, async (_req, res) => {
 
 app.patch("/api/admin/settings", requireAdmin, async (req, res) => {
   try {
+    const current = await readAppSettings();
     const updated = await saveAppSettings({
-      ...(await readAppSettings()),
-      anonymousQuotaLimit: normalizeAnonymousQuotaLimit(req.body?.anonymousQuotaLimit),
-      defaultImageProviderId: normalizeImageProviderId(req.body?.defaultImageProviderId),
-      fridgeMagnetOrderingEnabled: req.body?.fridgeMagnetOrderingEnabled === true,
-      fridgeMagnetUnitPriceCents: normalizeMoneyCents(req.body?.fridgeMagnetUnitPriceCents, DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS),
-      singleItemShippingFeeCents: normalizeMoneyCents(req.body?.singleItemShippingFeeCents, DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS),
-      paymentMode: normalizeOrderPaymentMode(req.body?.paymentMode),
-      manualPaymentExpireDays: normalizeManualPaymentExpireDays(req.body?.manualPaymentExpireDays),
-      contactWechatId: normalizeContactWechatId(req.body?.contactWechatId)
+      ...current,
+      anonymousQuotaLimit: req.body?.anonymousQuotaLimit !== undefined
+        ? normalizeAnonymousQuotaLimit(req.body?.anonymousQuotaLimit)
+        : current.anonymousQuotaLimit,
+      defaultImageProviderId: req.body?.defaultImageProviderId !== undefined
+        ? normalizeImageProviderId(req.body?.defaultImageProviderId)
+        : current.defaultImageProviderId,
+      fridgeMagnetOrderingEnabled: req.body?.fridgeMagnetOrderingEnabled !== undefined
+        ? req.body?.fridgeMagnetOrderingEnabled === true
+        : current.fridgeMagnetOrderingEnabled,
+      fridgeMagnetUnitPriceCents: req.body?.fridgeMagnetUnitPriceCents !== undefined
+        ? normalizeMoneyCents(req.body?.fridgeMagnetUnitPriceCents, DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS)
+        : current.fridgeMagnetUnitPriceCents,
+      singleItemShippingFeeCents: req.body?.singleItemShippingFeeCents !== undefined
+        ? normalizeMoneyCents(req.body?.singleItemShippingFeeCents, DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS)
+        : current.singleItemShippingFeeCents,
+      paymentMode: req.body?.paymentMode !== undefined
+        ? normalizeOrderPaymentMode(req.body?.paymentMode)
+        : current.paymentMode,
+      manualPaymentExpireDays: req.body?.manualPaymentExpireDays !== undefined
+        ? normalizeManualPaymentExpireDays(req.body?.manualPaymentExpireDays)
+        : current.manualPaymentExpireDays,
+      contactWechatId: req.body?.contactWechatId !== undefined
+        ? normalizeContactWechatId(req.body?.contactWechatId)
+        : current.contactWechatId
     });
     res.json({ settings: updated });
   } catch (error) {
@@ -3298,6 +3331,38 @@ function normalizeApiProviderModel(value, fallback) {
   return next || fallback;
 }
 
+function normalizeApiProviderRoute(value, fallback = "images") {
+  const next = String(value || "").trim().toLowerCase();
+  if (next === "responses") return "responses";
+  if (next === "chat_completions" || next === "chat-completions" || next === "chat") return "chat_completions";
+  if (next === "images") return "images";
+  return fallback;
+}
+
+function normalizeImageFailoverMode(value, fallback = "auto") {
+  const next = String(value || "").trim().toLowerCase();
+  if (["stop", "strict", "error", "disabled", "off"].includes(next)) return "stop";
+  if (["auto", "fallback", "on", "enabled"].includes(next)) return "auto";
+  return fallback;
+}
+
+function normalizeApiProviderEnabled(value, fallback = true) {
+  if (value === undefined || value === null || value === "") return Boolean(fallback);
+  if (typeof value === "boolean") return value;
+  const next = String(value || "").trim().toLowerCase();
+  if (["false", "0", "no", "off", "disabled"].includes(next)) return false;
+  if (["true", "1", "yes", "on", "enabled"].includes(next)) return true;
+  return Boolean(fallback);
+}
+
+function parseProviderIdList(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => normalizeApiProviderId(item))
+    .filter(Boolean)
+    .filter((item, index, list) => list.indexOf(item) === index);
+}
+
 function normalizeStoredApiProvider(provider) {
   const id = normalizeApiProviderId(provider?.id);
   if (!id) return null;
@@ -3308,8 +3373,9 @@ function normalizeStoredApiProvider(provider) {
     baseUrl: normalizeApiProviderBaseUrl(provider?.baseUrl),
     apiKey: String(provider?.apiKey || "").trim(),
     model: normalizeApiProviderModel(provider?.model, process.env.OPENAI_IMAGE_MODEL || "gpt-image-2"),
+    route: normalizeApiProviderRoute(provider?.route, "images"),
     visionModel: normalizeApiProviderModel(provider?.visionModel, process.env.OPENAI_VISION_MODEL || DEFAULT_SUBJECT_CLASSIFIER_MODEL),
-    enabled: provider?.enabled !== false
+    enabled: normalizeApiProviderEnabled(provider?.enabled, true)
   };
 }
 
@@ -3387,12 +3453,17 @@ function toAdminApiProvider(provider) {
     baseUrl: provider.baseUrl,
     apiKey: provider.apiKey,
     model: provider.model,
+    route: provider.route,
     visionModel: provider.visionModel,
     enabled: provider.enabled !== false,
     source: provider.source,
     sourceLabel: getApiProviderSourceLabel(provider.source),
     hasEnvFallback: provider.hasEnvFallback === true
   };
+}
+
+function getImageProviderFailoverMode() {
+  return normalizeImageFailoverMode(process.env.IMAGE_API_FAILOVER_MODE, "auto");
 }
 
 function mergeConfiguredProviders(envProviders, storedProviders) {
@@ -3413,6 +3484,7 @@ function mergeConfiguredProviders(envProviders, storedProviders) {
       baseUrl: normalizeApiProviderBaseUrl(override?.baseUrl || envProvider.baseUrl),
       apiKey: String(override?.apiKey || envProvider.apiKey || "").trim(),
       model: normalizeApiProviderModel(override?.model, envProvider.model),
+      route: normalizeApiProviderRoute(override?.route, envProvider.route),
       visionModel: normalizeApiProviderModel(override?.visionModel, envProvider.visionModel),
       enabled: override ? override.enabled !== false : envProvider.enabled !== false,
       source: override ? "env+page" : "env",
@@ -3433,6 +3505,203 @@ function mergeConfiguredProviders(envProviders, storedProviders) {
 
 function getAdminApiProviderConfigs() {
   return mergeConfiguredProviders(getEnvImageProviders(), readStoredApiProvidersSync()).map(toAdminApiProvider);
+}
+
+async function buildAdminApiProviderResponse() {
+  const settings = await readAppSettings();
+  const providers = getAdminApiProviderConfigs();
+  return {
+    defaultProviderId: getDefaultProviderId(getImageProviders(), settings),
+    failoverMode: getImageProviderFailoverMode(),
+    providerPriorityIds: providers.map((provider) => provider.id),
+    providers
+  };
+}
+
+function parseEnvAssignmentLine(line) {
+  const trimmed = String(line || "").trim();
+  if (!trimmed || trimmed.startsWith("#")) return null;
+  const separator = trimmed.indexOf("=");
+  if (separator < 1) return null;
+  return {
+    key: trimmed.slice(0, separator).trim(),
+    value: trimmed.slice(separator + 1)
+  };
+}
+
+function readLocalEnvLines() {
+  if (!existsSync(localEnvPath)) return [];
+  return readFileSync(localEnvPath, "utf-8").split(/\r?\n/);
+}
+
+function formatLocalEnvValue(value) {
+  const text = String(value ?? "");
+  if (!text) return "";
+  if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(text)) return text;
+  return `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+function setLocalEnvKey(lines, key, value) {
+  const rendered = `${key}=${formatLocalEnvValue(value)}`;
+  const nextLines = [];
+  let replaced = false;
+
+  lines.forEach((line) => {
+    const parsed = parseEnvAssignmentLine(line);
+    if (parsed?.key === key) {
+      if (!replaced) {
+        nextLines.push(rendered);
+        replaced = true;
+      }
+      return;
+    }
+    nextLines.push(line);
+  });
+
+  if (!replaced) nextLines.push(rendered);
+  return nextLines;
+}
+
+function removeLocalEnvKey(lines, key) {
+  return lines.filter((line) => parseEnvAssignmentLine(line)?.key !== key);
+}
+
+async function writeLocalEnvLines(lines) {
+  const nextLines = Array.isArray(lines) ? [...lines] : [];
+  while (nextLines.length > 0 && nextLines[nextLines.length - 1] === "") nextLines.pop();
+  await writeFile(localEnvPath, `${nextLines.join("\n")}\n`, "utf-8");
+}
+
+async function mutateLocalEnv(mutator) {
+  let lines = readLocalEnvLines();
+  const touchedValues = new Map();
+
+  const api = {
+    set(key, value) {
+      lines = setLocalEnvKey(lines, key, value);
+      touchedValues.set(key, String(value ?? ""));
+    },
+    remove(key) {
+      lines = removeLocalEnvKey(lines, key);
+      touchedValues.set(key, null);
+    }
+  };
+
+  await mutator(api);
+  await writeLocalEnvLines(lines);
+
+  touchedValues.forEach((value, key) => {
+    if (value === null) delete process.env[key];
+    else process.env[key] = value;
+  });
+}
+
+function getImageProviderEnvVariableNames(providerId) {
+  const key = providerEnvKey(providerId);
+  return [
+    `IMAGE_API_${key}_NAME`,
+    `IMAGE_API_${key}_BASE_URL`,
+    `IMAGE_API_${key}_KEY`,
+    `IMAGE_API_${key}_MODEL`,
+    `IMAGE_API_${key}_ROUTE`,
+    `IMAGE_API_${key}_VISION_MODEL`,
+    `IMAGE_API_${key}_ENABLED`
+  ];
+}
+
+async function saveAdminApiProviderToEnv(provider, options = {}) {
+  const currentPriorityIds = parseProviderIdList(process.env.IMAGE_API_PROVIDERS);
+  const nextPriorityIds = currentPriorityIds.includes(provider.id)
+    ? currentPriorityIds
+    : currentPriorityIds.concat(provider.id);
+
+  const key = providerEnvKey(provider.id);
+  await mutateLocalEnv((env) => {
+    env.set("IMAGE_API_PROVIDERS", nextPriorityIds.join(","));
+    env.set(`IMAGE_API_${key}_NAME`, provider.name);
+    env.set(`IMAGE_API_${key}_BASE_URL`, provider.baseUrl);
+    env.set(`IMAGE_API_${key}_KEY`, provider.apiKey);
+    env.set(`IMAGE_API_${key}_MODEL`, provider.model);
+    env.set(`IMAGE_API_${key}_ROUTE`, provider.route || "images");
+    env.set(`IMAGE_API_${key}_VISION_MODEL`, provider.visionModel || DEFAULT_SUBJECT_CLASSIFIER_MODEL);
+    env.set(`IMAGE_API_${key}_ENABLED`, provider.enabled ? "true" : "false");
+  });
+
+  const storedProviders = await readStoredApiProviders();
+  if (storedProviders.some((item) => item.id === provider.id)) {
+    await saveStoredApiProviders(storedProviders.filter((item) => item.id !== provider.id));
+  }
+
+  return buildAdminApiProviderResponse();
+}
+
+async function deleteAdminApiProviderFromEnv(providerId) {
+  const currentPriorityIds = parseProviderIdList(process.env.IMAGE_API_PROVIDERS);
+  const nextPriorityIds = currentPriorityIds.filter((item) => item !== providerId);
+  const envKeys = getImageProviderEnvVariableNames(providerId);
+
+  await mutateLocalEnv((env) => {
+    if (nextPriorityIds.length) env.set("IMAGE_API_PROVIDERS", nextPriorityIds.join(","));
+    else env.remove("IMAGE_API_PROVIDERS");
+
+    envKeys.forEach((key) => env.remove(key));
+
+    if (normalizeApiProviderId(process.env.IMAGE_API_PROVIDER) === providerId) {
+      env.remove("IMAGE_API_PROVIDER");
+    }
+  });
+
+  const storedProviders = await readStoredApiProviders();
+  if (storedProviders.some((item) => item.id === providerId)) {
+    await saveStoredApiProviders(storedProviders.filter((item) => item.id !== providerId));
+  }
+
+  const settings = await readAppSettings();
+  if (settings.defaultImageProviderId === providerId) {
+    await saveAppSettings({
+      ...settings,
+      defaultImageProviderId: ""
+    });
+  }
+
+  return buildAdminApiProviderResponse();
+}
+
+async function saveAdminApiProviderSettings(payload) {
+  const adminProviders = getAdminApiProviderConfigs();
+  const knownIds = new Set(adminProviders.map((provider) => provider.id));
+  const currentPriorityIds = adminProviders.map((provider) => provider.id);
+  const requestedPriorityIds = Array.isArray(payload?.providerPriorityIds)
+    ? payload.providerPriorityIds.map((item) => normalizeApiProviderId(item)).filter(Boolean)
+    : currentPriorityIds;
+  const orderedPriorityIds = requestedPriorityIds
+    .filter((item, index, list) => list.indexOf(item) === index)
+    .filter((item) => knownIds.has(item))
+    .concat(currentPriorityIds.filter((item) => !requestedPriorityIds.includes(item)));
+
+  const enabledProviders = getImageProviders();
+  const defaultProviderId = normalizeImageProviderId(payload?.defaultProviderId, enabledProviders);
+  const failoverMode = normalizeImageFailoverMode(payload?.failoverMode, getImageProviderFailoverMode());
+
+  await mutateLocalEnv((env) => {
+    if (orderedPriorityIds.length) env.set("IMAGE_API_PROVIDERS", orderedPriorityIds.join(","));
+    else env.remove("IMAGE_API_PROVIDERS");
+
+    if (defaultProviderId) env.set("IMAGE_API_PROVIDER", defaultProviderId);
+    else env.remove("IMAGE_API_PROVIDER");
+
+    env.set("IMAGE_API_FAILOVER_MODE", failoverMode);
+  });
+
+  const settings = await readAppSettings();
+  if (settings.defaultImageProviderId) {
+    await saveAppSettings({
+      ...settings,
+      defaultImageProviderId: ""
+    });
+  }
+
+  return buildAdminApiProviderResponse();
 }
 
 function normalizeImageProviderId(value, providers = getImageProviders()) {
@@ -6202,7 +6471,8 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider,
     referenceCount: Array.isArray(files) ? files.length : 0,
     mode: Array.isArray(files) && files.length ? "edit" : "generation",
     providerId: provider?.id || "",
-    providerModel: provider?.model || ""
+    providerModel: provider?.model || "",
+    requestedProviderIdRaw: String(telemetry?.requestedProviderIdRaw || "")
   });
 
   job = await saveImageJob({
@@ -6216,6 +6486,12 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider,
       styleId: telemetry?.styleId || job.telemetry?.styleId || "",
       styleName: telemetry?.styleName || job.telemetry?.styleName || "",
       order: normalizeTelemetryNumber(telemetry?.order ?? job.telemetry?.order),
+      requestedProviderIdRaw: String(telemetry?.requestedProviderIdRaw || job.telemetry?.requestedProviderIdRaw || ""),
+      requestedProvider: job.telemetry?.requestedProvider || toTelemetryProvider(provider),
+      providerChain: job.telemetry?.providerChain?.length ? job.telemetry.providerChain : toTelemetryProviderList(providers),
+      attempts: job.telemetry?.attempts || [],
+      finalProvider: job.telemetry?.finalProvider || null,
+      finalError: "",
       providerCallMs: null,
       persistResultMs: null,
       totalJobMs: null
@@ -6258,6 +6534,12 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider,
         styleId: telemetry?.styleId || latestJob.telemetry?.styleId || "",
         styleName: telemetry?.styleName || latestJob.telemetry?.styleName || "",
         order: normalizeTelemetryNumber(telemetry?.order ?? latestJob.telemetry?.order),
+        requestedProviderIdRaw: String(telemetry?.requestedProviderIdRaw || latestJob.telemetry?.requestedProviderIdRaw || ""),
+        requestedProvider: latestJob.telemetry?.requestedProvider || toTelemetryProvider(provider),
+        providerChain: latestJob.telemetry?.providerChain?.length ? latestJob.telemetry.providerChain : toTelemetryProviderList(providers),
+        attempts: toTelemetryProviderAttempts(execution.attempts),
+        finalProvider: toTelemetryProvider(execution.provider),
+        finalError: "",
         providerCallMs,
         persistResultMs,
         totalJobMs: elapsedMs(jobRunStartedAtMs)
@@ -6275,6 +6557,8 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider,
       order: normalizeTelemetryNumber(telemetry?.order),
       providerId: execution.provider?.id || provider?.id || "",
       providerModel: execution.provider?.model || provider?.model || "",
+      requestedProviderIdRaw: String(telemetry?.requestedProviderIdRaw || ""),
+      attemptCount: Array.isArray(execution.attempts) ? execution.attempts.length : 0,
       providerCallMs,
       persistResultMs,
       totalJobMs: elapsedMs(jobRunStartedAtMs)
@@ -6295,6 +6579,12 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider,
         styleId: telemetry?.styleId || latestJob.telemetry?.styleId || "",
         styleName: telemetry?.styleName || latestJob.telemetry?.styleName || "",
         order: normalizeTelemetryNumber(telemetry?.order ?? latestJob.telemetry?.order),
+        requestedProviderIdRaw: String(telemetry?.requestedProviderIdRaw || latestJob.telemetry?.requestedProviderIdRaw || ""),
+        requestedProvider: latestJob.telemetry?.requestedProvider || toTelemetryProvider(provider),
+        providerChain: latestJob.telemetry?.providerChain?.length ? latestJob.telemetry.providerChain : toTelemetryProviderList(providers),
+        attempts: toTelemetryProviderAttempts(error.imageProviderAttempts || latestJob.telemetry?.attempts),
+        finalProvider: null,
+        finalError: normalizeTelemetryText(error.message || error.publicMessage || "unknown error", 180),
         providerCallMs: latestJob.telemetry?.providerCallMs ?? null,
         persistResultMs: latestJob.telemetry?.persistResultMs ?? null,
         totalJobMs: elapsedMs(jobRunStartedAtMs)
@@ -6312,8 +6602,10 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider,
       order: normalizeTelemetryNumber(telemetry?.order),
       providerId: provider?.id || "",
       providerModel: provider?.model || "",
+      requestedProviderIdRaw: String(telemetry?.requestedProviderIdRaw || ""),
+      attemptCount: Array.isArray(error.imageProviderAttempts) ? error.imageProviderAttempts.length : 0,
       totalJobMs: elapsedMs(jobRunStartedAtMs),
-      message: error.publicMessage || error.message || "unknown error"
+      message: error.message || error.publicMessage || "unknown error"
     });
     await synchronizeDrawCardSessionByJobId(jobId);
   } finally {
@@ -6624,6 +6916,12 @@ function normalizeJobTelemetry(telemetry) {
     styleId: String(current.styleId || ""),
     styleName: String(current.styleName || ""),
     order: normalizeTelemetryNumber(current.order),
+    requestedProviderIdRaw: String(current.requestedProviderIdRaw || ""),
+    requestedProvider: toTelemetryProvider(current.requestedProvider),
+    providerChain: toTelemetryProviderList(current.providerChain),
+    attempts: toTelemetryProviderAttempts(current.attempts),
+    finalProvider: toTelemetryProvider(current.finalProvider),
+    finalError: normalizeTelemetryText(current.finalError, 180),
     providerCallMs: normalizeTelemetryNumber(current.providerCallMs),
     persistResultMs: normalizeTelemetryNumber(current.persistResultMs),
     totalJobMs: normalizeTelemetryNumber(current.totalJobMs)
@@ -6863,6 +7161,14 @@ function isSafeReferenceId(referenceId) {
 }
 
 async function createImageGeneration(prompt, outputFormat, provider, body, signal) {
+  const route = normalizeApiProviderRoute(provider?.route, "images");
+  if (route === "responses") {
+    return createResponsesImage([], prompt, outputFormat, provider, body, "generation", signal);
+  }
+  if (route === "chat_completions") {
+    return createChatCompletionsImage([], prompt, outputFormat, provider, body, "generation", signal);
+  }
+
   const payload = {
     model: provider.model,
     prompt,
@@ -6883,6 +7189,14 @@ async function createImageGeneration(prompt, outputFormat, provider, body, signa
 }
 
 async function createImageEdit(files, prompt, outputFormat, provider, body, signal) {
+  const route = normalizeApiProviderRoute(provider?.route, "images");
+  if (route === "responses") {
+    return createResponsesImage(files, prompt, outputFormat, provider, body, "edit", signal);
+  }
+  if (route === "chat_completions") {
+    return createChatCompletionsImage(files, prompt, outputFormat, provider, body, "edit", signal);
+  }
+
   const formData = new FormData();
   formData.append("model", provider.model);
   formData.append("prompt", prompt);
@@ -6903,6 +7217,107 @@ async function createImageEdit(files, prompt, outputFormat, provider, body, sign
   return formatImageResponse(response, outputFormat, "edit");
 }
 
+function mimeTypeForOutputFormat(outputFormat) {
+  return outputFormat === "jpeg" ? "image/jpeg" : `image/${outputFormat}`;
+}
+
+function buildAlternateImageApiPrompt(prompt, body, hasReferences = false) {
+  const basePrompt = String(prompt || "").trim();
+  const instructions = [];
+  const size = normalizeSize(body?.size);
+  const background = normalizeOption(body?.background, ["auto", "opaque", "transparent"], "auto");
+  const quality = normalizeOption(body?.quality, ["low", "medium", "high", "auto"], "medium");
+
+  if (hasReferences) instructions.push("Use the provided reference image inputs during generation.");
+  if (size !== "auto") instructions.push(`Target output size: ${size}.`);
+  if (background !== "auto") instructions.push(`Background preference: ${background}.`);
+  if (quality !== "auto") instructions.push(`Quality preference: ${quality}.`);
+  instructions.push("Return the generated image result directly without extra narration.");
+
+  return instructions.length ? `${basePrompt}\n\nAdditional generation instructions:\n- ${instructions.join("\n- ")}` : basePrompt;
+}
+
+function encodeReferenceFileAsDataUrl(file) {
+  const mimeType = String(file?.mimetype || file?.mimeType || "image/jpeg").trim() || "image/jpeg";
+  const bytes = Buffer.isBuffer(file?.buffer) ? file.buffer : Buffer.from(file?.buffer || []);
+  return `data:${mimeType};base64,${bytes.toString("base64")}`;
+}
+
+function buildResponsesInput(prompt, files, body) {
+  const content = [{ type: "input_text", text: buildAlternateImageApiPrompt(prompt, body, files.length > 0) }];
+  files.forEach((file) => {
+    content.push({
+      type: "input_image",
+      image_url: encodeReferenceFileAsDataUrl(file)
+    });
+  });
+  return [{ role: "user", content }];
+}
+
+function buildChatMessages(prompt, files, body) {
+  const content = [{ type: "text", text: buildAlternateImageApiPrompt(prompt, body, files.length > 0) }];
+  files.forEach((file) => {
+    content.push({
+      type: "image_url",
+      image_url: {
+        url: encodeReferenceFileAsDataUrl(file)
+      }
+    });
+  });
+  return [{ role: "user", content }];
+}
+
+async function createResponsesImage(files, prompt, outputFormat, provider, body, mode, signal) {
+  const primaryPayload = {
+    model: provider.model,
+    stream: false,
+    input: buildResponsesInput(prompt, files, body)
+  };
+
+  const primaryResponse = await callImageProviderApi(provider, "/responses", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(primaryPayload)
+  }, signal);
+
+  try {
+    return formatFlexibleImageResponse(primaryResponse, outputFormat, mode);
+  } catch (error) {
+    if (error.message !== "Missing image data") throw error;
+  }
+
+  const toolResponse = await callImageProviderApi(provider, "/responses", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...primaryPayload,
+      tools: [{ type: "image_generation" }]
+    })
+  }, signal);
+  return formatFlexibleImageResponse(toolResponse, outputFormat, mode);
+}
+
+async function createChatCompletionsImage(files, prompt, outputFormat, provider, body, mode, signal) {
+  const payload = {
+    model: provider.model,
+    stream: false,
+    messages: buildChatMessages(prompt, files, body)
+  };
+  const response = await callImageProviderApi(provider, "/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  }, signal);
+  return formatFlexibleImageResponse(response, outputFormat, mode);
+}
+
+function resolveImageProviderEndpoint(provider, hasReferences) {
+  const route = normalizeApiProviderRoute(provider?.route, "images");
+  if (route === "responses") return "/responses";
+  if (route === "chat_completions") return "/chat/completions";
+  return hasReferences ? "/images/edits" : "/images/generations";
+}
+
 async function executeImageJobWithFailover({ body, files, outputFormat, prompt, provider, providers, signal }) {
   const providerChain = Array.isArray(providers) && providers.length ? providers : provider ? [provider] : [];
   if (!providerChain.length) {
@@ -6913,20 +7328,42 @@ async function executeImageJobWithFailover({ body, files, outputFormat, prompt, 
   }
 
   let lastError = null;
+  const attempts = [];
   for (const currentProvider of providerChain) {
+    const attemptStartedAtMs = nowMs();
+    const endpoint = resolveImageProviderEndpoint(currentProvider, files.length > 0);
+    const attemptProvider = {
+      id: currentProvider.id,
+      name: currentProvider.name,
+      model: currentProvider.model
+    };
     try {
       const result = files.length
         ? await createImageEdit(files, prompt, outputFormat, currentProvider, body, signal)
         : await createImageGeneration(prompt, outputFormat, currentProvider, body, signal);
+      attempts.push({
+        provider: attemptProvider,
+        endpoint,
+        status: "succeeded",
+        durationMs: elapsedMs(attemptStartedAtMs),
+        statusCode: 200,
+        message: ""
+      });
       return {
         result,
-        provider: {
-          id: currentProvider.id,
-          name: currentProvider.name,
-          model: currentProvider.model
-        }
+        provider: attemptProvider,
+        attempts
       };
     } catch (error) {
+      attempts.push({
+        provider: attemptProvider,
+        endpoint,
+        status: error.name === "AbortError" ? "aborted" : "failed",
+        durationMs: elapsedMs(attemptStartedAtMs),
+        statusCode: error.status || null,
+        message: error.message || error.publicMessage || ""
+      });
+      error.imageProviderAttempts = attempts;
       if (error.name === "AbortError") throw error;
       lastError = error;
     }
@@ -6936,10 +7373,44 @@ async function executeImageJobWithFailover({ body, files, outputFormat, prompt, 
     const wrappedError = new Error(lastError.message || "Image generation failed");
     wrappedError.status = lastError.status || 502;
     wrappedError.publicMessage = appendImageFailoverSummary(lastError.publicMessage || "图片生成失败，请稍后再试。");
+    wrappedError.imageProviderAttempts = attempts;
     throw wrappedError;
   }
 
+  if (lastError) lastError.imageProviderAttempts = attempts;
   throw lastError || new Error("Image generation failed");
+}
+
+function normalizeProviderResponseCharset(contentType) {
+  const raw = String(contentType || "");
+  const match = raw.match(/charset\s*=\s*["']?([^;"'\s]+)/i);
+  const charset = String(match?.[1] || "").trim().toLowerCase();
+  if (!charset) return "utf-8";
+  if (charset === "gbk" || charset === "gb2312") return "gb18030";
+  return charset;
+}
+
+async function readProviderApiText(response) {
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (!bytes.length) return "";
+  const charset = normalizeProviderResponseCharset(response.headers.get("content-type"));
+  try {
+    return new TextDecoder(charset).decode(bytes);
+  } catch {
+    return new TextDecoder("utf-8").decode(bytes);
+  }
+}
+
+function extractProviderApiErrorMessage(payload, text, status) {
+  if (payload && typeof payload === "object") {
+    const nestedMessage = payload.error?.message;
+    if (nestedMessage) return String(nestedMessage).trim();
+    if (payload.message) return String(payload.message).trim();
+  }
+
+  const rawText = String(text || "").trim();
+  if (rawText) return rawText;
+  return `接口返回 ${status}`;
 }
 
 async function callImageProviderApi(provider, endpoint, options, externalSignal) {
@@ -6962,16 +7433,31 @@ async function callImageProviderApi(provider, endpoint, options, externalSignal)
       },
       signal: controller.signal
     });
-    const text = await response.text();
-    const payload = text ? JSON.parse(text) : {};
+    const text = await readProviderApiText(response);
+    let payload = {};
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch (error) {
+        if (response.ok) throw error;
+      }
+    }
 
     if (!response.ok) {
-      const message = payload.error?.message || payload.message || `鎺ュ彛杩斿洖 ${response.status}`;
+      const message = extractProviderApiErrorMessage(payload, text, response.status);
       const error = new Error(message);
       error.status = response.status;
-      error.publicMessage = endpoint === "/images/edits"
-        ? `${provider.name} 鍙傝€冨浘缂栬緫鎺ュ彛璋冪敤澶辫触锛?{message}`
-        : `${provider.name} 鐢熷浘鎺ュ彛璋冪敤澶辫触锛?{message}`;
+      const endpointLabel =
+        endpoint === "/images/edits"
+          ? "参考图编辑接口"
+          : endpoint === "/images/generations"
+            ? "生图接口"
+            : endpoint === "/responses"
+              ? "Responses 接口"
+              : endpoint === "/chat/completions"
+                ? "Chat Completions 接口"
+                : `${endpoint} 接口`;
+      error.publicMessage = `${provider.name} ${endpointLabel}调用失败：${message}`;
       throw error;
     }
 
@@ -7042,6 +7528,7 @@ function getImageProviders() {
       baseUrl: provider.baseUrl,
       apiKey: provider.apiKey,
       model: provider.model,
+      route: provider.route || "images",
       visionModel: provider.visionModel || DEFAULT_SUBJECT_CLASSIFIER_MODEL
     }));
 }
@@ -7061,16 +7548,168 @@ function readConfiguredProvider(id) {
   const key = providerEnvKey(id);
   const apiKey = process.env[`IMAGE_API_${key}_KEY`];
   const baseUrl = normalizeApiProviderBaseUrl(process.env[`IMAGE_API_${key}_BASE_URL`]);
-  if (!isUsableApiKey(apiKey) || !baseUrl) return null;
+  const enabled = normalizeApiProviderEnabled(process.env[`IMAGE_API_${key}_ENABLED`], true);
+  if ((!isUsableApiKey(apiKey) || !baseUrl) && enabled) return null;
   return {
     id,
     name: process.env[`IMAGE_API_${key}_NAME`] || id,
     baseUrl,
     apiKey,
     model: process.env[`IMAGE_API_${key}_MODEL`] || process.env.OPENAI_IMAGE_MODEL || "gpt-image-2",
+    route: normalizeApiProviderRoute(process.env[`IMAGE_API_${key}_ROUTE`], "images"),
     visionModel: process.env[`IMAGE_API_${key}_VISION_MODEL`] || process.env.OPENAI_VISION_MODEL || DEFAULT_SUBJECT_CLASSIFIER_MODEL,
-    enabled: true
+    enabled
   };
+}
+
+function formatFlexibleImageResponse(payload, outputFormat, mode) {
+  const extracted = extractImageCandidateFromPayload(payload, outputFormat);
+  if (!extracted.imageDataUrl && !extracted.imageUrl) {
+    const error = new Error("Missing image data");
+    error.status = 502;
+    error.publicMessage = "中转接口没有返回图片数据。";
+    throw error;
+  }
+
+  return {
+    imageDataUrl: extracted.imageDataUrl || "",
+    imageUrl: extracted.imageUrl || "",
+    mimeType: extracted.mimeType || mimeTypeForOutputFormat(outputFormat),
+    usage: payload.usage || null,
+    mode
+  };
+}
+
+function extractImageCandidateFromPayload(payload, outputFormat) {
+  return (
+    extractImageCandidate(payload?.data?.[0], outputFormat, "data") ||
+    extractImageCandidate(payload?.output, outputFormat, "output") ||
+    extractImageCandidate(payload?.choices, outputFormat, "choices") ||
+    extractImageCandidate(payload, outputFormat, "payload") ||
+    { imageDataUrl: "", imageUrl: "", mimeType: mimeTypeForOutputFormat(outputFormat) }
+  );
+}
+
+function extractImageCandidate(value, outputFormat, keyHint = "") {
+  if (!value) return null;
+
+  if (typeof value === "string") {
+    return extractImageCandidateFromString(value, outputFormat, keyHint);
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = extractImageCandidate(item, outputFormat, keyHint);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  if (typeof value !== "object") return null;
+
+  if (typeof value.url === "string") {
+    const directUrl = extractImageCandidateFromString(value.url, outputFormat, "url");
+    if (directUrl) return directUrl;
+  }
+
+  if (typeof value.b64_json === "string") {
+    const directB64 = extractImageCandidateFromString(value.b64_json, outputFormat, "b64_json");
+    if (directB64) return directB64;
+  }
+
+  if (typeof value.result === "string" || (value.result && typeof value.result === "object")) {
+    const directResult = extractImageCandidate(value.result, outputFormat, "result");
+    if (directResult) return directResult;
+  }
+
+  if (typeof value.image_url === "string" || (value.image_url && typeof value.image_url === "object")) {
+    const imageUrl = extractImageCandidate(value.image_url, outputFormat, "image_url");
+    if (imageUrl) return imageUrl;
+  }
+
+  if (typeof value.output_text === "string") {
+    const outputText = extractImageCandidateFromString(value.output_text, outputFormat, "output_text");
+    if (outputText) return outputText;
+  }
+
+  if (typeof value.text === "string") {
+    const textCandidate = extractImageCandidateFromString(value.text, outputFormat, "text");
+    if (textCandidate) return textCandidate;
+  }
+
+  if (typeof value.content === "string" || Array.isArray(value.content)) {
+    const contentCandidate = extractImageCandidate(value.content, outputFormat, "content");
+    if (contentCandidate) return contentCandidate;
+  }
+
+  for (const [nextKey, nextValue] of Object.entries(value)) {
+    if (["url", "b64_json", "result", "image_url", "output_text", "text", "content", "input", "messages"].includes(nextKey)) continue;
+    const found = extractImageCandidate(nextValue, outputFormat, nextKey);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+function extractImageCandidateFromString(value, outputFormat, keyHint = "") {
+  const text = String(value || "").trim();
+  if (!text) return null;
+
+  if (/^data:image\//i.test(text)) {
+    return {
+      imageDataUrl: text,
+      imageUrl: "",
+      mimeType: String(text.match(/^data:(image\/[^;]+);/i)?.[1] || mimeTypeForOutputFormat(outputFormat))
+    };
+  }
+
+  if (/^https?:\/\//i.test(text)) {
+    return {
+      imageDataUrl: "",
+      imageUrl: text,
+      mimeType: mimeTypeForOutputFormat(outputFormat)
+    };
+  }
+
+  const dataUrlMatch = text.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=\r\n]+/i);
+  if (dataUrlMatch) {
+    return extractImageCandidateFromString(dataUrlMatch[0], outputFormat, "data_url");
+  }
+
+  const markdownUrlMatch = text.match(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/i);
+  if (markdownUrlMatch?.[1]) {
+    return {
+      imageDataUrl: "",
+      imageUrl: markdownUrlMatch[1],
+      mimeType: mimeTypeForOutputFormat(outputFormat)
+    };
+  }
+
+  const plainUrlMatch = text.match(/https?:\/\/[^\s"'`<>()]+/i);
+  if (plainUrlMatch?.[0]) {
+    return {
+      imageDataUrl: "",
+      imageUrl: plainUrlMatch[0],
+      mimeType: mimeTypeForOutputFormat(outputFormat)
+    };
+  }
+
+  const normalizedKey = String(keyHint || "").trim().toLowerCase();
+  if ((normalizedKey.includes("b64") || normalizedKey.includes("base64") || normalizedKey === "result" || normalizedKey === "data") && looksLikeBase64ImageData(text)) {
+    const base64 = text.replace(/\s+/g, "");
+    return {
+      imageDataUrl: `data:${mimeTypeForOutputFormat(outputFormat)};base64,${base64}`,
+      imageUrl: "",
+      mimeType: mimeTypeForOutputFormat(outputFormat)
+    };
+  }
+
+  return null;
+}
+
+function looksLikeBase64ImageData(value) {
+  const text = String(value || "").replace(/\s+/g, "");
+  return text.length >= 128 && text.length % 4 === 0 && /^[A-Za-z0-9+/=]+$/.test(text);
 }
 
 function readLegacyKuaipaoProvider() {
@@ -7082,6 +7721,7 @@ function readLegacyKuaipaoProvider() {
     baseUrl: normalizeApiProviderBaseUrl(process.env.KUAIPAO_BASE_URL || "https://kuaipao.pro/v1"),
     apiKey,
     model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2",
+    route: "images",
     visionModel: process.env.OPENAI_VISION_MODEL || DEFAULT_SUBJECT_CLASSIFIER_MODEL,
     enabled: true
   };
@@ -7096,6 +7736,8 @@ function resolveImageProvider(requestedId, providers, settings = null) {
 function getProviderFallbackChain(requestedId, providers, settings = null) {
   const selected = resolveImageProvider(requestedId, providers, settings);
   if (!selected) return [];
+  const explicitId = normalizeImageProviderId(requestedId, providers);
+  if (explicitId || getImageProviderFailoverMode() === "stop") return [selected];
 
   return [selected]
     .concat(providers.filter((provider) => provider.id !== selected.id))
@@ -7103,10 +7745,10 @@ function getProviderFallbackChain(requestedId, providers, settings = null) {
 }
 
 function getDefaultProviderId(providers, settings = null) {
-  const saved = normalizeImageProviderId(settings?.defaultImageProviderId, providers);
-  if (saved) return saved;
   const configured = normalizeImageProviderId(process.env.IMAGE_API_PROVIDER, providers);
   if (configured && providers.some((provider) => provider.id === configured)) return configured;
+  const saved = normalizeImageProviderId(settings?.defaultImageProviderId, providers);
+  if (saved) return saved;
   return providers[0]?.id || "";
 }
 
@@ -7133,7 +7775,16 @@ function isLikelyImageProviderConnectionError(error) {
 }
 
 function buildImageProviderConnectionErrorMessage(provider, endpoint) {
-  const label = endpoint === "/images/edits" ? "参考图编辑接口" : "生图接口";
+  const label =
+    endpoint === "/images/edits"
+      ? "参考图编辑接口"
+      : endpoint === "/images/generations"
+        ? "生图接口"
+        : endpoint === "/responses"
+          ? "Responses 接口"
+          : endpoint === "/chat/completions"
+            ? "Chat Completions 接口"
+            : `${endpoint} 接口`;
   return `${provider.name} ${label}连接失败，请检查网络、接口地址和密钥配置，或稍后再试。`;
 }
 
@@ -7152,6 +7803,7 @@ function isUsableApiKey(apiKey) {
     apiKey &&
       apiKey !== "your_openai_api_key_here" &&
       apiKey !== "your_kuaipao_api_key_here" &&
+      apiKey !== "your_kuaipao_nano2_api_key_here" &&
       apiKey !== "your_duckcoding_api_key_here"
   );
 }
@@ -7319,10 +7971,9 @@ function mimeForExtension(ext) {
 }
 
 function loadLocalEnv() {
-  const envPath = path.join(rootDir, ".env");
-  if (!existsSync(envPath)) return;
+  if (!existsSync(localEnvPath)) return;
 
-  const lines = readFileSync(envPath, "utf-8").split(/\r?\n/);
+  const lines = readFileSync(localEnvPath, "utf-8").split(/\r?\n/);
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;

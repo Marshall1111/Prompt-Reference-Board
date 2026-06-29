@@ -19,12 +19,12 @@ GET /api/image-providers
 
 ```json
 {
-  "defaultProvider": "kuaipao",
+  "defaultProvider": "kuaipao_grok",
   "providers": [
     {
-      "id": "kuaipao",
-      "name": "快跑",
-      "model": "gpt-image-2"
+      "id": "kuaipao_grok",
+      "name": "Kuaipao Grok Image",
+      "model": "grok-image"
     }
   ]
 }

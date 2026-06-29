@@ -29,13 +29,19 @@ npm start
 使用前在项目根目录新建 `.env`，参考 `.env.example` 填写：
 
 ```bash
-IMAGE_API_PROVIDER=kuaipao
-IMAGE_API_PROVIDERS=kuaipao,duckcoding
+IMAGE_API_PROVIDER=kuaipao_grok
+IMAGE_API_PROVIDERS=kuaipao_grok,kuaipao,duckcoding
 
 IMAGE_API_KUAIPAO_NAME=快跑
 IMAGE_API_KUAIPAO_BASE_URL=https://kuaipao.pro/v1
 IMAGE_API_KUAIPAO_KEY=你的快跑密钥
 IMAGE_API_KUAIPAO_MODEL=gpt-image-2
+
+IMAGE_API_KUAIPAO_GROK_NAME=Kuaipao Grok Image
+IMAGE_API_KUAIPAO_GROK_BASE_URL=https://kuaipao.pro/v1
+IMAGE_API_KUAIPAO_GROK_KEY=你的快跑密钥
+IMAGE_API_KUAIPAO_GROK_MODEL=grok-image
+IMAGE_API_KUAIPAO_GROK_ROUTE=responses
 
 IMAGE_API_DUCKCODING_NAME=DuckCoding
 IMAGE_API_DUCKCODING_BASE_URL=https://api.duckcoding.ai/v1

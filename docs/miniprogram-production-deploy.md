@@ -54,13 +54,19 @@
 服务器根目录准备 `.env`，至少包含：
 
 ```bash
-IMAGE_API_PROVIDER=kuaipao
-IMAGE_API_PROVIDERS=kuaipao,duckcoding
+IMAGE_API_PROVIDER=kuaipao_grok
+IMAGE_API_PROVIDERS=kuaipao_grok,kuaipao,duckcoding
 
 IMAGE_API_KUAIPAO_NAME=Kuaipao
 IMAGE_API_KUAIPAO_BASE_URL=https://kuaipao.pro/v1
 IMAGE_API_KUAIPAO_KEY=replace_with_real_key
 IMAGE_API_KUAIPAO_MODEL=gpt-image-2
+
+IMAGE_API_KUAIPAO_GROK_NAME=Kuaipao Grok Image
+IMAGE_API_KUAIPAO_GROK_BASE_URL=https://kuaipao.pro/v1
+IMAGE_API_KUAIPAO_GROK_KEY=replace_with_real_key
+IMAGE_API_KUAIPAO_GROK_MODEL=grok-image
+IMAGE_API_KUAIPAO_GROK_ROUTE=responses
 
 IMAGE_API_DUCKCODING_NAME=DuckCoding
 IMAGE_API_DUCKCODING_BASE_URL=https://api.duckcoding.ai/v1
