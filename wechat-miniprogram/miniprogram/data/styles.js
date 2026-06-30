@@ -81,7 +81,7 @@ const styles = [
     "id": "style_1782782682464",
     "sort": 6,
     "tags": [
-      "新风格"
+      "日式水墨"
     ],
     "subjectType": "both",
     "drawCardEnabled": true,
@@ -120,7 +120,7 @@ const styles = [
     "id": "style_1782782727369",
     "sort": 9,
     "tags": [
-      "新风格"
+      "Y2K像素"
     ],
     "subjectType": "both",
     "drawCardEnabled": true,
