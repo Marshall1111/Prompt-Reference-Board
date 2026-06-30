@@ -13,21 +13,8 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1782538556729",
-    "sort": 1,
-    "tags": [
-      "混搭插画风"
-    ],
-    "subjectType": "both",
-    "drawCardEnabled": true,
-    "drawCardWeight": 100,
-    "image": "/images-small/style_1782538556729.jpg",
-    "prompt": "将照片转化为一幅卡通人物叠加真实场景照片的混搭插画\n \n核心风格（重点）\n \n采用「2D 扁平卡通 + 写实照片」混搭的拼贴手法；背景保留真实照片质感（街景、建筑、城市等高清实景，色调略微降饱和）；人物与装饰元素则用扁平卡通风绘制，二者形成鲜明又和谐的\"贴纸 / 叠加\"效果；整体呈现清新、治愈、故事绘本般的氛围。\n \n卡通人物画风\n \n扁平2D动画风，线条干净利落、轮廓粗黑描边（bold outline）；造型简洁可爱，比例略Q版，表情自然生动、轻松愉快；色彩明亮饱和，服饰配色活泼（如亮黄、天蓝、粉色等）；人物姿态自然，融入场景（如坐在长椅 / 凳子上、行走、互动）。\n \n装饰元素（卡通风叠加）\n \n卡通云朵：白色蓬松的扁平卡通云点缀天空；\n卡通植物：明亮的绿色灌木、草丛，搭配黄白小花，框住画面边缘；\n小动物：可爱的卡通小鸟、小猫等点缀；\n漂浮的彩色小圆点（黄、粉、绿）等图形装饰，散布画面增添活泼感。\n \n文字标题（重点特色）\n \n顶部添加大号粗体气泡字（bubble letter）标题，如 \"hello summer\"；字体圆润可爱、明黄色填充、黑色描边，带轻微投影效果。\n \n色彩与光线\n \n整体明亮阳光、清新治愈，营造晴朗夏日般的氛围；卡通元素鲜艳活泼，与写实背景的柔和质感形成趣味对比。",
-    "useStyleImageAsReference": false
-  },
-  {
     "id": "style_1779179958695",
-    "sort": 2,
+    "sort": 1,
     "tags": [
       "方形，平面插画"
     ],
@@ -36,6 +23,19 @@ const styles = [
     "drawCardWeight": 100,
     "image": "/images-small/style_1779179958695.jpg",
     "prompt": "请将整个图像转化为单一的装饰性民间平面插图，带有涂鸦元素。使用大胆而俏皮的色彩调色板，与原图像完全不同。\n将所有细节简化为干净、平面的形状，带有手工制作的、略显不完美感，仿佛绘制在一张白纸上。整体风格应显得可爱、童趣十足且异想天开。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1782538556729",
+    "sort": 2,
+    "tags": [
+      "混搭插画风"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782538556729.jpg",
+    "prompt": "将照片转化为一幅卡通人物叠加真实场景照片的混搭插画\n \n核心风格（重点）\n \n采用「2D 扁平卡通 + 写实照片」混搭的拼贴手法；背景保留真实照片质感（街景、建筑、城市等高清实景，色调略微降饱和）；人物与装饰元素则用扁平卡通风绘制，二者形成鲜明又和谐的\"贴纸 / 叠加\"效果；整体呈现清新、治愈、故事绘本般的氛围。\n \n卡通人物画风\n \n扁平2D动画风，线条干净利落、轮廓粗黑描边（bold outline）；造型简洁可爱，比例略Q版，表情自然生动、轻松愉快；色彩明亮饱和，服饰配色活泼（如亮黄、天蓝、粉色等）；人物姿态自然，融入场景（如坐在长椅 / 凳子上、行走、互动）。\n \n装饰元素（卡通风叠加）\n \n卡通云朵：白色蓬松的扁平卡通云点缀天空；\n卡通植物：明亮的绿色灌木、草丛，搭配黄白小花，框住画面边缘；\n小动物：可爱的卡通小鸟、小猫等点缀；\n漂浮的彩色小圆点（黄、粉、绿）等图形装饰，散布画面增添活泼感。\n \n文字标题（重点特色）\n \n顶部添加大号粗体气泡字（bubble letter）标题，如 \"hello summer\"；字体圆润可爱、明黄色填充、黑色描边，带轻微投影效果。\n \n色彩与光线\n \n整体明亮阳光、清新治愈，营造晴朗夏日般的氛围；卡通元素鲜艳活泼，与写实背景的柔和质感形成趣味对比。",
     "useStyleImageAsReference": false
   },
   {
@@ -78,16 +78,16 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1782539050463",
+    "id": "style_1782782682464",
     "sort": 6,
     "tags": [
-      "美式卡通"
+      "新风格"
     ],
     "subjectType": "both",
     "drawCardEnabled": true,
     "drawCardWeight": 100,
-    "image": "/images-small/style_1782539050463.jpg",
-    "prompt": "Transform this photo into a vintage retro American cartoon illustration in the exact\nstyle of 1970s-1990s nostalgic children's book art. Solid warm textured background with grainy printed paper texture.\nStyle details: playful and charming aesthetic, thick bold black outlines, flat vibrant colors, limited color palette, clean vector-like shapes with slight hand-drawn warmth. Add rosy red circular cheeks on the subject, simple black dot eyes, and an expressive joyful smile.\nExaggerate features slightly for cuteness while keeping the original likeness recognizable.\nMain subject should be stylized as a cute waist-up character, wearing the original clothing reinterpreted in flat cartoon style. both in vintage style.",
+    "image": "/images-small/style_1782782682464.jpg",
+    "prompt": "以极简主义的日本水彩速写本插画风格创作艺术品。将主题放在有纹理的白纸上，并且有大空间。用松散的墨线，透明的水彩洗涤，细微的漆花，沉稳的诗意氛围。最后的作品应该感觉像艺术家素描本的手工水彩插图，而不是数位绘画。不要文字。",
     "useStyleImageAsReference": false
   },
   {
@@ -117,8 +117,21 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1780884090064",
+    "id": "style_1782782727369",
     "sort": 9,
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782782727369.jpg",
+    "prompt": "将图像转绘为源自90年代的Y2K像素风风格。保留原有人物和情境，但对其进行简化并重新构思，使用可爱小巧的8位像素字符进行呈现……大像素，有限4色。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1780884090064",
+    "sort": 10,
     "tags": [
       "宠物，蜡笔"
     ],
@@ -131,7 +144,7 @@ const styles = [
   },
   {
     "id": "style_1782658589405",
-    "sort": 10,
+    "sort": 11,
     "tags": [
       "粗线条简笔"
     ],
@@ -144,7 +157,7 @@ const styles = [
   },
   {
     "id": "style_1780359249273",
-    "sort": 11,
+    "sort": 12,
     "tags": [
       "治愈系插画"
     ],
@@ -156,8 +169,21 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
+    "id": "style_1782539050463",
+    "sort": 13,
+    "tags": [
+      "美式卡通"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782539050463.jpg",
+    "prompt": "Transform this photo into a vintage retro American cartoon illustration in the exact\nstyle of 1970s-1990s nostalgic children's book art. Solid warm textured background with grainy printed paper texture.\nStyle details: playful and charming aesthetic, thick bold black outlines, flat vibrant colors, limited color palette, clean vector-like shapes with slight hand-drawn warmth. Add rosy red circular cheeks on the subject, simple black dot eyes, and an expressive joyful smile.\nExaggerate features slightly for cuteness while keeping the original likeness recognizable.\nMain subject should be stylized as a cute waist-up character, wearing the original clothing reinterpreted in flat cartoon style. both in vintage style.",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1782658718166",
-    "sort": 12,
+    "sort": 14,
     "tags": [
       "森系水彩"
     ],
@@ -170,7 +196,7 @@ const styles = [
   },
   {
     "id": "style_1782659145280",
-    "sort": 13,
+    "sort": 15,
     "tags": [
       "搞怪漫画涂鸦海报"
     ],
@@ -183,7 +209,7 @@ const styles = [
   },
   {
     "id": "style_1780214860370",
-    "sort": 14,
+    "sort": 16,
     "tags": [
       "宠物，油画，厚涂，肖像"
     ],
@@ -196,7 +222,7 @@ const styles = [
   },
   {
     "id": "style_1780183870275",
-    "sort": 15,
+    "sort": 17,
     "tags": [
       "宠物，角色卡"
     ],
@@ -209,7 +235,7 @@ const styles = [
   },
   {
     "id": "style_1780183785792",
-    "sort": 16,
+    "sort": 18,
     "tags": [
       "水墨肖像，宠物"
     ],
@@ -222,7 +248,7 @@ const styles = [
   },
   {
     "id": "style_1779944352617",
-    "sort": 17,
+    "sort": 19,
     "tags": [
       "潮流",
       "宠物"
@@ -236,7 +262,7 @@ const styles = [
   },
   {
     "id": "style_1779931156452",
-    "sort": 18,
+    "sort": 20,
     "tags": [
       "莫奈",
       "印象派",
@@ -252,7 +278,7 @@ const styles = [
   },
   {
     "id": "style_1782538975049",
-    "sort": 19,
+    "sort": 21,
     "tags": [
       "复古，扁平，动画人像"
     ],
@@ -265,7 +291,7 @@ const styles = [
   },
   {
     "id": "style_1780636884368",
-    "sort": 20,
+    "sort": 22,
     "tags": [
       "异形，不带背景"
     ],
@@ -278,7 +304,7 @@ const styles = [
   },
   {
     "id": "style_1780636102242",
-    "sort": 21,
+    "sort": 23,
     "tags": [
       "异形，带背景"
     ],
@@ -291,7 +317,7 @@ const styles = [
   },
   {
     "id": "style_1779179574408",
-    "sort": 22,
+    "sort": 24,
     "tags": [
       "丑萌，手绘，随意"
     ],
@@ -304,7 +330,7 @@ const styles = [
   },
   {
     "id": "style_1779181030715",
-    "sort": 23,
+    "sort": 25,
     "tags": [
       "皮克斯，可爱，动画，宠物，儿童"
     ],
@@ -317,7 +343,7 @@ const styles = [
   },
   {
     "id": "style_1779323084946",
-    "sort": 24,
+    "sort": 26,
     "tags": [
       "艺术"
     ],
@@ -330,7 +356,7 @@ const styles = [
   },
   {
     "id": "style_1779179444790",
-    "sort": 25,
+    "sort": 27,
     "tags": [
       "复古，海报，儿童，宠物"
     ],
@@ -343,7 +369,7 @@ const styles = [
   },
   {
     "id": "style_1780029542441",
-    "sort": 26,
+    "sort": 28,
     "tags": [
       "剪纸"
     ],
@@ -356,7 +382,7 @@ const styles = [
   },
   {
     "id": "style_1779762562660",
-    "sort": 27,
+    "sort": 29,
     "tags": [
       "潮流",
       "海报",
@@ -371,7 +397,7 @@ const styles = [
   },
   {
     "id": "style_1779961220177",
-    "sort": 28,
+    "sort": 30,
     "tags": [
       "Plog",
       "日常"
@@ -385,7 +411,7 @@ const styles = [
   },
   {
     "id": "style_1779179665778",
-    "sort": 29,
+    "sort": 31,
     "tags": [
       "随意，手绘，丑萌，速写"
     ],
@@ -398,7 +424,7 @@ const styles = [
   },
   {
     "id": "style_1779845065374",
-    "sort": 30,
+    "sort": 32,
     "tags": [
       "剪纸，旅行，可爱"
     ],
@@ -411,7 +437,7 @@ const styles = [
   },
   {
     "id": "style_1779844966340",
-    "sort": 31,
+    "sort": 33,
     "tags": [
       "剪纸，简约"
     ],
@@ -424,7 +450,7 @@ const styles = [
   },
   {
     "id": "style_1779322951275",
-    "sort": 32,
+    "sort": 34,
     "tags": [
       "表情包"
     ],
@@ -437,7 +463,7 @@ const styles = [
   },
   {
     "id": "style_1779180072956",
-    "sort": 33,
+    "sort": 35,
     "tags": [
       "Plog",
       "可爱",
@@ -453,7 +479,7 @@ const styles = [
   },
   {
     "id": "style_1779179914765",
-    "sort": 34,
+    "sort": 36,
     "tags": [
       "儿童",
       "插画",
@@ -469,7 +495,7 @@ const styles = [
   },
   {
     "id": "style_1779179882103",
-    "sort": 35,
+    "sort": 37,
     "tags": [
       "艺术",
       "宠物"
@@ -483,7 +509,7 @@ const styles = [
   },
   {
     "id": "style_1779179828722",
-    "sort": 36,
+    "sort": 38,
     "tags": [
       "手绘",
       "插画",
@@ -498,7 +524,7 @@ const styles = [
   },
   {
     "id": "style_1779179773582",
-    "sort": 37,
+    "sort": 39,
     "tags": [
       "卡通"
     ],
@@ -511,7 +537,7 @@ const styles = [
   },
   {
     "id": "style_1779179722094",
-    "sort": 38,
+    "sort": 40,
     "tags": [
       "卡通",
       "丑萌",
@@ -527,7 +553,7 @@ const styles = [
   },
   {
     "id": "style_1779179649152",
-    "sort": 39,
+    "sort": 41,
     "tags": [
       "随意",
       "手绘",
@@ -542,7 +568,7 @@ const styles = [
   },
   {
     "id": "style_1779179490072",
-    "sort": 40,
+    "sort": 42,
     "tags": [
       "插画",
       "手绘",
@@ -559,7 +585,7 @@ const styles = [
   },
   {
     "id": "style_1779179328013",
-    "sort": 41,
+    "sort": 43,
     "tags": [
       "卡通",
       "插画",
@@ -578,7 +604,7 @@ const styles = [
   },
   {
     "id": "clay",
-    "sort": 42,
+    "sort": 44,
     "tags": [
       "手绘，儿童，可爱，随意，宠物"
     ],
@@ -591,7 +617,7 @@ const styles = [
   },
   {
     "id": "style_1779165306174",
-    "sort": 43,
+    "sort": 45,
     "tags": [
       "像素，头像，儿童，宠物，卡通"
     ],
@@ -604,7 +630,7 @@ const styles = [
   },
   {
     "id": "oil_painting",
-    "sort": 44,
+    "sort": 46,
     "tags": [
       "宠物",
       "随意",
@@ -622,7 +648,7 @@ const styles = [
   },
   {
     "id": "style_1780359396127",
-    "sort": 45,
+    "sort": 47,
     "tags": [
       "艺术肖像海报"
     ],
@@ -635,7 +661,7 @@ const styles = [
   },
   {
     "id": "cyberpunk",
-    "sort": 46,
+    "sort": 48,
     "tags": [
       "手绘，蜡笔，儿童，宠物，可爱"
     ],
@@ -648,7 +674,7 @@ const styles = [
   },
   {
     "id": "pixel",
-    "sort": 47,
+    "sort": 49,
     "tags": [
       "丑萌",
       "插画",
@@ -663,7 +689,7 @@ const styles = [
   },
   {
     "id": "style_1779179392820",
-    "sort": 48,
+    "sort": 50,
     "tags": [
       "诡异，童话，猎奇"
     ],
@@ -676,7 +702,7 @@ const styles = [
   },
   {
     "id": "style_1779268159068",
-    "sort": 49,
+    "sort": 51,
     "tags": [
       "人物"
     ],
@@ -689,7 +715,7 @@ const styles = [
   },
   {
     "id": "style_1779931260825",
-    "sort": 50,
+    "sort": 52,
     "tags": [
       "表情包"
     ],
@@ -702,7 +728,7 @@ const styles = [
   },
   {
     "id": "style_1780637137263",
-    "sort": 51,
+    "sort": 53,
     "tags": [
       "认知书"
     ],
