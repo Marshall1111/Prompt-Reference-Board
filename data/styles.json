@@ -567,6 +567,19 @@
     "useStyleImageAsReference": false
   },
   {
+    "id": "style_1782804856180",
+    "tags": [
+      "多图剪贴"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": false,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1782804856180/cover.png",
+    "imageUpdatedAt": "2026-06-30T07:45:39.839Z",
+    "prompt": "将【原图 / 多张素材】重新合成为一张超现实手工拼贴艺术海报，手工纸张拼贴风格，真实照片剪贴主体，大胆错位构图，高饱和随机彩色卡纸背景，随机色爆炸星芒、随机颜色大色块、随机颜色圆形、随机颜色胶带、等几何纸片叠压，旧杂志剪贴感，粗糙裁切边缘、撕纸纹理、纸张阴影、印刷颗粒、低保真扫描质感，荒诞幽默，像独立 zine 杂志封面 / DIY collage poster / handmade scrapbook art。不要添加小文字和文案等，背景图形不要过于杂乱，生成图片不要刻意发黄。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1779179490072",
     "tags": [
       "插画",

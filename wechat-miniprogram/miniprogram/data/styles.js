@@ -567,8 +567,21 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1779179490072",
+    "id": "style_1782804856180",
     "sort": 42,
+    "tags": [
+      "多图剪贴"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": false,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1782804856180.jpg",
+    "prompt": "将【原图 / 多张素材】重新合成为一张超现实手工拼贴艺术海报，手工纸张拼贴风格，真实照片剪贴主体，大胆错位构图，高饱和随机彩色卡纸背景，随机色爆炸星芒、随机颜色大色块、随机颜色圆形、随机颜色胶带、等几何纸片叠压，旧杂志剪贴感，粗糙裁切边缘、撕纸纹理、纸张阴影、印刷颗粒、低保真扫描质感，荒诞幽默，像独立 zine 杂志封面 / DIY collage poster / handmade scrapbook art。不要添加小文字和文案等，背景图形不要过于杂乱，生成图片不要刻意发黄。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1779179490072",
+    "sort": 43,
     "tags": [
       "插画",
       "手绘",
@@ -585,7 +598,7 @@ const styles = [
   },
   {
     "id": "style_1779179328013",
-    "sort": 43,
+    "sort": 44,
     "tags": [
       "卡通",
       "插画",
@@ -604,7 +617,7 @@ const styles = [
   },
   {
     "id": "clay",
-    "sort": 44,
+    "sort": 45,
     "tags": [
       "手绘，儿童，可爱，随意，宠物"
     ],
@@ -617,7 +630,7 @@ const styles = [
   },
   {
     "id": "style_1779165306174",
-    "sort": 45,
+    "sort": 46,
     "tags": [
       "像素，头像，儿童，宠物，卡通"
     ],
@@ -630,7 +643,7 @@ const styles = [
   },
   {
     "id": "oil_painting",
-    "sort": 46,
+    "sort": 47,
     "tags": [
       "宠物",
       "随意",
@@ -648,7 +661,7 @@ const styles = [
   },
   {
     "id": "style_1780359396127",
-    "sort": 47,
+    "sort": 48,
     "tags": [
       "艺术肖像海报"
     ],
@@ -661,7 +674,7 @@ const styles = [
   },
   {
     "id": "cyberpunk",
-    "sort": 48,
+    "sort": 49,
     "tags": [
       "手绘，蜡笔，儿童，宠物，可爱"
     ],
@@ -674,7 +687,7 @@ const styles = [
   },
   {
     "id": "pixel",
-    "sort": 49,
+    "sort": 50,
     "tags": [
       "丑萌",
       "插画",
@@ -689,7 +702,7 @@ const styles = [
   },
   {
     "id": "style_1779179392820",
-    "sort": 50,
+    "sort": 51,
     "tags": [
       "诡异，童话，猎奇"
     ],
@@ -702,7 +715,7 @@ const styles = [
   },
   {
     "id": "style_1779268159068",
-    "sort": 51,
+    "sort": 52,
     "tags": [
       "人物"
     ],
@@ -715,7 +728,7 @@ const styles = [
   },
   {
     "id": "style_1779931260825",
-    "sort": 52,
+    "sort": 53,
     "tags": [
       "表情包"
     ],
@@ -728,7 +741,7 @@ const styles = [
   },
   {
     "id": "style_1780637137263",
-    "sort": 53,
+    "sort": 54,
     "tags": [
       "认知书"
     ],
