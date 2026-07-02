@@ -1,5 +1,31 @@
 [
   {
+    "id": "style_1782952965796",
+    "tags": [
+      "极简宠物"
+    ],
+    "subjectType": "pet",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1782952965796/cover.png",
+    "imageUpdatedAt": "2026-07-02T00:43:31.475Z",
+    "prompt": "参考 リポ・トウ风格、awkward linework、negative space、childlike doodle 气质，将附件真实宠物照片中最特别的动作瞬间，转换为 minimal pet doodle。\n整体采用：\nvery simple childlike pet doodle、awkward animal sketch、unfinished pencil doodle、bad cute drawing、almost empty paper、few black marks、tiny color smudge、large blank paper background。\n像小朋友只看了一眼照片后，凭记忆画下宠物动作残影。\n只抓住 original pose、head direction、eye direction、body curve。\n身体只是 incomplete gesture shape，\n轮廓采用 open contour，\n用 1 到 3 根 awkward black lines 表现动作方向。\n眼睛、鼻子、嘴巴合并成 1 到 3 个 tiny black marks。\n耳朵、尾巴、四肢可省略，必要时只用 short stroke。\n涂色只用 1 块 minimal color smudge，\n颜色可以 off-boundary、unfinished、not fully filled。\n画面至少 70% blank space，\n背景为 plain white、cream white 或 light beige。\n核心要求：\none gesture,\nfew marks,\none color smudge,\nunfinished drawing,\nraw and clumsy feeling。\nDraw less than you think. Leave most of the pet unfinished.\n必要限制：\n无文字、无水印、无复杂背景、无完整身体轮廓、无完整上色、无精致插画感。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1782952781294",
+    "tags": [
+      "kawaii插画"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1782952781294/cover.jpg",
+    "imageUpdatedAt": "2026-07-02T00:39:51.111Z",
+    "prompt": "参考图一画风,将图二真人自拍转成头像插画\n\t\n风格：editorial kawaii candy big-head avatar、naive digital portrait、childlike editorial avatar、simple flat color blocks、awkward charming linework、feature-exaggerated cute caricature\n\t\n抽象和夸张只服务于图二照片识别度，先读神态再画：抓最有记忆点的表情信号，如眼皮压力、视线方向、眉毛角度、嘴角方向、嘟嘴感、困倦感、小傲娇、委屈感\n\t\n表情优先级最高，轻微放大，成为头像记忆点\n\t\n提取身份锚点：脸型、眉眼关系、眼神态度、鼻子印象、嘴部表情、发型轮廓、头部角度、眼镜/耳饰/发饰/帽子，或一个服装特征。饰品夸张但不复制所有细节，弱化描摹\n\t\n构图：干净居中半身，头部超大，占画面70%，但保留脖子、肩膀、袖子、领口和简化上半身，不要悬浮头或裁掉肩膀\n五官幼态：脸更圆、眼距略宽、鼻子极小、嘴巴更小更低、下颌柔和\n\t\n按真人眼神画成半睁、窄眼、侧眼、困倦眼、锐利眼或疏离眼。嘴巴用小嘟嘴、小不高兴嘴、果冻红色块或小豆嘴，禁写实。头发保留大轮廓和少量关键发丝\n\t\n线条：少而松，thin hand-drawn dark lines，flat candy pastel color blocks，轻微digital crayon edge，bright peach blush。背景用fresh mint、aqua blue、soft sky blue、cream blue或warm cream纯色，几乎不要装饰\n\t\n限制：photorealism, realistic lips/nose/skin, glossy anime eyes, dense hair, realistic fabric, small head, cropped torso, busy background",
+    "useStyleImageAsReference": true
+  },
+  {
     "id": "style_1782608242639",
     "tags": [
       "平面，剪纸，插画"
