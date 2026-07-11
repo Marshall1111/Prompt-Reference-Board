@@ -49,10 +49,10 @@ const DRAW_CARD_GROUP_NAME = "抽卡";
 const FRIDGE_MAGNET_GROUP_NAME = "冰箱贴";
 const DRAW_CARD_DEFAULT_SIZE = "1024x1536";
 const STYLE_GROUP_SIZE_OPTIONS = new Set(["1024x1536", "1536x1024", "1024x1024", "1024x1365", "1365x1024"]);
-const DRAW_CARD_WAITING_MESSAGE = "仪式正在进行，请稍候。";
+const DRAW_CARD_WAITING_MESSAGE = "任务正在进行，请稍候。";
 const DRAW_CARD_SUCCESS_MESSAGE = "结果已准备好。";
 const DRAW_CARD_FAILURE_MESSAGE = "这一轮未能顺利完成，请重新开始。";
-const DRAW_CARD_PARTIAL_MESSAGE = "部分结果已准备好，本轮未扣次数。";
+const DRAW_CARD_PARTIAL_MESSAGE = "部分结果已准备好，仅扣除成功生成的点数。";
 const PUBLIC_PREVIEW_WATERMARK_TEXT = "Preview Only";
 const VISITOR_COOKIE_NAME = "pg_visitor";
 const ADMIN_COOKIE_NAME = "pg_admin";
@@ -97,11 +97,14 @@ const DEFAULT_SUBJECT_CLASSIFIER_MODEL = "gpt-5.4-mini";
 const DEFAULT_SUBJECT_CLASSIFIER_BASE_URL = "https://api.openai.com/v1";
 const SUBJECT_CLASSIFIER_TIMEOUT_MS = 30000;
 const SUBJECT_CLASSIFIER_CONFIDENCE_THRESHOLD = 0.55;
-const DRAW_CARD_RANDOM_STYLE_COUNT = 3;
+const DRAW_CARD_MIN_STYLE_COUNT = 1;
+const DRAW_CARD_MAX_STYLE_COUNT = 6;
+const DRAW_CARD_DEFAULT_STYLE_COUNT = 2;
 const DEFAULT_DRAW_CARD_WEIGHT = 100;
 const SUBJECT_PERSON = "person";
 const SUBJECT_PET = "pet";
 const SUBJECT_MIXED = "mixed";
+const SUBJECT_OTHER = "other";
 const SUBJECT_UNKNOWN = "unknown";
 const SUBJECT_BOTH = "both";
 const VISIT_SESSION_TIMEOUT_MS = 90 * 1000;
@@ -301,6 +304,27 @@ function parseSelectedStyleIds(value) {
     .filter((item, index, list) => list.indexOf(item) === index);
 }
 
+function normalizeDrawCardCount(value, fallback = DRAW_CARD_DEFAULT_STYLE_COUNT) {
+  const next = Math.round(Number(value));
+  const safeFallback = Math.min(Math.max(Math.round(Number(fallback) || DRAW_CARD_DEFAULT_STYLE_COUNT), DRAW_CARD_MIN_STYLE_COUNT), DRAW_CARD_MAX_STYLE_COUNT);
+  if (!Number.isFinite(next)) return safeFallback;
+  return Math.min(Math.max(next, DRAW_CARD_MIN_STYLE_COUNT), DRAW_CARD_MAX_STYLE_COUNT);
+}
+
+function normalizeUserSelectedSubject(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  const personValues = new Set(["person", "people", "human", "portrait", "人物", "人像", "仅人物"]);
+  const petValues = new Set(["pet", "animal", "cat", "dog", "宠物", "动物", "猫", "狗", "仅宠物"]);
+  const mixedValues = new Set(["mixed", "both", "person_and_pet", "pet_and_person", "person-pet", "人+宠", "人物宠物", "人和宠物"]);
+  const otherValues = new Set(["other", "unknown", "unclear", "scene", "object", "其他", "其它", "不确定"]);
+
+  if (personValues.has(raw)) return SUBJECT_PERSON;
+  if (petValues.has(raw)) return SUBJECT_PET;
+  if (mixedValues.has(raw)) return SUBJECT_MIXED;
+  if (otherValues.has(raw)) return SUBJECT_OTHER;
+  return "";
+}
+
 function normalizePublicExperienceType(value) {
   const normalized = String(value || "").trim().toLowerCase();
   return PUBLIC_EXPERIENCE_CONFIGS[normalized] ? normalized : DEFAULT_PUBLIC_EXPERIENCE_TYPE;
@@ -404,11 +428,13 @@ function normalizeDetectedSubject(value) {
   const personValues = new Set(["person", "people", "human", "portrait", "人物", "人像"]);
   const petValues = new Set(["pet", "animal", "cat", "dog", "宠物", "动物", "猫", "狗"]);
   const mixedValues = new Set(["mixed", "both", "person_and_pet", "pet_and_person", "组合", "混合"]);
-  const unknownValues = new Set(["unknown", "unclear", "other", "不确定", "未知"]);
+  const otherValues = new Set(["other", "其他", "其它"]);
+  const unknownValues = new Set(["unknown", "unclear", "不确定", "未知"]);
 
   if (personValues.has(raw)) return SUBJECT_PERSON;
   if (petValues.has(raw)) return SUBJECT_PET;
   if (mixedValues.has(raw)) return SUBJECT_MIXED;
+  if (otherValues.has(raw)) return SUBJECT_OTHER;
   if (unknownValues.has(raw)) return SUBJECT_UNKNOWN;
   return SUBJECT_UNKNOWN;
 }
@@ -610,6 +636,7 @@ function supportsDetectedSubject(style, subject) {
   if (subject === SUBJECT_PERSON) return styleSubject === SUBJECT_PERSON || styleSubject === SUBJECT_BOTH;
   if (subject === SUBJECT_PET) return styleSubject === SUBJECT_PET || styleSubject === SUBJECT_BOTH;
   if (subject === SUBJECT_MIXED) return styleSubject === SUBJECT_BOTH;
+  if (subject === SUBJECT_OTHER) return styleSubject === SUBJECT_BOTH;
   return true;
 }
 
@@ -620,6 +647,13 @@ function selectStylesForDetectedSubject(styles, subject) {
 
   const matched = styles.filter((style) => supportsDetectedSubject(style, subject));
   return matched.length ? matched : styles.slice();
+}
+
+function selectStylesForUserSubject(styles, subject) {
+  if (!Array.isArray(styles) || !styles.length) return [];
+  const safeSubject = normalizeUserSelectedSubject(subject);
+  if (!safeSubject) return [];
+  return styles.filter((style) => supportsDetectedSubject(style, safeSubject));
 }
 
 function filterDrawCardEligibleStyles(styles) {
@@ -1376,6 +1410,11 @@ async function handleCreatePublicExperienceSession(req, res, experienceType) {
 
     const clientMetrics = parseDrawCardClientMetrics(req.body);
     const selectedStyleIds = config.experienceType === "draw-card" ? parseSelectedStyleIds(req.body?.selectedStyleIds) : [];
+    const requestedDrawCount = config.experienceType === "draw-card" ? normalizeDrawCardCount(req.body?.drawCount) : 1;
+    const requestedSubjectType = config.experienceType === "draw-card" ? normalizeUserSelectedSubject(req.body?.subjectType) : "";
+    if (config.experienceType === "draw-card" && selectedStyleIds.length === 0 && !requestedSubjectType) {
+      return res.status(400).json({ message: "请选择照片主体类型。" });
+    }
     logDrawCardTelemetry("request_parsed", {
       traceId: req.drawCardTraceId,
       visitorId: visitor.visitorId,
@@ -1390,10 +1429,16 @@ async function handleCreatePublicExperienceSession(req, res, experienceType) {
       clientUploadedWidth: clientMetrics.uploadedWidth,
       clientUploadedHeight: clientMetrics.uploadedHeight,
       clientWasCompressed: clientMetrics.wasCompressed,
-      requestedStyleCount: selectedStyleIds.length
+      requestedStyleCount: selectedStyleIds.length,
+      requestedDrawCount,
+      requestedSubjectType
     });
 
-    const estimatedCost = await estimateDrawCardQuotaCost();
+    const estimatedCost = await estimateDrawCardQuotaCost({
+      experienceType: config.experienceType,
+      selectedStyleIds,
+      requestedDrawCount
+    });
     enforcePublicRateLimits(req);
     enforceVisitorQuota(visitor, estimatedCost);
     await enforceVisitorRunningJobLimit(visitor.visitorId, config);
@@ -1403,7 +1448,9 @@ async function handleCreatePublicExperienceSession(req, res, experienceType) {
       traceId: req.drawCardTraceId,
       requestStartedAtMs: req.drawCardRequestStartedAtMs,
       clientMetrics,
-      selectedStyleIds
+      selectedStyleIds,
+      requestedDrawCount,
+      requestedSubjectType
     });
     res.status(202).json(toPublicDrawCardSession(session));
   } catch (error) {
@@ -2948,6 +2995,7 @@ async function inferVisitorStateFromArtifacts(visitorId, currentText = "") {
     .sort((left, right) => String(left.updatedAt || "").localeCompare(String(right.updatedAt || "")));
   const invitedAtFromInvite = matchingInvites[0]?.updatedAt || "";
   const chargedDrawCardSessionIds = [];
+  let recoveredChargedQuotaUsed = 0;
   let latestDrawCardActivityAt = "";
   let earliestDrawCardCreatedAt = "";
 
@@ -2962,6 +3010,8 @@ async function inferVisitorStateFromArtifacts(visitorId, currentText = "") {
     const quotaChargedAt = readJsonRawValueFromText(text, "quotaChargedAt");
     if (sessionId && quotaChargedAt && quotaChargedAt !== "null") {
       chargedDrawCardSessionIds.push(sessionId);
+      const quotaChargedCount = readJsonNumberFieldFromText(text, "quotaChargedCount");
+      recoveredChargedQuotaUsed += Number.isFinite(quotaChargedCount) ? Math.max(0, Math.round(quotaChargedCount)) : 1;
     }
 
     latestDrawCardActivityAt = pickLatestIsoString(
@@ -3032,7 +3082,7 @@ async function inferVisitorStateFromArtifacts(visitorId, currentText = "") {
     quotaLimit: Number.isFinite(recoveredQuotaLimit)
       ? Math.max(0, Math.round(recoveredQuotaLimit))
       : anonymousQuotaLimit + (invited ? VISITOR_INVITE_BONUS : 0),
-    quotaUsed: Math.max(uniqueChargedSessionIds.length, Number.isFinite(recoveredQuotaUsed) ? Math.max(0, Math.round(recoveredQuotaUsed)) : 0),
+    quotaUsed: Math.max(recoveredChargedQuotaUsed, uniqueChargedSessionIds.length, Number.isFinite(recoveredQuotaUsed) ? Math.max(0, Math.round(recoveredQuotaUsed)) : 0),
     chargedDrawCardSessionIds: uniqueChargedSessionIds,
     sourceMerchantId,
     sourceMerchantName,
@@ -5431,8 +5481,11 @@ async function consumeVisitorQuotaForDrawCardSession(visitorId, sessionId, cost)
   return "charged";
 }
 
-async function estimateDrawCardQuotaCost() {
-  return 1;
+async function estimateDrawCardQuotaCost(options = {}) {
+  if (normalizePublicExperienceType(options?.experienceType) !== "draw-card") return 1;
+  const selectedCount = parseSelectedStyleIds(options?.selectedStyleIds).length;
+  if (selectedCount > 0) return normalizeDrawCardCount(selectedCount, DRAW_CARD_MIN_STYLE_COUNT);
+  return normalizeDrawCardCount(options?.requestedDrawCount);
 }
 
 async function enforceVisitorRunningJobLimit(visitorId, config = getPublicExperienceConfig(DEFAULT_PUBLIC_EXPERIENCE_TYPE)) {
@@ -5568,11 +5621,14 @@ function toPublicAdminDrawCardSession(session, publicJobs = []) {
     completedAt: current.completedAt,
     failedReason: current.failedReason,
     styleCount: current.items.length,
+    requestedDrawCount: current.requestedDrawCount,
+    requestedSubjectType: current.requestedSubjectType,
     jobSummary: current.telemetry.jobs,
     telemetry: current.telemetry,
     phases,
     charged: Boolean(current.quotaChargedAt),
     quotaChargedAt: current.quotaChargedAt,
+    quotaChargedCount: current.quotaChargedCount,
     items: current.items,
     jobs: publicJobs
   };
@@ -5631,10 +5687,18 @@ async function createDrawCardSession(file, visitor, options = {}) {
   const sessionCreateStartedAtMs = nowMs();
   const [groups, styles] = await Promise.all([readStyleGroups(), readStyles()]);
   const requestedStyleIds = config.experienceType === "draw-card" ? parseSelectedStyleIds(options?.selectedStyleIds) : [];
-  if (requestedStyleIds.length > DRAW_CARD_RANDOM_STYLE_COUNT) {
+  const requestedDrawCount = config.experienceType === "draw-card" ? normalizeDrawCardCount(options?.requestedDrawCount) : 1;
+  const requestedSubjectType = config.experienceType === "draw-card" ? normalizeUserSelectedSubject(options?.requestedSubjectType) : "";
+  if (requestedStyleIds.length > DRAW_CARD_MAX_STYLE_COUNT) {
     const error = new Error("Too many selected styles");
     error.status = 400;
-    error.publicMessage = `最多选择 ${DRAW_CARD_RANDOM_STYLE_COUNT} 种风格。`;
+    error.publicMessage = `最多选择 ${DRAW_CARD_MAX_STYLE_COUNT} 种风格。`;
+    throw error;
+  }
+  if (config.experienceType === "draw-card" && requestedStyleIds.length === 0 && !requestedSubjectType) {
+    const error = new Error("Missing draw card subject type");
+    error.status = 400;
+    error.publicMessage = "请选择照片主体类型。";
     throw error;
   }
 
@@ -5685,18 +5749,30 @@ async function createDrawCardSession(file, visitor, options = {}) {
     throw error;
   }
 
-  const subjectClassification = usesManualSelectedStyles
-    ? { subject: SUBJECT_UNKNOWN, confidence: null, providerId: "" }
+  const subjectClassification = usesManualSelectedStyles || usesAllStylesForExperience
+    ? {
+        subject: usesAllStylesForExperience ? requestedSubjectType : SUBJECT_UNKNOWN,
+        confidence: null,
+        providerId: "",
+        provider: "",
+        model: "",
+        durationMs: null,
+        reason: usesAllStylesForExperience ? "user_selected" : "manual_selection"
+      }
     : await classifyUploadedSubject(file, {
         traceId,
         providerId: options?.subjectClassifierProviderId
       });
-  const matchedStyles = usesManualSelectedStyles ? sourceStyles : selectStylesForDetectedSubject(sourceStyles, subjectClassification.subject);
+  const matchedStyles = usesManualSelectedStyles
+    ? sourceStyles
+    : usesAllStylesForExperience
+      ? selectStylesForUserSubject(sourceStyles, requestedSubjectType)
+      : selectStylesForDetectedSubject(sourceStyles, subjectClassification.subject);
   const drawCardEligibleStyles = usesAllStylesForExperience ? filterDrawCardEligibleStyles(matchedStyles) : matchedStyles;
   const selectedStyles = usesManualSelectedStyles
     ? sourceStyles
     : usesAllStylesForExperience
-      ? sampleWeightedStyles(drawCardEligibleStyles, DRAW_CARD_RANDOM_STYLE_COUNT)
+      ? sampleWeightedStyles(drawCardEligibleStyles, requestedDrawCount)
       : matchedStyles;
   const originalStyleCount = sourceStyles.length;
   const matchedStyleCount = matchedStyles.length;
@@ -5708,6 +5784,7 @@ async function createDrawCardSession(file, visitor, options = {}) {
     error.publicMessage = config.unavailableMessage;
     throw error;
   }
+  const styleSource = usesManualSelectedStyles ? "manual_selection" : usesAllStylesForExperience ? "all_styles" : "group";
 
   const providers = getImageProviders();
   const settings = await readAppSettings();
@@ -5745,8 +5822,10 @@ async function createDrawCardSession(file, visitor, options = {}) {
     subject: subjectClassification.subject,
     subjectConfidence: subjectClassification.confidence,
     subjectProviderId: subjectClassification.providerId,
-    styleSource: usesManualSelectedStyles ? "manual_selection" : usesAllStylesForExperience ? "all_styles" : "group",
+    styleSource,
     requestedStyleCount: requestedStyleIds.length,
+    requestedDrawCount,
+    requestedSubjectType,
     originalStyleCount,
     matchedStyleCount,
     drawCardEligibleStyleCount,
@@ -5879,6 +5958,9 @@ async function createDrawCardSession(file, visitor, options = {}) {
       completedAt: null,
       failedReason: "",
       quotaChargedAt: null,
+      quotaChargedCount: 0,
+      requestedDrawCount: usesAllStylesForExperience ? requestedDrawCount : selectedStyles.length,
+      requestedSubjectType,
       telemetry: {
         client: {
           prepareReferenceMs: clientMetrics.prepareReferenceMs,
@@ -5900,7 +5982,9 @@ async function createDrawCardSession(file, visitor, options = {}) {
           subjectProvider: subjectClassification.provider,
           subjectModel: subjectClassification.model,
           subjectClassificationMs: normalizeTelemetryNumber(subjectClassification.durationMs),
-          styleSource: usesAllStylesForExperience ? "all_styles" : "group",
+          styleSource,
+          requestedDrawCount,
+          requestedSubjectType,
           originalStyleCount,
           matchedStyleCount,
           drawCardEligibleStyleCount,
@@ -5926,7 +6010,9 @@ async function createDrawCardSession(file, visitor, options = {}) {
       subject: subjectClassification.subject,
       subjectConfidence: subjectClassification.confidence,
       subjectProviderId: subjectClassification.providerId,
-      styleSource: usesAllStylesForExperience ? "all_styles" : "group",
+      styleSource,
+      requestedDrawCount,
+      requestedSubjectType,
       originalStyleCount,
       matchedStyleCount,
       drawCardEligibleStyleCount,
@@ -6090,6 +6176,7 @@ async function synchronizeDrawCardSession(session) {
       }))
       .sort((a, b) => a.order - b.order);
     let quotaChargedAt = current.quotaChargedAt || null;
+    let quotaChargedCount = Math.max(0, Number(current.quotaChargedCount || 0));
     let quotaChargeStatus = "";
     const summary = summarizeDrawCardJobStatuses(normalizedItems);
     const hasQueued = summary.queued > 0;
@@ -6102,30 +6189,40 @@ async function synchronizeDrawCardSession(session) {
       nextStatus = "succeeded";
       nextMessage = config.successMessage;
       completedAt = current.completedAt || new Date().toISOString();
-      if (!quotaChargedAt) {
-        const chargeStatus = await consumeVisitorQuotaForDrawCardSession(current.ownerVisitorId, current.sessionId, 1);
+      if (!quotaChargedAt && quotaChargedCount <= 0 && successCount > 0) {
+        const chargeStatus = await consumeVisitorQuotaForDrawCardSession(current.ownerVisitorId, current.sessionId, successCount);
         quotaChargeStatus = chargeStatus;
         if (chargeStatus === "charged" || chargeStatus === "already_charged") {
           quotaChargedAt = new Date().toISOString();
+          quotaChargedCount = successCount;
         }
       } else {
-        quotaChargeStatus = "already_charged";
+        quotaChargeStatus = quotaChargedAt || quotaChargedCount > 0 ? "already_charged" : "not_charged";
       }
     } else if (hasPending) {
       nextStatus = hasRunning ? "running" : "queued";
       nextMessage = config.waitingMessage;
-      quotaChargeStatus = quotaChargedAt ? "already_charged" : "";
+      quotaChargeStatus = quotaChargedAt || quotaChargedCount > 0 ? "already_charged" : "";
     } else if (successCount > 0 && failedCount > 0) {
       nextStatus = "partial";
       nextMessage = config.partialMessage;
       completedAt = current.completedAt || new Date().toISOString();
-      quotaChargeStatus = quotaChargedAt ? "already_charged" : "";
+      if (!quotaChargedAt && quotaChargedCount <= 0) {
+        const chargeStatus = await consumeVisitorQuotaForDrawCardSession(current.ownerVisitorId, current.sessionId, successCount);
+        quotaChargeStatus = chargeStatus;
+        if (chargeStatus === "charged" || chargeStatus === "already_charged") {
+          quotaChargedAt = new Date().toISOString();
+          quotaChargedCount = successCount;
+        }
+      } else {
+        quotaChargeStatus = "already_charged";
+      }
     } else if (failedCount > 0 && successCount === 0) {
       nextStatus = "failed";
       nextMessage = config.failureMessage;
       completedAt = current.completedAt || new Date().toISOString();
       failedReason = config.failureMessage;
-      quotaChargeStatus = quotaChargedAt ? "already_charged" : "";
+      quotaChargeStatus = quotaChargedAt || quotaChargedCount > 0 ? "already_charged" : "not_charged";
     } else if (jobs.some((job) => job?.status === "running")) {
       nextStatus = "running";
       nextMessage = config.waitingMessage;
@@ -6145,7 +6242,8 @@ async function synchronizeDrawCardSession(session) {
           ? Math.max(0, Math.round(new Date(completedAt).getTime() - new Date(current.createdAt).getTime()))
           : current.telemetry?.server?.finalElapsedMs || null,
         quotaChargeStatus: quotaChargeStatus || current.telemetry?.server?.quotaChargeStatus || "",
-        charged: Boolean(quotaChargedAt)
+        charged: Boolean(quotaChargedAt || quotaChargedCount > 0),
+        quotaChargedCount
       },
       jobs: summarizeDrawCardJobStatuses(normalizedItems)
     };
@@ -6158,6 +6256,7 @@ async function synchronizeDrawCardSession(session) {
       failedReason,
       quotaChargeStatus: nextTelemetry.server.quotaChargeStatus,
       charged: nextTelemetry.server.charged,
+      quotaChargedCount,
       jobSummary: nextTelemetry.jobs
     });
 
@@ -6170,6 +6269,7 @@ async function synchronizeDrawCardSession(session) {
       completedAt,
       failedReason,
       quotaChargedAt,
+      quotaChargedCount,
       telemetry: nextTelemetry,
       results,
       items: normalizedItems
@@ -6206,6 +6306,19 @@ function normalizeDrawCardSession(session) {
   const telemetryClient = telemetry.client && typeof telemetry.client === "object" ? telemetry.client : {};
   const telemetryServer = telemetry.server && typeof telemetry.server === "object" ? telemetry.server : {};
   const config = getPublicExperienceConfig(session?.experienceType);
+  const existingItemCount = Array.isArray(session?.items) ? session.items.length : 0;
+  const requestedDrawCount = config.experienceType === "draw-card"
+    ? normalizeDrawCardCount(session?.requestedDrawCount ?? telemetryServer.requestedDrawCount, existingItemCount || DRAW_CARD_DEFAULT_STYLE_COUNT)
+    : Number(session?.requestedDrawCount || 0);
+  const requestedSubjectType = config.experienceType === "draw-card"
+    ? normalizeUserSelectedSubject(session?.requestedSubjectType || telemetryServer.requestedSubjectType)
+    : "";
+  const rawQuotaChargedCount = Number(session?.quotaChargedCount ?? telemetryServer.quotaChargedCount);
+  const quotaChargedCount = Number.isFinite(rawQuotaChargedCount)
+    ? Math.max(0, Math.round(rawQuotaChargedCount))
+    : session?.quotaChargedAt
+      ? 1
+      : 0;
   const normalizedResults = Array.isArray(session?.results)
     ? session.results
         .map((result, index) => ({
@@ -6262,6 +6375,9 @@ function normalizeDrawCardSession(session) {
     completedAt: session?.completedAt || null,
     failedReason: String(session?.failedReason || ""),
     quotaChargedAt: session?.quotaChargedAt || null,
+    quotaChargedCount,
+    requestedDrawCount,
+    requestedSubjectType,
     telemetry: {
       client: {
         prepareReferenceMs: normalizeTelemetryNumber(telemetryClient.prepareReferenceMs),
@@ -6284,6 +6400,8 @@ function normalizeDrawCardSession(session) {
         subjectModel: String(telemetryServer.subjectModel || ""),
         subjectClassificationMs: normalizeTelemetryNumber(telemetryServer.subjectClassificationMs),
         styleSource: String(telemetryServer.styleSource || ""),
+        requestedDrawCount,
+        requestedSubjectType,
         originalStyleCount: normalizeTelemetryNumber(telemetryServer.originalStyleCount),
         matchedStyleCount: normalizeTelemetryNumber(telemetryServer.matchedStyleCount),
         drawCardEligibleStyleCount: normalizeTelemetryNumber(telemetryServer.drawCardEligibleStyleCount),
@@ -6294,11 +6412,12 @@ function normalizeDrawCardSession(session) {
         finalStatus: String(telemetryServer.finalStatus || ""),
         finalElapsedMs: normalizeTelemetryNumber(telemetryServer.finalElapsedMs),
         quotaChargeStatus: String(telemetryServer.quotaChargeStatus || ""),
-        charged: Boolean(telemetryServer.charged)
+        charged: Boolean(telemetryServer.charged),
+        quotaChargedCount
       },
       jobs: summary
     },
-    charged: Boolean(session?.quotaChargedAt || telemetryServer.charged),
+    charged: Boolean(session?.quotaChargedAt || telemetryServer.charged || quotaChargedCount > 0),
     summary,
     results: normalizedResults,
     items: normalizedItems
@@ -6319,6 +6438,9 @@ function toPublicDrawCardSession(session) {
     failedReason: current.failedReason,
     charged: current.charged,
     quotaChargedAt: current.quotaChargedAt,
+    quotaChargedCount: current.quotaChargedCount,
+    requestedDrawCount: current.requestedDrawCount,
+    requestedSubjectType: current.requestedSubjectType,
     summary: current.summary,
     telemetry: current.telemetry,
     results: current.results,

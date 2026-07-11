@@ -156,6 +156,73 @@ body {
   object-fit: cover;
 }
 
+.draw-card-config-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+  padding: 16px;
+  border: 1px solid rgba(239, 225, 198, 0.12);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.draw-card-config-group {
+  display: grid;
+  gap: 10px;
+}
+
+.draw-card-config-label {
+  color: rgba(243, 237, 225, 0.72);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.draw-card-segmented-control {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.draw-card-segment {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid rgba(239, 225, 198, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(243, 237, 225, 0.78);
+  font-weight: 800;
+}
+
+.draw-card-segment.is-active {
+  border-color: rgba(255, 216, 149, 0.56);
+  background: rgba(209, 169, 97, 0.18);
+  color: #faf5eb;
+}
+
+.draw-card-count-control {
+  display: grid;
+  grid-template-columns: auto 78px auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.draw-card-count-control input {
+  width: 78px;
+  min-height: 42px;
+  border: 1px solid rgba(239, 225, 198, 0.18);
+  border-radius: 16px;
+  background: rgba(15, 16, 18, 0.62);
+  color: #faf5eb;
+  font: inherit;
+  font-weight: 800;
+  text-align: center;
+}
+
+.draw-card-config-panel .draw-card-meta-note {
+  grid-column: 1 / -1;
+}
+
 .draw-card-actions {
   display: flex;
   flex-wrap: wrap;
@@ -904,6 +971,14 @@ body {
     rgba(15, 16, 18, 0.96);
   color: #f6efe4;
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.32);
+}
+
+.draw-card-config-modal {
+  width: min(640px, 100%);
+}
+
+.draw-card-config-modal .icon-button {
+  justify-self: end;
 }
 
 .draw-card-confirm-actions {
@@ -2872,6 +2947,18 @@ textarea {
     grid-template-columns: 1fr;
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .draw-card-config-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .draw-card-segmented-control {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .draw-card-count-control {
+    justify-content: start;
   }
 
   .draw-card-stage-layout,

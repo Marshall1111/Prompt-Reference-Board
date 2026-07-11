@@ -1,11 +1,9 @@
 {
   "visitorId": "a4f3f5bf-e11c-4bc3-a90d-3f82290ffedf",
   "tier": "invited",
-  "quotaLimit": 7,
-  "quotaUsed": 3,
-  "chargedDrawCardSessionIds": [
-    "b604a726-de07-46ed-a065-2463f4a1a072"
-  ],
+  "quotaLimit": 5,
+  "quotaUsed": 0,
+  "chargedDrawCardSessionIds": [],
   "invitedAt": "2026-06-07T05:59:27.203Z",
   "contactMessage": "如需更多生图机会，请联系客服填写邀请码。",
   "createdAt": "2026-06-04T04:37:35.491Z",

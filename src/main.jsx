@@ -78,12 +78,22 @@ const DEFAULT_ADMIN_ORDER_QUERY = {
   startDate: "",
   endDate: ""
 };
-const MAX_PUBLIC_STYLE_SELECTION = 3;
+const MIN_PUBLIC_DRAW_COUNT = 1;
+const MAX_PUBLIC_STYLE_SELECTION = 6;
+const DEFAULT_PUBLIC_DRAW_COUNT = 2;
 const SUBJECT_TYPE_LABELS = {
   both: "通用",
   person: "人物",
-  pet: "宠物"
+  pet: "宠物",
+  mixed: "人+宠",
+  other: "其他"
 };
+const DRAW_CARD_SUBJECT_OPTIONS = [
+  { value: "person", label: "仅人物" },
+  { value: "pet", label: "仅宠物" },
+  { value: "mixed", label: "人+宠" },
+  { value: "other", label: "其他" }
+];
 
 function getSizeLabel(size) {
   return GENERATION_SIZE_OPTIONS.find((option) => option.value === size)?.label || size || DEFAULT_GENERATION_SIZE;
@@ -113,13 +123,13 @@ const DRAW_CARD_EXPERIENCE_CONFIG = {
   apiBase: "/api/draw-card",
   sessionStorageKey: DRAW_CARD_SESSION_STORAGE_KEY,
   themeClass: "theme-draw-card",
-  titleKicker: "Draw card ritual",
-  title: "上传一张图片，静候整组结果揭晓。",
-  subtitle: "无需任何额外设置，只保留一次上传与一次开始，其余流程都会自动完成。",
+  titleKicker: "把照片变成AI艺术作品",
+  title: "AI 小画风格转绘",
+  subtitle: "在抽卡模式中，选择照片主体和出图张数，系统会随机抽取合适风格；成功几张扣几点。在自选风格中，可以固定选择喜欢的风格。",
   waitingLines: ["静候片刻，结果正在成形。", "光影已经落座，仪式仍在继续。", "请稍候，整组结果即将揭晓。"],
   waitingFallback: "请保持当前页面开启，结果会在全部完成后一次性揭晓。",
-  startButtonIdle: "开始抽卡",
-  startButtonLoading: "仪式开启中",
+  startButtonIdle: "我要抽卡",
+  startButtonLoading: "任务启动中",
   resultsKicker: "Collection",
   resultsTitle: "这一轮结果已经全部抵达。",
   resultsSubtitle: "右侧卡夹会收纳你选中的结果。点击结果可放大查看，加入时会直接飞入卡夹。",
@@ -231,7 +241,7 @@ function App() {
       "public-fridge-orders": "我的冰箱贴订单",
       "admin-api-providers": "API 配置"
     };
-    document.title = titleByRoute[route] || "风格提示词图库";
+    document.title = titleByRoute[route] || "AI风格转绘";
   }, [route]);
 
   function navigate(nextRoute) {
@@ -1050,6 +1060,7 @@ function PublicExperiencePage({ config }) {
   const [latestManualOrder, setLatestManualOrder] = useState(() => readLatestManualOrder());
   const [inviteCode, setInviteCode] = useState("");
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showDrawConfigModal, setShowDrawConfigModal] = useState(false);
   const [contactCopied, setContactCopied] = useState(false);
   const [orderConfig, setOrderConfig] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -1065,6 +1076,8 @@ function PublicExperiencePage({ config }) {
   const [visitTrackingReady, setVisitTrackingReady] = useState(false);
   const [stylePickerStyles, setStylePickerStyles] = useState([]);
   const [selectedStyleIds, setSelectedStyleIds] = useState([]);
+  const [drawCount, setDrawCount] = useState(DEFAULT_PUBLIC_DRAW_COUNT);
+  const [selectedSubjectType, setSelectedSubjectType] = useState("");
   const [stylePickerError, setStylePickerError] = useState("");
   const [isLoadingStylePicker, setIsLoadingStylePicker] = useState(false);
   const resultMediaRefs = useRef(new Map());
@@ -1497,6 +1510,9 @@ function PublicExperiencePage({ config }) {
     return selectedStyleIds.map((styleId) => styleById.get(styleId)).filter(Boolean);
   }, [selectedStyleIds, stylePickerStyles]);
 
+  const isDrawCardExperience = experienceType === "draw-card";
+  const requestedDrawCount = Math.min(Math.max(Number(drawCount) || DEFAULT_PUBLIC_DRAW_COUNT, MIN_PUBLIC_DRAW_COUNT), MAX_PUBLIC_STYLE_SELECTION);
+  const estimatedRandomDrawCost = isDrawCardExperience ? requestedDrawCount : 1;
   const canStart = Boolean(referenceFile) && !isSubmitting;
   const canStartCustomDraw = Boolean(referenceFile) && selectedStyleIds.length > 0 && !isSubmitting;
   const activeResult = activeResultIndex >= 0 ? toDisplayResult(displayItems[activeResultIndex]) : activeResultIndex === -3 ? activeClipPreview : null;
@@ -1507,15 +1523,15 @@ function PublicExperiencePage({ config }) {
   const resultsHeading = currentSessionStatus === "running" || currentSessionStatus === "queued"
     ? `已生成 ${succeededCount} / ${totalCount || "--"} 张结果`
     : currentSessionStatus === "partial"
-      ? "部分结果已抵达，本轮未扣次数。"
-      : currentSessionStatus === "failed"
+      ? `部分结果已抵达，已扣 ${Number(session?.quotaChargedCount || succeededCount || 0)} 点。`
+    : currentSessionStatus === "failed"
         ? "这一轮没有成功结果，本轮未扣次数。"
         : resultsTitle;
 
   const resultsBodyCopy = currentSessionStatus === "running" || currentSessionStatus === "queued"
     ? (session?.message || waitingFallback)
     : currentSessionStatus === "partial"
-      ? (session?.message || "成功结果可以正常保留，本轮未扣次数。")
+      ? (session?.message || "成功结果可以正常保留，仅扣除成功生成的点数。")
       : currentSessionStatus === "failed"
         ? (session?.message || "所有卡位都已结束，本轮没有可保留的成功结果。")
         : resultsSubtitle;
@@ -1534,6 +1550,9 @@ function PublicExperiencePage({ config }) {
     setFlyingCard(null);
     setClipReceiving(false);
     setStylePickerError("");
+    setShowDrawConfigModal(false);
+    setSelectedSubjectType("");
+    setDrawCount(DEFAULT_PUBLIC_DRAW_COUNT);
     resultMediaRefs.current.clear();
   }
 
@@ -1666,16 +1685,29 @@ function PublicExperiencePage({ config }) {
   async function startDrawCard(options = {}) {
     if (!referenceFile) return;
     const requestedStyleIds = Array.isArray(options.selectedStyleIds) ? options.selectedStyleIds.filter(Boolean).slice(0, MAX_PUBLIC_STYLE_SELECTION) : [];
+    const isManualSelection = requestedStyleIds.length > 0;
+    const estimatedCost = isManualSelection ? requestedStyleIds.length : estimatedRandomDrawCost;
 
     setIsSubmitting(true);
     setError("");
     setStylePickerError("");
     try {
+      if (isDrawCardExperience && !isManualSelection && !selectedSubjectType) {
+        setError("请先选择照片主体类型。");
+        return;
+      }
+
       const latestVisitorState = await fetchVisitorState();
       setVisitorState(latestVisitorState);
       if (!latestVisitorState?.canGenerate) {
         setError(latestVisitorState?.contactMessage || clipContactFallback);
         if (requestedStyleIds.length) setStylePickerError(latestVisitorState?.contactMessage || clipContactFallback);
+        return;
+      }
+      if (Number(latestVisitorState?.quotaRemaining || 0) < estimatedCost) {
+        const message = `本次最多需要 ${estimatedCost} 点，当前剩余 ${Number(latestVisitorState?.quotaRemaining || 0)} 点。`;
+        setError(message);
+        if (requestedStyleIds.length) setStylePickerError(message);
         return;
       }
 
@@ -1693,6 +1725,9 @@ function PublicExperiencePage({ config }) {
       formData.append("clientWasCompressed", preparedReference.telemetry?.wasCompressed ? "1" : "0");
       if (requestedStyleIds.length) {
         formData.append("selectedStyleIds", JSON.stringify(requestedStyleIds));
+      } else if (isDrawCardExperience) {
+        formData.append("drawCount", String(requestedDrawCount));
+        formData.append("subjectType", selectedSubjectType);
       }
 
       const response = await fetch(`${apiBase}/sessions`, {
@@ -1703,6 +1738,7 @@ function PublicExperiencePage({ config }) {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message || createErrorMessage);
 
+      setShowDrawConfigModal(false);
       applySession(payload);
       refreshVisitorStateSilently();
     } catch (nextError) {
@@ -1965,7 +2001,7 @@ function PublicExperiencePage({ config }) {
         )}
 
         <div className="draw-card-clip-empty">
-          <p>剩余次数：{visitorState ? `${visitorState.quotaRemaining}` : "--"}</p>
+          <p>剩余点数：{visitorState ? `${visitorState.quotaRemaining}` : "--"}</p>
           {visitorState?.sourceMerchantName ? <p>来源商户：{visitorState.sourceMerchantName}</p> : null}
           <input className="field-inline-input" onChange={(event) => setInviteCode(event.target.value)} placeholder={clipInvitePlaceholder} value={inviteCode} />
           <div className="draw-card-clip-actions">
@@ -2052,7 +2088,12 @@ function PublicExperiencePage({ config }) {
                 </label>
 
                 <div className="draw-card-actions">
-                  <button className="draw-card-primary" disabled={!canStart} onClick={startDrawCard} type="button">
+                  <button
+                    className="draw-card-primary"
+                    disabled={!canStart}
+                    onClick={isDrawCardExperience ? () => setShowDrawConfigModal(true) : startDrawCard}
+                    type="button"
+                  >
                     {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
                     <span>{isSubmitting ? startButtonLoading : startButtonIdle}</span>
                   </button>
@@ -2084,7 +2125,7 @@ function PublicExperiencePage({ config }) {
             <div className="draw-card-style-picker-head">
               <div>
                 <p className="draw-card-kicker">Custom selection</p>
-                <h2>自选最多 3 种风格</h2>
+                <h2>自选最多 {MAX_PUBLIC_STYLE_SELECTION} 种风格</h2>
                 <p className="draw-card-subtitle">这里不会随机抽取。你选中的风格会直接用于这一轮生成，所以缩略图做得更密一些，方便一屏快速挑选。</p>
               </div>
               <button
@@ -2126,7 +2167,7 @@ function PublicExperiencePage({ config }) {
 
                 <div className="draw-card-style-picker-summary">
                   <div className="draw-card-style-picker-count">已选 {selectedStyleIds.length} / {MAX_PUBLIC_STYLE_SELECTION}</div>
-                  <p className="draw-card-meta-note">每次最多选择 3 种风格。选好后会直接按这些风格出图，不再走随机抽取。</p>
+                  <p className="draw-card-meta-note">每次最多选择 {MAX_PUBLIC_STYLE_SELECTION} 种风格。成功几张扣几点，失败结果不扣点。</p>
                   {selectedDrawCardStyles.length ? (
                     <div className="draw-card-style-picker-selected">
                       {selectedDrawCardStyles.map((style, index) => (
@@ -2303,6 +2344,65 @@ function PublicExperiencePage({ config }) {
           }}
         >
           <img alt="" src={flyingCard.src} />
+        </div>
+      ) : null}
+
+      {showDrawConfigModal && isDrawCardExperience ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => setShowDrawConfigModal(false)} role="presentation">
+          <section className="draw-card-confirm-panel draw-card-config-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="抽卡设置">
+            <button className="icon-button" onClick={() => setShowDrawConfigModal(false)} type="button" aria-label="关闭抽卡设置">
+              <X size={18} />
+            </button>
+            <div>
+              <p className="draw-card-kicker">Draw settings</p>
+              <h2>设置本次抽卡</h2>
+              <p className="storage-note">选好照片主体和出图张数后，系统会随机抽取合适风格开始生成。</p>
+            </div>
+            <div className="draw-card-config-panel">
+              <div className="draw-card-config-group">
+                <span className="draw-card-config-label">照片主体</span>
+                <div className="draw-card-segmented-control" role="radiogroup" aria-label="照片主体">
+                  {DRAW_CARD_SUBJECT_OPTIONS.map((option) => (
+                    <button
+                      className={`draw-card-segment ${selectedSubjectType === option.value ? "is-active" : ""}`}
+                      disabled={isSubmitting}
+                      key={option.value}
+                      onClick={() => {
+                        setSelectedSubjectType(option.value);
+                        setError("");
+                      }}
+                      type="button"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className="draw-card-count-control">
+                <span className="draw-card-config-label">本次抽卡</span>
+                <input
+                  disabled={isSubmitting}
+                  max={MAX_PUBLIC_STYLE_SELECTION}
+                  min={MIN_PUBLIC_DRAW_COUNT}
+                  onChange={(event) => setDrawCount(Math.min(Math.max(Number(event.target.value) || DEFAULT_PUBLIC_DRAW_COUNT, MIN_PUBLIC_DRAW_COUNT), MAX_PUBLIC_STYLE_SELECTION))}
+                  type="number"
+                  value={requestedDrawCount}
+                />
+                <span className="draw-card-config-label">张</span>
+              </label>
+              <p className="draw-card-meta-note">本次最多消耗 {estimatedRandomDrawCost} 点，失败结果不扣点。</p>
+            </div>
+            {error ? <p className="error-note">{error}</p> : null}
+            <div className="draw-card-confirm-actions">
+              <button className="draw-card-secondary" disabled={isSubmitting} onClick={() => setShowDrawConfigModal(false)} type="button">
+                取消
+              </button>
+              <button className="draw-card-primary" disabled={!selectedSubjectType || isSubmitting} onClick={() => startDrawCard()} type="button">
+                {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+                <span>{isSubmitting ? startButtonLoading : "确认抽卡"}</span>
+              </button>
+            </div>
+          </section>
         </div>
       ) : null}
 
