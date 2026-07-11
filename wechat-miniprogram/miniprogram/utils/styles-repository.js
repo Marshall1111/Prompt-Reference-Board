@@ -13,6 +13,7 @@ function normalizeStyle(style) {
   return {
     id: style.id || style._id,
     sort: Number(style.sort || 0),
+    title: style.title || (Array.isArray(style.tags) ? style.tags.join(" / ") : ""),
     tags: Array.isArray(style.tags) ? style.tags : [],
     image: style.image || "",
     prompt: style.prompt || "",

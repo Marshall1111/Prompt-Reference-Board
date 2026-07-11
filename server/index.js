@@ -49,7 +49,7 @@ const DRAW_CARD_GROUP_NAME = "抽卡";
 const FRIDGE_MAGNET_GROUP_NAME = "冰箱贴";
 const DRAW_CARD_DEFAULT_SIZE = "1024x1536";
 const STYLE_GROUP_SIZE_OPTIONS = new Set(["1024x1536", "1536x1024", "1024x1024", "1024x1365", "1365x1024"]);
-const DRAW_CARD_WAITING_MESSAGE = "任务正在进行，请稍候。";
+const DRAW_CARD_WAITING_MESSAGE = "总计需要约 5 分钟，请耐心等待。";
 const DRAW_CARD_SUCCESS_MESSAGE = "结果已准备好。";
 const DRAW_CARD_FAILURE_MESSAGE = "这一轮未能顺利完成，请重新开始。";
 const DRAW_CARD_PARTIAL_MESSAGE = "部分结果已准备好，仅扣除成功生成的点数。";
@@ -2593,9 +2593,11 @@ app.delete("/api/style-groups/:id", requireAdmin, async (req, res) => {
 app.post("/api/styles", requireAdmin, async (req, res) => {
   const styles = await readStyles();
   const now = new Date().toISOString();
+  const tags = normalizeTags(req.body.tags).length ? normalizeTags(req.body.tags) : ["新风格"];
   const style = {
     id: `style_${Date.now()}`,
-    tags: normalizeTags(req.body.tags).length ? normalizeTags(req.body.tags) : ["新风格"],
+    title: normalizeStyleTitle(req.body.title, tags.join(" / ")),
+    tags,
     subjectType: normalizeStyleSubjectType(req.body.subjectType),
     drawCardEnabled: normalizeDrawCardEnabled(req.body.drawCardEnabled, true),
     drawCardWeight: normalizeDrawCardWeight(req.body.drawCardWeight),
@@ -2629,6 +2631,7 @@ app.put("/api/styles/:id", requireAdmin, async (req, res) => {
   if (!style) return res.status(404).json({ message: "风格不存在。" });
 
   style.tags = normalizeTags(req.body.tags);
+  style.title = normalizeStyleTitle(req.body.title, style.title || style.tags.join(" / ") || style.id);
   style.subjectType = normalizeStyleSubjectType(req.body.subjectType, style);
   style.drawCardEnabled = normalizeDrawCardEnabled(req.body.drawCardEnabled, style.drawCardEnabled);
   style.drawCardWeight = normalizeDrawCardWeight(req.body.drawCardWeight);
@@ -2732,6 +2735,7 @@ async function readStyles() {
   return Promise.all(
     styles.map(async (style) => ({
       id: style.id,
+      title: normalizeStyleTitle(style.title, style.tags?.join(" / ") || style.label || style.id),
       tags: normalizeTags(style.tags?.length ? style.tags : [style.label, style.description]),
       subjectType: normalizeStyleSubjectType(style.subjectType, style),
       drawCardEnabled: normalizeDrawCardEnabled(style.drawCardEnabled, true),
@@ -5611,6 +5615,7 @@ function toPublicClipItem(job) {
 function toPublicDrawCardStyle(style) {
   return {
     id: String(style?.id || ""),
+    title: normalizeStyleTitle(style?.title, formatStyleName(style)),
     name: formatStyleName(style),
     tags: Array.isArray(style?.tags) ? style.tags.filter(Boolean) : [],
     subjectType: normalizeStyleSubjectType(style?.subjectType, style),
@@ -7034,6 +7039,8 @@ function cloneReferenceFile(file) {
 }
 
 function formatStyleName(style) {
+  const title = normalizeStyleTitle(style?.title, "");
+  if (title) return title;
   const tags = Array.isArray(style?.tags) ? style.tags.filter(Boolean) : [];
   return tags.length ? tags.join(" / ") : String(style?.id || "");
 }
@@ -7972,6 +7979,7 @@ function isUsableApiKey(apiKey) {
 async function saveStyles(styles) {
   const storedStyles = styles.map((style) => ({
     id: String(style?.id || "").trim(),
+    title: normalizeStyleTitle(style?.title, normalizeTags(style?.tags).join(" / ") || style?.id),
     tags: normalizeTags(style?.tags),
     subjectType: normalizeStyleSubjectType(style?.subjectType, style),
     drawCardEnabled: normalizeDrawCardEnabled(style?.drawCardEnabled, true),
@@ -7994,6 +8002,7 @@ async function syncMiniProgram(styles) {
       return {
         id: style.id,
         sort: index,
+        title: normalizeStyleTitle(style.title, normalizeTags(style.tags).join(" / ") || style.id),
         tags: normalizeTags(style.tags),
         subjectType: normalizeStyleSubjectType(style.subjectType, style),
         drawCardEnabled: normalizeDrawCardEnabled(style.drawCardEnabled, true),
@@ -8113,6 +8122,12 @@ async function fileExists(filePath) {
 function normalizeTags(value) {
   const raw = Array.isArray(value) ? value : String(value || "").split(/[,锛屻€乗n]/);
   return [...new Set(raw.map((item) => String(item).trim()).filter(Boolean))];
+}
+
+function normalizeStyleTitle(value, fallback = "") {
+  const title = String(value || "").trim().replace(/\s+/g, " ");
+  if (title) return title.slice(0, 40);
+  return String(fallback || "").trim().replace(/\s+/g, " ").slice(0, 40);
 }
 
 function extensionForMime(mimeType) {

@@ -1841,6 +1841,14 @@ h2 {
   transform: scale(1.14);
 }
 
+.style-card-title {
+  display: block;
+  margin-top: 10px;
+  color: #20252b;
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
 .tag-row {
   display: flex;
   flex-wrap: wrap;

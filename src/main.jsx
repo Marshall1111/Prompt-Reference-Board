@@ -124,11 +124,11 @@ const DRAW_CARD_EXPERIENCE_CONFIG = {
   apiBase: "/api/draw-card",
   sessionStorageKey: DRAW_CARD_SESSION_STORAGE_KEY,
   themeClass: "theme-draw-card",
-  titleKicker: "把照片变成AI艺术作品",
-  title: "AI 小画风格转绘",
-  subtitle: "在抽卡模式中，选择照片主体和出图张数，系统会随机抽取合适风格；成功几张扣几点。在自选风格中，可以固定选择喜欢的风格。",
-  waitingLines: ["静候片刻，结果正在成形。", "光影已经落座，仪式仍在继续。", "请稍候，整组结果即将揭晓。"],
-  waitingFallback: "请保持当前页面开启，结果会在全部完成后一次性揭晓。",
+  titleKicker: "",
+  title: "AI小画家",
+  subtitle: "上传照片，一键制作AI小画",
+  waitingLines: ["总计需要约 5 分钟，请耐心等待。", "请保持当前页面开启，结果会在完成后自动出现。", "正在制作 AI 小画，请耐心等待。"],
+  waitingFallback: "总计需要约 5 分钟，请耐心等待。",
   startButtonIdle: "我要抽卡",
   startButtonLoading: "任务启动中",
   resultsKicker: "Collection",
@@ -356,7 +356,7 @@ function AdminApp({ navigate, route }) {
   const filteredStyles = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     if (!keyword) return styles;
-    return styles.filter((style) => `${style.tags.join(" ")} ${style.prompt}`.toLowerCase().includes(keyword));
+    return styles.filter((style) => `${style.title || ""} ${style.tags.join(" ")} ${style.prompt}`.toLowerCase().includes(keyword));
   }, [query, styles]);
 
   async function copyPrompt(style) {
@@ -370,6 +370,7 @@ function AdminApp({ navigate, route }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        title: "新风格",
         tags: ["新风格"],
         subjectType: "both",
         drawCardEnabled: true,
@@ -629,12 +630,15 @@ function AdminApp({ navigate, route }) {
         <div className="modal-backdrop" onClick={() => setActivePrompt(null)} role="presentation">
           <section className="prompt-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
             <div className="modal-head">
-              <div className="tag-row">
-                {activePrompt.tags.map((tag) => (
-                  <span className="tag" key={tag}>
-                    {tag}
-                  </span>
-                ))}
+              <div>
+                <h2>{getStyleDisplayName(activePrompt)}</h2>
+                <div className="tag-row">
+                  {activePrompt.tags.map((tag) => (
+                    <span className="tag" key={tag}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
               <button className="copy-button compact" onClick={() => copyPrompt(activePrompt)} type="button">
                 <Clipboard size={18} />
@@ -2088,9 +2092,9 @@ function PublicExperiencePage({ config }) {
           <div className="draw-card-stage-layout">
             <div className="draw-card-stage-main">
               <div className="draw-card-hero">
-                <p className="draw-card-kicker">{titleKicker}</p>
+                {titleKicker ? <p className="draw-card-kicker">{titleKicker}</p> : null}
                 <h1 className="draw-card-title">{title}</h1>
-                <p className="draw-card-subtitle">{subtitle}</p>
+                {subtitle ? <p className="draw-card-subtitle">{subtitle}</p> : null}
               </div>
 
               <section className={`draw-card-upload-panel ${referenceFile ? "has-image" : ""}`}>
@@ -2635,6 +2639,7 @@ function PublicExperiencePage({ config }) {
 
 function createStyleDraft(style) {
   return {
+    title: style?.title || style?.name || style?.tags?.join(" / ") || "",
     tags: style?.tags?.join("，") || "",
     subjectType: style?.subjectType || "both",
     drawCardEnabled: style?.drawCardEnabled !== false,
@@ -2642,6 +2647,10 @@ function createStyleDraft(style) {
     prompt: style?.prompt || "",
     useStyleImageAsReference: Boolean(style?.useStyleImageAsReference)
   };
+}
+
+function getStyleDisplayName(style) {
+  return String(style?.title || style?.name || style?.tags?.join("、") || style?.id || "").trim();
 }
 
 function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onReorderStyles, onStyleChange, onUploadImage, onViewPrompt, styles }) {
@@ -2764,8 +2773,9 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onReorderStyles
                   </div>
                 </div>
                 <div className="image-frame">
-                  <StylePreviewImage alt={`${style.tags.join("、")}示例图`} style={style} />
+                  <StylePreviewImage alt={`${getStyleDisplayName(style)}示例图`} style={style} />
                 </div>
+                <strong className="style-card-title">{getStyleDisplayName(style)}</strong>
                 <div className="tag-row">
                   {style.tags.map((tag) => (
                     <span className="tag" key={tag}>
@@ -2808,21 +2818,32 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onReorderStyles
             role="dialog"
           >
             <div className="modal-head">
-              <div className="tag-row">
-                {activeEditingStyle.tags.map((tag) => (
-                  <span className="tag" key={tag}>
-                    {tag}
-                  </span>
-                ))}
+              <div>
+                <h2>{getStyleDisplayName(activeEditingStyle)}</h2>
+                <div className="tag-row">
+                  {activeEditingStyle.tags.map((tag) => (
+                    <span className="tag" key={tag}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="style-editor-preview">
               <div className="image-frame">
-                <StylePreviewImage alt={`${activeEditingStyle.tags.join("、")}示例图`} style={activeEditingStyle} />
+                <StylePreviewImage alt={`${getStyleDisplayName(activeEditingStyle)}示例图`} style={activeEditingStyle} />
               </div>
-              <p className="storage-note">图片保存在 public/style-previews/{activeEditingStyle.id}/cover.*，标签、适用主体、抽卡开关、抽卡权重和提示词保存在 data/styles.json。</p>
+              <p className="storage-note">图片保存在 public/style-previews/{activeEditingStyle.id}/cover.*，标题、标签、适用主体、抽卡开关、抽卡权重和提示词保存在 data/styles.json。</p>
             </div>
             <div className="manage-body style-editor-fields">
+              <label className="field-label">
+                中文标题
+                <input
+                  onChange={(event) => updateDraft(activeEditingStyle, { title: event.target.value })}
+                  placeholder="例如：童趣剪纸插画"
+                  value={activeDraft.title}
+                />
+              </label>
               <label className="field-label">
                 标签
                 <input
@@ -3903,7 +3924,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
         formData.append("size", size);
         formData.append("provider", selectedProvider);
         formData.append("styleId", style.id);
-        formData.append("styleName", style.tags.join(" / "));
+        formData.append("styleName", getStyleDisplayName(style));
         formData.append("styleGroupId", selectedGroup.id);
         formData.append("styleGroupName", selectedGroup.name);
         Object.entries(GENERATION_DEFAULTS).forEach(([key, value]) => formData.append(key, value));
@@ -3916,7 +3937,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
           body: formData
         });
         const payload = await response.json();
-        if (!response.ok) throw new Error(payload.message || `提交 ${style.tags.join(" / ")} 失败。`);
+        if (!response.ok) throw new Error(payload.message || `提交 ${getStyleDisplayName(style)} 失败。`);
         submitted += 1;
       }
 
@@ -3964,8 +3985,8 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
                 {styles.map((style) => (
                   <label className={`style-picker-card ${selectedStyleIds.includes(style.id) ? "active" : ""}`} key={style.id}>
                     <input checked={selectedStyleIds.includes(style.id)} onChange={() => toggleStyle(style.id)} type="checkbox" />
-                    <img alt={style.tags.join("、")} decoding="async" loading="lazy" src={cacheBust(style.galleryImage || style.image, style.imageUpdatedAt)} />
-                    <span>{style.tags.join("、") || style.id}</span>
+                    <img alt={getStyleDisplayName(style)} decoding="async" loading="lazy" src={cacheBust(style.galleryImage || style.image, style.imageUpdatedAt)} />
+                    <span>{getStyleDisplayName(style)}</span>
                   </label>
                 ))}
               </div>
@@ -3997,7 +4018,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
                   <div className="group-card-body">
                     <strong>{group.name}</strong>
                     <p className="storage-note">比例：{getSizeLabel(group.size)}</p>
-                    <p className="storage-note">{group.styleIds.map((styleId) => styleMap.get(styleId)?.tags.join("、") || styleId).join(" / ") || "暂无风格"}</p>
+                    <p className="storage-note">{group.styleIds.map((styleId) => getStyleDisplayName(styleMap.get(styleId)) || styleId).join(" / ") || "暂无风格"}</p>
                   </div>
                   <div className="task-actions">
                     <button className="secondary-button" onClick={() => loadGroup(group)} type="button">
