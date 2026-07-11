@@ -845,7 +845,14 @@ body {
   line-height: 1.4;
 }
 
-.draw-card-clip-remove {
+.draw-card-clip-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.draw-card-clip-remove,
+.draw-card-clip-download {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -858,6 +865,12 @@ body {
   background: rgba(255, 188, 216, 0.1);
   color: #ffd9ea;
   font-weight: 700;
+}
+
+.draw-card-clip-download {
+  border-color: rgba(239, 225, 198, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f6efe4;
 }
 
 .draw-card-clip-empty {

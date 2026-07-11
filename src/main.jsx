@@ -1987,9 +1987,14 @@ function PublicExperiencePage({ config }) {
                 </button>
                 <div className="draw-card-clip-meta">
                   <strong>{item.styleName || `${clipItemFallback} ${index + 1}`}</strong>
-                  <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(item)} type="button">
-                    {pocketRemoveLabel}
-                  </button>
+                  <div className="draw-card-clip-item-actions">
+                    <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(item)} type="button">
+                      {pocketRemoveLabel}
+                    </button>
+                    <button className="draw-card-clip-download" onClick={() => setShowContactModal(true)} type="button">
+                      下载原图
+                    </button>
+                  </div>
                 </div>
               </article>
             ))}
