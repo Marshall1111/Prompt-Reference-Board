@@ -94,6 +94,7 @@ const DRAW_CARD_SUBJECT_OPTIONS = [
   { value: "mixed", label: "人+宠" },
   { value: "other", label: "其他" }
 ];
+const DRAW_CARD_COUNT_OPTIONS = [1, 2, 4];
 
 function getSizeLabel(size) {
   return GENERATION_SIZE_OPTIONS.find((option) => option.value === size)?.label || size || DEFAULT_GENERATION_SIZE;
@@ -2378,18 +2379,22 @@ function PublicExperiencePage({ config }) {
                   ))}
                 </div>
               </div>
-              <label className="draw-card-count-control">
+              <div className="draw-card-count-control">
                 <span className="draw-card-config-label">本次抽卡</span>
-                <input
-                  disabled={isSubmitting}
-                  max={MAX_PUBLIC_STYLE_SELECTION}
-                  min={MIN_PUBLIC_DRAW_COUNT}
-                  onChange={(event) => setDrawCount(Math.min(Math.max(Number(event.target.value) || DEFAULT_PUBLIC_DRAW_COUNT, MIN_PUBLIC_DRAW_COUNT), MAX_PUBLIC_STYLE_SELECTION))}
-                  type="number"
-                  value={requestedDrawCount}
-                />
-                <span className="draw-card-config-label">张</span>
-              </label>
+                <div className="draw-card-count-options" role="radiogroup" aria-label="本次抽卡张数">
+                  {DRAW_CARD_COUNT_OPTIONS.map((count) => (
+                    <button
+                      className={`draw-card-segment ${requestedDrawCount === count ? "is-active" : ""}`}
+                      disabled={isSubmitting}
+                      key={count}
+                      onClick={() => setDrawCount(count)}
+                      type="button"
+                    >
+                      {count}张
+                    </button>
+                  ))}
+                </div>
+              </div>
               <p className="draw-card-meta-note">本次最多消耗 {estimatedRandomDrawCost} 点，失败结果不扣点。</p>
             </div>
             {error ? <p className="error-note">{error}</p> : null}

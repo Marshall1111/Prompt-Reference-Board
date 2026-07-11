@@ -202,21 +202,17 @@ body {
 
 .draw-card-count-control {
   display: grid;
-  grid-template-columns: auto 78px auto;
-  gap: 8px;
-  align-items: center;
+  gap: 10px;
 }
 
-.draw-card-count-control input {
-  width: 78px;
-  min-height: 42px;
-  border: 1px solid rgba(239, 225, 198, 0.18);
-  border-radius: 16px;
-  background: rgba(15, 16, 18, 0.62);
-  color: #faf5eb;
-  font: inherit;
-  font-weight: 800;
-  text-align: center;
+.draw-card-count-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+.draw-card-count-options .draw-card-segment {
+  min-width: 0;
 }
 
 .draw-card-config-panel .draw-card-meta-note {
