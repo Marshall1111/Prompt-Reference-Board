@@ -1847,6 +1847,28 @@ function PublicExperiencePage({ config }) {
     manualMessageCopiedTimeoutRef.current = window.setTimeout(() => setManualMessageCopied(false), 1600);
   }
 
+  async function handleDownloadClipOriginal(item) {
+    if (!item?.jobId) return;
+
+    let latestVisitorState = visitorState;
+    try {
+      latestVisitorState = await fetchVisitorState();
+      setVisitorState(latestVisitorState);
+    } catch {}
+
+    if (latestVisitorState?.tier !== "invited") {
+      setShowContactModal(true);
+      return;
+    }
+
+    try {
+      await downloadPublicClipOriginal(item.jobId);
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "下载原图失败，请稍后再试。");
+    }
+  }
+
   async function handleOpenManualPaymentCard(order = manualPaymentOrder?.order) {
     if (!order) return;
     setManualPaymentCardUrl(await buildManualPaymentCard(order, orderConfig));
@@ -1991,7 +2013,7 @@ function PublicExperiencePage({ config }) {
                     <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(item)} type="button">
                       {pocketRemoveLabel}
                     </button>
-                    <button className="draw-card-clip-download" onClick={() => setShowContactModal(true)} type="button">
+                    <button className="draw-card-clip-download" onClick={() => handleDownloadClipOriginal(item)} type="button">
                       下载原图
                     </button>
                   </div>
@@ -4482,6 +4504,34 @@ async function fetchPublicClipItems(experienceType = "") {
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取卡夹失败。");
   return payload;
+}
+
+async function downloadPublicClipOriginal(jobId) {
+  const response = await fetch(`/api/public/clip-items/${encodeURIComponent(jobId)}/download-original`);
+  const contentType = String(response.headers.get("content-type") || "");
+  if (!response.ok) {
+    let message = "下载原图失败，请稍后再试。";
+    if (contentType.includes("application/json")) {
+      const data = await response.json().catch(() => null);
+      message = data?.message || message;
+    } else {
+      message = await response.text().catch(() => "") || message;
+    }
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+
+  const filename = parseDownloadFilename(response.headers.get("content-disposition"), `clip-original-${jobId}.png`);
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
 }
 
 async function readJsonPayload(response, fallbackMessage, options = {}) {

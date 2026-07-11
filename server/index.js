@@ -1804,6 +1804,22 @@ app.get("/api/public/clip-items", async (req, res) => {
   }
 });
 
+app.get("/api/public/clip-items/:jobId/download-original", async (req, res) => {
+  try {
+    const visitor = await getVisitorState(req);
+    if (visitor.tier !== "invited") {
+      return res.status(403).json({ message: visitor.contactMessage || DEFAULT_CONTACT_MESSAGE });
+    }
+
+    const job = await readImageJob(req.params.jobId);
+    assertCanDownloadClipOriginal(req, job);
+    await sendPublicClipOriginalImage(res, job);
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "下载原图失败，请稍后再试。" });
+  }
+});
+
 app.get("/api/image-jobs", requireAdmin, async (req, res) => {
   try {
     const payload = await queryImageJobs(req.query || {});
@@ -5564,6 +5580,20 @@ function assertCanToggleLike(req, job) {
   }
 }
 
+function assertCanDownloadClipOriginal(req, job) {
+  if (!job) {
+    throw createHttpError(404, "卡夹图片不存在。");
+  }
+  if (
+    job.visibility !== "public" ||
+    job.ownerVisitorId !== req.visitorId ||
+    job.status !== "succeeded" ||
+    !job.isLiked
+  ) {
+    throw createHttpError(403, "无权下载该原图。");
+  }
+}
+
 function toPublicClipItem(job) {
   const result = normalizeJobResult(job.result);
   return {
@@ -5641,6 +5671,15 @@ async function sendAdminJobImage(res, job, options = {}) {
   if (options.asDownload) {
     res.setHeader("Content-Disposition", `attachment; filename="${path.basename(file)}"`);
   }
+  res.type(mimeType);
+  res.sendFile(file);
+}
+
+async function sendPublicClipOriginalImage(res, job) {
+  const file = await resolveJobImageFile(job);
+  if (!file) throw createHttpError(404, "原图不存在。");
+  const mimeType = mimeForExtension(path.extname(file).toLowerCase()) || "application/octet-stream";
+  res.setHeader("Content-Disposition", `attachment; filename="${path.basename(file)}"`);
   res.type(mimeType);
   res.sendFile(file);
 }
