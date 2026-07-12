@@ -873,6 +873,15 @@ body {
   color: #f6efe4;
 }
 
+.draw-card-clip-download:disabled {
+  cursor: progress;
+  opacity: 0.68;
+}
+
+.draw-card-original-preview-panel .draw-card-lightbox-meta {
+  flex-wrap: wrap;
+}
+
 .draw-card-clip-empty {
   display: grid;
   place-items: center;

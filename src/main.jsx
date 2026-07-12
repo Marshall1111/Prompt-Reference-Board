@@ -1057,6 +1057,8 @@ function PublicExperiencePage({ config }) {
   const [waitingStage, setWaitingStage] = useState("offering");
   const [activeResultIndex, setActiveResultIndex] = useState(-1);
   const [activeClipPreview, setActiveClipPreview] = useState(null);
+  const [originalPreview, setOriginalPreview] = useState(null);
+  const [originalPreviewLoadingJobId, setOriginalPreviewLoadingJobId] = useState("");
   const [pendingRemoval, setPendingRemoval] = useState(null);
   const [flyingCard, setFlyingCard] = useState(null);
   const [clipReceiving, setClipReceiving] = useState(false);
@@ -1510,6 +1512,12 @@ function PublicExperiencePage({ config }) {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (originalPreview?.url) URL.revokeObjectURL(originalPreview.url);
+    };
+  }, [originalPreview]);
+
   const selectedDrawCardStyles = useMemo(() => {
     const styleById = new Map(stylePickerStyles.map((style) => [style.id, style]));
     return selectedStyleIds.map((styleId) => styleById.get(styleId)).filter(Boolean);
@@ -1821,6 +1829,10 @@ function PublicExperiencePage({ config }) {
     setActiveClipPreview(null);
   }
 
+  function closeOriginalPreview() {
+    setOriginalPreview(null);
+  }
+
   async function handleCopyContactWeChat() {
     await copyText(getContactWechatId(orderConfig));
     setContactCopied(true);
@@ -1866,10 +1878,18 @@ function PublicExperiencePage({ config }) {
     }
 
     try {
-      await downloadPublicClipOriginal(item.jobId);
+      setOriginalPreviewLoadingJobId(item.jobId);
+      const preview = await fetchPublicClipOriginalPreview(item.jobId);
+      setOriginalPreview({
+        ...preview,
+        jobId: item.jobId,
+        styleName: item.styleName || ""
+      });
       setError("");
     } catch (nextError) {
       setError(nextError.message || "下载原图失败，请稍后再试。");
+    } finally {
+      setOriginalPreviewLoadingJobId("");
     }
   }
 
@@ -2017,8 +2037,8 @@ function PublicExperiencePage({ config }) {
                     <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(item)} type="button">
                       {pocketRemoveLabel}
                     </button>
-                    <button className="draw-card-clip-download" onClick={() => handleDownloadClipOriginal(item)} type="button">
-                      下载原图
+                    <button className="draw-card-clip-download" disabled={originalPreviewLoadingJobId === item.jobId} onClick={() => handleDownloadClipOriginal(item)} type="button">
+                      {originalPreviewLoadingJobId === item.jobId ? "加载中" : "下载原图"}
                     </button>
                   </div>
                 </div>
@@ -2364,6 +2384,21 @@ function PublicExperiencePage({ config }) {
           </section>
         </div>
       )}
+
+      {originalPreview ? (
+        <div className="modal-backdrop draw-card-lightbox" onClick={closeOriginalPreview} role="presentation">
+          <section className="draw-card-lightbox-panel draw-card-original-preview-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="原图预览">
+            <button className="icon-button" onClick={closeOriginalPreview} type="button" aria-label="关闭原图预览">
+              <X size={18} />
+            </button>
+            <img alt={`${originalPreview.styleName || resultNameFallback} 原图`} src={originalPreview.url} />
+            <div className="draw-card-lightbox-meta">
+              <span>{originalPreview.styleName || resultNameFallback}</span>
+              <span className="draw-card-meta-note">长按图片保存原图</span>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {flyingCard ? (
         <div
@@ -4527,7 +4562,7 @@ async function fetchPublicClipItems(experienceType = "") {
   return payload;
 }
 
-async function downloadPublicClipOriginal(jobId) {
+async function fetchPublicClipOriginalPreview(jobId) {
   const response = await fetch(`/api/public/clip-items/${encodeURIComponent(jobId)}/download-original`);
   const contentType = String(response.headers.get("content-type") || "");
   if (!response.ok) {
@@ -4543,16 +4578,14 @@ async function downloadPublicClipOriginal(jobId) {
     throw error;
   }
 
-  const filename = parseDownloadFilename(response.headers.get("content-disposition"), `clip-original-${jobId}.png`);
   const blob = await response.blob();
-  const objectUrl = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = objectUrl;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+  if (!String(blob.type || contentType).startsWith("image/")) {
+    throw new Error("原图格式暂时无法预览，请稍后再试。");
+  }
+  return {
+    url: URL.createObjectURL(blob),
+    mimeType: blob.type || contentType
+  };
 }
 
 async function readJsonPayload(response, fallbackMessage, options = {}) {

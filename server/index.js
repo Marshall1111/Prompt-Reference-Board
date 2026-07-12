@@ -5684,7 +5684,9 @@ async function sendPublicClipOriginalImage(res, job) {
   const file = await resolveJobImageFile(job);
   if (!file) throw createHttpError(404, "原图不存在。");
   const mimeType = mimeForExtension(path.extname(file).toLowerCase()) || "application/octet-stream";
-  res.setHeader("Content-Disposition", `attachment; filename="${path.basename(file)}"`);
+  res.setHeader("Content-Disposition", `inline; filename="${path.basename(file)}"`);
+  res.setHeader("Cache-Control", "private, max-age=300");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.type(mimeType);
   res.sendFile(file);
 }
