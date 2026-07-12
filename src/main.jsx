@@ -1512,12 +1512,6 @@ function PublicExperiencePage({ config }) {
     };
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (originalPreview?.url) URL.revokeObjectURL(originalPreview.url);
-    };
-  }, [originalPreview]);
-
   const selectedDrawCardStyles = useMemo(() => {
     const styleById = new Map(stylePickerStyles.map((style) => [style.id, style]));
     return selectedStyleIds.map((styleId) => styleById.get(styleId)).filter(Boolean);
@@ -1879,11 +1873,10 @@ function PublicExperiencePage({ config }) {
 
     try {
       setOriginalPreviewLoadingJobId(item.jobId);
-      const preview = await fetchPublicClipOriginalPreview(item.jobId);
       setOriginalPreview({
-        ...preview,
         jobId: item.jobId,
-        styleName: item.styleName || ""
+        styleName: item.styleName || "",
+        url: getPublicClipOriginalPreviewUrl(item.jobId)
       });
       setError("");
     } catch (nextError) {
@@ -2391,7 +2384,11 @@ function PublicExperiencePage({ config }) {
             <button className="icon-button" onClick={closeOriginalPreview} type="button" aria-label="关闭原图预览">
               <X size={18} />
             </button>
-            <img alt={`${originalPreview.styleName || resultNameFallback} 原图`} src={originalPreview.url} />
+            <img
+              alt={`${originalPreview.styleName || resultNameFallback} 原图`}
+              onError={() => setError("原图加载失败，请刷新页面后再试。")}
+              src={originalPreview.url}
+            />
             <div className="draw-card-lightbox-meta">
               <span>{originalPreview.styleName || resultNameFallback}</span>
               <span className="draw-card-meta-note">长按图片保存原图</span>
@@ -4562,30 +4559,9 @@ async function fetchPublicClipItems(experienceType = "") {
   return payload;
 }
 
-async function fetchPublicClipOriginalPreview(jobId) {
-  const response = await fetch(`/api/public/clip-items/${encodeURIComponent(jobId)}/download-original`);
-  const contentType = String(response.headers.get("content-type") || "");
-  if (!response.ok) {
-    let message = "下载原图失败，请稍后再试。";
-    if (contentType.includes("application/json")) {
-      const data = await response.json().catch(() => null);
-      message = data?.message || message;
-    } else {
-      message = await response.text().catch(() => "") || message;
-    }
-    const error = new Error(message);
-    error.status = response.status;
-    throw error;
-  }
-
-  const blob = await response.blob();
-  if (!String(blob.type || contentType).startsWith("image/")) {
-    throw new Error("原图格式暂时无法预览，请稍后再试。");
-  }
-  return {
-    url: URL.createObjectURL(blob),
-    mimeType: blob.type || contentType
-  };
+function getPublicClipOriginalPreviewUrl(jobId) {
+  const cacheKey = Date.now().toString(36);
+  return `/api/public/clip-items/${encodeURIComponent(jobId)}/download-original?preview=${cacheKey}`;
 }
 
 async function readJsonPayload(response, fallbackMessage, options = {}) {
