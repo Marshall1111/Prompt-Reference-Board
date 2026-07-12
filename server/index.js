@@ -1971,8 +1971,9 @@ app.get("/api/admin/invite-codes", requireAdmin, async (_req, res) => {
 app.post("/api/admin/invite-codes", requireAdmin, async (req, res) => {
   try {
     const count = Math.min(Math.max(Number(req.body?.count || 1), 1), 20);
+    const quotaBonus = normalizeInviteQuotaBonus(req.body?.quotaBonus);
     const prefix = String(req.body?.prefix || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
-    const created = await createInviteCodes(count, prefix);
+    const created = await createInviteCodes(count, prefix, quotaBonus);
     res.status(201).json({ inviteCodes: created.map(toPublicInviteCode) });
   } catch (error) {
     console.error(error);
@@ -3014,6 +3015,7 @@ async function inferVisitorStateFromArtifacts(visitorId, currentText = "") {
     .filter((invite) => Array.isArray(invite?.redeemedByVisitorIds) && invite.redeemedByVisitorIds.map(String).includes(visitorId))
     .sort((left, right) => String(left.updatedAt || "").localeCompare(String(right.updatedAt || "")));
   const invitedAtFromInvite = matchingInvites[0]?.updatedAt || "";
+  const recoveredInviteQuotaBonus = matchingInvites.reduce((sum, invite) => sum + normalizeInviteQuotaBonus(invite?.quotaBonus), 0);
   const chargedDrawCardSessionIds = [];
   let recoveredChargedQuotaUsed = 0;
   let latestDrawCardActivityAt = "";
@@ -3101,7 +3103,7 @@ async function inferVisitorStateFromArtifacts(visitorId, currentText = "") {
     tier: invited ? "invited" : "anonymous",
     quotaLimit: Number.isFinite(recoveredQuotaLimit)
       ? Math.max(0, Math.round(recoveredQuotaLimit))
-      : anonymousQuotaLimit + (invited ? VISITOR_INVITE_BONUS : 0),
+      : anonymousQuotaLimit + (invited ? recoveredInviteQuotaBonus || VISITOR_INVITE_BONUS : 0),
     quotaUsed: Math.max(recoveredChargedQuotaUsed, uniqueChargedSessionIds.length, Number.isFinite(recoveredQuotaUsed) ? Math.max(0, Math.round(recoveredQuotaUsed)) : 0),
     chargedDrawCardSessionIds: uniqueChargedSessionIds,
     sourceMerchantId,
@@ -3377,6 +3379,12 @@ function normalizeAnonymousQuotaLimit(value) {
   const next = Number(value);
   if (!Number.isFinite(next)) return DEFAULT_VISITOR_ANONYMOUS_LIMIT;
   return Math.min(Math.max(Math.round(next), 1), 50);
+}
+
+function normalizeInviteQuotaBonus(value) {
+  const next = Number(value);
+  if (!Number.isFinite(next)) return VISITOR_INVITE_BONUS;
+  return Math.min(Math.max(Math.round(next), 1), 999);
 }
 
 function normalizeApiProviderId(value) {
@@ -5378,6 +5386,7 @@ function normalizeInviteCode(inviteCode) {
     code: String(inviteCode?.code || "").trim().toUpperCase(),
     enabled: inviteCode?.enabled !== false,
     maxRedemptions: 1,
+    quotaBonus: normalizeInviteQuotaBonus(inviteCode?.quotaBonus),
     redeemedCount: Math.max(0, Number(inviteCode?.redeemedCount || 0)),
     redeemedByVisitorIds: Array.isArray(inviteCode?.redeemedByVisitorIds) ? inviteCode.redeemedByVisitorIds.map(String) : [],
     createdAt: inviteCode?.createdAt || new Date().toISOString(),
@@ -5392,6 +5401,7 @@ function toPublicInviteCode(inviteCode) {
     code: safeInvite.code,
     enabled: safeInvite.enabled,
     maxRedemptions: safeInvite.maxRedemptions,
+    quotaBonus: safeInvite.quotaBonus,
     redeemedCount: safeInvite.redeemedCount,
     remainingRedemptions: Math.max(0, safeInvite.maxRedemptions - safeInvite.redeemedCount),
     createdAt: safeInvite.createdAt,
@@ -5399,7 +5409,7 @@ function toPublicInviteCode(inviteCode) {
   };
 }
 
-async function createInviteCodes(count, prefix = "") {
+async function createInviteCodes(count, prefix = "", quotaBonus = VISITOR_INVITE_BONUS) {
   const inviteCodes = await readInviteCodes();
   const now = new Date().toISOString();
   const created = Array.from({ length: count }, () => normalizeInviteCode({
@@ -5407,6 +5417,7 @@ async function createInviteCodes(count, prefix = "") {
     code: generateInviteCode(prefix),
     enabled: true,
     maxRedemptions: INVITE_DEFAULT_MAX_REDEMPTIONS,
+    quotaBonus,
     redeemedCount: 0,
     redeemedByVisitorIds: [],
     createdAt: now,
@@ -5449,15 +5460,15 @@ async function redeemInviteCode(req, code) {
   invite.redeemedByVisitorIds = invite.redeemedByVisitorIds.concat(req.visitorId);
   invite.updatedAt = new Date().toISOString();
   await saveInviteCodes(inviteCodes);
-  return upgradeVisitorByInvite(req);
+  return upgradeVisitorByInvite(req, invite.quotaBonus);
 }
 
-async function upgradeVisitorByInvite(req) {
+async function upgradeVisitorByInvite(req, quotaBonus = VISITOR_INVITE_BONUS) {
   const visitor = await getVisitorState(req);
   return saveVisitorState({
     ...visitor,
     tier: "invited",
-    quotaLimit: Math.max(0, Number(visitor.quotaLimit || 0)) + VISITOR_INVITE_BONUS,
+    quotaLimit: Math.max(0, Number(visitor.quotaLimit || 0)) + normalizeInviteQuotaBonus(quotaBonus),
     invitedAt: visitor.invitedAt || new Date().toISOString(),
     updatedAt: new Date().toISOString()
   });

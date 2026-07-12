@@ -4991,6 +4991,7 @@ function AdminLoginPage({ onLogin }) {
 function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInviteCodes, onRefreshVisitorRecords, onRefreshSettings }) {
   const [count, setCount] = useState(5);
   const [prefix, setPrefix] = useState("");
+  const [quotaBonus, setQuotaBonus] = useState(5);
   const [anonymousQuotaLimit, setAnonymousQuotaLimit] = useState(settings?.anonymousQuotaLimit || 5);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -5012,7 +5013,7 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
     setIsSubmitting(true);
     setError("");
     try {
-      await createInviteCodesRequest({ count, prefix });
+      await createInviteCodesRequest({ count, prefix, quotaBonus });
       await onRefreshInviteCodes();
       setPrefix("");
     } catch (nextError) {
@@ -5078,6 +5079,10 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
           前缀
           <input onChange={(event) => setPrefix(event.target.value.toUpperCase())} placeholder="例如 VIP" type="text" value={prefix} />
         </label>
+        <label className="field-label">
+          每个邀请码点数
+          <input max="999" min="1" onChange={(event) => setQuotaBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={quotaBonus} />
+        </label>
         <div className="card-actions generator-actions">
           <button className="copy-button" disabled={isSubmitting} onClick={createCodes} type="button">
             {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Plus size={18} />}
@@ -5094,6 +5099,7 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
             <div className="task-detail">
               <div className="task-meta-row">
                 <strong>{inviteCode.code}</strong>
+                <span>{Number(inviteCode.quotaBonus || 5)} 点</span>
                 <span>已兑换 {inviteCode.redeemedCount}</span>
                 <span>剩余 {inviteCode.remainingRedemptions}</span>
               </div>
@@ -5124,6 +5130,7 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
               <div className="task-detail">
                 <div className="task-meta-row">
                   <strong>{inviteCode.code}</strong>
+                  <span>{Number(inviteCode.quotaBonus || 5)} 点</span>
                   <span>已兑换 {inviteCode.redeemedCount}</span>
                   <span>剩余 {inviteCode.remainingRedemptions}</span>
                 </div>
@@ -6963,6 +6970,12 @@ function clampOrderItemQuantity(value) {
   const quantity = Number(value);
   if (!Number.isFinite(quantity)) return 1;
   return Math.min(MAX_ORDER_ITEM_QUANTITY, Math.max(1, Math.round(quantity)));
+}
+
+function clampInviteQuotaBonus(value) {
+  const quotaBonus = Number(value);
+  if (!Number.isFinite(quotaBonus)) return 5;
+  return Math.min(999, Math.max(1, Math.round(quotaBonus)));
 }
 
 function getOrderItemQuantity(quantities, jobId) {
