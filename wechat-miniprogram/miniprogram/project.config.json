@@ -17,7 +17,16 @@
   "compileType": "miniprogram",
   "simulatorPluginLibVersion": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "images-small"
+      },
+      {
+        "type": "folder",
+        "value": "data"
+      }
+    ],
     "include": []
   },
   "appid": "wx20a6917d17792511",

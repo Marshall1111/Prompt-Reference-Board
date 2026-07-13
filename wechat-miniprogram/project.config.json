@@ -41,6 +41,14 @@
       {
         "type": "folder",
         "value": "images"
+      },
+      {
+        "type": "folder",
+        "value": "miniprogram/images-small"
+      },
+      {
+        "type": "folder",
+        "value": "miniprogram/data"
       }
     ],
     "include": []
