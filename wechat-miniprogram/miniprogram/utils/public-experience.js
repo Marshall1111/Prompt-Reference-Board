@@ -107,6 +107,10 @@ function fetchClipItems(experienceType) {
   });
 }
 
+function downloadClipOriginal(jobId) {
+  return publicApi.downloadFile("/api/public/clip-items/" + encodeURIComponent(jobId) + "/download-original");
+}
+
 function likeJob(jobId) {
   return publicApi.request({
     path: "/api/image-jobs/" + encodeURIComponent(jobId) + "/like",
@@ -278,6 +282,7 @@ module.exports = {
   createOrder: createOrder,
   createSession: createSession,
   deleteOrder: deleteOrder,
+  downloadClipOriginal: downloadClipOriginal,
   fetchClipItems: fetchClipItems,
   fetchDrawCardStyles: fetchDrawCardStyles,
   fetchLatestSession: fetchLatestSession,

@@ -490,6 +490,17 @@
   color: #24504a;
 }
 
+.clip-item-actions {
+  display: flex;
+  gap: 10rpx;
+}
+
+.clip-item-actions .mini-primary,
+.clip-item-actions .mini-danger {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .clip-empty,
 .account-panel {
   padding: 20rpx;

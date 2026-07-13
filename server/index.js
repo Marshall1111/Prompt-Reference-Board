@@ -1378,24 +1378,24 @@ app.post("/api/draw-card/sessions", beginDrawCardRequestTelemetry, upload.single
   return handleCreatePublicExperienceSession(req, res, "draw-card");
 });
 
-app.get("/api/draw-card/sessions/:sessionId", async (req, res) => {
-  return handleGetPublicExperienceSession(req, res, "draw-card");
-});
-
 app.get("/api/draw-card/sessions/latest", async (req, res) => {
   return handleGetLatestPublicExperienceSession(req, res, "draw-card");
+});
+
+app.get("/api/draw-card/sessions/:sessionId", async (req, res) => {
+  return handleGetPublicExperienceSession(req, res, "draw-card");
 });
 
 app.post("/api/fridge-magnet/sessions", beginDrawCardRequestTelemetry, upload.single("image"), async (req, res) => {
   return handleCreatePublicExperienceSession(req, res, "fridge-magnet");
 });
 
-app.get("/api/fridge-magnet/sessions/:sessionId", async (req, res) => {
-  return handleGetPublicExperienceSession(req, res, "fridge-magnet");
-});
-
 app.get("/api/fridge-magnet/sessions/latest", async (req, res) => {
   return handleGetLatestPublicExperienceSession(req, res, "fridge-magnet");
+});
+
+app.get("/api/fridge-magnet/sessions/:sessionId", async (req, res) => {
+  return handleGetPublicExperienceSession(req, res, "fridge-magnet");
 });
 
 async function handleCreatePublicExperienceSession(req, res, experienceType) {
@@ -1485,7 +1485,7 @@ async function handleGetLatestPublicExperienceSession(req, res, experienceType) 
   try {
     const session = await readLatestVisitorDrawCardSession(req.visitorId, config.experienceType);
     if (!session) {
-      return res.status(404).json({ message: config.latestMissingMessage });
+      return res.json({});
     }
 
     const syncedSession = await synchronizeDrawCardSession(session);

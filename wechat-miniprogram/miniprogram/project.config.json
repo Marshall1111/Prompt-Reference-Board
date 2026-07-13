@@ -21,10 +21,6 @@
       {
         "type": "folder",
         "value": "images-small"
-      },
-      {
-        "type": "folder",
-        "value": "data"
       }
     ],
     "include": []

@@ -73,7 +73,10 @@
             <image bindtap="previewClip" class="clip-image" data-url="{{item.imageUrl || item.thumbnailUrl}}" mode="aspectFill" src="{{item.thumbnailUrl || item.imageUrl}}" />
             <view class="clip-meta">
               <text>{{item.styleName || clipItemFallback}}</text>
-              <button bindtap="removeFromClip" class="mini-danger" data-jobid="{{item.jobId}}">{{pocketRemoveLabel}}</button>
+              <view class="clip-item-actions">
+                <button bindtap="downloadClipOriginal" class="mini-primary" data-jobid="{{item.jobId}}">下载原图</button>
+                <button bindtap="removeFromClip" class="mini-danger" data-jobid="{{item.jobId}}">{{pocketRemoveLabel}}</button>
+              </view>
             </view>
           </view>
         </view>
