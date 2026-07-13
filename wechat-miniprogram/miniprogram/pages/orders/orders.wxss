@@ -1,0 +1,172 @@
+.page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f8f2e8 0%, #eef5f0 100%);
+  color: #1f2b2b;
+}
+
+.content {
+  padding: 28rpx 22rpx 42rpx;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.kicker {
+  display: block;
+  color: #8b6c3e;
+  font-size: 22rpx;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.title {
+  display: block;
+  margin-top: 8rpx;
+  color: #24504a;
+  font-size: 50rpx;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.notice {
+  margin-top: 24rpx;
+  padding: 22rpx;
+  border-radius: 20rpx;
+  background: #fffaf0;
+  color: #5f726d;
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+
+.notice.error {
+  background: #fff1ef;
+  color: #9f2418;
+}
+
+.order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.order-card {
+  display: grid;
+  grid-template-columns: 150rpx minmax(0, 1fr);
+  gap: 16rpx;
+  padding: 16rpx;
+  border: 2rpx solid #d9e3dc;
+  border-radius: 22rpx;
+  background: rgba(255, 253, 247, 0.96);
+  box-shadow: 0 16rpx 42rpx rgba(31, 43, 43, 0.08);
+}
+
+.order-cover {
+  width: 150rpx;
+  height: 150rpx;
+  border-radius: 18rpx;
+  background: #e3f0ea;
+}
+
+.order-cover.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #5f726d;
+  font-size: 24rpx;
+  font-weight: 900;
+  text-align: center;
+}
+
+.order-body {
+  min-width: 0;
+}
+
+.order-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.order-no {
+  overflow: hidden;
+  color: #24504a;
+  font-size: 27rpx;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  flex: 0 0 auto;
+  min-height: 44rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  background: #e3f0ea;
+  color: #24504a;
+  font-size: 22rpx;
+  font-weight: 900;
+  line-height: 44rpx;
+}
+
+.status.pending_payment {
+  background: #fff1d8;
+  color: #9a5b1f;
+}
+
+.status.cancelled,
+.status.expired {
+  background: #fff1ef;
+  color: #9f2418;
+}
+
+.meta {
+  display: block;
+  margin-top: 8rpx;
+  color: #5f726d;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  gap: 10rpx;
+  margin-top: 14rpx;
+}
+
+.primary-button,
+.secondary-button,
+.danger-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 70rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.primary-button {
+  flex: 1;
+  background: #b45309;
+  color: #fffaf0;
+}
+
+.secondary-button {
+  min-width: 150rpx;
+  border: 2rpx solid #d5dfd8;
+  background: #fffaf0;
+  color: #24504a;
+}
+
+.danger-button {
+  flex: 1;
+  background: #fff1ef;
+  color: #9f2418;
+}

@@ -1,16 +1,15 @@
 {
   "pages": [
-    "pages/index/index",
-    "pages/generate/generate",
-    "pages/batch/batch",
-    "pages/tasks/tasks",
-    "pages/task-detail/task-detail"
+    "pages/draw/draw",
+    "pages/fridge/fridge",
+    "pages/orders/orders",
+    "pages/order-detail/order-detail"
   ],
   "window": {
-    "navigationBarTitleText": "Prompt Gallery",
-    "navigationBarBackgroundColor": "#fffdf8",
-    "navigationBarTextStyle": "black",
-    "backgroundColor": "#f6f1e8"
+    "navigationBarTitleText": "AI小画家",
+    "navigationBarBackgroundColor": "#101113",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#101113"
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json"

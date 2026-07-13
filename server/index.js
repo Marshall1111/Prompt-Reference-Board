@@ -143,6 +143,7 @@ const PUBLIC_EXPERIENCE_CONFIGS = {
     promptSuffix: ""
   }
 };
+const UPLOAD_FILE_LIMIT_BYTES = 40 * 1024 * 1024;
 
 let sharpModulePromise;
 const visitorRequestLog = new Map();
@@ -157,7 +158,7 @@ const port = Number(process.env.PORT || 3000);
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 40 * 1024 * 1024 },
+  limits: { fileSize: UPLOAD_FILE_LIMIT_BYTES },
   fileFilter: (_req, file, cb) => {
     const allowed = new Set(["image/jpeg", "image/png", "image/webp", "image/svg+xml"]);
     const ok = allowed.has(file.mimetype);
@@ -2690,6 +2691,12 @@ app.use(express.static(path.join(rootDir, "dist")));
 
 app.use((error, _req, res, next) => {
   if (!error) return next();
+  if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({ message: `图片太大，请上传不超过 ${Math.round(UPLOAD_FILE_LIMIT_BYTES / 1024 / 1024)}MB 的图片。` });
+  }
+  if (error.message === "UNSUPPORTED_IMAGE_TYPE") {
+    return res.status(400).json({ message: "仅支持 JPG、PNG、WebP 图片。" });
+  }
   if (error.status) {
     return res.status(error.status).json({ message: error.publicMessage || error.message });
   }

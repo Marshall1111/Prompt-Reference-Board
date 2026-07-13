@@ -1,0 +1,34 @@
+<view class="page">
+  <view class="content">
+    <view class="header">
+      <view>
+        <text class="kicker">My orders</text>
+        <text class="title">我的冰箱贴订单</text>
+      </view>
+      <button bindtap="goFridge" class="secondary-button">继续制作</button>
+    </view>
+
+    <view class="notice error" wx:if="{{errorMessage}}">{{errorMessage}}</view>
+    <view class="notice" wx:if="{{!isLoading && !orders.length}}">还没有订单。先去冰箱贴工作室挑几款喜欢的结果吧。</view>
+
+    <view class="order-list">
+      <view wx:for="{{orders}}" wx:key="id" class="order-card">
+        <image class="order-cover" mode="aspectFill" src="{{item.imageUrl}}" wx:if="{{item.imageUrl}}" />
+        <view class="order-cover empty" wx:else>{{item.statusText}}</view>
+        <view class="order-body">
+          <view class="order-head">
+            <text class="order-no">{{item.orderNo}}</text>
+            <text class="status {{item.statusClass}}">{{item.statusText}}</text>
+          </view>
+          <text class="meta">共 {{item.itemCount}} 只 · {{item.totalText}}</text>
+          <text class="meta">下单时间 {{item.createdAtText}}</text>
+          <text class="meta" wx:if="{{item.expiresAtText}}">付款截止 {{item.expiresAtText}}</text>
+          <view class="actions">
+            <button bindtap="openOrder" class="primary-button" data-id="{{item.id}}">查看详情</button>
+            <button bindtap="cancelOrder" class="danger-button" data-id="{{item.id}}" wx:if="{{item.canCancel}}">取消订单</button>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

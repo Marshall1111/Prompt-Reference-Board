@@ -5,6 +5,6 @@ module.exports = {
   // Keep local built-in styles by default.
   useCloudDatabase: false,
 
-  // Local backend root for mini program image generation debugging.
-  imageApiBaseUrl: "http://127.0.0.1:3000"
+  // Production backend root for public mini program API calls.
+  imageApiBaseUrl: "https://www.petpaint.top"
 };

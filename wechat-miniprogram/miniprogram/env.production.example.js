@@ -6,5 +6,5 @@ module.exports = {
   useCloudDatabase: false,
 
   // Replace env.js with your production HTTPS domain before uploading the mini program.
-  imageApiBaseUrl: "https://api.your-domain.com"
+  imageApiBaseUrl: "https://www.petpaint.top"
 };

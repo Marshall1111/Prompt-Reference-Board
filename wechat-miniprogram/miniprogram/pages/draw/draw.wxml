@@ -1,0 +1,193 @@
+<view class="page {{themeClass}}">
+  <view class="content">
+    <view class="utility-row" wx:if="{{showOtherEntry}}">
+      <button bindtap="openOtherPage" class="utility-button">{{otherPageLabel}}</button>
+    </view>
+
+    <view class="hero">
+      <text class="kicker" wx:if="{{titleKicker}}">{{titleKicker}}</text>
+      <text class="title">{{title}}</text>
+      <text class="subtitle">{{subtitle}}</text>
+    </view>
+
+    <view class="main-layout">
+      <view class="main-column">
+        <view class="upload-panel">
+          <view bindtap="chooseImage" class="upload-box {{referencePreviewUrl ? 'has-image' : ''}}">
+            <image class="upload-preview" mode="aspectFill" src="{{referencePreviewUrl}}" wx:if="{{referencePreviewUrl}}" />
+            <view class="upload-empty" wx:else>
+              <text class="upload-icon">+</text>
+              <text class="upload-title">上传 1 张图片</text>
+              <text class="upload-note">支持 JPG、PNG、WebP</text>
+            </view>
+          </view>
+
+          <view class="action-row">
+            <button bindtap="startDefault" class="primary-button" disabled="{{isSubmitting}}">
+              {{isSubmitting ? '任务启动中' : startButtonText}}
+            </button>
+            <button bindtap="openStylePicker" class="secondary-button" disabled="{{isSubmitting}}" wx:if="{{isDrawCard}}">自选风格</button>
+            <button bindtap="clearImage" class="secondary-button" disabled="{{!referencePreviewUrl || isSubmitting}}">换张图片</button>
+          </view>
+        </view>
+
+        <view class="notice error" wx:if="{{errorMessage}}">{{errorMessage}}</view>
+
+        <view class="status-panel" wx:if="{{phase === 'waiting' || phase === 'results' || phase === 'error'}}">
+          <view class="status-head">
+            <text class="status-title">{{phaseLabel}}</text>
+            <text class="status-text">{{session.message || '请保持页面开启，结果会自动出现。'}}</text>
+          </view>
+
+          <view class="result-grid" wx:if="{{displayItems.length}}">
+            <view wx:for="{{displayItems}}" wx:key="jobId" class="result-card {{item.canLike ? '' : 'is-pending'}}">
+              <view bindtap="previewResult" class="result-media" data-url="{{item.imageUrl}}" wx:if="{{item.imageUrl}}">
+                <image mode="widthFix" src="{{item.imageUrl}}" />
+              </view>
+              <view class="result-placeholder" wx:else>
+                <text>{{item.statusLabel}}</text>
+                <text wx:if="{{item.errorMessage}}">{{item.errorMessage}}</text>
+              </view>
+              <view class="result-meta">
+                <text>{{item.styleName}}</text>
+                <button bindtap="removeFromClip" class="mini-danger" data-jobid="{{item.jobId}}" wx:if="{{item.isLiked}}">{{pocketRemoveLabel}}</button>
+                <button bindtap="addToClip" class="mini-primary" data-jobid="{{item.jobId}}" wx:elif="{{item.canLike}}">{{pocketAddLabel}}</button>
+                <text class="status-chip" wx:else>{{item.statusLabel}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="clip-panel">
+        <view class="clip-head">
+          <view>
+            <text class="kicker">Collection</text>
+            <text class="clip-title">{{clipTitle}}</text>
+          </view>
+          <text class="clip-count">{{clipItems.length}}</text>
+        </view>
+
+        <view class="clip-list" wx:if="{{clipItems.length}}">
+          <view wx:for="{{clipItems}}" wx:key="jobId" class="clip-item">
+            <image bindtap="previewClip" class="clip-image" data-url="{{item.imageUrl || item.thumbnailUrl}}" mode="aspectFill" src="{{item.thumbnailUrl || item.imageUrl}}" />
+            <view class="clip-meta">
+              <text>{{item.styleName || clipItemFallback}}</text>
+              <button bindtap="removeFromClip" class="mini-danger" data-jobid="{{item.jobId}}">{{pocketRemoveLabel}}</button>
+            </view>
+          </view>
+        </view>
+        <view class="clip-empty" wx:else>{{clipEmptyText}}</view>
+
+        <view class="account-panel">
+          <text>剩余点数：{{visitorState ? visitorState.quotaRemaining : '--'}}</text>
+          <input bindinput="onInviteInput" class="inline-input" placeholder="输入邀请码" value="{{inviteCode}}" />
+          <view class="clip-actions">
+            <button bindtap="redeemInvite" class="secondary-button">兑换邀请码</button>
+            <button bindtap="copyContact" class="secondary-button">联系客服</button>
+          </view>
+          <button bindtap="openOrderModal" class="primary-button order-entry" disabled="{{!clipItems.length || !orderConfig || !orderConfig.enabled}}" wx:if="{{isFridge}}">
+            {{orderConfig && orderConfig.enabled ? '提交订单' : '下单未开放'}}
+          </button>
+          <button bindtap="openOrders" class="secondary-button order-entry" wx:if="{{isFridge}}">我的订单</button>
+          <text class="contact-note">{{visitorState ? visitorState.contactMessage : contactFallback}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showDrawConfig}}">
+    <view class="modal-card">
+      <text class="modal-title">设置本次抽卡</text>
+      <text class="field-label">照片主体</text>
+      <view class="segment-grid">
+        <view wx:for="{{subjectOptions}}" wx:key="value" bindtap="selectSubject" class="segment {{selectedSubjectType === item.value ? 'active' : ''}}" data-value="{{item.value}}">{{item.label}}</view>
+      </view>
+      <text class="field-label top-gap">本次抽卡</text>
+      <view class="count-grid">
+        <view wx:for="{{drawCountOptions}}" wx:key="*this" bindtap="setDrawCount" class="segment {{requestedDrawCount === item ? 'active' : ''}}" data-count="{{item}}">{{item}}张</view>
+      </view>
+      <text class="modal-note">失败结果不扣点。</text>
+      <view class="modal-actions">
+        <button bindtap="closeDrawConfig" class="secondary-button">取消</button>
+        <button bindtap="confirmDrawConfig" class="primary-button">确认抽卡</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showStylePicker}}">
+    <view class="modal-card large">
+      <text class="modal-title">自选风格</text>
+      <text class="modal-note">最多选择 6 种风格。已选 {{selectedStyleIds.length}} / 6</text>
+      <view class="notice error" wx:if="{{stylePickerError}}">{{stylePickerError}}</view>
+      <scroll-view class="style-scroll" scroll-y>
+        <view class="style-grid">
+          <view wx:for="{{styles}}" wx:key="id" bindtap="toggleStyle" class="style-card {{item.selected ? 'active' : ''}}" data-id="{{item.id}}">
+            <image class="style-image" mode="aspectFill" src="{{item.image}}" wx:if="{{item.image}}" />
+            <view class="style-image empty-style" wx:else></view>
+            <text>{{item.title}}</text>
+          </view>
+        </view>
+      </scroll-view>
+      <view class="modal-actions">
+        <button bindtap="closeStylePicker" class="secondary-button">取消</button>
+        <button bindtap="confirmStylePicker" class="primary-button">开始生成</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showOrderModal}}">
+    <view class="modal-card large">
+      <text class="modal-title">填写收货信息</text>
+      <view class="order-summary">
+        <text>已选 {{orderItems.length}} 款，共 {{orderAmount.itemCount}} 只</text>
+        <text>单价 {{orderUnitPriceText}} / 只</text>
+        <text>邮费 {{orderShippingText}}</text>
+        <text class="order-total">合计 {{orderAmountText}}</text>
+      </view>
+      <scroll-view class="order-scroll" scroll-y>
+        <view class="order-item" wx:for="{{orderItems}}" wx:key="jobId">
+          <image class="order-image" mode="aspectFill" src="{{item.thumbnailUrl || item.imageUrl}}" />
+          <view class="order-item-body">
+            <text>{{item.styleName || '冰箱贴'}}</text>
+            <text class="muted">{{item.subtotalText}}</text>
+            <view class="stepper">
+              <button bindtap="decreaseQuantity" data-jobid="{{item.jobId}}" disabled="{{item.quantity <= 1}}">-</button>
+              <text>{{item.quantity}}</text>
+              <button bindtap="increaseQuantity" data-jobid="{{item.jobId}}">+</button>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+      <view class="form-grid">
+        <input bindinput="onOrderFieldInput" class="form-input" data-field="receiverName" placeholder="收件人" value="{{orderForm.receiverName}}" />
+        <input bindinput="onOrderFieldInput" class="form-input" data-field="receiverPhone" placeholder="手机号" type="number" value="{{orderForm.receiverPhone}}" />
+        <input bindinput="onOrderFieldInput" class="form-input full" data-field="address" placeholder="收货地址" value="{{orderForm.address}}" />
+        <textarea bindinput="onOrderFieldInput" class="form-textarea full" data-field="remark" placeholder="备注（选填）" value="{{orderForm.remark}}" />
+      </view>
+      <view class="notice error" wx:if="{{orderError}}">{{orderError}}</view>
+      <view class="modal-actions">
+        <button bindtap="closeOrderModal" class="secondary-button">取消</button>
+        <button bindtap="submitOrder" class="primary-button" loading="{{isCreatingOrder}}" disabled="{{isCreatingOrder}}">提交订单</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showManualPayment}}">
+    <view class="modal-card">
+      <text class="modal-title">订单已创建</text>
+      <view class="order-summary">
+        <text>订单号：{{manualPaymentOrder.order.orderNo}}</text>
+        <text>应付金额：{{orderAmountText}}</text>
+        <text>客服微信：{{orderConfig ? orderConfig.contactWechatId : 'PetPaint'}}</text>
+        <text class="order-total">请复制订单号和客服微信，联系客服完成付款。</text>
+      </view>
+      <view class="modal-actions vertical">
+        <button bindtap="copyManualOrderNo" class="secondary-button">复制订单号</button>
+        <button bindtap="copyContact" class="secondary-button">复制客服微信</button>
+        <button bindtap="viewManualOrder" class="primary-button">查看订单详情</button>
+        <button bindtap="closeManualPayment" class="secondary-button">我知道了</button>
+      </view>
+    </view>
+  </view>
+</view>
