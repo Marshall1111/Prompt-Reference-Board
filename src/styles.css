@@ -87,6 +87,13 @@ body {
   color: #faf5eb;
 }
 
+.draw-card-handwritten-title {
+  display: block;
+  width: clamp(240px, 20vw, 300px);
+  max-width: 100%;
+  height: auto;
+}
+
 .draw-card-subtitle {
   max-width: 560px;
   color: rgba(235, 227, 214, 0.76);

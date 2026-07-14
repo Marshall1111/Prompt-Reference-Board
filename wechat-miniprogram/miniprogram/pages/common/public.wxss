@@ -96,6 +96,13 @@
   line-height: 0.98;
 }
 
+.draw-card-handwritten-title {
+  display: block;
+  width: 360rpx;
+  max-width: 100%;
+  height: auto;
+}
+
 .theme-fridge .title {
   color: #24504a;
 }

@@ -6,7 +6,8 @@
 
     <view class="hero">
       <text class="kicker" wx:if="{{titleKicker}}">{{titleKicker}}</text>
-      <text class="title">{{title}}</text>
+      <image class="draw-card-handwritten-title" mode="widthFix" src="./title-ai-artist-handwritten.png" wx:if="{{isDrawCard}}" />
+      <text class="title" wx:else>{{title}}</text>
       <text class="subtitle">{{subtitle}}</text>
     </view>
 

@@ -2106,7 +2106,11 @@ function PublicExperiencePage({ config }) {
             <div className="draw-card-stage-main">
               <div className="draw-card-hero">
                 {titleKicker ? <p className="draw-card-kicker">{titleKicker}</p> : null}
-                <h1 className="draw-card-title">{title}</h1>
+                {isDrawCardExperience ? (
+                  <img className="draw-card-handwritten-title" src="/ui/ai-artist-handwritten.png" alt={title} />
+                ) : (
+                  <h1 className="draw-card-title">{title}</h1>
+                )}
                 {subtitle ? <p className="draw-card-subtitle">{subtitle}</p> : null}
               </div>
 
