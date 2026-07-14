@@ -84,17 +84,17 @@
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1782782682464",
-    "title": "日式水墨速写",
+    "id": "style_1782658440886",
+    "title": "拙朴丝印手绘",
     "tags": [
-      "日式水墨"
+      "手绘速写"
     ],
     "subjectType": "both",
     "drawCardEnabled": true,
     "drawCardWeight": 100,
-    "image": "/style-previews/style_1782782682464/cover.png",
-    "imageUpdatedAt": "2026-06-30T01:24:51.888Z",
-    "prompt": "以极简主义的日本水彩速写本插画风格创作艺术品。将主题放在有纹理的白纸上，并且有大空间。用松散的墨线，透明的水彩洗涤，细微的漆花，沉稳的诗意氛围。最后的作品应该感觉像艺术家素描本的手工水彩插图，而不是数位绘画。不要文字。",
+    "image": "/style-previews/style_1782658440886/cover.png",
+    "imageUpdatedAt": "2026-06-28T14:54:21.321Z",
+    "prompt": "原图转为插画\n整体画风：极简拙朴手绘插画，造型高度概括符号化，比例笨拙可爱，仅保留核心识别特征；复古丝网印刷肌理，随性松弛，不追求完美精致\n线条上色：深蓝色歪扭轮廓线，粗细不均、断续断线，带手绘自然抖动动感，刻意粗糙不工整；单色系平涂纯色，无渐变、阴影、明暗过渡，低饱和度色彩，正面平视无透视\n背景处理：暖调米白底色，主体居中，大面积留白，无多余装饰",
     "useStyleImageAsReference": false
   },
   {
@@ -109,6 +109,20 @@
     "image": "/style-previews/style_1782952965796/cover.png",
     "imageUpdatedAt": "2026-07-02T00:43:31.475Z",
     "prompt": "参考 リポ・トウ风格、awkward linework、negative space、childlike doodle 气质，将附件真实宠物照片中最特别的动作瞬间，转换为 minimal pet doodle。\n整体采用：\nvery simple childlike pet doodle、awkward animal sketch、unfinished pencil doodle、bad cute drawing、almost empty paper、few black marks、tiny color smudge、large blank paper background。\n像小朋友只看了一眼照片后，凭记忆画下宠物动作残影。\n只抓住 original pose、head direction、eye direction、body curve。\n身体只是 incomplete gesture shape，\n轮廓采用 open contour，\n用 1 到 3 根 awkward black lines 表现动作方向。\n眼睛、鼻子、嘴巴合并成 1 到 3 个 tiny black marks。\n耳朵、尾巴、四肢可省略，必要时只用 short stroke。\n涂色只用 1 块 minimal color smudge，\n颜色可以 off-boundary、unfinished、not fully filled。\n画面至少 70% blank space，\n背景为 plain white、cream white 或 light beige。\n核心要求：\none gesture,\nfew marks,\none color smudge,\nunfinished drawing,\nraw and clumsy feeling。\nDraw less than you think. Leave most of the pet unfinished.\n必要限制：\n无文字、无水印、无复杂背景、无完整身体轮廓、无完整上色、无精致插画感。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1784009080663",
+    "title": "Riso孔版印刷",
+    "tags": [
+      "印刷，"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1784009080663/cover.png",
+    "imageUpdatedAt": "2026-07-14T06:04:47.244Z",
+    "prompt": "正向主提示词（Prompt）\n \n将输入图像重制为一张正宗的Riso孔版印刷艺术海报，仅限使用经典Riso色盘中最多4种油墨颜色：荧光粉、红、黄、青蓝、钴蓝、黑、森林绿，高光区域保留空白纸本色不上油墨，粗犷扁平纯色块，无照片级写实细节。\n半色调45°网点：暗部大点(10-18像素)、中间调中点(5-9像素)、亮部小点(1-4像素)，亮部无网点，仅用网点明暗塑造体积，分色叠印，图层1-3像素套准错位偏移，不规则飞溅白色高光，带有纸张肌理、油墨斑驳漏印、复古扫描柔化质感。\n构图居中，主体占画幅60%-70%，轻微暗角压暗边缘，粗粝手工印刷质感，拒绝数字平滑渲染。\n主体保留原有形象特征，边缘手撕毛边剪纸拼贴质感，白色轮廓描边，无黑边。背景提取画面主色调匹配Riso专色，冷暖色调对应撞色底色，背景可做纯色、双色渐变、几何色块分割。主体使用2-3种高饱和对比专色，色彩半透明叠印混色。\n添加装饰元素：大小错落星星圆点、几何图形、波浪弧线、手绘箭头涂鸦、简笔小图标、手撕纸质英文标签、序号印章文字、撕纸边缘、胶带拼贴肌理；元素分散布局共8-15个，四周点缀平衡构图，空白处散点填充，不拥挤。\n版式随机：极简纯色底/几何分色块底/多层撕纸拼贴底/散点装饰底；边角添加一段手写粗体英文主副标题，禁止中文。\n强烈半色调网点，1-2像素色层错位，油墨颗粒质感，纸张底纹，边缘磨损做旧，现代拼贴波普复古风，视觉焦点集中，适合艺术海报。\n \n反向负面提示词（Negative Prompt）\n \n不要均匀网点、不要杂乱散点、不要平滑渐变、不要干净数码渲染、不要完美套准对齐、不要超过4种颜色、不要无纸张纹理、不要水印、不要文字中文、不要黑色轮廓描边、不要写实照片细节、不要高清精致、不要光滑数字质感、不要过度密集元素。",
     "useStyleImageAsReference": false
   },
   {
@@ -140,20 +154,6 @@
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1782658440886",
-    "title": "拙朴丝印手绘",
-    "tags": [
-      "手绘速写"
-    ],
-    "subjectType": "both",
-    "drawCardEnabled": true,
-    "drawCardWeight": 100,
-    "image": "/style-previews/style_1782658440886/cover.png",
-    "imageUpdatedAt": "2026-06-28T14:54:21.321Z",
-    "prompt": "原图转为插画\n整体画风：极简拙朴手绘插画，造型高度概括符号化，比例笨拙可爱，仅保留核心识别特征；复古丝网印刷肌理，随性松弛，不追求完美精致\n线条上色：深蓝色歪扭轮廓线，粗细不均、断续断线，带手绘自然抖动动感，刻意粗糙不工整；单色系平涂纯色，无渐变、阴影、明暗过渡，低饱和度色彩，正面平视无透视\n背景处理：暖调米白底色，主体居中，大面积留白，无多余装饰",
-    "useStyleImageAsReference": false
-  },
-  {
     "id": "style_1782538907748",
     "title": "Y2K街头封面",
     "tags": [
@@ -165,6 +165,20 @@
     "image": "/style-previews/style_1782538907748/cover.png",
     "imageUpdatedAt": "2026-06-27T05:42:37.481Z",
     "prompt": "将这张照片改造成一张 Y2K 街头潮流杂志封面海报。保留原图人物/主体的脸、姿势、衣服、表情和主要道具，不改变身份和构图核心。\n把主体抠图放在前景，略微放大，添加粗白色贴纸描边和轻微阴影，形成贴纸剪纸效果。背景保留原照片场景，但增强饱和度、对比度、清晰度，不要影响主体人物。\n加入复古印刷颗粒、轻微噪点和海报质感。人物皮肤白皙，肤色均匀。\n在主体背后加入巨大的黑白漫画泡泡字标题，粗体、倾斜、夸张、带黑色描边，像滑板品牌 logo、复古运动队字体、日系街头杂志标题。\n画面周围加入大量可爱贴纸元素：小星星、彩虹、卡通徽章、涂鸦标签、小图标、趣味标识。叠加红色手写涂鸦签名线条，营造街头感。左下角加入条形码，右下角加入大号 “2026” 白色数字黑色描边。\n整体风格：Y2K、日系街头杂志、潮牌海报、贴纸拼贴、复古印刷、鲜艳高饱和、活泼、夸张、年轻、潮流封面设计。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1782782682464",
+    "title": "日式水墨速写",
+    "tags": [
+      "日式水墨"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1782782682464/cover.png",
+    "imageUpdatedAt": "2026-06-30T01:24:51.888Z",
+    "prompt": "以极简主义的日本水彩速写本插画风格创作艺术品。将主题放在有纹理的白纸上，并且有大空间。用松散的墨线，透明的水彩洗涤，细微的漆花，沉稳的诗意氛围。最后的作品应该感觉像艺术家素描本的手工水彩插图，而不是数位绘画。不要文字。",
     "useStyleImageAsReference": false
   },
   {
