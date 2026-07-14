@@ -126,6 +126,20 @@
     "useStyleImageAsReference": false
   },
   {
+    "id": "style_1784001089418",
+    "title": "透视动漫艺术",
+    "tags": [
+      "动漫"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1784001089418/cover.png",
+    "imageUpdatedAt": "2026-07-14T03:52:05.405Z",
+    "prompt": "根据上传的主体创建一张流行的 动漫艺术风格图片。使用 自信且略有变化的线条 以及使用扁平阴影形状的极简赛璐璐着色。使用 明亮、饱和的色彩 和干净的图形化光影。该风格的定义是夸张的卡通角色比例，具有极具表现力且简约的面部特征，从而实现巨大的情感表达范围，并配以高度多变的拉伸解剖结构。将环境转换为略微扭曲的空间，具有俏皮的透视变形和简化的物体。构图和基调应在一个完全风格化、非现实的世界中显得充满活力、生动且具有喜剧色彩。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1782658440886",
     "title": "拙朴丝印手绘",
     "tags": [
