@@ -3,12 +3,13 @@ import multer from "multer";
 import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { createHash, createHmac, createPrivateKey, createPublicKey, createSign, createVerify, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, createPrivateKey, createPublicKey, createSign, createVerify, randomInt, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { access, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createOrderStore } from "./order-store.js";
 import { createMerchantStore } from "./merchant-store.js";
+import { createCommerceStore } from "./commerce-store.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,6 +56,8 @@ const DRAW_CARD_FAILURE_MESSAGE = "这一轮未能顺利完成，请重新开始
 const DRAW_CARD_PARTIAL_MESSAGE = "部分结果已准备好，仅扣除成功生成的点数。";
 const PUBLIC_PREVIEW_WATERMARK_TEXT = "Preview Only";
 const VISITOR_COOKIE_NAME = "pg_visitor";
+const WEB_ACCOUNT_COOKIE_NAME = "pg_web_account";
+const USER_SESSION_COOKIE_NAME = "pg_user_session";
 const ADMIN_COOKIE_NAME = "pg_admin";
 const VISITOR_INVITE_BONUS = 5;
 const VISITOR_RUNNING_JOB_LIMIT = 1;
@@ -63,18 +66,21 @@ const VISITOR_RATE_LIMIT = 6;
 const IP_RATE_WINDOW_MS = 10 * 60 * 1000;
 const IP_RATE_LIMIT = 8;
 const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+const USER_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const EMAIL_CODE_TTL_MS = 10 * 60 * 1000;
 const INVITE_DEFAULT_MAX_REDEMPTIONS = 1;
 const DEFAULT_CONTACT_MESSAGE = "如需更多生图机会，请联系客服填写邀请码。";
 const DEFAULT_VISITOR_ANONYMOUS_LIMIT = 5;
 const DEFAULT_STORAGE_CLEANUP_DAYS = 30;
 const MAX_STORAGE_CLEANUP_DAYS = 3650;
 const DEFAULT_FRIDGE_ORDERING_ENABLED = false;
-const DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS = 1990;
+const DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS = 2000;
 const DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS = 800;
 const DEFAULT_FREE_SHIPPING_ITEM_COUNT = 2;
-const DEFAULT_ORDER_PAYMENT_MODE = "manual";
+const DEFAULT_ORDER_PAYMENT_MODE = "wechat";
 const DEFAULT_MANUAL_PAYMENT_EXPIRE_DAYS = 7;
 const DEFAULT_CONTACT_WECHAT_ID = "PetPaint";
+const WEB_SIGNUP_CREDITS = 5;
 const MERCHANT_SOURCE_LOCK_MS = 30 * 24 * 60 * 60 * 1000;
 const MERCHANT_SIGNATURE_BYTES = 8;
 const MERCHANT_STATUS_VALUES = new Set(["active", "inactive"]);
@@ -83,7 +89,7 @@ const ORDER_SEARCH_LIMIT = 100;
 const MERCHANT_SEARCH_LIMIT = 500;
 const ORDER_PAYMENT_STATUS_VALUES = new Set(["unpaid", "paid", "failed", "expired"]);
 const ORDER_FULFILLMENT_STATUS_VALUES = new Set(["new", "in_production", "shipped", "completed", "cancelled"]);
-const ORDER_PAYMENT_MODE_VALUES = new Set(["manual", "wechat"]);
+const ORDER_PAYMENT_MODE_VALUES = new Set(["wechat"]);
 const ORDER_STATUS_VALUES = new Set(["pending_payment", "pending_shipment", "shipped", "completed", "cancelled", "expired"]);
 const BACKUP_KIND_CONFIG = "config-snapshot";
 const BACKUP_KIND_IMAGE_RANGE = "image-range-zip";
@@ -149,6 +155,7 @@ let sharpModulePromise;
 const visitorRequestLog = new Map();
 const ipRequestLog = new Map();
 const orderStore = createOrderStore({ dbPath: orderDbPath });
+const commerceStore = createCommerceStore({ dbPath: orderDbPath });
 const merchantStore = createMerchantStore({ filePath: merchantDataPath });
 
 loadLocalEnv();
@@ -693,18 +700,144 @@ function sampleWeightedStyles(styles, count) {
   return selected;
 }
 
-app.use(express.json({ limit: "1mb" }));
+const jsonBodyParser = express.json({ limit: "1mb" });
+app.use((req, res, next) => {
+  if (req.path === "/api/payments/wechat/notify") return next();
+  return jsonBodyParser(req, res, next);
+});
 app.use(visitorSessionMiddleware);
+app.use(webAccountSessionMiddleware);
+app.use(userSessionMiddleware);
 app.use(adminSessionMiddleware);
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, app: "prompt-gallery" });
 });
 
+app.get("/api/account", (req, res) => {
+  res.json({
+    authenticated: Boolean(req.userSession),
+    account: toPublicCommerceAccount(req.webAccount)
+  });
+});
+
+app.get("/api/auth/me", requireWebAccount, (req, res) => {
+  res.json({ authenticated: Boolean(req.userSession), account: toPublicCommerceAccount(req.webAccount) });
+});
+
+app.post("/api/auth/email-code", async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const purpose = String(req.body?.purpose || "register").trim();
+    if (!email) throw createHttpError(400, "请输入正确的邮箱地址。");
+    if (!new Set(["register", "reset_password"]).has(purpose)) throw createHttpError(400, "验证码用途无效。");
+    const existing = commerceStore.readAccountByEmail(email);
+    if (purpose === "register" && existing?.isRegistered) throw createHttpError(409, "该邮箱已注册，请直接登录。");
+    if (purpose === "reset_password" && !existing?.isRegistered) throw createHttpError(404, "该邮箱尚未注册。");
+    const code = String(randomInt(100000, 1000000));
+    const expiresAt = new Date(Date.now() + EMAIL_CODE_TTL_MS).toISOString();
+    commerceStore.createEmailVerification({
+      email,
+      purpose,
+      codeHash: hashEmailVerificationCode({ email, purpose, code }),
+      expiresAt
+    });
+    await sendEmailVerificationCode({ email, code, purpose });
+    res.status(201).json({ ok: true, expiresAt, resendAfterSeconds: 60, ...(isEmailCodeLogOnly() ? { developmentCode: code } : {}) });
+  } catch (error) {
+    next(toAuthHttpError(error));
+  }
+});
+
+app.post("/api/auth/register", requireWebAccount, async (req, res, next) => {
+  try {
+    if (req.webAccount.isRegistered) throw createHttpError(409, "当前账户已完成注册。");
+    const email = normalizeEmail(req.body?.email);
+    const username = normalizeUsername(req.body?.username);
+    const password = String(req.body?.password || "");
+    const code = String(req.body?.code || "").trim();
+    if (!email || !username || !isValidPassword(password) || !/^\d{6}$/.test(code)) throw createHttpError(400, "请填写完整且有效的注册信息。");
+    commerceStore.consumeEmailVerification({
+      email,
+      purpose: "register",
+      matchesCodeHash: (stored) => safeCompareString(stored, hashEmailVerificationCode({ email, purpose: "register", code }))
+    });
+    const account = commerceStore.upgradeGuestAccount({ accountId: req.webAccount.id, email, username, passwordHash: hashPassword(password) });
+    const session = commerceStore.createUserSession(account.id, { ttlMs: USER_SESSION_TTL_MS });
+    req.webAccount = account;
+    req.userSession = { ...session, account };
+    clearWebAccountCookie(req, res);
+    setUserSessionCookie(req, res, session.id);
+    res.status(201).json({ authenticated: true, account: toPublicCommerceAccount(account) });
+  } catch (error) {
+    next(toAuthHttpError(error));
+  }
+});
+
+app.post("/api/auth/login", async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const password = String(req.body?.password || "");
+    const account = commerceStore.readAccountByEmail(email);
+    if (!account?.isRegistered || !verifyPassword(password, account.passwordHash)) throw createHttpError(401, "邮箱或密码不正确。");
+    if (account.accountStatus === "disabled") throw createHttpError(403, "该账户已被禁用，请联系管理员。");
+    commerceStore.linkVisitor(account.id, req.visitorId);
+    const loggedInAccount = commerceStore.recordAccountLogin(account.id);
+    const session = commerceStore.createUserSession(account.id, { ttlMs: USER_SESSION_TTL_MS });
+    req.webAccount = loggedInAccount;
+    req.userSession = { ...session, account: loggedInAccount };
+    clearWebAccountCookie(req, res);
+    setUserSessionCookie(req, res, session.id);
+    res.json({ authenticated: true, account: toPublicCommerceAccount(loggedInAccount) });
+  } catch (error) {
+    next(toAuthHttpError(error));
+  }
+});
+
+app.post("/api/auth/logout", (req, res) => {
+  const sessionId = parseCookies(req)[USER_SESSION_COOKIE_NAME];
+  if (sessionId) commerceStore.deleteUserSession(sessionId);
+  clearUserSessionCookie(req, res);
+  clearWebAccountCookie(req, res);
+  res.status(204).end();
+});
+
+app.post("/api/auth/password-reset", async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const password = String(req.body?.password || "");
+    const code = String(req.body?.code || "").trim();
+    if (!email || !isValidPassword(password) || !/^\d{6}$/.test(code)) throw createHttpError(400, "请填写完整且有效的信息。");
+    const account = commerceStore.readAccountByEmail(email);
+    if (!account?.isRegistered) throw createHttpError(404, "该邮箱尚未注册。");
+    commerceStore.consumeEmailVerification({
+      email,
+      purpose: "reset_password",
+      matchesCodeHash: (stored) => safeCompareString(stored, hashEmailVerificationCode({ email, purpose: "reset_password", code }))
+    });
+    commerceStore.updateAccountPassword(account.id, hashPassword(password));
+    res.json({ ok: true });
+  } catch (error) {
+    next(toAuthHttpError(error));
+  }
+});
+
+app.get("/api/payments/wechat/oauth-callback", async (req, res, next) => {
+  try {
+    const state = verifyOrderPaymentOAuthState(req.query?.state);
+    const code = String(req.query?.code || "").trim();
+    if (!code) throw createHttpError(400, "微信授权未返回 code。", "微信授权未完成，请返回后重试。");
+    const order = orderStore.readOrder(state.orderId);
+    if (!order || order.accountId !== state.accountId) throw createHttpError(404, "订单不存在或已失效。", "订单已失效，请返回订单页重试。");
+    res.redirect(302, `/fridge/orders/${encodeURIComponent(order.id)}?code=${encodeURIComponent(code)}`);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/visitor-state", async (req, res) => {
   try {
-    const visitor = await getVisitorState(req);
-    res.json(toPublicVisitorState(visitor));
+    res.json(toPublicWebAccountState(req, req.webAccount));
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "读取访客状态失败，请稍后再试。" });
@@ -860,23 +993,31 @@ app.get("/api/orders/config", async (_req, res) => {
   }
 });
 
-app.post("/api/invite-codes/redeem", async (req, res) => {
+app.post("/api/invite-codes/redeem", requireWebAccount, async (req, res) => {
   try {
     const code = String(req.body?.code || "").trim();
     if (!code) {
       return res.status(400).json({ message: "请输入邀请码。" });
     }
 
-    const visitor = await redeemInviteCode(req, code);
-    res.json(toPublicVisitorState(visitor));
+    const result = await redeemInviteCode(req, code);
+    const creditResult = commerceStore.grantCredits({
+      accountId: req.webAccount.id,
+      amount: result.credits,
+      referenceType: "invite_code",
+      referenceId: code.toUpperCase(),
+      reason: "invite_bonus"
+    });
+    res.json({ ...toPublicWebAccountState(req, creditResult.account), inviteCredits: result.credits });
   } catch (error) {
     console.error(error);
     res.status(error.status || 400).json({ message: error.publicMessage || "邀请码兑换失败，请稍后再试。" });
   }
 });
 
-app.post("/api/orders", async (req, res, next) => {
+app.post("/api/orders", requireWebAccount, async (req, res, next) => {
   try {
+    assertRegisteredAccount(req);
     enforcePublicRateLimits(req);
     orderStore.expireUnpaidOrders();
 
@@ -885,11 +1026,13 @@ app.post("/api/orders", async (req, res, next) => {
     if (!pricing.enabled) throw createHttpError(403, "冰箱贴下单暂未开放。");
 
     const experienceType = normalizePublicExperienceType(req.body?.experienceType || "fridge-magnet");
-    if (experienceType !== "fridge-magnet") throw createHttpError(400, "当前仅支持冰箱贴下单。");
+    if (!new Set(["draw-card", "fridge-magnet"]).has(experienceType)) {
+      throw createHttpError(400, "当前仅支持卡夹图片定制。");
+    }
 
     const requestedItems = normalizeRequestedOrderItems(req.body || {});
     const jobIds = requestedItems.map((item) => item.jobId);
-    if (!jobIds.length) throw createHttpError(400, "请先选择要下单的冰箱贴。");
+    if (!jobIds.length) throw createHttpError(400, "请先选择要定制的卡夹图片。");
 
     const address = normalizeOrderAddress(req.body || {});
     assertValidOrderAddress(address);
@@ -897,11 +1040,11 @@ app.post("/api/orders", async (req, res, next) => {
     const jobs = await Promise.all(jobIds.map((jobId) => readImageJob(jobId)));
     const likedJobs = jobs.filter(Boolean).filter((job) =>
       job.visibility === "public" &&
-      job.ownerVisitorId === req.visitorId &&
+      accountOwnsVisitor(req.webAccount, job.ownerVisitorId) &&
       job.isLiked &&
-      normalizePublicExperienceType(job.experienceType) === "fridge-magnet"
+      normalizePublicExperienceType(job.experienceType) === experienceType
     );
-    if (likedJobs.length !== jobIds.length) throw createHttpError(403, "只能下单当前口袋中的冰箱贴结果。");
+    if (likedJobs.length !== jobIds.length) throw createHttpError(403, "只能下单当前卡夹中的图片。");
 
     const likedJobById = new Map(likedJobs.map((job) => [String(job.jobId || ""), job]));
     const totalRequestedItemCount = requestedItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -909,7 +1052,7 @@ app.post("/api/orders", async (req, res, next) => {
     const merchantSource = await resolveOrderMerchantSource(req);
     const now = new Date();
     const createdAt = now.toISOString();
-    const paymentMode = normalizeOrderPaymentMode(pricing.paymentMode);
+    const paymentMode = "wechat";
     const expiresAt = new Date(now.getTime() + getOrderExpireMs(pricing)).toISOString();
     const orderId = randomUUID();
     const storedOrderItems = await buildStoredOrderItems({
@@ -922,8 +1065,9 @@ app.post("/api/orders", async (req, res, next) => {
         id: orderId,
         orderNo: generateOrderNo(),
         visitorId: req.visitorId,
+        accountId: req.webAccount.id,
         publicToken: randomUUID(),
-        experienceType: "fridge-magnet",
+        experienceType,
         paymentStatus: "unpaid",
         fulfillmentStatus: "new",
         itemCount: amount.itemCount,
@@ -966,177 +1110,129 @@ app.post("/api/orders", async (req, res, next) => {
       }
     });
 
+    commerceStore.createPaymentIntent({
+      accountId: req.webAccount.id,
+      outTradeNo: created.outTradeNo,
+      kind: "physical_order",
+      amountCents: created.totalCents,
+      targetOrderId: created.id,
+      expiresAt: created.expiresAt,
+      metadata: { orderNo: created.orderNo, itemCount: created.itemCount }
+    });
+
     res.status(201).json({
       order: toPublicOrder(created, { includeToken: true }),
-      payment: paymentMode === "manual"
-        ? {
-            status: "manual_payment_required",
-            mode: "manual",
-            contactWechatId: pricing.contactWechatId,
-            expiresAt: created.expiresAt
-          }
-        : {
-            status: "wechat_payment_required",
-            mode: "wechat",
-            availableChannels: ["wechat_jsapi", "wechat_h5"]
-          }
+      payment: {
+        status: "wechat_payment_required",
+        mode: "wechat",
+        availableChannels: ["wechat_jsapi", "wechat_h5", "wechat_native"]
+      }
     });
   } catch (error) {
     next(error);
   }
 });
 
-app.post("/api/orders/:orderId/pay", async (req, res, next) => {
+app.post("/api/orders/:orderId/pay", requireWebAccount, async (req, res, next) => {
   try {
+    assertRegisteredAccount(req);
     enforcePublicRateLimits(req);
     orderStore.expireUnpaidOrders();
-
     const order = orderStore.readOrderWithRelations(req.params.orderId);
-    assertOrderOwnership(req, order, String(req.body?.token || req.query?.token || ""));
-    const settings = await readAppSettings();
-    const pricing = getOrderPricingSnapshot(settings);
-    if (order.lastPaymentChannel === "manual" || normalizeOrderPaymentMode(pricing.paymentMode) === "manual") {
-      throw createHttpError(409, "当前订单为人工付款，请联系客服并提供订单号完成支付。");
-    }
+    assertWebAccountOwnsOrder(req, order);
     if (order.paymentStatus === "paid") {
-      return res.json({
-        order: toPublicOrder(order),
-        payment: {
-          status: "already_paid",
-          returnUrl: buildOrderReturnUrl(req, order)
-        }
-      });
+      return res.json({ order: toPublicOrder(order), payment: { status: "already_paid", returnUrl: buildOrderReturnUrl(req, order) } });
     }
     if (order.paymentStatus === "expired") throw createHttpError(409, "订单已过期，请重新下单。");
     if (order.paymentStatus !== "unpaid") throw createHttpError(409, "当前订单无法继续支付。");
-
-    const requestedChannel = String(req.body?.channel || "").trim();
-    const channel = requestedChannel || (isWechatBrowser(req) ? "wechat_jsapi" : "wechat_h5");
-    const returnUrl = buildOrderReturnUrl(req, order);
+    const intent = commerceStore.readPaymentIntentByOutTradeNo(order.outTradeNo);
+    if (!intent || intent.kind !== "physical_order" || intent.accountId !== req.webAccount.id) {
+      throw createHttpError(409, "订单支付单不存在，请重新下单。", "订单支付信息异常，请重新下单。");
+    }
+    if (isLocalMockPaymentEnabled(req)) {
+      const paidAt = new Date().toISOString();
+      const transactionId = `LOCAL-${randomUUID().replace(/-/g, "")}`;
+      commerceStore.settlePayment({
+        outTradeNo: intent.outTradeNo,
+        transactionId,
+        paidAt,
+        payload: { mode: "local_mock", outTradeNo: intent.outTradeNo },
+        headers: {}
+      });
+      const paidOrder = orderStore.updateOrderAndAppendEvent(order.id, {
+        paymentStatus: "paid",
+        lastPaymentChannel: "local_mock",
+        lastPaymentError: "",
+        wechatTransactionId: transactionId,
+        paidAt
+      }, {
+        eventType: "payment_notify",
+        eventId: `${order.id}:local_mock:${transactionId}`,
+        success: true,
+        payload: { mode: "local_mock" }
+      });
+      return res.json({
+        order: toPublicOrder(paidOrder),
+        payment: { status: "simulated_paid", channel: "local_mock", returnUrl: buildOrderReturnUrl(req, paidOrder) }
+      });
+    }
+    const description = `冰箱贴订单 ${order.orderNo}`;
+    const channel = isWechatBrowser(req)
+      ? "wechat_jsapi"
+      : isDesktopBrowser(req)
+        ? "wechat_native"
+        : "wechat_h5";
+    let payment;
+    let openId = String(order.wechatOpenId || "").trim();
 
     if (channel === "wechat_jsapi") {
-      let openId = String(order.wechatOpenId || "").trim();
       const code = String(req.body?.wechatCode || req.query?.code || "").trim();
-      if (!openId) {
-        if (!code) {
-          return res.status(202).json({
-            order: toPublicOrder(order),
-            payment: {
-              status: "oauth_required",
-              oauthUrl: createWechatAuthorizationUrl(req, order.id)
-            }
-          });
-        }
-        openId = await fetchWechatOpenId(code);
-        orderStore.updateOrder(order.id, { wechatOpenId: openId });
-      }
-
-      const config = assertWechatPaymentConfigured({ requireOAuth: true });
-      const payload = await callWechatPayApi("POST", "/v3/pay/transactions/jsapi", {
-        appid: config.appId,
-        mchid: config.mchId,
-        description: `冰箱贴订单 ${order.orderNo}`,
-        out_trade_no: order.outTradeNo,
-        time_expire: order.expiresAt,
-        notify_url: config.notifyUrl,
-        amount: {
-          total: order.totalCents,
-          currency: "CNY"
-        },
-        payer: {
-          openid: openId
-        }
-      });
-
-      const nonceStr = randomUUID().replace(/-/g, "");
-      const timeStamp = String(Math.floor(Date.now() / 1000));
-      const paySign = signJsapiPayParams({
-        appId: config.appId,
-        timeStamp,
-        nonceStr,
-        prepayId: payload.prepay_id
-      });
-
-      const updated = orderStore.updateOrderAndAppendEvent(order.id, {
-        lastPaymentChannel: "wechat_jsapi",
-        lastPaymentError: ""
-      }, {
-        eventType: "payment_prepay",
-        eventId: payload.prepay_id || `${order.id}:prepay:${Date.now()}`,
-        success: true,
-        payload
-      });
-
-      return res.json({
-        order: toPublicOrder(updated),
-        payment: {
-          status: "ready",
-          channel: "wechat_jsapi",
-          returnUrl,
-          jsapi: {
-            appId: config.appId,
-            timeStamp,
-            nonceStr,
-            package: `prepay_id=${payload.prepay_id}`,
-            signType: "RSA",
-            paySign
+      if (!openId && !code) {
+        return res.status(202).json({
+          order: toPublicOrder(order),
+          payment: {
+            status: "oauth_required",
+            authorizationUrl: createOrderPaymentAuthorizationUrl(req, order)
           }
-        }
+        });
+      }
+      if (!openId) openId = await fetchWechatOpenId(code);
+      payment = await createWechatJsapiPayment({ intent, openId, description });
+    } else if (channel === "wechat_native") {
+      payment = await createWechatNativePayment({ intent, description });
+    } else {
+      payment = await createWechatH5Payment({
+        intent,
+        description,
+        clientIp: getPaymentClientIp(req),
+        returnUrl: buildOrderReturnUrl(req, order)
       });
     }
 
-    if (channel !== "wechat_h5") throw createHttpError(400, "不支持的支付方式。");
-
-    const config = assertWechatPaymentConfigured();
-    const payload = await callWechatPayApi("POST", "/v3/pay/transactions/h5", {
-      appid: config.appId,
-      mchid: config.mchId,
-      description: `冰箱贴订单 ${order.orderNo}`,
-      out_trade_no: order.outTradeNo,
-      time_expire: order.expiresAt,
-      notify_url: config.notifyUrl,
-      amount: {
-        total: order.totalCents,
-        currency: "CNY"
-      },
-      scene_info: {
-        payer_client_ip: getClientIp(req),
-        h5_info: {
-          type: "Wap"
-        }
-      }
-    });
-
     const updated = orderStore.updateOrderAndAppendEvent(order.id, {
-      lastPaymentChannel: "wechat_h5",
+      wechatOpenId: openId || order.wechatOpenId,
+      lastPaymentChannel: payment.channel,
       lastPaymentError: ""
     }, {
       eventType: "payment_prepay",
-      eventId: payload.h5_url || `${order.id}:h5:${Date.now()}`,
-      success: true,
-      payload
+      eventId: payment.prepayId || `${order.id}:${payment.channel}:${Date.now()}`,
+      success: true
     });
-
     res.json({
       order: toPublicOrder(updated),
-      payment: {
-        status: "ready",
-        channel: "wechat_h5",
-        returnUrl,
-        h5Url: payload.h5_url
-      }
+      payment: { ...payment, returnUrl: buildOrderReturnUrl(req, order) }
     });
   } catch (error) {
     next(error);
   }
 });
 
-app.get("/api/orders/:orderId", async (req, res, next) => {
+app.get("/api/orders/:orderId", requireWebAccount, async (req, res, next) => {
   try {
     orderStore.expireUnpaidOrders();
     const settings = await readAppSettings();
     const order = orderStore.readOrderWithRelations(req.params.orderId);
-    assertOrderOwnership(req, order, String(req.query?.token || ""));
+    assertWebAccountOwnsOrder(req, order);
     res.json({
       order: toPublicOrder(order),
       config: getOrderPricingSnapshot(settings)
@@ -1146,12 +1242,12 @@ app.get("/api/orders/:orderId", async (req, res, next) => {
   }
 });
 
-app.get("/api/my/orders", async (req, res, next) => {
+app.get("/api/my/orders", requireWebAccount, async (req, res, next) => {
   try {
     orderStore.expireUnpaidOrders();
     const settings = await readAppSettings();
     const payload = orderStore.listOrders({
-      visitorId: req.visitorId,
+      accountId: req.webAccount.id,
       limit: 50
     });
     res.json({
@@ -1163,11 +1259,11 @@ app.get("/api/my/orders", async (req, res, next) => {
   }
 });
 
-app.delete("/api/orders/:orderId", async (req, res, next) => {
+app.delete("/api/orders/:orderId", requireWebAccount, async (req, res, next) => {
   try {
     orderStore.expireUnpaidOrders();
     const order = orderStore.readOrderWithRelations(req.params.orderId);
-    assertOrderOwnership(req, order, String(req.query?.token || ""));
+    assertWebAccountOwnsOrder(req, order);
     if (order.paymentStatus === "paid") throw createHttpError(409, "已付款订单不支持取消。");
     if (order.paymentStatus === "expired") throw createHttpError(409, "已过期订单无需取消。");
     if (order.fulfillmentStatus !== "new") throw createHttpError(409, "当前订单已进入处理流程，暂不支持取消。");
@@ -1178,6 +1274,7 @@ app.delete("/api/orders/:orderId", async (req, res, next) => {
       cancelledAt: order.cancelledAt || new Date().toISOString(),
       lastPaymentError: "订单已取消"
     });
+    commerceStore.cancelPaymentIntentByOutTradeNo(order.outTradeNo);
     res.json({ order: toPublicOrder(deleted, { includeToken: true }) });
   } catch (error) {
     next(error);
@@ -1206,42 +1303,58 @@ app.post("/api/payments/wechat/notify", express.text({ type: "*/*" }), async (re
     const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf-8");
     const notifyData = JSON.parse(decrypted);
 
-    const order = orderStore.readOrderByOutTradeNo(String(notifyData.out_trade_no || ""));
-    if (!order) return res.status(404).json({ code: "ORDER_NOT_FOUND", message: "订单不存在" });
-
-    const eventId = String(payload.id || notifyData.transaction_id || `${order.id}:notify:${Date.now()}`);
-    if (order.paymentStatus !== "paid") {
-      orderStore.updateOrderAndAppendEvent(order.id, {
-        paymentStatus: "paid",
-        lastPaymentError: "",
-        wechatTransactionId: String(notifyData.transaction_id || ""),
-        paidAt: String(notifyData.success_time || new Date().toISOString())
-      }, {
-        eventType: "payment_notify",
-        eventId,
-        success: true,
-        payload: notifyData,
-        headers: {
-          serial: String(req.get("Wechatpay-Serial") || ""),
-          nonce: String(req.get("Wechatpay-Nonce") || ""),
-          signature: String(req.get("Wechatpay-Signature") || ""),
-          timestamp: String(req.get("Wechatpay-Timestamp") || "")
-        }
-      });
-    } else {
-      orderStore.appendPaymentEvent({
-        orderId: order.id,
-        eventType: "payment_notify",
-        eventId,
-        success: true,
-        payload: notifyData,
-        headers: {
-          serial: String(req.get("Wechatpay-Serial") || ""),
-          nonce: String(req.get("Wechatpay-Nonce") || ""),
-          signature: String(req.get("Wechatpay-Signature") || ""),
-          timestamp: String(req.get("Wechatpay-Timestamp") || "")
-        }
-      });
+    if (String(notifyData.trade_state || "") !== "SUCCESS") {
+      throw createHttpError(400, "微信支付通知交易状态不是成功。");
+    }
+    if (String(notifyData.mchid || "") !== config.mchId || String(notifyData.appid || "") !== config.appId) {
+      throw createHttpError(400, "微信支付通知商户信息不匹配。");
+    }
+    const outTradeNo = String(notifyData.out_trade_no || "");
+    const intent = commerceStore.readPaymentIntentByOutTradeNo(outTradeNo);
+    if (!intent) return res.status(404).json({ code: "ORDER_NOT_FOUND", message: "支付单不存在" });
+    if (intent.status === "cancelled") {
+      throw createHttpError(409, "支付单已取消，需要人工核对退款。");
+    }
+    if (Number(notifyData.amount?.total || -1) !== intent.amountCents || String(notifyData.amount?.currency || "CNY") !== "CNY") {
+      throw createHttpError(400, "微信支付通知金额不匹配。");
+    }
+    const transactionId = String(notifyData.transaction_id || "");
+    if (!transactionId) throw createHttpError(400, "微信支付通知缺少交易单号。");
+    if (intent.status === "paid" && intent.transactionId && intent.transactionId !== transactionId) {
+      throw createHttpError(409, "支付单已由其他微信交易完成。");
+    }
+    const headers = {
+      serial: String(req.get("Wechatpay-Serial") || ""),
+      nonce: String(req.get("Wechatpay-Nonce") || ""),
+      signature: String(req.get("Wechatpay-Signature") || ""),
+      timestamp: String(req.get("Wechatpay-Timestamp") || "")
+    };
+    commerceStore.settlePayment({
+      outTradeNo,
+      transactionId,
+      paidAt: String(notifyData.success_time || new Date().toISOString()),
+      payload: notifyData,
+      headers
+    });
+    if (intent.kind === "physical_order") {
+      const order = orderStore.readOrderWithRelations(intent.targetOrderId);
+      if (!order || order.accountId !== intent.accountId || order.totalCents !== intent.amountCents) {
+        throw createHttpError(400, "实物订单与支付单不匹配。");
+      }
+      if (order.paymentStatus !== "paid") {
+        orderStore.updateOrderAndAppendEvent(order.id, {
+          paymentStatus: "paid",
+          lastPaymentError: "",
+          wechatTransactionId: transactionId,
+          paidAt: String(notifyData.success_time || new Date().toISOString())
+        }, {
+          eventType: "payment_notify",
+          eventId: String(payload.id || transactionId),
+          success: true,
+          payload: notifyData,
+          headers
+        });
+      }
     }
 
     res.json({ code: "SUCCESS", message: "成功" });
@@ -1279,6 +1392,16 @@ app.post("/api/admin/logout", async (req, res) => {
 
 app.get("/api/admin/session", requireAdmin, async (req, res) => {
   res.json({ ok: true, session: toPublicAdminSession(req.adminSession) });
+});
+
+app.get("/api/admin/commerce/payments", requireAdmin, (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query?.limit || 200), 1), 500);
+  res.json({ payments: commerceStore.listAllPaymentIntents(limit).map(toPublicAdminPaymentIntent) });
+});
+
+app.get("/api/admin/commerce/credits", requireAdmin, (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query?.limit || 200), 1), 500);
+  res.json({ ledger: commerceStore.listAllCreditLedger(limit) });
 });
 
 app.get("/api/styles", requireAdmin, async (_req, res) => {
@@ -1374,27 +1497,27 @@ app.delete("/api/admin/api-providers/:providerId", requireAdmin, async (req, res
   }
 });
 
-app.post("/api/draw-card/sessions", beginDrawCardRequestTelemetry, upload.single("image"), async (req, res) => {
+app.post("/api/draw-card/sessions", requireWebAccount, beginDrawCardRequestTelemetry, upload.single("image"), async (req, res) => {
   return handleCreatePublicExperienceSession(req, res, "draw-card");
 });
 
-app.get("/api/draw-card/sessions/latest", async (req, res) => {
+app.get("/api/draw-card/sessions/latest", requireWebAccount, async (req, res) => {
   return handleGetLatestPublicExperienceSession(req, res, "draw-card");
 });
 
-app.get("/api/draw-card/sessions/:sessionId", async (req, res) => {
+app.get("/api/draw-card/sessions/:sessionId", requireWebAccount, async (req, res) => {
   return handleGetPublicExperienceSession(req, res, "draw-card");
 });
 
-app.post("/api/fridge-magnet/sessions", beginDrawCardRequestTelemetry, upload.single("image"), async (req, res) => {
+app.post("/api/fridge-magnet/sessions", requireWebAccount, beginDrawCardRequestTelemetry, upload.single("image"), async (req, res) => {
   return handleCreatePublicExperienceSession(req, res, "fridge-magnet");
 });
 
-app.get("/api/fridge-magnet/sessions/latest", async (req, res) => {
+app.get("/api/fridge-magnet/sessions/latest", requireWebAccount, async (req, res) => {
   return handleGetLatestPublicExperienceSession(req, res, "fridge-magnet");
 });
 
-app.get("/api/fridge-magnet/sessions/:sessionId", async (req, res) => {
+app.get("/api/fridge-magnet/sessions/:sessionId", requireWebAccount, async (req, res) => {
   return handleGetPublicExperienceSession(req, res, "fridge-magnet");
 });
 
@@ -1441,7 +1564,9 @@ async function handleCreatePublicExperienceSession(req, res, experienceType) {
       requestedDrawCount
     });
     enforcePublicRateLimits(req);
-    enforceVisitorQuota(visitor, estimatedCost);
+    if (Number(req.webAccount.creditBalance || 0) < estimatedCost) {
+      throw createHttpError(409, `本次最多需要 ${estimatedCost} 点，当前剩余 ${Number(req.webAccount.creditBalance || 0)} 点。`, "点数不足，可定制冰箱贴获得更多点数。");
+    }
     await enforceVisitorRunningJobLimit(visitor.visitorId, config);
 
     const session = await createDrawCardSession(req.file, visitor, {
@@ -1451,7 +1576,8 @@ async function handleCreatePublicExperienceSession(req, res, experienceType) {
       clientMetrics,
       selectedStyleIds,
       requestedDrawCount,
-      requestedSubjectType
+      requestedSubjectType,
+      accountId: req.webAccount.id
     });
     res.status(202).json(toPublicDrawCardSession(session));
   } catch (error) {
@@ -1784,15 +1910,16 @@ app.post("/api/image-jobs/batch", requireAdmin, async (req, res) => {
   }
 });
 
-app.get("/api/public/clip-items", async (req, res) => {
+app.get("/api/public/clip-items", requireWebAccount, async (req, res) => {
   try {
     const experienceType = String(req.query.experience || "").trim();
     const jobs = await listImageJobs();
+    const accountVisitorIds = new Set(commerceStore.listVisitorIds(req.webAccount.id));
     const items = jobs
       .filter(
         (job) =>
           job.visibility === "public" &&
-          job.ownerVisitorId === req.visitorId &&
+          accountVisitorIds.has(job.ownerVisitorId) &&
           job.isLiked &&
           (!experienceType || normalizePublicExperienceType(job.experienceType) === normalizePublicExperienceType(experienceType))
       )
@@ -1805,11 +1932,10 @@ app.get("/api/public/clip-items", async (req, res) => {
   }
 });
 
-app.get("/api/public/clip-items/:jobId/download-original", async (req, res) => {
+app.get("/api/public/clip-items/:jobId/download-original", requireWebAccount, async (req, res) => {
   try {
-    const visitor = await getVisitorState(req);
-    if (visitor.tier !== "invited") {
-      return res.status(403).json({ message: visitor.contactMessage || DEFAULT_CONTACT_MESSAGE });
+    if (!req.webAccount.originalDownloadsUnlockedAt) {
+      return res.status(403).json({ message: "定制订单支付成功后，卡夹中的全部原图都会永久解锁下载。" });
     }
 
     const job = await readImageJob(req.params.jobId);
@@ -1891,7 +2017,7 @@ app.post("/api/image-jobs/:jobId/cancel", requireAdmin, async (req, res) => {
   }
 });
 
-app.post("/api/image-jobs/:jobId/like", async (req, res) => {
+app.post("/api/image-jobs/:jobId/like", requireWebAccount, async (req, res) => {
   try {
     const job = await readImageJob(req.params.jobId);
     if (!job) return res.status(404).json({ message: "生图任务不存在。" });
@@ -1911,7 +2037,7 @@ app.post("/api/image-jobs/:jobId/like", async (req, res) => {
   }
 });
 
-app.post("/api/image-jobs/:jobId/unlike", async (req, res) => {
+app.post("/api/image-jobs/:jobId/unlike", requireWebAccount, async (req, res) => {
   try {
     const job = await readImageJob(req.params.jobId);
     if (!job) return res.status(404).json({ message: "生图任务不存在。" });
@@ -2208,6 +2334,68 @@ app.get("/api/admin/merchant-commissions", requireAdmin, async (req, res) => {
   }
 });
 
+app.get("/api/admin/users", requireAdmin, (req, res, next) => {
+  try {
+    const payload = commerceStore.listRegisteredUsers({
+      page: req.query?.page,
+      limit: req.query?.limit,
+      search: req.query?.search,
+      status: req.query?.status
+    });
+    res.json({ ...payload, users: payload.items.map(toPublicAdminUser) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/users/:id", requireAdmin, (req, res, next) => {
+  try {
+    const detail = commerceStore.readRegisteredUserDetail(req.params.id);
+    if (!detail) throw createHttpError(404, "用户不存在。");
+    res.json({
+      user: toPublicAdminUser({ ...detail.account, visitorCount: detail.visitorCount, orderCount: detail.orderCount, paidTotalCents: detail.paidTotalCents }),
+      ledger: detail.ledger.map(toPublicCreditLedger),
+      orders: detail.orders
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/users/:id/status", requireAdmin, (req, res, next) => {
+  try {
+    const current = commerceStore.readAccount(req.params.id);
+    if (!current?.isRegistered) throw createHttpError(404, "用户不存在。");
+    const status = String(req.body?.status || "").trim();
+    if (!new Set(["active", "disabled"]).has(status)) throw createHttpError(400, "用户状态无效。");
+    const account = commerceStore.setAccountStatus(current.id, status);
+    res.json({ user: toPublicAdminUser(account) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/users/:id/credits", requireAdmin, (req, res, next) => {
+  try {
+    const account = commerceStore.readAccount(req.params.id);
+    if (!account?.isRegistered) throw createHttpError(404, "用户不存在。");
+    const delta = Math.trunc(Number(req.body?.delta || 0));
+    const remark = String(req.body?.remark || "").trim().slice(0, 300);
+    if (!delta || !remark) throw createHttpError(400, "请填写非零点数调整和备注。");
+    const updatedAccount = commerceStore.adjustCredits({
+      accountId: account.id,
+      delta,
+      reason: "admin_adjustment",
+      note: remark,
+      referenceId: randomUUID()
+    }).account;
+    res.status(201).json({ user: toPublicAdminUser(updatedAccount), ledger: commerceStore.listCreditLedger(account.id, 100).map(toPublicCreditLedger) });
+  } catch (error) {
+    if (error?.code === "INSUFFICIENT_CREDITS") return next(createHttpError(400, "扣减后的点数不能小于零。"));
+    next(error);
+  }
+});
+
 app.get("/api/admin/orders", requireAdmin, async (req, res) => {
   try {
     const page = Math.max(Number(req.query.page || 1), 1);
@@ -2388,6 +2576,12 @@ app.patch("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
 
     if (req.body?.adminRemark !== undefined) {
       patch.adminRemark = String(req.body.adminRemark || "").trim();
+    }
+    if (req.body?.shippingCarrier !== undefined) {
+      patch.shippingCarrier = String(req.body.shippingCarrier || "").trim().slice(0, 80);
+    }
+    if (req.body?.shippingTrackingNo !== undefined) {
+      patch.shippingTrackingNo = String(req.body.shippingTrackingNo || "").trim().slice(0, 120);
     }
 
     const updated = orderStore.updateOrder(req.params.orderId, patch);
@@ -2871,6 +3065,34 @@ function setVisitorCookie(req, res, visitorId) {
   }));
 }
 
+function setWebAccountCookie(req, res, accountId) {
+  appendSetCookie(res, serializeCookie(WEB_ACCOUNT_COOKIE_NAME, accountId, {
+    maxAge: 60 * 60 * 24 * 365,
+    secure: shouldUseSecureCookies(req)
+  }));
+}
+
+function clearWebAccountCookie(req, res) {
+  appendSetCookie(res, serializeCookie(WEB_ACCOUNT_COOKIE_NAME, "", {
+    maxAge: 0,
+    secure: shouldUseSecureCookies(req)
+  }));
+}
+
+function setUserSessionCookie(req, res, sessionId) {
+  appendSetCookie(res, serializeCookie(USER_SESSION_COOKIE_NAME, sessionId, {
+    maxAge: USER_SESSION_TTL_MS / 1000,
+    secure: shouldUseSecureCookies(req)
+  }));
+}
+
+function clearUserSessionCookie(req, res) {
+  appendSetCookie(res, serializeCookie(USER_SESSION_COOKIE_NAME, "", {
+    maxAge: 0,
+    secure: shouldUseSecureCookies(req)
+  }));
+}
+
 function setAdminCookie(req, res, sessionId) {
   appendSetCookie(res, serializeCookie(ADMIN_COOKIE_NAME, sessionId, {
     maxAge: ADMIN_SESSION_TTL_MS / 1000,
@@ -2895,6 +3117,44 @@ async function visitorSessionMiddleware(req, res, next) {
     next();
   } catch (error) {
     next(error);
+  }
+}
+
+async function webAccountSessionMiddleware(req, res, next) {
+  try {
+    const cookies = parseCookies(req);
+    const accountId = cookies[WEB_ACCOUNT_COOKIE_NAME];
+    req.webAccount = isSafeAccountId(accountId) ? commerceStore.readAccount(accountId) : null;
+    if (!req.webAccount) {
+      req.webAccount = commerceStore.createOrGetBrowserAccount({
+        visitorId: req.visitorId,
+        signupCredits: WEB_SIGNUP_CREDITS
+      });
+      setWebAccountCookie(req, res, req.webAccount.id);
+    } else {
+      commerceStore.linkVisitor(req.webAccount.id, req.visitorId);
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function userSessionMiddleware(req, res, next) {
+  try {
+    const cookies = parseCookies(req);
+    const sessionId = cookies[USER_SESSION_COOKIE_NAME];
+    req.userSession = sessionId && isSafeAccountId(sessionId) ? commerceStore.readUserSession(sessionId) : null;
+    if (!req.userSession) {
+      if (sessionId) clearUserSessionCookie(req, res);
+      return next();
+    }
+    req.webAccount = req.userSession.account;
+    commerceStore.linkVisitor(req.webAccount.id, req.visitorId);
+    if (req.webAccount.accountStatus === "disabled") req.accountDisabled = true;
+    return next();
+  } catch (error) {
+    return next(error);
   }
 }
 
@@ -5085,6 +5345,275 @@ function getWechatConfig() {
   };
 }
 
+function toPublicWebAccountState(req, account) {
+  const publicAccount = toPublicCommerceAccount(account);
+  return {
+    visitorId: req.visitorId,
+    tier: "web_account",
+    authenticated: true,
+    quotaLimit: publicAccount.creditBalance,
+    quotaUsed: 0,
+    quotaRemaining: publicAccount.creditBalance,
+    canGenerate: publicAccount.accountStatus !== "disabled" && publicAccount.creditBalance > 0,
+    contactMessage: publicAccount.accountStatus === "disabled" ? "该账户已被禁用，请联系管理员。" : "点数不足时，可定制冰箱贴获得更多点数。",
+    account: publicAccount,
+    authorizationUrl: ""
+  };
+}
+
+function getWebWechatOAuthConfig(req = null) {
+  const appId = String(process.env.WECHAT_PAY_APP_ID || "").trim();
+  const appSecret = String(process.env.WECHAT_OAUTH_APP_SECRET || "").trim();
+  const configuredRedirectUrl = String(process.env.WECHAT_WEB_OAUTH_REDIRECT_URL || "").trim();
+  return {
+    appId,
+    appSecret,
+    redirectUrl: configuredRedirectUrl || (req ? `${getRequestOrigin(req)}/api/auth/wechat/callback` : ""),
+    stateSecret: String(process.env.WECHAT_OAUTH_STATE_SECRET || appSecret || "").trim()
+  };
+}
+
+function safeReturnPath(value) {
+  const text = String(value || "").trim();
+  if (!text) return "/";
+  try {
+    const parsed = new URL(text, "https://local.invalid");
+    if (!parsed.pathname.startsWith("/")) return "/";
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return "/";
+  }
+}
+
+function createWebWechatOAuthState(returnTo) {
+  const config = getWebWechatOAuthConfig();
+  if (!config.stateSecret) throw createHttpError(503, "微信网页授权未完成配置：缺少 WECHAT_OAUTH_APP_SECRET。", "微信网页授权尚未配置完成。");
+  const payload = Buffer.from(JSON.stringify({
+    returnTo: safeReturnPath(returnTo),
+    nonce: randomUUID(),
+    expiresAt: Date.now() + 10 * 60 * 1000
+  }), "utf-8").toString("base64url");
+  const signature = createHmac("sha256", config.stateSecret).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function verifyWebWechatOAuthState(value) {
+  const [payload, signature] = String(value || "").split(".");
+  const config = getWebWechatOAuthConfig();
+  if (!payload || !signature || !config.stateSecret) throw createHttpError(400, "微信授权状态无效，请重新发起授权。", "微信授权已失效，请重试。");
+  const expected = createHmac("sha256", config.stateSecret).update(payload).digest("base64url");
+  if (!safeCompareString(signature, expected)) throw createHttpError(400, "微信授权状态校验失败。", "微信授权已失效，请重试。");
+  let parsed;
+  try {
+    parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf-8"));
+  } catch {
+    throw createHttpError(400, "微信授权状态格式错误。", "微信授权已失效，请重试。");
+  }
+  if (!Number.isFinite(Number(parsed?.expiresAt)) || Number(parsed.expiresAt) < Date.now()) {
+    throw createHttpError(400, "微信授权状态已过期。", "微信授权已过期，请重试。");
+  }
+  return { returnTo: safeReturnPath(parsed.returnTo) };
+}
+
+function createWebWechatAuthorizationUrl(req, returnTo = "/") {
+  if (!isWechatBrowser(req)) return "";
+  const config = getWebWechatOAuthConfig(req);
+  if (!config.appId || !config.appSecret || !config.redirectUrl) return "";
+  const state = createWebWechatOAuthState(returnTo);
+  return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${encodeURIComponent(config.appId)}&redirect_uri=${encodeURIComponent(config.redirectUrl)}&response_type=code&scope=snsapi_base&state=${encodeURIComponent(state)}#wechat_redirect`;
+}
+
+async function fetchWechatWebOpenId(code) {
+  const config = getWebWechatOAuthConfig();
+  if (!config.appId || !config.appSecret) {
+    throw createHttpError(503, "微信网页授权未完成配置：缺少 WECHAT_PAY_APP_ID 或 WECHAT_OAUTH_APP_SECRET。", "微信网页授权尚未配置完成。");
+  }
+  const url = new URL("https://api.weixin.qq.com/sns/oauth2/access_token");
+  url.searchParams.set("appid", config.appId);
+  url.searchParams.set("secret", config.appSecret);
+  url.searchParams.set("code", String(code || ""));
+  url.searchParams.set("grant_type", "authorization_code");
+  const response = await fetch(url, { method: "GET" });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.errcode) throw createHttpError(502, payload.errmsg || "获取微信用户标识失败。", "微信授权失败，请稍后重试。");
+  const openId = String(payload.openid || "").trim();
+  if (!openId) throw createHttpError(502, "微信未返回 openid。", "微信授权失败，请稍后重试。");
+  return openId;
+}
+
+function requireWebAccount(req, _res, next) {
+  if (req.accountDisabled || req.webAccount?.accountStatus === "disabled") {
+    return next(createHttpError(403, "该账户已被禁用，请联系管理员。"));
+  }
+  if (req.webAccount) return next();
+  return next(createHttpError(401, "访客账户初始化失败，请刷新后重试。"));
+}
+
+function assertRegisteredAccount(req) {
+  if (req.webAccount?.accountStatus === "disabled") throw createHttpError(403, "该账户已被禁用，请联系管理员。");
+  if (!req.userSession || !req.webAccount?.isRegistered) {
+    throw createHttpError(401, "请先完成邮箱注册后再提交定制订单。", "请先注册并登录后再提交定制订单。");
+  }
+}
+
+function toPublicCommerceAccount(account) {
+  if (!account) return null;
+  return {
+    id: account.id,
+    isGuest: !account.isRegistered,
+    isRegistered: Boolean(account.isRegistered),
+    username: account.username || "",
+    email: account.email || "",
+    accountStatus: account.accountStatus || "active",
+    creditBalance: Math.max(0, Number(account.creditBalance || 0)),
+    originalDownloadsUnlocked: Boolean(account.originalDownloadsUnlockedAt),
+    originalDownloadsUnlockedAt: account.originalDownloadsUnlockedAt || null,
+    createdAt: account.createdAt || null
+  };
+}
+
+function toPublicCreditLedger(entry) {
+  return {
+    id: entry.id,
+    accountId: entry.accountId,
+    delta: Number(entry.delta || 0),
+    balanceAfter: Number(entry.balanceAfter || 0),
+    reason: entry.reason || "",
+    referenceType: entry.referenceType || "",
+    referenceId: entry.referenceId || "",
+    note: entry.note || "",
+    createdAt: entry.createdAt || null
+  };
+}
+
+function toPublicAdminUser(account) {
+  return {
+    id: account.id,
+    username: account.username || "",
+    email: account.email || "",
+    status: account.accountStatus || "active",
+    creditBalance: Number(account.creditBalance || 0),
+    registeredAt: account.registeredAt || null,
+    lastLoginAt: account.lastLoginAt || null,
+    visitorCount: Number(account.visitorCount || 0),
+    orderCount: Number(account.orderCount || 0),
+    paidTotalCents: Number(account.paidTotalCents || 0)
+  };
+}
+
+function normalizeEmail(value) {
+  const email = String(value || "").trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254 ? email : "";
+}
+
+function normalizeUsername(value) {
+  const username = String(value || "").trim();
+  return username.length >= 2 && username.length <= 32 ? username : "";
+}
+
+function isValidPassword(value) {
+  return String(value || "").length >= 8 && String(value || "").length <= 256;
+}
+
+function hashPassword(password) {
+  const salt = randomUUID().replace(/-/g, "");
+  return `${salt}:${scryptSync(String(password || ""), salt, 64).toString("base64")}`;
+}
+
+function verifyPassword(password, storedHash) {
+  const [salt, expected] = String(storedHash || "").split(":");
+  if (!salt || !expected) return false;
+  const actual = scryptSync(String(password || ""), salt, 64).toString("base64");
+  return safeCompareString(expected, actual);
+}
+
+function getEmailCodeSecret() {
+  return String(process.env.EMAIL_CODE_SECRET || process.env.TENCENTCLOUD_SECRET_KEY || process.env.WECHAT_OAUTH_STATE_SECRET || "local-email-code-secret");
+}
+
+function hashEmailVerificationCode({ email, purpose, code }) {
+  return createHmac("sha256", getEmailCodeSecret())
+    .update(`${String(email || "").trim().toLowerCase()}|${String(purpose || "").trim()}|${String(code || "")}`)
+    .digest("base64url");
+}
+
+function toAuthHttpError(error) {
+  if (error?.status) return error;
+  const code = String(error?.code || "");
+  if (code === "CODE_RATE_LIMIT") return createHttpError(429, "验证码发送过于频繁，请 60 秒后重试。");
+  if (code === "CODE_EXPIRED") return createHttpError(400, "验证码已过期，请重新获取。");
+  if (code === "CODE_ATTEMPTS_EXCEEDED") return createHttpError(429, "验证码错误次数过多，请重新获取。");
+  if (code === "CODE_INVALID") return createHttpError(400, "验证码不正确。");
+  if (code === "EMAIL_EXISTS") return createHttpError(409, "该邮箱已注册，请直接登录。");
+  if (code === "USERNAME_EXISTS") return createHttpError(409, "用户名已被使用。");
+  if (code === "ALREADY_REGISTERED") return createHttpError(409, "当前账户已完成注册。");
+  return error;
+}
+
+function isEmailCodeLogOnly() {
+  return String(process.env.EMAIL_CODE_LOG_ONLY || "").trim().toLowerCase() === "true";
+}
+
+async function sendEmailVerificationCode({ email, code, purpose }) {
+  if (isEmailCodeLogOnly()) {
+    console.info(`[email-code:development] ${purpose} ${email}: ${code}`);
+    return;
+  }
+  const secretId = String(process.env.TENCENTCLOUD_SECRET_ID || "").trim();
+  const secretKey = String(process.env.TENCENTCLOUD_SECRET_KEY || "").trim();
+  const region = String(process.env.TENCENTCLOUD_SES_REGION || "").trim();
+  const fromEmail = String(process.env.TENCENTCLOUD_SES_FROM_EMAIL || "").trim();
+  const templateId = Number(process.env.TENCENTCLOUD_SES_TEMPLATE_ID || 0);
+  if (!secretId || !secretKey || !region || !fromEmail || !templateId) {
+    throw createHttpError(503, "邮箱服务尚未配置。请联系管理员或在本地启用 EMAIL_CODE_LOG_ONLY。", "邮箱验证码服务尚未配置。");
+  }
+  let tencentcloud;
+  try {
+    tencentcloud = await import("tencentcloud-sdk-nodejs");
+  } catch {
+    throw createHttpError(503, "腾讯云 SES 依赖未安装。", "邮箱验证码服务暂不可用。");
+  }
+  const sdk = tencentcloud.default || tencentcloud;
+  const Client = sdk.ses?.v20201002?.Client;
+  if (!Client) throw createHttpError(503, "腾讯云 SES 客户端初始化失败。", "邮箱验证码服务暂不可用。");
+  const client = new Client({ credential: { secretId, secretKey }, region, profile: { httpProfile: { endpoint: "ses.tencentcloudapi.com" } } });
+  try {
+    await client.SendEmail({
+      FromEmailAddress: fromEmail,
+      Destination: [email],
+      Template: { TemplateID: templateId, TemplateData: JSON.stringify({ code, minutes: "10" }) }
+    });
+  } catch (error) {
+    console.error("Tencent SES send failed", error);
+    throw createHttpError(502, "腾讯云 SES 发送失败。", "验证码发送失败，请稍后重试。");
+  }
+}
+
+function toPublicPaymentIntent(intent) {
+  if (!intent) return null;
+  return {
+    id: intent.id,
+    kind: intent.kind,
+    amountCents: intent.amountCents,
+    creditAmount: intent.creditAmount,
+    status: intent.status,
+    expiresAt: intent.expiresAt,
+    paidAt: intent.paidAt,
+    createdAt: intent.createdAt
+  };
+}
+
+function toPublicAdminPaymentIntent(intent) {
+  return {
+    ...toPublicPaymentIntent(intent),
+    accountId: intent.accountId,
+    targetOrderId: intent.targetOrderId,
+    outTradeNo: intent.outTradeNo,
+    transactionId: intent.transactionId,
+    metadata: intent.metadata
+  };
+}
+
 function assertWechatPaymentConfigured({ requireOAuth = false } = {}) {
   const config = getWechatConfig();
   const missing = [];
@@ -5106,13 +5635,64 @@ function isWechatBrowser(req) {
   return /MicroMessenger/i.test(userAgent);
 }
 
-function createWechatAuthorizationUrl(req, orderId) {
-  const config = assertWechatPaymentConfigured({ requireOAuth: true });
-  const state = Buffer.from(JSON.stringify({
-    orderId,
-    token: String(req.body?.token || req.query?.token || ""),
-    paymentStatus: String(req.query?.paymentStatus || "")
+function isDesktopBrowser(req) {
+  const userAgent = String(req.headers["user-agent"] || "");
+  if (/Mobile|Android|iPhone|iPad|iPod|Windows Phone/i.test(userAgent)) return false;
+  return /Windows NT|Macintosh|X11|Linux/i.test(userAgent);
+}
+
+function isLocalMockPaymentEnabled(req) {
+  if (String(process.env.LOCAL_MOCK_PAYMENT || "").trim().toLowerCase() !== "true") return false;
+  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "").split(",")[0].trim().replace(/:\d+$/, "").toLowerCase();
+  return host === "localhost" || host === "127.0.0.1" || host === "::1";
+}
+
+function getPaymentClientIp(req) {
+  const rawIp = String(getClientIp(req) || "").replace(/^::ffff:/, "").trim();
+  return rawIp && rawIp !== "::1" ? rawIp : "127.0.0.1";
+}
+
+function getOrderPaymentOAuthStateSecret() {
+  return String(process.env.WECHAT_OAUTH_STATE_SECRET || process.env.WECHAT_OAUTH_APP_SECRET || "").trim();
+}
+
+function createOrderPaymentOAuthState(order) {
+  const stateSecret = getOrderPaymentOAuthStateSecret();
+  if (!stateSecret) throw createHttpError(503, "微信网页授权未完成配置：缺少 WECHAT_OAUTH_STATE_SECRET 或 WECHAT_OAUTH_APP_SECRET。", "微信网页授权尚未配置完成。");
+  const payload = Buffer.from(JSON.stringify({
+    orderId: String(order?.id || ""),
+    accountId: String(order?.accountId || ""),
+    nonce: randomUUID(),
+    expiresAt: Date.now() + 10 * 60 * 1000
   }), "utf-8").toString("base64url");
+  const signature = createHmac("sha256", stateSecret).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function verifyOrderPaymentOAuthState(value) {
+  const [payload, signature] = String(value || "").split(".");
+  const stateSecret = getOrderPaymentOAuthStateSecret();
+  if (!payload || !signature || !stateSecret) throw createHttpError(400, "微信授权状态无效，请重新发起授权。", "微信授权已失效，请重试。");
+  const expected = createHmac("sha256", stateSecret).update(payload).digest("base64url");
+  if (!safeCompareString(signature, expected)) throw createHttpError(400, "微信授权状态校验失败。", "微信授权已失效，请重试。");
+  let parsed;
+  try {
+    parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf-8"));
+  } catch {
+    throw createHttpError(400, "微信授权状态格式错误。", "微信授权已失效，请重试。");
+  }
+  if (!Number.isFinite(Number(parsed?.expiresAt)) || Number(parsed.expiresAt) < Date.now()) {
+    throw createHttpError(400, "微信授权状态已过期。", "微信授权已过期，请重试。");
+  }
+  if (!isSafeAccountId(parsed?.orderId) || !isSafeAccountId(parsed?.accountId)) {
+    throw createHttpError(400, "微信授权状态无效，请重新发起授权。", "微信授权已失效，请重试。");
+  }
+  return { orderId: parsed.orderId, accountId: parsed.accountId };
+}
+
+function createOrderPaymentAuthorizationUrl(req, order) {
+  const config = assertWechatPaymentConfigured({ requireOAuth: true });
+  const state = createOrderPaymentOAuthState(order);
   const redirectUri = encodeURIComponent(config.oauthRedirectUrl);
   return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${encodeURIComponent(config.appId)}&redirect_uri=${redirectUri}&response_type=code&scope=snsapi_base&state=${encodeURIComponent(state)}#wechat_redirect`;
 }
@@ -5209,6 +5789,106 @@ function signJsapiPayParams({ appId, timeStamp, nonceStr, prepayId }) {
   return signer.sign(createPrivateKey(config.privateKey), "base64");
 }
 
+async function createWechatJsapiPayment({ intent, openId, description, config = assertWechatPaymentConfigured() }) {
+  if (!intent?.id || !intent?.outTradeNo) throw createHttpError(500, "支付单不存在。", "支付单创建失败，请重试。");
+  if (!openId) throw createHttpError(401, "缺少微信账户标识。", "请重新完成微信授权。");
+  const payload = await callWechatPayApi("POST", "/v3/pay/transactions/jsapi", {
+    appid: config.appId,
+    mchid: config.mchId,
+    description: String(description || "AI 小画订单").slice(0, 127),
+    out_trade_no: intent.outTradeNo,
+    time_expire: intent.expiresAt || undefined,
+    notify_url: config.notifyUrl,
+    amount: { total: intent.amountCents, currency: "CNY" },
+    payer: { openid: openId }
+  });
+  const prepayId = String(payload.prepay_id || "").trim();
+  if (!prepayId) throw createHttpError(502, "微信支付未返回预支付标识。", "支付创建失败，请重试。");
+  const nonceStr = randomUUID().replace(/-/g, "");
+  const timeStamp = String(Math.floor(Date.now() / 1000));
+  const paySign = signJsapiPayParams({ appId: config.appId, timeStamp, nonceStr, prepayId });
+  commerceStore.markPaymentPrepared(intent.id, {
+    channel: "wechat_jsapi",
+    eventId: prepayId,
+    payload
+  });
+  return {
+    status: "ready",
+    channel: "wechat_jsapi",
+    prepayId,
+    jsapi: {
+      appId: config.appId,
+      timeStamp,
+      nonceStr,
+      package: `prepay_id=${prepayId}`,
+      signType: "RSA",
+      paySign
+    }
+  };
+}
+
+function appendWechatH5ReturnUrl(h5Url, returnUrl) {
+  const target = new URL(String(h5Url || ""));
+  target.searchParams.set("redirect_url", String(returnUrl || ""));
+  return target.toString();
+}
+
+async function createWechatH5Payment({ intent, description, clientIp, returnUrl, config = assertWechatPaymentConfigured() }) {
+  if (!intent?.id || !intent?.outTradeNo) throw createHttpError(500, "支付单不存在。", "支付单创建失败，请重试。");
+  const payload = await callWechatPayApi("POST", "/v3/pay/transactions/h5", {
+    appid: config.appId,
+    mchid: config.mchId,
+    description: String(description || "AI 小画订单").slice(0, 127),
+    out_trade_no: intent.outTradeNo,
+    time_expire: intent.expiresAt || undefined,
+    notify_url: config.notifyUrl,
+    amount: { total: intent.amountCents, currency: "CNY" },
+    scene_info: {
+      payer_client_ip: String(clientIp || "127.0.0.1"),
+      h5_info: { type: "Wap" }
+    }
+  });
+  const h5Url = String(payload.h5_url || "").trim();
+  if (!h5Url) throw createHttpError(502, "微信支付未返回 H5 支付地址。", "支付创建失败，请重试。");
+  commerceStore.markPaymentPrepared(intent.id, {
+    channel: "wechat_h5",
+    eventId: String(payload.prepay_id || `${intent.id}:h5:${Date.now()}`),
+    payload
+  });
+  return {
+    status: "ready",
+    channel: "wechat_h5",
+    prepayId: String(payload.prepay_id || ""),
+    h5Url: appendWechatH5ReturnUrl(h5Url, returnUrl)
+  };
+}
+
+async function createWechatNativePayment({ intent, description, config = assertWechatPaymentConfigured() }) {
+  if (!intent?.id || !intent?.outTradeNo) throw createHttpError(500, "支付单不存在。", "支付单创建失败，请重试。");
+  const payload = await callWechatPayApi("POST", "/v3/pay/transactions/native", {
+    appid: config.appId,
+    mchid: config.mchId,
+    description: String(description || "AI 小画订单").slice(0, 127),
+    out_trade_no: intent.outTradeNo,
+    time_expire: intent.expiresAt || undefined,
+    notify_url: config.notifyUrl,
+    amount: { total: intent.amountCents, currency: "CNY" }
+  });
+  const codeUrl = String(payload.code_url || "").trim();
+  if (!codeUrl) throw createHttpError(502, "微信支付未返回扫码支付地址。", "支付创建失败，请重试。");
+  commerceStore.markPaymentPrepared(intent.id, {
+    channel: "wechat_native",
+    eventId: String(payload.prepay_id || `${intent.id}:native:${Date.now()}`),
+    payload
+  });
+  return {
+    status: "ready",
+    channel: "wechat_native",
+    prepayId: String(payload.prepay_id || ""),
+    codeUrl
+  };
+}
+
 function normalizePhoneNumber(value) {
   return String(value || "").replace(/[^\d]/g, "");
 }
@@ -5291,6 +5971,8 @@ function toPublicOrder(order, options = {}) {
     expiresAt: safeOrder.expiresAt,
     paidAt: safeOrder.paidAt,
     shippedAt: safeOrder.shippedAt,
+    shippingCarrier: safeOrder.shippingCarrier,
+    shippingTrackingNo: safeOrder.shippingTrackingNo,
     completedAt: safeOrder.completedAt,
     cancelledAt: safeOrder.cancelledAt,
     createdAt: safeOrder.createdAt,
@@ -5467,7 +6149,9 @@ async function redeemInviteCode(req, code) {
   invite.redeemedByVisitorIds = invite.redeemedByVisitorIds.concat(req.visitorId);
   invite.updatedAt = new Date().toISOString();
   await saveInviteCodes(inviteCodes);
-  return upgradeVisitorByInvite(req, invite.quotaBonus);
+  const credits = normalizeInviteQuotaBonus(invite.quotaBonus);
+  await upgradeVisitorByInvite(req, credits);
+  return { credits };
 }
 
 async function upgradeVisitorByInvite(req, quotaBonus = VISITOR_INVITE_BONUS) {
@@ -5591,13 +6275,13 @@ function toPublicAdminSession(session) {
 }
 
 function assertVisitorOwnsSession(req, session, config = getPublicExperienceConfig(session?.experienceType)) {
-  if (session.ownerVisitorId !== req.visitorId) {
+  if (!accountOwnsVisitor(req.webAccount, session.ownerVisitorId)) {
     throw createHttpError(403, `无权访问该${config?.label || "公开"}记录。`);
   }
 }
 
 function assertCanToggleLike(req, job) {
-  if (job.visibility !== "public" || job.ownerVisitorId !== req.visitorId) {
+  if (job.visibility !== "public" || !accountOwnsVisitor(req.webAccount, job.ownerVisitorId)) {
     throw createHttpError(403, "无权操作该结果。");
   }
 }
@@ -5608,9 +6292,8 @@ function assertCanDownloadClipOriginal(req, job) {
   }
   if (
     job.visibility !== "public" ||
-    job.ownerVisitorId !== req.visitorId ||
-    job.status !== "succeeded" ||
-    !job.isLiked
+    !accountOwnsVisitor(req.webAccount, job.ownerVisitorId) ||
+    job.status !== "succeeded"
   ) {
     throw createHttpError(403, "无权下载该原图。");
   }
@@ -5863,6 +6546,8 @@ async function createDrawCardSession(file, visitor, options = {}) {
   const sessionId = randomUUID();
   const now = new Date().toISOString();
   const ownerVisitorId = String(visitor?.visitorId || "");
+  const ownerAccountId = String(options?.accountId || "");
+  if (!ownerAccountId) throw createHttpError(401, "缺少网页账户。", "请先完成微信授权。");
   const uploadedBytes = Number(file.size || file.buffer?.length || 0);
   const sharedReferenceFiles = [
     {
@@ -5944,6 +6629,7 @@ async function createDrawCardSession(file, visitor, options = {}) {
         },
         mode: referenceFiles.length ? "edit" : "generation",
         ownerVisitorId,
+        ownerAccountId,
         visibility: "public",
         telemetry: {
           traceId,
@@ -6015,6 +6701,7 @@ async function createDrawCardSession(file, visitor, options = {}) {
       traceId,
       experienceType: config.experienceType,
       ownerVisitorId,
+      ownerAccountId,
       status: "queued",
       message: config.waitingMessage,
       createdAt: now,
@@ -6254,7 +6941,7 @@ async function synchronizeDrawCardSession(session) {
       nextMessage = config.successMessage;
       completedAt = current.completedAt || new Date().toISOString();
       if (!quotaChargedAt && quotaChargedCount <= 0 && successCount > 0) {
-        const chargeStatus = await consumeVisitorQuotaForDrawCardSession(current.ownerVisitorId, current.sessionId, successCount);
+        const chargeStatus = chargeCommerceSessionCredits(current, successCount);
         quotaChargeStatus = chargeStatus;
         if (chargeStatus === "charged" || chargeStatus === "already_charged") {
           quotaChargedAt = new Date().toISOString();
@@ -6272,7 +6959,7 @@ async function synchronizeDrawCardSession(session) {
       nextMessage = config.partialMessage;
       completedAt = current.completedAt || new Date().toISOString();
       if (!quotaChargedAt && quotaChargedCount <= 0) {
-        const chargeStatus = await consumeVisitorQuotaForDrawCardSession(current.ownerVisitorId, current.sessionId, successCount);
+        const chargeStatus = chargeCommerceSessionCredits(current, successCount);
         quotaChargeStatus = chargeStatus;
         if (chargeStatus === "charged" || chargeStatus === "already_charged") {
           quotaChargedAt = new Date().toISOString();
@@ -6432,6 +7119,7 @@ function normalizeDrawCardSession(session) {
     traceId: String(session?.traceId || ""),
     experienceType: config.experienceType,
     ownerVisitorId: String(session?.ownerVisitorId || ""),
+    ownerAccountId: String(session?.ownerAccountId || ""),
     status: String(session?.status || "queued"),
     message: String(session?.message || config.waitingMessage),
     createdAt: session?.createdAt || null,
@@ -7242,6 +7930,36 @@ function getAdminSessionPath(sessionId) {
 
 function isSafeVisitorId(visitorId) {
   return /^[a-f0-9-]{36}$/i.test(String(visitorId || ""));
+}
+
+function chargeCommerceSessionCredits(session, successCount) {
+  const accountId = String(session?.ownerAccountId || "");
+  if (!accountId) {
+    throw createHttpError(409, "生成会话缺少账户归属。", "本次生成无法完成点数结算，请联系客服。");
+  }
+  commerceStore.debitCredits({
+    accountId,
+    amount: successCount,
+    referenceId: String(session?.sessionId || ""),
+    reason: "image_generation"
+  });
+  return "charged";
+}
+
+function assertWebAccountOwnsOrder(req, order) {
+  if (!order) throw createHttpError(404, "订单不存在。");
+  if (!req.webAccount || !order.accountId || order.accountId !== req.webAccount.id) {
+    throw createHttpError(403, "无权访问该订单。");
+  }
+}
+
+function accountOwnsVisitor(account, visitorId) {
+  if (!account?.id || !visitorId) return false;
+  return commerceStore.listVisitorIds(account.id).includes(String(visitorId));
+}
+
+function isSafeAccountId(accountId) {
+  return /^[a-f0-9-]{36}$/i.test(String(accountId || ""));
 }
 
 function isSafeAdminSessionId(sessionId) {

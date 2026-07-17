@@ -7,6 +7,57 @@
   text-rendering: optimizeLegibility;
 }
 
+.credit-pack-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.credit-pack-button {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 12px;
+  padding: 10px;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+  text-align: left;
+}
+
+.credit-pack-button:hover:not(:disabled) {
+  border-color: var(--accent, #ff9a5b);
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.credit-pack-button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.credit-pack-button strong {
+  font-size: 14px;
+}
+
+.credit-pack-button span,
+.credit-pack-button small {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.credit-pack-button em {
+  position: absolute;
+  top: -8px;
+  right: 8px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--accent, #ff9a5b);
+  color: #23160e;
+  font-size: 11px;
+  font-style: normal;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -1217,6 +1268,29 @@ body {
   line-height: 1.4;
 }
 
+.order-detail-items {
+  grid-template-columns: repeat(auto-fill, 150px);
+  justify-content: start;
+}
+
+.order-detail-items .draw-card-order-item {
+  width: 150px;
+  color: #25413c;
+}
+
+.order-detail-items .draw-card-order-item img,
+.order-detail-items .draw-card-order-item-placeholder {
+  width: 128px;
+  height: 128px;
+  margin: 0 auto;
+  object-fit: cover;
+}
+
+.order-detail-items .draw-card-order-item strong,
+.order-detail-items .draw-card-order-item-note {
+  color: #25413c;
+}
+
 .draw-card-order-item-stepper {
   display: inline-flex;
   align-items: center;
@@ -1694,6 +1768,53 @@ button:disabled {
   text-decoration: none;
   text-transform: uppercase;
   transition: color 180ms ease, border-color 180ms ease, opacity 180ms ease;
+}
+
+button.draw-card-utility-link {
+  font: inherit;
+  cursor: pointer;
+}
+
+.auth-modal {
+  width: min(460px, 100%);
+  border-color: rgba(30, 51, 50, 0.14);
+  background: #ffffff;
+  color: #25413c;
+  box-shadow: 0 28px 90px rgba(18, 35, 34, 0.24);
+}
+
+.auth-modal .draw-card-kicker {
+  color: #8a6a3f;
+}
+
+.auth-modal .storage-note {
+  color: #60706d;
+}
+
+.auth-modal .draw-card-secondary {
+  border-color: rgba(43, 70, 67, 0.22);
+  color: #25413c;
+}
+
+.auth-modal .draw-card-secondary:hover {
+  border-color: rgba(43, 70, 67, 0.42);
+  background: rgba(43, 70, 67, 0.06);
+}
+
+.auth-code-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.auth-code-row input {
+  min-width: 0;
+  flex: 1;
+}
+
+.auth-code-row .secondary-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .draw-card-utility-link:hover {
@@ -2845,6 +2966,158 @@ textarea {
 .reference-order {
   display: grid;
   gap: 6px;
+}
+
+.draw-card-clip-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.draw-card-clip-order {
+  border: 1px solid rgba(255, 216, 149, 0.54);
+  border-radius: 999px;
+  background: rgba(255, 216, 149, 0.12);
+  color: #ffe2a3;
+  padding: 8px 11px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.draw-card-clip-order:hover {
+  background: rgba(255, 216, 149, 0.2);
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-panel {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-list {
+  display: flex;
+  gap: 10px;
+  min-height: 152px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 2px 10px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 196, 222, 0.36) transparent;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-list::-webkit-scrollbar {
+  width: auto;
+  height: 6px;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-thumbnail {
+  flex: 0 0 96px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(239, 225, 198, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-thumbnail:hover,
+.draw-card-shell.theme-draw-card .draw-card-clip-thumbnail:focus-visible {
+  border-color: rgba(255, 216, 149, 0.76);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-thumbnail img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+}
+
+.draw-card-clip-order-prominent {
+  width: 100%;
+  min-height: 52px;
+  justify-content: center;
+  gap: 8px;
+  border-color: rgba(255, 216, 149, 0.84);
+  background: linear-gradient(135deg, rgba(255, 216, 149, 0.3), rgba(255, 161, 150, 0.24));
+  color: #fff1c7;
+  font-size: 1rem;
+}
+
+.draw-card-clip-order-prominent:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.draw-card-clip-order-secondary {
+  border-color: rgba(239, 225, 198, 0.24);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(246, 239, 228, 0.9);
+}
+
+.draw-card-clip-order-secondary:hover {
+  border-color: rgba(239, 225, 198, 0.42);
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.draw-card-lightbox-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.checkout-order-items .draw-card-order-item {
+  grid-template-columns: auto 96px minmax(0, 1fr);
+}
+
+.checkout-order-items .draw-card-order-item.is-selected {
+  border-color: rgba(110, 162, 171, 0.86);
+  background: rgba(225, 242, 240, 0.45);
+}
+
+.checkout-order-items .draw-card-order-item,
+.checkout-order-items .draw-card-order-item strong,
+.checkout-order-items .draw-card-order-item-note,
+.checkout-order-items .checkout-item-select {
+  color: #25413c;
+}
+
+.checkout-item-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: start;
+  font-size: 13px;
+  color: #46615d;
+  cursor: pointer;
+}
+
+.checkout-item-select input {
+  inline-size: 16px;
+  block-size: 16px;
+  accent-color: #227485;
+}
+
+.native-payment-panel {
+  max-width: 380px;
+  text-align: center;
+}
+
+.native-payment-panel h2 {
+  margin: 10px 0 6px;
+}
+
+.native-payment-qr {
+  display: block;
+  inline-size: min(260px, 72vw);
+  block-size: auto;
+  margin: 20px auto 12px;
+  border-radius: 16px;
+  background: #fff;
 }
 
 .generated-preview img {

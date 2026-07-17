@@ -209,6 +209,7 @@ function createClientTraceId() {
 
 function readRoute() {
   const pathname = window.location.pathname;
+  if (pathname === "/draw/order") return "public-draw-checkout";
   if (pathname === "/fridge/orders") return "public-fridge-orders";
   if (pathname.startsWith("/fridge/orders/")) return "public-fridge-order";
   if (pathname === "/fridge") return "public-fridge";
@@ -216,6 +217,7 @@ function readRoute() {
   if (pathname === "/admin" || pathname === "/admin/") return "admin-gallery";
   if (pathname === "/admin/login") return "admin-login";
   if (pathname === "/admin/orders") return "admin-orders";
+  if (pathname === "/admin/users") return "admin-users";
   if (pathname === "/admin/merchants") return "admin-merchants";
   if (pathname === "/admin/styles") return "admin-gallery";
   if (pathname === "/admin/tasks") return "admin-tasks";
@@ -238,6 +240,7 @@ function App() {
   useEffect(() => {
     const titleByRoute = {
       "public-fridge": "冰箱贴工作室",
+      "public-draw-checkout": "选图定制",
       "public-fridge-order": "冰箱贴订单",
       "public-fridge-orders": "我的冰箱贴订单",
       "admin-api-providers": "API 配置"
@@ -249,11 +252,13 @@ function App() {
     const pathByRoute = {
       "public-draw": "/",
       "public-fridge": "/fridge",
+      "public-draw-checkout": "/draw/order",
       "public-fridge-orders": "/fridge/orders",
       "public-fridge-order": window.location.pathname,
       "admin-gallery": "/gallery",
       "admin-login": "/admin/login",
       "admin-orders": "/admin/orders",
+      "admin-users": "/admin/users",
       "admin-merchants": "/admin/merchants",
       "admin-tasks": "/admin/tasks",
       "admin-batch": "/admin/batch",
@@ -272,6 +277,9 @@ function App() {
   if (route === "public-fridge-order") {
     return <FridgeMagnetOrderPage />;
   }
+  if (route === "public-draw-checkout") {
+    return <DrawCardCheckoutPage />;
+  }
   if (route === "public-fridge-orders") {
     return <FridgeMagnetOrdersPage />;
   }
@@ -280,6 +288,127 @@ function App() {
   }
 
   return <AdminApp navigate={navigate} route={route} />;
+}
+
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <main className="app-shell">
+        <section className="workspace order-page">
+          <article className="draw-observability-card">
+            <p className="eyebrow">Page error</p>
+            <h2>页面加载失败</h2>
+            <p className="error-note">{this.state.error?.message || "发生了未知错误。"}</p>
+            <button className="draw-card-primary" onClick={() => window.location.assign("/fridge")} type="button">返回冰箱贴页</button>
+          </article>
+        </section>
+      </main>
+    );
+  }
+}
+
+function AuthModal({ onAuthenticated, onClose }) {
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [resendSeconds, setResendSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!resendSeconds) return undefined;
+    const timer = window.setInterval(() => setResendSeconds((current) => Math.max(0, current - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [resendSeconds]);
+
+  const needsCode = mode === "register" || mode === "reset";
+  const purpose = mode === "reset" ? "reset_password" : "register";
+
+  async function sendCode() {
+    setBusy(true);
+    setError("");
+    try {
+      const payload = await requestEmailCode(email, purpose);
+      setResendSeconds(Number(payload.resendAfterSeconds || 60));
+      setMessage("验证码已发送，请查收邮箱。");
+      if (payload.developmentCode) setMessage(`本地验证码：${payload.developmentCode}`);
+    } catch (nextError) {
+      setError(nextError.message || "验证码发送失败。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      if (mode === "login") {
+        const payload = await loginWithEmail(email, password);
+        onAuthenticated(payload.account);
+        return;
+      }
+      if (mode === "register") {
+        const payload = await registerWithEmail({ email, username, password, code });
+        onAuthenticated(payload.account);
+        return;
+      }
+      await resetPasswordWithEmail({ email, password, code });
+      setMode("login");
+      setMessage("密码已更新，请使用新密码登录。");
+    } catch (nextError) {
+      setError(nextError.message || "操作失败，请稍后重试。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop draw-card-confirm" onClick={onClose} role="presentation">
+      <section className="draw-card-confirm-panel auth-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="账户登录与注册">
+        <button className="icon-button" onClick={onClose} type="button" aria-label="关闭账户弹窗"><X size={18} /></button>
+        <p className="draw-card-kicker">Account</p>
+        <h2>{mode === "login" ? "登录" : mode === "register" ? "注册账户" : "找回密码"}</h2>
+        <p className="storage-note">访客可继续生图和加入卡夹；提交定制订单前需要完成邮箱注册。</p>
+        <form className="draw-card-order-form" onSubmit={submit}>
+          <label className="field-label">邮箱<input autoComplete="email" onChange={(event) => setEmail(event.target.value)} type="email" value={email} /></label>
+          {mode === "register" ? <label className="field-label">用户名<input autoComplete="username" maxLength="32" onChange={(event) => setUsername(event.target.value)} type="text" value={username} /></label> : null}
+          <label className="field-label">{mode === "reset" ? "新密码" : "密码"}<input autoComplete={mode === "login" ? "current-password" : "new-password"} minLength="8" onChange={(event) => setPassword(event.target.value)} type="password" value={password} /></label>
+          {needsCode ? (
+            <label className="field-label">邮箱验证码
+              <span className="auth-code-row"><input inputMode="numeric" maxLength="6" onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} value={code} /><button className="secondary-button" disabled={busy || resendSeconds > 0} onClick={sendCode} type="button">{resendSeconds ? `${resendSeconds}s 后重发` : "获取验证码"}</button></span>
+            </label>
+          ) : null}
+          {error ? <p className="error-note">{error}</p> : null}
+          {message ? <p className="success-note">{message}</p> : null}
+          <div className="draw-card-confirm-actions">
+            {mode === "login" ? (
+              <>
+                <button className="draw-card-secondary" onClick={() => { setMode("reset"); setError(""); }} type="button">忘记密码</button>
+                <button className="draw-card-secondary" onClick={() => { setMode("register"); setError(""); }} type="button">注册</button>
+              </>
+            ) : <button className="draw-card-secondary" onClick={() => { setMode("login"); setError(""); }} type="button">返回登录</button>}
+            <button className="draw-card-primary" disabled={busy} type="submit">{busy ? "处理中" : mode === "login" ? "登录" : mode === "register" ? "注册并继续" : "重设密码"}</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
 }
 
 function AdminApp({ navigate, route }) {
@@ -524,6 +653,10 @@ function AdminApp({ navigate, route }) {
               <Clipboard size={18} />
               <span>订单管理</span>
             </button>
+            <button className="nav-button" onClick={() => navigate("admin-users")} type="button">
+              <Eye size={18} />
+              <span>用户管理</span>
+            </button>
             <button className="nav-button" onClick={() => navigate("admin-merchants")} type="button">
               <QrCode size={18} />
               <span>合作商户</span>
@@ -588,6 +721,8 @@ function AdminApp({ navigate, route }) {
             allMerchants={merchants}
             onRefreshAllMerchants={() => refreshAdminMerchants({ page: 1, limit: 500 }).then((payload) => setMerchants(payload.merchants || []))}
           />
+        ) : route === "admin-users" ? (
+          <UserAdminPage />
         ) : route === "admin-batch" ? (
           <BatchGeneratePage
             groups={styleGroups}
@@ -723,9 +858,9 @@ function FridgeMagnetOrdersPage() {
             <h2>我的订单</h2>
             <p className="storage-note">查看你提交过的冰箱贴订单与订单状态。</p>
           </div>
-          <button className="secondary-button" onClick={() => window.location.assign("/fridge")} type="button">
+          <button className="secondary-button" onClick={() => window.location.assign("/")} type="button">
             <Home size={18} />
-            <span>返回冰箱贴页</span>
+            <span>返回抽卡页</span>
           </button>
         </div>
         {isLoading ? <p className="storage-note">正在读取订单列表…</p> : null}
@@ -770,6 +905,241 @@ function FridgeMagnetOrdersPage() {
   );
 }
 
+function DrawCardCheckoutPage() {
+  const [clipItems, setClipItems] = useState([]);
+  const [orderConfig, setOrderConfig] = useState(null);
+  const [selectedJobIds, setSelectedJobIds] = useState([]);
+  const [quantities, setQuantities] = useState({});
+  const [orderForm, setOrderForm] = useState(DEFAULT_ORDER_ADDRESS);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [nativePayment, setNativePayment] = useState(null);
+  const [account, setAccount] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const pendingCheckoutRef = useRef(false);
+
+  useEffect(() => {
+    let isActive = true;
+    Promise.all([fetchPublicClipItems("draw-card"), fetchOrderConfig(), fetchCurrentAccount()])
+      .then(([clipPayload, config, accountPayload]) => {
+        if (!isActive) return;
+        const items = Array.isArray(clipPayload?.items) ? clipPayload.items : [];
+        setClipItems(items);
+        setOrderConfig(config || null);
+        setAccount(accountPayload?.account || null);
+        setQuantities((current) => syncOrderQuantitiesWithClipItems(current, items));
+        setError("");
+      })
+      .catch((nextError) => {
+        if (isActive) setError(nextError.message || "读取卡夹失败，请稍后再试。");
+      })
+      .finally(() => {
+        if (isActive) setIsLoading(false);
+      });
+    return () => { isActive = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!nativePayment?.order?.id) return undefined;
+    let isActive = true;
+    const poll = async () => {
+      try {
+        const payload = await fetchOrderDetail(nativePayment.order.id, nativePayment.order.publicToken);
+        if (!isActive) return;
+        if (payload.order?.paymentStatus === "paid") {
+          window.location.assign(buildOrderDetailUrl(nativePayment.order.id, nativePayment.order.publicToken));
+        }
+      } catch {}
+    };
+    const timer = window.setInterval(poll, 2500);
+    void poll();
+    return () => {
+      isActive = false;
+      window.clearInterval(timer);
+    };
+  }, [nativePayment]);
+
+  useEffect(() => {
+    if (!account?.isRegistered || !pendingCheckoutRef.current) return;
+    pendingCheckoutRef.current = false;
+    void handleSubmit();
+  }, [account?.isRegistered]);
+
+  const selectedItems = useMemo(
+    () => clipItems.filter((item) => selectedJobIds.includes(item.jobId)),
+    [clipItems, selectedJobIds]
+  );
+  const totalItemCount = getTotalOrderItemCount(selectedItems, quantities);
+  const amountPreview = calculateClientOrderAmount(totalItemCount, orderConfig);
+
+  function toggleSelectedItem(jobId) {
+    setSelectedJobIds((current) => current.includes(jobId)
+      ? current.filter((item) => item !== jobId)
+      : current.concat(jobId));
+  }
+
+  function updateQuantity(jobId, nextQuantity) {
+    setQuantities((current) => ({ ...current, [jobId]: clampOrderItemQuantity(nextQuantity) }));
+  }
+
+  async function continuePayment(order) {
+    const payload = await payOrderRequest(order.id, {});
+    const payment = payload.payment || {};
+    if (["already_paid", "simulated_paid"].includes(payment.status)) {
+      window.location.assign(buildOrderDetailUrl(order.id, order.publicToken));
+      return;
+    }
+    if (payment.authorizationUrl) {
+      window.location.assign(payment.authorizationUrl);
+      return;
+    }
+    if (payment.h5Url) {
+      window.location.assign(payment.h5Url);
+      return;
+    }
+    if (payment.codeUrl) {
+      setNativePayment({ order, codeUrl: payment.codeUrl });
+      return;
+    }
+    if (payment.jsapi) {
+      await invokeWechatJsapiPayment(payment.jsapi);
+      window.location.assign(buildOrderDetailUrl(order.id, order.publicToken));
+      return;
+    }
+    throw new Error("支付参数创建失败，请稍后重试。");
+  }
+
+  async function handleSubmit() {
+    if (!selectedItems.length || !totalItemCount || isSubmitting) return;
+    if (!account?.isRegistered) {
+      pendingCheckoutRef.current = true;
+      setShowAuthModal(true);
+      return;
+    }
+    setIsSubmitting(true);
+    setError("");
+    try {
+      const created = await createOrderRequest({
+        experienceType: "draw-card",
+        items: selectedItems.map((item) => ({
+          jobId: item.jobId,
+          quantity: getOrderItemQuantity(quantities, item.jobId)
+        })),
+        ...orderForm
+      });
+      await continuePayment(created.order);
+    } catch (nextError) {
+      setError(nextError.message || "创建订单失败，请稍后再试。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="app-shell">
+      <section className="workspace order-page">
+        <div className="task-toolbar">
+          <div>
+            <p className="eyebrow">Custom magnets</p>
+            <h2>选图定制</h2>
+            <p className="storage-note">勾选卡夹中要制作的图片，并分别设置每张的制作数量。</p>
+          </div>
+          <button className="secondary-button" onClick={() => window.location.assign("/")} type="button">
+            <ArrowLeft size={18} />
+            <span>返回卡夹</span>
+          </button>
+        </div>
+        {isLoading ? <p className="storage-note">正在读取卡夹…</p> : null}
+        {error ? <p className="error-note">{error}</p> : null}
+        {!isLoading && !clipItems.length ? (
+          <article className="draw-observability-card">
+            <p>卡夹里还没有可定制的抽卡图片。</p>
+            <button className="draw-card-primary" onClick={() => window.location.assign("/")} type="button">去抽卡</button>
+          </article>
+        ) : null}
+        {clipItems.length ? (
+          <>
+            <section className="draw-observability-card">
+              <h3>选择图片</h3>
+              <div className="draw-card-order-items checkout-order-items">
+                {clipItems.map((item, index) => {
+                  const selected = selectedJobIds.includes(item.jobId);
+                  const quantity = getOrderItemQuantity(quantities, item.jobId);
+                  return (
+                    <article className={`draw-card-order-item ${selected ? "is-selected" : ""}`} key={`${item.jobId}-${index}`}>
+                      <label className="checkout-item-select">
+                        <input checked={selected} onChange={() => toggleSelectedItem(item.jobId)} type="checkbox" />
+                        <span>选择此图</span>
+                      </label>
+                      <OrderItemPreview alt={item.styleName || `冰箱贴 ${index + 1}`} note="图片准备中" src={item.thumbnailUrl || item.imageUrl} title={item.styleName || `冰箱贴 ${index + 1}`} />
+                      <div className="draw-card-order-item-copy">
+                        <div className="draw-card-order-item-head">
+                          <strong>{item.styleName || `冰箱贴 ${index + 1}`}</strong>
+                          {selected ? <span className="draw-card-order-item-note">小计 {formatCurrencyCents(amountPreview.unitPriceCents * quantity)}</span> : null}
+                        </div>
+                        {selected ? (
+                          <div className="draw-card-order-item-stepper">
+                            <button disabled={quantity <= 1} onClick={() => updateQuantity(item.jobId, quantity - 1)} type="button">-</button>
+                            <span>{quantity}</span>
+                            <button disabled={quantity >= MAX_ORDER_ITEM_QUANTITY} onClick={() => updateQuantity(item.jobId, quantity + 1)} type="button">+</button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+            <section className="draw-observability-card">
+              <h3>订单信息</h3>
+              <div className="draw-card-order-summary">
+                <p>已选 {selectedItems.length} 款，共 {totalItemCount} 枚</p>
+                <p>单价 {formatCurrencyCents(amountPreview.unitPriceCents)} / 枚</p>
+                <p>邮费 {amountPreview.shippingFeeCents > 0 ? formatCurrencyCents(amountPreview.shippingFeeCents) : "包邮"}</p>
+                <strong>合计 {formatCurrencyCents(amountPreview.totalCents)}</strong>
+                <span className="storage-note">每支付成功 1 枚冰箱贴，赠送 10 点。</span>
+              </div>
+              <div className="draw-card-order-form">
+                <label className="field-label">收件人<input onChange={(event) => setOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={orderForm.receiverName} /></label>
+                <label className="field-label">手机号<input onChange={(event) => setOrderForm((current) => ({ ...current, receiverPhone: event.target.value }))} type="tel" value={orderForm.receiverPhone} /></label>
+                <label className="field-label">收货地址<input onChange={(event) => setOrderForm((current) => ({ ...current, address: event.target.value }))} type="text" value={orderForm.address} /></label>
+                <label className="field-label">备注<textarea onChange={(event) => setOrderForm((current) => ({ ...current, remark: event.target.value }))} rows="3" value={orderForm.remark} /></label>
+              </div>
+              <div className="card-actions">
+                <button className="draw-card-primary" disabled={!orderConfig?.enabled || !selectedItems.length || !totalItemCount || isSubmitting} onClick={handleSubmit} type="button">
+                  {isSubmitting ? <LoaderCircle className="spin" size={18} /> : null}
+                  <span>{isSubmitting ? "创建订单中" : "提交订单并支付"}</span>
+                </button>
+              </div>
+            </section>
+          </>
+        ) : null}
+      </section>
+      {nativePayment ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => setNativePayment(null)} role="presentation">
+          <section className="draw-card-confirm-panel native-payment-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="微信扫码支付">
+            <button className="icon-button" onClick={() => setNativePayment(null)} type="button" aria-label="关闭扫码支付"><X size={18} /></button>
+            <h2>请用微信扫码付款</h2>
+            <p>付款成功后，本页面会自动更新订单状态。</p>
+            <img alt="微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(nativePayment.codeUrl, { margin: 2 })} />
+            <p className="storage-note">订单号：{nativePayment.order.orderNo}</p>
+          </section>
+        </div>
+      ) : null}
+      {showAuthModal ? (
+        <AuthModal
+          onAuthenticated={(nextAccount) => {
+            setAccount(nextAccount);
+            setShowAuthModal(false);
+          }}
+          onClose={() => { pendingCheckoutRef.current = false; setShowAuthModal(false); }}
+        />
+      ) : null}
+    </main>
+  );
+}
+
 function FridgeMagnetOrderPage() {
   const orderId = String(window.location.pathname.split("/").filter(Boolean).pop() || "");
   const searchParams = new URLSearchParams(window.location.search);
@@ -783,6 +1153,8 @@ function FridgeMagnetOrderPage() {
   const [orderCopied, setOrderCopied] = useState(false);
   const [messageCopied, setMessageCopied] = useState(false);
   const [paymentCardUrl, setPaymentCardUrl] = useState("");
+  const [nativePayment, setNativePayment] = useState(null);
+  const [isPaying, setIsPaying] = useState(false);
   const contactCopiedTimeoutRef = useRef(null);
   const orderCopiedTimeoutRef = useRef(null);
   const messageCopiedTimeoutRef = useRef(null);
@@ -819,13 +1191,9 @@ function FridgeMagnetOrderPage() {
   }, [orderId, token]);
 
   useEffect(() => {
-    if (!wechatCode || !token || !isWechatBrowserClient() || !orderConfig || orderConfig.paymentMode !== "wechat") return undefined;
+    if (!wechatCode || !isWechatBrowserClient()) return undefined;
     let isActive = true;
-    payOrderRequest(orderId, {
-      channel: "wechat_jsapi",
-      token,
-      wechatCode
-    })
+    payOrderRequest(orderId, { wechatCode })
       .then((payload) => {
         if (!isActive) return;
         if (payload.payment?.jsapi && window.WeixinJSBridge) {
@@ -842,7 +1210,26 @@ function FridgeMagnetOrderPage() {
     return () => {
       isActive = false;
     };
-  }, [orderConfig, orderId, token, wechatCode]);
+  }, [orderId, wechatCode]);
+
+  useEffect(() => {
+    if (!nativePayment?.codeUrl || !order?.id) return undefined;
+    let isActive = true;
+    const poll = async () => {
+      try {
+        const payload = await fetchOrderDetail(order.id, token);
+        if (!isActive) return;
+        setOrder(payload.order || null);
+        if (payload.order?.paymentStatus === "paid") setNativePayment(null);
+      } catch {}
+    };
+    const timer = window.setInterval(poll, 2500);
+    void poll();
+    return () => {
+      isActive = false;
+      window.clearInterval(timer);
+    };
+  }, [nativePayment, order?.id, token]);
 
   async function handleCopyContactWeChat() {
     await copyText(getContactWechatId(orderConfig));
@@ -872,6 +1259,39 @@ function FridgeMagnetOrderPage() {
     setPaymentCardUrl(await buildManualPaymentCard(order, orderConfig));
   }
 
+  async function continuePayment() {
+    if (!order || isPaying) return;
+    setIsPaying(true);
+    setError("");
+    try {
+      const payload = await payOrderRequest(order.id, {});
+      const payment = payload.payment || {};
+      if (payment.authorizationUrl) {
+        window.location.assign(payment.authorizationUrl);
+        return;
+      }
+      if (payment.h5Url) {
+        window.location.assign(payment.h5Url);
+        return;
+      }
+      if (payment.codeUrl) {
+        setNativePayment({ codeUrl: payment.codeUrl });
+        return;
+      }
+      if (payment.jsapi) {
+        await invokeWechatJsapiPayment(payment.jsapi);
+        const refreshed = await fetchOrderDetail(order.id, token);
+        setOrder(refreshed.order || null);
+        return;
+      }
+      if (!["already_paid", "simulated_paid"].includes(payment.status)) throw new Error("支付参数创建失败，请稍后重试。");
+    } catch (nextError) {
+      setError(nextError.message || "继续支付失败，请稍后重试。");
+    } finally {
+      setIsPaying(false);
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="workspace order-page">
@@ -881,15 +1301,29 @@ function FridgeMagnetOrderPage() {
             <h2>订单详情</h2>
             <p className="storage-note">可在这里查看订单状态、收货信息和下单图片。</p>
           </div>
-          <button className="secondary-button" onClick={() => window.location.assign("/fridge")} type="button">
+          <button className="secondary-button" onClick={() => window.location.assign("/fridge/orders")} type="button">
             <Home size={18} />
-            <span>返回冰箱贴页</span>
+            <span>返回我的订单</span>
           </button>
         </div>
         {isLoading ? <p className="storage-note">正在读取订单…</p> : null}
         {error ? <p className="error-note">{error}</p> : null}
         {order ? (
           <section className="task-page">
+            {order.orderStatus === "pending_payment" ? (
+              <article className="draw-observability-card">
+                <div className="draw-observability-head">
+                  <div className="draw-observability-main">
+                    <div className="task-meta-row"><strong>订单待付款</strong><span className="task-status queued">待付款</span></div>
+                    <p className="storage-note">微信内将调起支付，手机外部浏览器将跳转 H5 支付，电脑端请微信扫码支付。</p>
+                  </div>
+                </div>
+                <button className="draw-card-primary" disabled={isPaying} onClick={continuePayment} type="button">
+                  {isPaying ? <LoaderCircle className="spin" size={18} /> : null}
+                  <span>{isPaying ? "正在发起支付" : "继续付款"}</span>
+                </button>
+              </article>
+            ) : null}
             {order.orderStatus === "pending_payment" && isManualPaymentOrder(order, orderConfig) ? (
               <article className="draw-observability-card manual-payment-guide">
                 <div className="draw-observability-head">
@@ -969,9 +1403,16 @@ function FridgeMagnetOrderPage() {
               {order.remark ? <p className="storage-note">备注：{order.remark}</p> : null}
             </article>
 
+            {order.shippingTrackingNo ? (
+              <article className="draw-observability-card">
+                <h3>物流信息</h3>
+                <p className="storage-note">{order.shippingCarrier || "快递"} · {order.shippingTrackingNo}</p>
+              </article>
+            ) : null}
+
             <article className="draw-observability-card">
               <h3>下单图片</h3>
-              <div className="draw-card-order-items">
+              <div className="draw-card-order-items order-detail-items">
                 {order.items.map((item, index) => (
                   <article className="draw-card-order-item" key={`${item.jobId}-${index}`}>
                     <OrderItemPreview alt={item.styleName || `冰箱贴 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
@@ -995,6 +1436,16 @@ function FridgeMagnetOrderPage() {
               <p className="draw-card-contact-note">建议先保存到相册，再去添加客服，避免返回后找不到订单。</p>
             </div>
             <img alt="人工订单卡片" className="draw-card-payment-card-image" src={paymentCardUrl} />
+          </section>
+        </div>
+      ) : null}
+      {nativePayment ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => setNativePayment(null)} role="presentation">
+          <section className="draw-card-confirm-panel native-payment-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="微信扫码支付">
+            <button className="icon-button" onClick={() => setNativePayment(null)} type="button" aria-label="关闭扫码支付"><X size={18} /></button>
+            <h2>请用微信扫码付款</h2>
+            <p>付款成功后，本页面会自动更新订单状态。</p>
+            <img alt="微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(nativePayment.codeUrl, { margin: 2 })} />
           </section>
         </div>
       ) : null}
@@ -1058,6 +1509,7 @@ function PublicExperiencePage({ config }) {
   const [activeResultIndex, setActiveResultIndex] = useState(-1);
   const [activeClipPreview, setActiveClipPreview] = useState(null);
   const [originalPreview, setOriginalPreview] = useState(null);
+  const [showOriginalUnlockPrompt, setShowOriginalUnlockPrompt] = useState(false);
   const [originalPreviewLoadingJobId, setOriginalPreviewLoadingJobId] = useState("");
   const [pendingRemoval, setPendingRemoval] = useState(null);
   const [flyingCard, setFlyingCard] = useState(null);
@@ -1068,6 +1520,7 @@ function PublicExperiencePage({ config }) {
   const [inviteCode, setInviteCode] = useState("");
   const [showContactModal, setShowContactModal] = useState(false);
   const [showDrawConfigModal, setShowDrawConfigModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [contactCopied, setContactCopied] = useState(false);
   const [orderConfig, setOrderConfig] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -1241,6 +1694,12 @@ function PublicExperiencePage({ config }) {
 
   function refreshVisitorStateSilently() {
     fetchVisitorState().then(setVisitorState).catch(() => {});
+  }
+
+  function redirectToWechatAuthorization(authorizationUrl) {
+    if (!authorizationUrl) return false;
+    window.location.assign(authorizationUrl);
+    return true;
   }
 
   async function openStylePicker() {
@@ -1706,6 +2165,11 @@ function PublicExperiencePage({ config }) {
 
       const latestVisitorState = await fetchVisitorState();
       setVisitorState(latestVisitorState);
+      if (!latestVisitorState?.authenticated) {
+        if (redirectToWechatAuthorization(latestVisitorState?.authorizationUrl)) return;
+        setError("请在微信内打开网页并完成授权后再开始制作。");
+        return;
+      }
       if (!latestVisitorState?.canGenerate) {
         setError(latestVisitorState?.contactMessage || clipContactFallback);
         if (requestedStyleIds.length) setStylePickerError(latestVisitorState?.contactMessage || clipContactFallback);
@@ -1866,8 +2330,18 @@ function PublicExperiencePage({ config }) {
       setVisitorState(latestVisitorState);
     } catch {}
 
-    if (latestVisitorState?.tier !== "invited") {
-      setShowContactModal(true);
+    if (!latestVisitorState?.authenticated) {
+      if (!redirectToWechatAuthorization(latestVisitorState?.authorizationUrl)) {
+        setError("请在微信内完成授权后再下载原图。");
+      }
+      return;
+    }
+    if (!latestVisitorState?.account?.originalDownloadsUnlocked) {
+      if (experienceType === "draw-card") {
+        setShowOriginalUnlockPrompt(true);
+      } else {
+        setError("完成任意一次消费后，即可永久下载全部原图。");
+      }
       return;
     }
 
@@ -1940,42 +2414,13 @@ function PublicExperiencePage({ config }) {
         })),
         ...orderForm
       });
-      if (created.payment?.mode === "manual" || orderConfig?.paymentMode === "manual") {
-        setShowOrderModal(false);
-        setManualPaymentOrder(created);
-        persistLatestManualOrder(created.order, created.order.publicToken);
-        setLatestManualOrder(readLatestManualOrder());
-        setOrderForm(DEFAULT_ORDER_ADDRESS);
-        return;
+      const payResult = await payOrderRequest(created.order.id, {});
+      if (!payResult.payment?.jsapi) throw new Error("微信支付参数创建失败，请重试。");
+      try {
+        await invokeWechatJsapiPayment(payResult.payment.jsapi);
+      } catch (paymentError) {
+        setOrderError(paymentError.message || "支付未完成，可在订单页继续支付。");
       }
-      const payResult = await payOrderRequest(created.order.id, {
-        channel: isWechatBrowserClient() ? "wechat_jsapi" : "wechat_h5",
-        token: created.order.publicToken
-      });
-
-      if (payResult.payment?.status === "oauth_required" && payResult.payment?.oauthUrl) {
-        window.location.href = payResult.payment.oauthUrl;
-        return;
-      }
-      if (payResult.payment?.channel === "wechat_h5" && payResult.payment?.h5Url) {
-        const redirectUrl = `${payResult.payment.h5Url}${payResult.payment.h5Url.includes("?") ? "&" : "?"}redirect_url=${encodeURIComponent(payResult.payment.returnUrl)}`;
-        window.location.href = redirectUrl;
-        return;
-      }
-      if (payResult.payment?.channel === "wechat_jsapi" && window.WeixinJSBridge && payResult.payment?.jsapi) {
-        const jsapi = payResult.payment.jsapi;
-        window.WeixinJSBridge.invoke("getBrandWCPayRequest", jsapi, (response) => {
-          const errMsg = String(response?.err_msg || "");
-          if (errMsg.includes("ok")) {
-            window.location.href = payResult.payment.returnUrl;
-            return;
-          }
-          setOrderError("支付未完成，请稍后到订单页继续查看。");
-          window.location.href = payResult.payment.returnUrl;
-        });
-        return;
-      }
-
       goToOrderDetail(created.order.id, created.order.publicToken);
     } catch (nextError) {
       setOrderError(nextError.message || "下单失败，请稍后再试。");
@@ -2014,12 +2459,25 @@ function PublicExperiencePage({ config }) {
             <p className="draw-card-kicker">{clipKicker}</p>
             <h3>{clipTitle}</h3>
           </div>
-          <span className="draw-card-clip-count">{clipItems.length}</span>
+          <div className="draw-card-clip-head-actions">
+            <span className="draw-card-clip-count">{clipItems.length}</span>
+          </div>
         </div>
 
         {clipItems.length ? (
           <div className="draw-card-clip-list">
-            {clipItems.map((item, index) => (
+            {clipItems.map((item, index) => experienceType === "draw-card" ? (
+              <button
+                aria-label={`放大查看 ${item.styleName || `${clipItemFallback} ${index + 1}`}`}
+                className="draw-card-clip-thumbnail"
+                key={`clip-${item.jobId}-${index}`}
+                onClick={() => openClipPreview(item.jobId)}
+                title={item.styleName || `${clipItemFallback} ${index + 1}`}
+                type="button"
+              >
+                <img alt={item.styleName || `${clipItemFallback} ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
+              </button>
+            ) : (
               <article className="draw-card-clip-item" key={`clip-${item.jobId}-${index}`}>
                 <button className="draw-card-clip-preview" onClick={() => openClipPreview(item.jobId)} type="button">
                   <img alt={item.styleName || `${clipItemFallback} ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
@@ -2031,7 +2489,7 @@ function PublicExperiencePage({ config }) {
                       {pocketRemoveLabel}
                     </button>
                     <button className="draw-card-clip-download" disabled={originalPreviewLoadingJobId === item.jobId} onClick={() => handleDownloadClipOriginal(item)} type="button">
-                      {originalPreviewLoadingJobId === item.jobId ? "加载中" : "下载原图"}
+                      {originalPreviewLoadingJobId === item.jobId ? "加载中" : visitorState?.account?.originalDownloadsUnlocked ? "下载原图" : "消费后解锁原图"}
                     </button>
                   </div>
                 </div>
@@ -2045,8 +2503,24 @@ function PublicExperiencePage({ config }) {
           </div>
         )}
 
+        {experienceType === "draw-card" ? (
+          <>
+            <button className="draw-card-clip-order draw-card-clip-order-prominent" disabled={!clipItems.length || !orderConfig?.enabled} onClick={() => window.location.assign("/draw/order")} type="button">
+              <Sparkles size={18} />
+              <span>{orderConfig?.enabled ? "选图定制" : "定制暂未开放"}</span>
+            </button>
+            {visitorState?.account?.isRegistered ? (
+              <button className="draw-card-clip-order draw-card-clip-order-prominent draw-card-clip-order-secondary" onClick={() => window.location.assign("/fridge/orders")} type="button">
+                <Clipboard size={18} />
+                <span>我的订单</span>
+              </button>
+            ) : null}
+          </>
+        ) : null}
+
         <div className="draw-card-clip-empty">
           <p>剩余点数：{visitorState ? `${visitorState.quotaRemaining}` : "--"}</p>
+          <p>{visitorState?.account?.originalDownloadsUnlocked ? "原图已永久解锁" : experienceType === "draw-card" ? "定制订单支付成功后即可解锁全部原图" : "任意消费后永久解锁全部原图"}</p>
           {visitorState?.sourceMerchantName ? <p>来源商户：{visitorState.sourceMerchantName}</p> : null}
           <input className="field-inline-input" onChange={(event) => setInviteCode(event.target.value)} placeholder={clipInvitePlaceholder} value={inviteCode} />
           <div className="draw-card-clip-actions">
@@ -2098,6 +2572,24 @@ function PublicExperiencePage({ config }) {
         <a className="draw-card-utility-link" href="/admin" aria-label="进入后台管理">
           后台入口
         </a>
+        {experienceType === "draw-card" && visitorState?.account?.isRegistered ? (
+          <>
+            <button
+              className="draw-card-utility-link"
+              onClick={async () => {
+                await logoutCurrentAccount().catch(() => {});
+                const payload = await fetchVisitorState().catch(() => null);
+                setVisitorState(payload);
+                setClipItems([]);
+              }}
+              type="button"
+            >
+              {visitorState.account.username || "已登录"} · 退出
+            </button>
+          </>
+        ) : experienceType === "draw-card" ? (
+          <button className="draw-card-utility-link" onClick={() => setShowAuthModal(true)} type="button">登录 / 注册</button>
+        ) : null}
       </div>
 
       {(phase === "idle" || phase === "ready") && (
@@ -2321,10 +2813,16 @@ function PublicExperiencePage({ config }) {
                       <div className="draw-card-result-meta">
                         <span>{item.styleName || `${resultNameFallback} ${index + 1}`}</span>
                         {isSucceeded ? (
-                          <button className={`draw-card-save-button ${result.isLiked ? "is-liked" : ""}`} disabled={Boolean(result.isLiked)} onClick={() => addToClip(result)} type="button">
-                            {result.isLiked ? <Check size={16} /> : <Sparkles size={16} />}
-                            <span>{result.isLiked ? pocketAddedLabel : pocketAddLabel}</span>
-                          </button>
+                          <>
+                            <button className={`draw-card-save-button ${result.isLiked ? "is-liked" : ""}`} disabled={Boolean(result.isLiked)} onClick={() => addToClip(result)} type="button">
+                              {result.isLiked ? <Check size={16} /> : <Sparkles size={16} />}
+                              <span>{result.isLiked ? pocketAddedLabel : pocketAddLabel}</span>
+                            </button>
+                            <button className="draw-card-save-button" onClick={() => handleDownloadClipOriginal(result)} type="button">
+                              <Download size={16} />
+                              <span>{experienceType === "draw-card" || visitorState?.account?.originalDownloadsUnlocked ? "下载原图" : "消费后解锁"}</span>
+                            </button>
+                          </>
                         ) : (
                           <span className={`task-status ${item.status}`}>{statusLabel(item.status)}</span>
                         )}
@@ -2368,9 +2866,20 @@ function PublicExperiencePage({ config }) {
             <div className="draw-card-lightbox-meta">
               <span>{activeResult.styleName || resultNameFallback}</span>
               {activeResult.isLiked ? (
-                <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(activeResult)} type="button">
-                  {pocketRemoveLabel}
-                </button>
+                experienceType === "draw-card" ? (
+                  <div className="draw-card-lightbox-actions">
+                    <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(activeResult)} type="button">
+                      {pocketRemoveLabel}
+                    </button>
+                    <button className="draw-card-clip-download" disabled={originalPreviewLoadingJobId === activeResult.jobId} onClick={() => handleDownloadClipOriginal(activeResult)} type="button">
+                      {originalPreviewLoadingJobId === activeResult.jobId ? "加载中" : "下载原图"}
+                    </button>
+                  </div>
+                ) : (
+                  <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(activeResult)} type="button">
+                    {pocketRemoveLabel}
+                  </button>
+                )
               ) : (
                 <button className="draw-card-save-button" onClick={() => addToClip(activeResult)} type="button">
                   <Sparkles size={16} />
@@ -2529,6 +3038,29 @@ function PublicExperiencePage({ config }) {
             </div>
           </section>
         </div>
+      ) : null}
+      {showOriginalUnlockPrompt ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => setShowOriginalUnlockPrompt(false)} role="presentation">
+          <section className="draw-card-confirm-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="解锁原图">
+            <p className="draw-card-kicker">Original images</p>
+            <h2>下载原图</h2>
+            <p className="storage-note">定制订单支付成功后，卡夹中的全部原图都会永久解锁下载。</p>
+            <div className="draw-card-confirm-actions">
+              <button className="draw-card-secondary" onClick={() => setShowOriginalUnlockPrompt(false)} type="button">暂不定制</button>
+              <button className="draw-card-primary" onClick={() => window.location.assign("/draw/order")} type="button">选图定制</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {showAuthModal ? (
+        <AuthModal
+          onAuthenticated={(account) => {
+            setShowAuthModal(false);
+            setVisitorState((current) => current ? { ...current, authenticated: true, account } : current);
+          }}
+          onClose={() => setShowAuthModal(false)}
+        />
       ) : null}
 
       {showOrderModal ? (
@@ -4479,6 +5011,30 @@ async function fetchVisitorState() {
   return payload;
 }
 
+function invokeWechatJsapiPayment(params) {
+  return new Promise((resolve, reject) => {
+    const invoke = () => {
+      if (!window.WeixinJSBridge?.invoke) {
+        reject(new Error("请在微信内打开后完成支付。"));
+        return;
+      }
+      window.WeixinJSBridge.invoke("getBrandWCPayRequest", params, (response) => {
+        const message = String(response?.err_msg || "");
+        if (message.includes("ok")) {
+          resolve(response);
+          return;
+        }
+        reject(new Error(message.includes("cancel") ? "已取消支付。" : "支付未完成，请稍后重试。"));
+      });
+    };
+    if (window.WeixinJSBridge?.invoke) {
+      invoke();
+    } else {
+      document.addEventListener("WeixinJSBridgeReady", invoke, { once: true });
+    }
+  });
+}
+
 async function claimMerchantSource(payload) {
   const response = await fetch("/api/public/merchant-source/claim", {
     method: "POST",
@@ -4495,6 +5051,65 @@ async function fetchOrderConfig() {
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取下单配置失败。");
   return payload;
+}
+
+async function fetchCurrentAccount() {
+  const response = await fetch("/api/auth/me");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取账户信息失败。");
+  return payload;
+}
+
+async function requestEmailCode(email, purpose) {
+  const response = await fetch("/api/auth/email-code", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, purpose })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "验证码发送失败。");
+  return payload;
+}
+
+async function registerWithEmail(payload) {
+  const response = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "注册失败。");
+  return data;
+}
+
+async function loginWithEmail(email, password) {
+  const response = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "登录失败。");
+  return data;
+}
+
+async function resetPasswordWithEmail(payload) {
+  const response = await fetch("/api/auth/password-reset", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "密码重设失败。");
+  return data;
+}
+
+async function logoutCurrentAccount() {
+  const response = await fetch("/api/auth/logout", { method: "POST" });
+  if (!response.ok && response.status !== 204) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || "退出登录失败。");
+  }
 }
 
 async function createOrderRequest(payload) {
@@ -4600,6 +5215,60 @@ async function fetchAdminSession() {
   const response = await fetch("/api/admin/session");
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取后台登录状态失败。");
+  return payload;
+}
+
+async function fetchAdminCommercePayments() {
+  const response = await fetch("/api/admin/commerce/payments?limit=100");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取收款记录失败。");
+  return payload;
+}
+
+async function fetchAdminCreditLedger() {
+  const response = await fetch("/api/admin/commerce/credits?limit=100");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取点数流水失败。");
+  return payload;
+}
+
+async function fetchAdminUsers(params = {}) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && String(value) !== "") query.set(key, String(value));
+  }
+  const response = await fetch(`/api/admin/users${query.size ? `?${query}` : ""}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取用户列表失败。");
+  return payload;
+}
+
+async function fetchAdminUser(userId) {
+  const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取用户详情失败。");
+  return payload;
+}
+
+async function updateAdminUserStatus(userId, status) {
+  const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "更新用户状态失败。");
+  return payload;
+}
+
+async function adjustAdminUserCredits(userId, delta, remark) {
+  const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/credits`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ delta, remark })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "调整点数失败。");
   return payload;
 }
 
@@ -5556,6 +6225,115 @@ function ApiProviderAdminPage() {
   );
 }
 
+function UserAdminPage() {
+  const [users, setUsers] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [delta, setDelta] = useState("");
+  const [remark, setRemark] = useState("");
+  const limit = 20;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  async function load(next = {}) {
+    setBusy(true);
+    try {
+      const payload = await fetchAdminUsers({ page: next.page ?? page, limit, search: next.search ?? search, status: next.status ?? status });
+      setUsers(payload.users || []);
+      setTotal(Number(payload.total || 0));
+      setPage(Number(payload.page || 1));
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "读取用户列表失败。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => { void load({ page: 1 }); }, []);
+
+  async function openDetail(user) {
+    setSelected(user);
+    setDetail(null);
+    setDelta("");
+    setRemark("");
+    try {
+      setDetail(await fetchAdminUser(user.id));
+    } catch (nextError) {
+      setError(nextError.message || "读取用户详情失败。");
+    }
+  }
+
+  async function updateStatus(nextStatus) {
+    if (!selected) return;
+    try {
+      const payload = await updateAdminUserStatus(selected.id, nextStatus);
+      setSelected(payload.user);
+      setDetail((current) => current ? { ...current, user: payload.user } : current);
+      await load();
+    } catch (nextError) {
+      setError(nextError.message || "更新用户状态失败。");
+    }
+  }
+
+  async function adjustCredits() {
+    if (!selected) return;
+    try {
+      const payload = await adjustAdminUserCredits(selected.id, Number(delta), remark);
+      setSelected(payload.user);
+      setDetail((current) => current ? { ...current, user: payload.user, ledger: payload.ledger } : current);
+      setDelta("");
+      setRemark("");
+      await load();
+    } catch (nextError) {
+      setError(nextError.message || "调整点数失败。");
+    }
+  }
+
+  return (
+    <section className="task-page" aria-label="用户管理">
+      <div className="task-toolbar">
+        <div><p className="eyebrow">Users</p><h2>用户管理</h2><p className="storage-note">管理邮箱注册用户、账户状态与点数余额。</p></div>
+        <button className="secondary-button" disabled={busy} onClick={() => load()} type="button"><RefreshCw size={18} /><span>刷新</span></button>
+      </div>
+      <div className="task-filters">
+        <select onChange={(event) => setStatus(event.target.value)} value={status}><option value="">全部状态</option><option value="active">正常</option><option value="disabled">已禁用</option></select>
+        <label className="search-box"><Search size={18} /><input onChange={(event) => setSearch(event.target.value)} placeholder="用户名或邮箱" value={search} /></label>
+        <button className="secondary-button" onClick={() => load({ page: 1 })} type="button">筛选</button>
+      </div>
+      {error ? <p className="error-note">{error}</p> : null}
+      <div className="task-list">
+        {users.map((user) => (
+          <article className="task-card" key={user.id}>
+            <div className={`task-status ${user.status === "disabled" ? "failed" : "succeeded"}`}>{user.status === "disabled" ? "已禁用" : "正常"}</div>
+            <div className="task-detail"><div className="task-meta-row"><strong>{user.username}</strong><span>{user.email}</span><span>{user.creditBalance} 点</span></div><p className="storage-note">注册 {formatDateTime(user.registeredAt)} · 最近登录 {formatDateTime(user.lastLoginAt)} · {user.orderCount} 笔订单 / {formatCurrencyCents(user.paidTotalCents)}</p></div>
+            <div className="task-actions"><button className="secondary-button" onClick={() => openDetail(user)} type="button"><Eye size={18} /><span>详情</span></button></div>
+          </article>
+        ))}
+        {!users.length ? <p className="empty-note">暂无注册用户。</p> : null}
+      </div>
+      <div className="task-pagination"><p className="storage-note">共 {total} 位用户，当前第 {page} / {totalPages} 页。</p><div className="task-pagination-actions"><button className="secondary-button" disabled={busy || page <= 1} onClick={() => load({ page: page - 1 })} type="button">上一页</button><button className="secondary-button" disabled={busy || page >= totalPages} onClick={() => load({ page: page + 1 })} type="button">下一页</button></div></div>
+      {selected ? (
+        <div className="modal-backdrop" onClick={() => setSelected(null)} role="presentation">
+          <section className="prompt-modal order-admin-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="用户详情">
+            <div className="modal-head"><div><p className="eyebrow">User detail</p><h2>{detail?.user?.username || selected.username}</h2></div><button className="icon-button" onClick={() => setSelected(null)} type="button"><X size={18} /></button></div>
+            <p className="storage-note">{detail?.user?.email || selected.email} · {detail?.user?.creditBalance ?? selected.creditBalance} 点 · 关联访客 {detail?.user?.visitorCount ?? selected.visitorCount}</p>
+            <div className="task-actions"><button className={detail?.user?.status === "disabled" ? "secondary-button" : "danger-button"} onClick={() => updateStatus(detail?.user?.status === "disabled" ? "active" : "disabled")} type="button">{detail?.user?.status === "disabled" ? "恢复用户" : "禁用用户"}</button></div>
+            <div className="draw-card-order-form"><label className="field-label">调整点数（正数增加、负数扣减）<input onChange={(event) => setDelta(event.target.value)} type="number" value={delta} /></label><label className="field-label">调整备注<textarea onChange={(event) => setRemark(event.target.value)} rows="2" value={remark} /></label><button className="secondary-button" disabled={!Number(delta) || !remark.trim()} onClick={adjustCredits} type="button">保存点数调整</button></div>
+            <h3>点数流水</h3><div className="task-list">{(detail?.ledger || []).slice(0, 20).map((item) => <div className="task-meta-row" key={item.id}><strong>{item.delta > 0 ? "+" : ""}{item.delta} 点</strong><span>{item.reason}{item.note ? `：${item.note}` : ""}</span><span>{formatDateTime(item.createdAt)}</span></div>)}</div>
+            <h3>订单摘要</h3><div className="task-list">{(detail?.orders || []).slice(0, 20).map((order) => <div className="task-meta-row" key={order.id}><strong>{order.orderNo}</strong><span>{order.paymentStatus === "paid" ? "已支付" : "未支付"}</span><span>{formatCurrencyCents(order.totalCents)}</span></div>)}</div>
+          </section>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onRefreshSettings, settings, merchants }) {
   const [orders, setOrders] = useState(initialOrders || []);
   const [orderQuery, setOrderQuery] = useState(DEFAULT_ADMIN_ORDER_QUERY);
@@ -5568,10 +6346,14 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [adminRemark, setAdminRemark] = useState("");
+  const [shippingCarrier, setShippingCarrier] = useState("");
+  const [shippingTrackingNo, setShippingTrackingNo] = useState("");
+  const [commercePayments, setCommercePayments] = useState([]);
+  const [creditLedger, setCreditLedger] = useState([]);
   const [fridgeMagnetOrderingEnabled, setFridgeMagnetOrderingEnabled] = useState(settings?.fridgeMagnetOrderingEnabled === true);
-  const [fridgeMagnetUnitPriceCents, setFridgeMagnetUnitPriceCents] = useState(settings?.fridgeMagnetUnitPriceCents || 1990);
+  const [fridgeMagnetUnitPriceCents, setFridgeMagnetUnitPriceCents] = useState(settings?.fridgeMagnetUnitPriceCents || 2000);
   const [singleItemShippingFeeCents, setSingleItemShippingFeeCents] = useState(settings?.singleItemShippingFeeCents || 800);
-  const [paymentMode, setPaymentMode] = useState(settings?.paymentMode || "manual");
+  const [paymentMode, setPaymentMode] = useState(settings?.paymentMode || "wechat");
   const [manualPaymentExpireDays, setManualPaymentExpireDays] = useState(settings?.manualPaymentExpireDays || 7);
   const [contactWechatId, setContactWechatId] = useState(settings?.contactWechatId || DEFAULT_CONTACT_WECHAT_ID);
   const [error, setError] = useState("");
@@ -5583,6 +6365,22 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
   useEffect(() => {
     setOrders(initialOrders || []);
   }, [initialOrders]);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([fetchAdminCommercePayments(), fetchAdminCreditLedger()])
+      .then(([paymentPayload, creditPayload]) => {
+        if (!active) return;
+        setCommercePayments(paymentPayload.payments || []);
+        setCreditLedger(creditPayload.ledger || []);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCommercePayments([]);
+        setCreditLedger([]);
+      });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     setOrderTotal(Number(initialOrdersMeta?.total || 0));
@@ -5598,9 +6396,9 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
 
   useEffect(() => {
     setFridgeMagnetOrderingEnabled(settings?.fridgeMagnetOrderingEnabled === true);
-    setFridgeMagnetUnitPriceCents(settings?.fridgeMagnetUnitPriceCents || 1990);
+    setFridgeMagnetUnitPriceCents(settings?.fridgeMagnetUnitPriceCents || 2000);
     setSingleItemShippingFeeCents(settings?.singleItemShippingFeeCents || 800);
-    setPaymentMode(settings?.paymentMode || "manual");
+    setPaymentMode(settings?.paymentMode || "wechat");
     setManualPaymentExpireDays(settings?.manualPaymentExpireDays || 7);
     setContactWechatId(settings?.contactWechatId || DEFAULT_CONTACT_WECHAT_ID);
   }, [settings]);
@@ -5660,6 +6458,8 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
       const order = await fetchAdminOrder(orderId);
       setSelectedOrder(order);
       setAdminRemark(order.adminRemark || "");
+      setShippingCarrier(order.shippingCarrier || "");
+      setShippingTrackingNo(order.shippingTrackingNo || "");
     } catch (nextError) {
       setError(nextError.message || "读取订单详情失败。");
     }
@@ -5697,6 +6497,8 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
       const updated = await updateAdminOrder(selectedOrder.id, payload);
       setSelectedOrder(updated);
       setAdminRemark(updated.adminRemark || "");
+      setShippingCarrier(updated.shippingCarrier || "");
+      setShippingTrackingNo(updated.shippingTrackingNo || "");
       await refreshList({}, { showLoading: false });
       setStatusMessage("订单已更新。");
     } catch (nextError) {
@@ -5761,6 +6563,21 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
         </div>
       </div>
 
+      <div className="draw-observability-card">
+        <h3>最近冰箱贴订单与点数流水</h3>
+        <div className="task-list">
+          {commercePayments.filter((payment) => payment.kind === "physical_order").slice(0, 8).map((payment) => (
+            <div className="task-meta-row" key={payment.id}>
+              <strong>冰箱贴订单</strong>
+              <span>{formatCurrencyCents(payment.amountCents)}</span>
+              <span>{payment.status === "paid" ? "已支付" : "待支付"}</span>
+            </div>
+          ))}
+          {!commercePayments.length ? <p className="storage-note">暂无收款记录。</p> : null}
+        </div>
+        {creditLedger.length ? <p className="storage-note">最近点数变动：{creditLedger.slice(0, 5).map((item) => `${item.delta > 0 ? "+" : ""}${item.delta}`).join("、")}</p> : null}
+      </div>
+
       <div className="draw-card-upload-panel">
         <div className="task-toolbar compact-toolbar">
           <div>
@@ -5791,23 +6608,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
               单张邮费（分）
               <input min="0" onChange={(event) => setSingleItemShippingFeeCents(Number(event.target.value) || 0)} type="number" value={singleItemShippingFeeCents} />
             </label>
-            <label className="field-label">
-              支付模式
-              <select onChange={(event) => setPaymentMode(event.target.value)} value={paymentMode}>
-                <option value="manual">人工支付</option>
-                <option value="wechat">微信支付</option>
-              </select>
-            </label>
-            <label className="field-label">
-              人工支付有效期（天）
-              <input min="1" onChange={(event) => setManualPaymentExpireDays(Number(event.target.value) || 1)} type="number" value={manualPaymentExpireDays} />
-            </label>
-            <label className="field-label">
-              客服微信号
-              <input onChange={(event) => setContactWechatId(event.target.value)} type="text" value={contactWechatId} />
-            </label>
-            <p className="storage-note">金额规则固定为：1 张收邮费，2 张及以上包邮。</p>
-            <p className="storage-note">人工支付模式下，用户提交订单后会看到客服微信与订单号复制入口，并在 {manualPaymentExpireDays} 天内完成付款。</p>
+            <p className="storage-note">系统会自动选择微信内 JSAPI、手机 H5 或电脑扫码支付。金额规则固定为：1 枚收邮费，2 枚及以上包邮。</p>
             <div className="card-actions generator-actions">
               <button className="secondary-button" disabled={isBusy} onClick={saveOrderSettings} type="button">
                 <Save size={18} />
@@ -5934,22 +6735,32 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
               管理员备注
               <textarea onChange={(event) => setAdminRemark(event.target.value)} rows="3" value={adminRemark} />
             </label>
+            <div className="form-grid">
+              <label className="field-label">
+                快递公司
+                <input onChange={(event) => setShippingCarrier(event.target.value)} placeholder="例如：顺丰速运" value={shippingCarrier} />
+              </label>
+              <label className="field-label">
+                运单号
+                <input onChange={(event) => setShippingTrackingNo(event.target.value)} placeholder="填写快递单号" value={shippingTrackingNo} />
+              </label>
+            </div>
             {downloadStatus ? <p className="success-note">{downloadStatus}</p> : null}
             <div className="task-filters">
               <button className="secondary-button" disabled={isBusy} onClick={downloadOrderOriginals} type="button">
                 <Download size={18} />
                 <span>下载原图</span>
               </button>
-              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, orderStatus: "pending_shipment" })} type="button">
+              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, shippingCarrier, shippingTrackingNo, orderStatus: "pending_shipment" })} type="button">
                 <span>标记待发货</span>
               </button>
-              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, orderStatus: "shipped" })} type="button">
+              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, shippingCarrier, shippingTrackingNo, orderStatus: "shipped" })} type="button">
                 <span>标记已发货</span>
               </button>
-              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, orderStatus: "completed" })} type="button">
+              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, shippingCarrier, shippingTrackingNo, orderStatus: "completed" })} type="button">
                 <span>标记已完成</span>
               </button>
-              <button className="danger-button" onClick={() => updateOrderStatus({ adminRemark, orderStatus: "cancelled" })} type="button">
+              <button className="danger-button" onClick={() => updateOrderStatus({ adminRemark, shippingCarrier, shippingTrackingNo, orderStatus: "cancelled" })} type="button">
                 <span>取消订单</span>
               </button>
             </div>
@@ -7163,4 +7974,4 @@ function cacheBust(path, version = "") {
   return safeVersion ? `${normalizedPath}${separator}v=${encodeURIComponent(safeVersion)}` : normalizedPath;
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+createRoot(document.getElementById("root")).render(<AppErrorBoundary><App /></AppErrorBoundary>);

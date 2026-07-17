@@ -26,6 +26,7 @@ function mapOrderRow(row) {
     id: String(row.id || ""),
     orderNo: String(row.order_no || ""),
     visitorId: String(row.visitor_id || ""),
+    accountId: String(row.account_id || ""),
     publicToken: String(row.public_token || ""),
     experienceType: String(row.experience_type || ""),
     paymentStatus: String(row.payment_status || "unpaid"),
@@ -55,6 +56,8 @@ function mapOrderRow(row) {
     expiresAt: row.expires_at || null,
     paidAt: row.paid_at || null,
     shippedAt: row.shipped_at || null,
+    shippingCarrier: String(row.shipping_carrier || ""),
+    shippingTrackingNo: String(row.shipping_tracking_no || ""),
     completedAt: row.completed_at || null,
     cancelledAt: row.cancelled_at || null,
     createdAt: row.created_at || null,
@@ -114,6 +117,7 @@ export function createOrderStore({ dbPath }) {
       id TEXT PRIMARY KEY,
       order_no TEXT NOT NULL UNIQUE,
       visitor_id TEXT NOT NULL,
+      account_id TEXT NOT NULL DEFAULT '',
       public_token TEXT NOT NULL UNIQUE,
       experience_type TEXT NOT NULL,
       payment_status TEXT NOT NULL,
@@ -143,6 +147,8 @@ export function createOrderStore({ dbPath }) {
       expires_at TEXT,
       paid_at TEXT,
       shipped_at TEXT,
+      shipping_carrier TEXT NOT NULL DEFAULT '',
+      shipping_tracking_no TEXT NOT NULL DEFAULT '',
       completed_at TEXT,
       cancelled_at TEXT,
       created_at TEXT NOT NULL,
@@ -189,6 +195,16 @@ export function createOrderStore({ dbPath }) {
     db.exec("ALTER TABLE order_items ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1");
   }
   const orderColumns = db.prepare("PRAGMA table_info(orders)").all();
+  if (!orderColumns.some((column) => String(column.name || "") === "account_id")) {
+    db.exec("ALTER TABLE orders ADD COLUMN account_id TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orderColumns.some((column) => String(column.name || "") === "shipping_carrier")) {
+    db.exec("ALTER TABLE orders ADD COLUMN shipping_carrier TEXT NOT NULL DEFAULT ''");
+  }
+  if (!orderColumns.some((column) => String(column.name || "") === "shipping_tracking_no")) {
+    db.exec("ALTER TABLE orders ADD COLUMN shipping_tracking_no TEXT NOT NULL DEFAULT ''");
+  }
+  db.exec("CREATE INDEX IF NOT EXISTS idx_orders_account_id ON orders(account_id)");
   if (!orderColumns.some((column) => String(column.name || "") === "source_merchant_id")) {
     db.exec("ALTER TABLE orders ADD COLUMN source_merchant_id TEXT NOT NULL DEFAULT ''");
   }
@@ -204,22 +220,22 @@ export function createOrderStore({ dbPath }) {
 
   const insertOrderStatement = db.prepare(`
     INSERT INTO orders (
-      id, order_no, visitor_id, public_token, experience_type,
+      id, order_no, visitor_id, account_id, public_token, experience_type,
       payment_status, fulfillment_status, item_count,
       unit_price_cents, shipping_fee_cents, subtotal_cents, total_cents,
       remark, receiver_name, receiver_phone, province, city, district, address_detail,
       source_merchant_id, source_merchant_name, commission_rate_bps, source_claimed_at,
       admin_remark, wechat_open_id, wechat_transaction_id, out_trade_no,
-      last_payment_channel, last_payment_error, expires_at, paid_at, shipped_at,
+      last_payment_channel, last_payment_error, expires_at, paid_at, shipped_at, shipping_carrier, shipping_tracking_no,
       completed_at, cancelled_at, created_at, updated_at
     ) VALUES (
-      @id, @orderNo, @visitorId, @publicToken, @experienceType,
+      @id, @orderNo, @visitorId, @accountId, @publicToken, @experienceType,
       @paymentStatus, @fulfillmentStatus, @itemCount,
       @unitPriceCents, @shippingFeeCents, @subtotalCents, @totalCents,
       @remark, @receiverName, @receiverPhone, @province, @city, @district, @addressDetail,
       @sourceMerchantId, @sourceMerchantName, @commissionRateBps, @sourceClaimedAt,
       @adminRemark, @wechatOpenId, @wechatTransactionId, @outTradeNo,
-      @lastPaymentChannel, @lastPaymentError, @expiresAt, @paidAt, @shippedAt,
+      @lastPaymentChannel, @lastPaymentError, @expiresAt, @paidAt, @shippedAt, @shippingCarrier, @shippingTrackingNo,
       @completedAt, @cancelledAt, @createdAt, @updatedAt
     )
   `);
@@ -274,6 +290,7 @@ export function createOrderStore({ dbPath }) {
   function createOrder({ order, items = [], initialPaymentEvent = null }) {
     return withTransaction(db, () => {
       insertOrderStatement.run({
+        accountId: order.accountId || "",
         adminRemark: "",
         cancelledAt: null,
         completedAt: null,
@@ -281,6 +298,8 @@ export function createOrderStore({ dbPath }) {
         lastPaymentError: order.lastPaymentError || "",
         paidAt: null,
         shippedAt: null,
+        shippingCarrier: order.shippingCarrier || "",
+        shippingTrackingNo: order.shippingTrackingNo || "",
         wechatOpenId: order.wechatOpenId || "",
         wechatTransactionId: order.wechatTransactionId || "",
         ...order
@@ -361,6 +380,8 @@ export function createOrderStore({ dbPath }) {
       expiresAt: next.expiresAt,
       paidAt: next.paidAt,
       shippedAt: next.shippedAt,
+      shippingCarrier: next.shippingCarrier,
+      shippingTrackingNo: next.shippingTrackingNo,
       completedAt: next.completedAt,
       cancelledAt: next.cancelledAt,
       updatedAt: next.updatedAt
@@ -389,6 +410,8 @@ export function createOrderStore({ dbPath }) {
         expires_at = @expiresAt,
         paid_at = @paidAt,
         shipped_at = @shippedAt,
+        shipping_carrier = @shippingCarrier,
+        shipping_tracking_no = @shippingTrackingNo,
         completed_at = @completedAt,
         cancelled_at = @cancelledAt,
         updated_at = @updatedAt
@@ -434,7 +457,7 @@ export function createOrderStore({ dbPath }) {
     `).run({ now });
   }
 
-  function listOrders({ visitorId = "", merchantId = "", orderStatus = "", search = "", startDate = "", endDate = "", page = 1, limit = 20 } = {}) {
+  function listOrders({ visitorId = "", accountId = "", merchantId = "", orderStatus = "", search = "", startDate = "", endDate = "", page = 1, limit = 20 } = {}) {
     expireUnpaidOrders();
 
     const conditions = [];
@@ -442,6 +465,10 @@ export function createOrderStore({ dbPath }) {
     if (visitorId) {
       conditions.push("visitor_id = @visitorId");
       params.visitorId = visitorId;
+    }
+    if (accountId) {
+      conditions.push("account_id = @accountId");
+      params.accountId = accountId;
     }
     if (merchantId) {
       conditions.push("source_merchant_id = @merchantId");
@@ -509,7 +536,7 @@ export function createOrderStore({ dbPath }) {
     };
   }
 
-  function listOrdersForExport({ visitorId = "", merchantId = "", orderStatus = "", search = "", startDate = "", endDate = "" } = {}) {
+  function listOrdersForExport({ visitorId = "", accountId = "", merchantId = "", orderStatus = "", search = "", startDate = "", endDate = "" } = {}) {
     expireUnpaidOrders();
 
     const conditions = [];
@@ -517,6 +544,10 @@ export function createOrderStore({ dbPath }) {
     if (visitorId) {
       conditions.push("visitor_id = @visitorId");
       params.visitorId = visitorId;
+    }
+    if (accountId) {
+      conditions.push("account_id = @accountId");
+      params.accountId = accountId;
     }
     if (merchantId) {
       conditions.push("source_merchant_id = @merchantId");
