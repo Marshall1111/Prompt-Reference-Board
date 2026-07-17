@@ -1,5 +1,7 @@
 # Email accounts and Tencent Cloud SES
 
+> 中文的完整生产配置、参数获取方式、模板变量及验收步骤请见 [支付与邮箱验证码部署配置指南](支付与邮箱验证码部署配置指南.md)。
+
 Visitors may generate images and add them to the draw-card clip without registering. Creating a physical-magnet order requires an email account. Registration upgrades the current browser guest account in place, preserving its credits, clip, generated images, orders, and payment records.
 
 Configure Tencent Cloud SES in production:

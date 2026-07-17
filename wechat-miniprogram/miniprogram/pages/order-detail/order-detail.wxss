@@ -87,6 +87,18 @@
   font-weight: 900;
 }
 
+.merchant-payment-qr {
+  width: 420rpx;
+  margin: 14rpx auto 4rpx;
+  border: 2rpx solid #c9dcd6;
+  border-radius: 16rpx;
+  background: #fff;
+}
+
+.payment-note {
+  color: #5f726d;
+}
+
 .total {
   color: #24504a;
   font-size: 30rpx;

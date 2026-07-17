@@ -77,7 +77,7 @@ const DEFAULT_FRIDGE_ORDERING_ENABLED = false;
 const DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS = 2000;
 const DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS = 800;
 const DEFAULT_FREE_SHIPPING_ITEM_COUNT = 2;
-const DEFAULT_ORDER_PAYMENT_MODE = "wechat";
+const DEFAULT_ORDER_PAYMENT_MODE = "manual";
 const DEFAULT_MANUAL_PAYMENT_EXPIRE_DAYS = 7;
 const DEFAULT_CONTACT_WECHAT_ID = "PetPaint";
 const WEB_SIGNUP_CREDITS = 5;
@@ -89,7 +89,7 @@ const ORDER_SEARCH_LIMIT = 100;
 const MERCHANT_SEARCH_LIMIT = 500;
 const ORDER_PAYMENT_STATUS_VALUES = new Set(["unpaid", "paid", "failed", "expired"]);
 const ORDER_FULFILLMENT_STATUS_VALUES = new Set(["new", "in_production", "shipped", "completed", "cancelled"]);
-const ORDER_PAYMENT_MODE_VALUES = new Set(["wechat"]);
+const ORDER_PAYMENT_MODE_VALUES = new Set(["manual"]);
 const ORDER_STATUS_VALUES = new Set(["pending_payment", "pending_shipment", "shipped", "completed", "cancelled", "expired"]);
 const BACKUP_KIND_CONFIG = "config-snapshot";
 const BACKUP_KIND_IMAGE_RANGE = "image-range-zip";
@@ -1052,7 +1052,7 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
     const merchantSource = await resolveOrderMerchantSource(req);
     const now = new Date();
     const createdAt = now.toISOString();
-    const paymentMode = "wechat";
+    const paymentMode = pricing.paymentMode;
     const expiresAt = new Date(now.getTime() + getOrderExpireMs(pricing)).toISOString();
     const orderId = randomUUID();
     const storedOrderItems = await buildStoredOrderItems({
@@ -1089,7 +1089,7 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
         wechatOpenId: "",
         wechatTransactionId: "",
         outTradeNo: `FM${randomUUID().replace(/-/g, "")}`,
-        lastPaymentChannel: paymentMode === "manual" ? "manual" : "",
+        lastPaymentChannel: "manual_collection",
         lastPaymentError: "",
         expiresAt,
         createdAt,
@@ -1110,7 +1110,7 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
       }
     });
 
-    commerceStore.createPaymentIntent({
+    const paymentIntent = commerceStore.createPaymentIntent({
       accountId: req.webAccount.id,
       outTradeNo: created.outTradeNo,
       kind: "physical_order",
@@ -1119,13 +1119,19 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
       expiresAt: created.expiresAt,
       metadata: { orderNo: created.orderNo, itemCount: created.itemCount }
     });
+    commerceStore.markPaymentPrepared(paymentIntent.id, {
+      channel: "manual_collection",
+      eventId: `${created.id}:manual_collection`,
+      payload: { mode: "manual", orderNo: created.orderNo }
+    });
 
     res.status(201).json({
       order: toPublicOrder(created, { includeToken: true }),
       payment: {
-        status: "wechat_payment_required",
-        mode: "wechat",
-        availableChannels: ["wechat_jsapi", "wechat_h5", "wechat_native"]
+        status: "manual_payment_required",
+        mode: "manual",
+        channel: "manual_collection",
+        expiresAt: created.expiresAt
       }
     });
   } catch (error) {
@@ -1145,82 +1151,14 @@ app.post("/api/orders/:orderId/pay", requireWebAccount, async (req, res, next) =
     }
     if (order.paymentStatus === "expired") throw createHttpError(409, "订单已过期，请重新下单。");
     if (order.paymentStatus !== "unpaid") throw createHttpError(409, "当前订单无法继续支付。");
-    const intent = commerceStore.readPaymentIntentByOutTradeNo(order.outTradeNo);
-    if (!intent || intent.kind !== "physical_order" || intent.accountId !== req.webAccount.id) {
-      throw createHttpError(409, "订单支付单不存在，请重新下单。", "订单支付信息异常，请重新下单。");
-    }
-    if (isLocalMockPaymentEnabled(req)) {
-      const paidAt = new Date().toISOString();
-      const transactionId = `LOCAL-${randomUUID().replace(/-/g, "")}`;
-      commerceStore.settlePayment({
-        outTradeNo: intent.outTradeNo,
-        transactionId,
-        paidAt,
-        payload: { mode: "local_mock", outTradeNo: intent.outTradeNo },
-        headers: {}
-      });
-      const paidOrder = orderStore.updateOrderAndAppendEvent(order.id, {
-        paymentStatus: "paid",
-        lastPaymentChannel: "local_mock",
-        lastPaymentError: "",
-        wechatTransactionId: transactionId,
-        paidAt
-      }, {
-        eventType: "payment_notify",
-        eventId: `${order.id}:local_mock:${transactionId}`,
-        success: true,
-        payload: { mode: "local_mock" }
-      });
-      return res.json({
-        order: toPublicOrder(paidOrder),
-        payment: { status: "simulated_paid", channel: "local_mock", returnUrl: buildOrderReturnUrl(req, paidOrder) }
-      });
-    }
-    const description = `冰箱贴订单 ${order.orderNo}`;
-    const channel = isWechatBrowser(req)
-      ? "wechat_jsapi"
-      : isDesktopBrowser(req)
-        ? "wechat_native"
-        : "wechat_h5";
-    let payment;
-    let openId = String(order.wechatOpenId || "").trim();
-
-    if (channel === "wechat_jsapi") {
-      const code = String(req.body?.wechatCode || req.query?.code || "").trim();
-      if (!openId && !code) {
-        return res.status(202).json({
-          order: toPublicOrder(order),
-          payment: {
-            status: "oauth_required",
-            authorizationUrl: createOrderPaymentAuthorizationUrl(req, order)
-          }
-        });
-      }
-      if (!openId) openId = await fetchWechatOpenId(code);
-      payment = await createWechatJsapiPayment({ intent, openId, description });
-    } else if (channel === "wechat_native") {
-      payment = await createWechatNativePayment({ intent, description });
-    } else {
-      payment = await createWechatH5Payment({
-        intent,
-        description,
-        clientIp: getPaymentClientIp(req),
-        returnUrl: buildOrderReturnUrl(req, order)
-      });
-    }
-
-    const updated = orderStore.updateOrderAndAppendEvent(order.id, {
-      wechatOpenId: openId || order.wechatOpenId,
-      lastPaymentChannel: payment.channel,
-      lastPaymentError: ""
-    }, {
-      eventType: "payment_prepay",
-      eventId: payment.prepayId || `${order.id}:${payment.channel}:${Date.now()}`,
-      success: true
-    });
     res.json({
-      order: toPublicOrder(updated),
-      payment: { ...payment, returnUrl: buildOrderReturnUrl(req, order) }
+      order: toPublicOrder(order),
+      payment: {
+        status: "manual_payment_required",
+        mode: "manual",
+        channel: "manual_collection",
+        expiresAt: order.expiresAt
+      }
     });
   } catch (error) {
     next(error);
@@ -2584,11 +2522,26 @@ app.patch("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
       patch.shippingTrackingNo = String(req.body.shippingTrackingNo || "").trim().slice(0, 120);
     }
 
+    if (patch.paymentStatus === "paid" && order.paymentStatus === "unpaid") {
+      confirmManualOrderPayment(order);
+    }
     const updated = orderStore.updateOrder(req.params.orderId, patch);
     res.json({ order: toPublicOrder(updated, { includePrivate: true }) });
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "更新订单失败。" });
+  }
+});
+
+app.post("/api/admin/orders/:orderId/confirm-manual-payment", requireAdmin, async (req, res) => {
+  try {
+    const order = orderStore.readOrderWithRelations(req.params.orderId);
+    if (!order) return res.status(404).json({ message: "订单不存在。" });
+    const updated = confirmManualOrderPayment(order);
+    res.json({ order: toPublicOrder(updated, { includePrivate: true }) });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "确认收款失败。" });
   }
 });
 
@@ -5339,10 +5292,14 @@ function getWechatConfig() {
     mchId: String(process.env.WECHAT_PAY_MCH_ID || "").trim(),
     apiV3Key: String(process.env.WECHAT_PAY_API_V3_KEY || "").trim(),
     serialNo: String(process.env.WECHAT_PAY_SERIAL_NO || "").trim(),
-    privateKey: String(process.env.WECHAT_PAY_PRIVATE_KEY || "").trim(),
+    privateKey: normalizePem(process.env.WECHAT_PAY_PRIVATE_KEY),
     notifyUrl: String(process.env.WECHAT_PAY_NOTIFY_URL || "").trim(),
     oauthRedirectUrl: String(process.env.WECHAT_OAUTH_REDIRECT_URL || "").trim()
   };
+}
+
+function normalizePem(value) {
+  return String(value || "").trim().replace(/\\n/g, "\n");
 }
 
 function toPublicWebAccountState(req, account) {
@@ -5635,21 +5592,10 @@ function isWechatBrowser(req) {
   return /MicroMessenger/i.test(userAgent);
 }
 
-function isDesktopBrowser(req) {
-  const userAgent = String(req.headers["user-agent"] || "");
-  if (/Mobile|Android|iPhone|iPad|iPod|Windows Phone/i.test(userAgent)) return false;
-  return /Windows NT|Macintosh|X11|Linux/i.test(userAgent);
-}
-
 function isLocalMockPaymentEnabled(req) {
   if (String(process.env.LOCAL_MOCK_PAYMENT || "").trim().toLowerCase() !== "true") return false;
   const host = String(req.headers["x-forwarded-host"] || req.headers.host || "").split(",")[0].trim().replace(/:\d+$/, "").toLowerCase();
   return host === "localhost" || host === "127.0.0.1" || host === "::1";
-}
-
-function getPaymentClientIp(req) {
-  const rawIp = String(getClientIp(req) || "").replace(/^::ffff:/, "").trim();
-  return rawIp && rawIp !== "::1" ? rawIp : "127.0.0.1";
 }
 
 function getOrderPaymentOAuthStateSecret() {
@@ -5723,7 +5669,7 @@ function verifyWechatNotifySignature(req, bodyText) {
   const signature = String(req.get("Wechatpay-Signature") || "");
   const nonce = String(req.get("Wechatpay-Nonce") || "");
   const timestamp = String(req.get("Wechatpay-Timestamp") || "");
-  const publicKeyPem = String(process.env.WECHAT_PAY_PLATFORM_PUBLIC_KEY || "").trim();
+  const publicKeyPem = normalizePem(process.env.WECHAT_PAY_PLATFORM_PUBLIC_KEY);
   if (!publicKeyPem) {
     throw createHttpError(503, "微信支付平台证书公钥未配置：WECHAT_PAY_PLATFORM_PUBLIC_KEY。");
   }
@@ -5824,42 +5770,6 @@ async function createWechatJsapiPayment({ intent, openId, description, config = 
       signType: "RSA",
       paySign
     }
-  };
-}
-
-function appendWechatH5ReturnUrl(h5Url, returnUrl) {
-  const target = new URL(String(h5Url || ""));
-  target.searchParams.set("redirect_url", String(returnUrl || ""));
-  return target.toString();
-}
-
-async function createWechatH5Payment({ intent, description, clientIp, returnUrl, config = assertWechatPaymentConfigured() }) {
-  if (!intent?.id || !intent?.outTradeNo) throw createHttpError(500, "支付单不存在。", "支付单创建失败，请重试。");
-  const payload = await callWechatPayApi("POST", "/v3/pay/transactions/h5", {
-    appid: config.appId,
-    mchid: config.mchId,
-    description: String(description || "AI 小画订单").slice(0, 127),
-    out_trade_no: intent.outTradeNo,
-    time_expire: intent.expiresAt || undefined,
-    notify_url: config.notifyUrl,
-    amount: { total: intent.amountCents, currency: "CNY" },
-    scene_info: {
-      payer_client_ip: String(clientIp || "127.0.0.1"),
-      h5_info: { type: "Wap" }
-    }
-  });
-  const h5Url = String(payload.h5_url || "").trim();
-  if (!h5Url) throw createHttpError(502, "微信支付未返回 H5 支付地址。", "支付创建失败，请重试。");
-  commerceStore.markPaymentPrepared(intent.id, {
-    channel: "wechat_h5",
-    eventId: String(payload.prepay_id || `${intent.id}:h5:${Date.now()}`),
-    payload
-  });
-  return {
-    status: "ready",
-    channel: "wechat_h5",
-    prepayId: String(payload.prepay_id || ""),
-    h5Url: appendWechatH5ReturnUrl(h5Url, returnUrl)
   };
 }
 
@@ -5991,6 +5901,48 @@ function toPublicOrder(order, options = {}) {
     })),
     paymentEvents: includePrivate ? safeOrder.paymentEvents : []
   };
+}
+
+function confirmManualOrderPayment(order) {
+  if (!order) throw createHttpError(404, "订单不存在。");
+  if (order.paymentStatus === "paid") return order;
+  if (order.paymentStatus !== "unpaid" || order.fulfillmentStatus === "cancelled") {
+    throw createHttpError(409, "当前订单无法确认收款。");
+  }
+
+  const intent = commerceStore.readPaymentIntentByOutTradeNo(order.outTradeNo);
+  if (!intent || intent.kind !== "physical_order" || intent.targetOrderId !== order.id || intent.accountId !== order.accountId) {
+    throw createHttpError(409, "订单支付记录不存在，无法确认收款。");
+  }
+  if (intent.status === "cancelled") throw createHttpError(409, "订单支付记录已取消，无法确认收款。");
+
+  const paidAt = new Date().toISOString();
+  const transactionId = `MANUAL-${order.outTradeNo}`;
+  commerceStore.settlePayment({
+    outTradeNo: order.outTradeNo,
+    transactionId,
+    paidAt,
+    payload: {
+      mode: "manual_collection",
+      orderId: order.id,
+      orderNo: order.orderNo,
+      confirmedBy: "admin"
+    },
+    headers: {}
+  });
+  return orderStore.updateOrderAndAppendEvent(order.id, {
+    paymentStatus: "paid",
+    fulfillmentStatus: "new",
+    lastPaymentChannel: "manual_collection",
+    lastPaymentError: "",
+    wechatTransactionId: transactionId,
+    paidAt
+  }, {
+    eventType: "manual_payment_confirmed",
+    eventId: transactionId,
+    success: true,
+    payload: { mode: "manual_collection", confirmedBy: "admin" }
+  });
 }
 
 function getOrderStatus(order) {

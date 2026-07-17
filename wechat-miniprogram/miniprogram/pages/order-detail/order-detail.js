@@ -114,7 +114,7 @@ function normalizeOrder(order) {
     id: order.id,
     orderNo: order.orderNo,
     orderStatus: order.orderStatus,
-    statusText: format.orderStatusLabel(order.orderStatus),
+    statusText: order.orderStatus === "pending_payment" && order.lastPaymentChannel === "manual_collection" ? "待确认收款" : format.orderStatusLabel(order.orderStatus),
     statusClass: order.orderStatus,
     itemCount: order.itemCount,
     totalText: format.formatCurrencyCents(order.totalCents),

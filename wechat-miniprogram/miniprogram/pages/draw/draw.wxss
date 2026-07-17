@@ -1,1 +1,9 @@
 @import "../common/public.wxss";
+
+.merchant-payment-qr {
+  width: 420rpx;
+  margin: 18rpx auto;
+  border: 2rpx solid #c9dcd6;
+  border-radius: 16rpx;
+  background: #fff;
+}

@@ -12,14 +12,14 @@
       </view>
 
       <view class="payment-card" wx:if="{{order.orderStatus === 'pending_payment'}}">
-        <text class="card-title">联系客服付款</text>
+        <text class="card-title">请扫描商户收款码付款</text>
         <text>应付金额：{{order.totalText}}</text>
         <text>订单号：{{order.orderNo}}</text>
-        <text>客服微信：{{orderConfig ? orderConfig.contactWechatId : 'PetPaint'}}</text>
+        <image class="merchant-payment-qr" mode="widthFix" src="../../images/wechat-merchant-collection.png" />
+        <text class="payment-note">请按订单金额付款，转账备注填写订单号；管理员核验到账后会更新订单状态。</text>
         <text wx:if="{{order.expiresAtText}}">付款截止：{{order.expiresAtText}}</text>
         <view class="actions">
           <button bindtap="copyOrderNo" class="secondary-button">复制订单号</button>
-          <button bindtap="copyContact" class="primary-button">复制客服微信</button>
         </view>
       </view>
 

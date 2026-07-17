@@ -2318,6 +2318,16 @@ h2 {
   gap: 10px;
 }
 
+.manual-payment-qr {
+  display: block;
+  inline-size: min(320px, 100%);
+  block-size: auto;
+  margin: 4px auto;
+  border: 1px solid #c9dcd6;
+  border-radius: 16px;
+  background: #fff;
+}
+
 .draw-observability-head {
   display: flex;
   align-items: start;

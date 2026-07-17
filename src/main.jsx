@@ -873,7 +873,7 @@ function FridgeMagnetOrdersPage() {
             return (
               <article className="task-card order-task-card" key={order.id}>
                 <div className={`task-status ${orderStatusTone(order.orderStatus)}`}>
-                  {orderStatusLabel(order.orderStatus)}
+                  {getOrderPrimaryStatusLabel(order)}
                 </div>
                 <div className="task-detail">
                   <div className="task-meta-row">
@@ -914,7 +914,6 @@ function DrawCardCheckoutPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [nativePayment, setNativePayment] = useState(null);
   const [account, setAccount] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const pendingCheckoutRef = useRef(false);
@@ -941,26 +940,6 @@ function DrawCardCheckoutPage() {
   }, []);
 
   useEffect(() => {
-    if (!nativePayment?.order?.id) return undefined;
-    let isActive = true;
-    const poll = async () => {
-      try {
-        const payload = await fetchOrderDetail(nativePayment.order.id, nativePayment.order.publicToken);
-        if (!isActive) return;
-        if (payload.order?.paymentStatus === "paid") {
-          window.location.assign(buildOrderDetailUrl(nativePayment.order.id, nativePayment.order.publicToken));
-        }
-      } catch {}
-    };
-    const timer = window.setInterval(poll, 2500);
-    void poll();
-    return () => {
-      isActive = false;
-      window.clearInterval(timer);
-    };
-  }, [nativePayment]);
-
-  useEffect(() => {
     if (!account?.isRegistered || !pendingCheckoutRef.current) return;
     pendingCheckoutRef.current = false;
     void handleSubmit();
@@ -983,33 +962,6 @@ function DrawCardCheckoutPage() {
     setQuantities((current) => ({ ...current, [jobId]: clampOrderItemQuantity(nextQuantity) }));
   }
 
-  async function continuePayment(order) {
-    const payload = await payOrderRequest(order.id, {});
-    const payment = payload.payment || {};
-    if (["already_paid", "simulated_paid"].includes(payment.status)) {
-      window.location.assign(buildOrderDetailUrl(order.id, order.publicToken));
-      return;
-    }
-    if (payment.authorizationUrl) {
-      window.location.assign(payment.authorizationUrl);
-      return;
-    }
-    if (payment.h5Url) {
-      window.location.assign(payment.h5Url);
-      return;
-    }
-    if (payment.codeUrl) {
-      setNativePayment({ order, codeUrl: payment.codeUrl });
-      return;
-    }
-    if (payment.jsapi) {
-      await invokeWechatJsapiPayment(payment.jsapi);
-      window.location.assign(buildOrderDetailUrl(order.id, order.publicToken));
-      return;
-    }
-    throw new Error("支付参数创建失败，请稍后重试。");
-  }
-
   async function handleSubmit() {
     if (!selectedItems.length || !totalItemCount || isSubmitting) return;
     if (!account?.isRegistered) {
@@ -1028,7 +980,7 @@ function DrawCardCheckoutPage() {
         })),
         ...orderForm
       });
-      await continuePayment(created.order);
+      window.location.assign(buildOrderDetailUrl(created.order.id, created.order.publicToken));
     } catch (nextError) {
       setError(nextError.message || "创建订单失败，请稍后再试。");
     } finally {
@@ -1109,24 +1061,13 @@ function DrawCardCheckoutPage() {
               <div className="card-actions">
                 <button className="draw-card-primary" disabled={!orderConfig?.enabled || !selectedItems.length || !totalItemCount || isSubmitting} onClick={handleSubmit} type="button">
                   {isSubmitting ? <LoaderCircle className="spin" size={18} /> : null}
-                  <span>{isSubmitting ? "创建订单中" : "提交订单并支付"}</span>
+                  <span>{isSubmitting ? "创建订单中" : "提交订单并查看收款码"}</span>
                 </button>
               </div>
             </section>
           </>
         ) : null}
       </section>
-      {nativePayment ? (
-        <div className="modal-backdrop draw-card-confirm" onClick={() => setNativePayment(null)} role="presentation">
-          <section className="draw-card-confirm-panel native-payment-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="微信扫码支付">
-            <button className="icon-button" onClick={() => setNativePayment(null)} type="button" aria-label="关闭扫码支付"><X size={18} /></button>
-            <h2>请用微信扫码付款</h2>
-            <p>付款成功后，本页面会自动更新订单状态。</p>
-            <img alt="微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(nativePayment.codeUrl, { margin: 2 })} />
-            <p className="storage-note">订单号：{nativePayment.order.orderNo}</p>
-          </section>
-        </div>
-      ) : null}
       {showAuthModal ? (
         <AuthModal
           onAuthenticated={(nextAccount) => {
@@ -1144,26 +1085,16 @@ function FridgeMagnetOrderPage() {
   const orderId = String(window.location.pathname.split("/").filter(Boolean).pop() || "");
   const searchParams = new URLSearchParams(window.location.search);
   const token = searchParams.get("token") || "";
-  const wechatCode = searchParams.get("code") || "";
   const [order, setOrder] = useState(null);
   const [orderConfig, setOrderConfig] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [contactCopied, setContactCopied] = useState(false);
   const [orderCopied, setOrderCopied] = useState(false);
-  const [messageCopied, setMessageCopied] = useState(false);
-  const [paymentCardUrl, setPaymentCardUrl] = useState("");
-  const [nativePayment, setNativePayment] = useState(null);
-  const [isPaying, setIsPaying] = useState(false);
-  const contactCopiedTimeoutRef = useRef(null);
   const orderCopiedTimeoutRef = useRef(null);
-  const messageCopiedTimeoutRef = useRef(null);
 
   useEffect(() => {
     return () => {
-      if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
       if (orderCopiedTimeoutRef.current) window.clearTimeout(orderCopiedTimeoutRef.current);
-      if (messageCopiedTimeoutRef.current) window.clearTimeout(messageCopiedTimeoutRef.current);
     };
   }, []);
 
@@ -1190,106 +1121,12 @@ function FridgeMagnetOrderPage() {
     };
   }, [orderId, token]);
 
-  useEffect(() => {
-    if (!wechatCode || !isWechatBrowserClient()) return undefined;
-    let isActive = true;
-    payOrderRequest(orderId, { wechatCode })
-      .then((payload) => {
-        if (!isActive) return;
-        if (payload.payment?.jsapi && window.WeixinJSBridge) {
-          window.WeixinJSBridge.invoke("getBrandWCPayRequest", payload.payment.jsapi, () => {
-            window.location.replace(payload.payment.returnUrl);
-          });
-        }
-      })
-      .catch((nextError) => {
-        if (!isActive) return;
-        setError(nextError.message || "继续支付失败，请稍后重试。");
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [orderId, wechatCode]);
-
-  useEffect(() => {
-    if (!nativePayment?.codeUrl || !order?.id) return undefined;
-    let isActive = true;
-    const poll = async () => {
-      try {
-        const payload = await fetchOrderDetail(order.id, token);
-        if (!isActive) return;
-        setOrder(payload.order || null);
-        if (payload.order?.paymentStatus === "paid") setNativePayment(null);
-      } catch {}
-    };
-    const timer = window.setInterval(poll, 2500);
-    void poll();
-    return () => {
-      isActive = false;
-      window.clearInterval(timer);
-    };
-  }, [nativePayment, order?.id, token]);
-
-  async function handleCopyContactWeChat() {
-    await copyText(getContactWechatId(orderConfig));
-    setContactCopied(true);
-    if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
-    contactCopiedTimeoutRef.current = window.setTimeout(() => setContactCopied(false), 1600);
-  }
-
   async function handleCopyOrderNo() {
     if (!order?.orderNo) return;
     await copyText(order.orderNo);
     setOrderCopied(true);
     if (orderCopiedTimeoutRef.current) window.clearTimeout(orderCopiedTimeoutRef.current);
     orderCopiedTimeoutRef.current = window.setTimeout(() => setOrderCopied(false), 1600);
-  }
-
-  async function handleCopyPaymentMessage() {
-    if (!order) return;
-    await copyText(buildManualPaymentMessage(order));
-    setMessageCopied(true);
-    if (messageCopiedTimeoutRef.current) window.clearTimeout(messageCopiedTimeoutRef.current);
-    messageCopiedTimeoutRef.current = window.setTimeout(() => setMessageCopied(false), 1600);
-  }
-
-  async function handleOpenPaymentCard() {
-    if (!order) return;
-    setPaymentCardUrl(await buildManualPaymentCard(order, orderConfig));
-  }
-
-  async function continuePayment() {
-    if (!order || isPaying) return;
-    setIsPaying(true);
-    setError("");
-    try {
-      const payload = await payOrderRequest(order.id, {});
-      const payment = payload.payment || {};
-      if (payment.authorizationUrl) {
-        window.location.assign(payment.authorizationUrl);
-        return;
-      }
-      if (payment.h5Url) {
-        window.location.assign(payment.h5Url);
-        return;
-      }
-      if (payment.codeUrl) {
-        setNativePayment({ codeUrl: payment.codeUrl });
-        return;
-      }
-      if (payment.jsapi) {
-        await invokeWechatJsapiPayment(payment.jsapi);
-        const refreshed = await fetchOrderDetail(order.id, token);
-        setOrder(refreshed.order || null);
-        return;
-      }
-      if (!["already_paid", "simulated_paid"].includes(payment.status)) throw new Error("支付参数创建失败，请稍后重试。");
-    } catch (nextError) {
-      setError(nextError.message || "继续支付失败，请稍后重试。");
-    } finally {
-      setIsPaying(false);
-    }
   }
 
   return (
@@ -1310,31 +1147,18 @@ function FridgeMagnetOrderPage() {
         {error ? <p className="error-note">{error}</p> : null}
         {order ? (
           <section className="task-page">
-            {order.orderStatus === "pending_payment" ? (
-              <article className="draw-observability-card">
-                <div className="draw-observability-head">
-                  <div className="draw-observability-main">
-                    <div className="task-meta-row"><strong>订单待付款</strong><span className="task-status queued">待付款</span></div>
-                    <p className="storage-note">微信内将调起支付，手机外部浏览器将跳转 H5 支付，电脑端请微信扫码支付。</p>
-                  </div>
-                </div>
-                <button className="draw-card-primary" disabled={isPaying} onClick={continuePayment} type="button">
-                  {isPaying ? <LoaderCircle className="spin" size={18} /> : null}
-                  <span>{isPaying ? "正在发起支付" : "继续付款"}</span>
-                </button>
-              </article>
-            ) : null}
             {order.orderStatus === "pending_payment" && isManualPaymentOrder(order, orderConfig) ? (
               <article className="draw-observability-card manual-payment-guide">
                 <div className="draw-observability-head">
                   <div className="draw-observability-main">
                     <div className="task-meta-row">
-                      <strong>请联系客服付款</strong>
-                      <span className="task-status queued">待付款</span>
+                      <strong>请扫描商户收款码付款</strong>
+                      <span className="task-status queued">待确认收款</span>
                     </div>
-                    <p className="storage-note">建议先保存订单卡片，再去添加客服。联系客服时请发送订单卡片，客服确认收款后会手动更新订单状态。</p>
+                    <p className="storage-note">请按下方应付金额付款。付款成功后，管理员会核验到账并将订单更新为待发货。</p>
                   </div>
                 </div>
+                <img alt="微信商户收款码" className="manual-payment-qr" src="/payment/wechat-merchant-collection.png" />
                 <div className="draw-observability-grid">
                   <div className="draw-observability-metric">
                     <strong>应付金额</strong>
@@ -1344,25 +1168,9 @@ function FridgeMagnetOrderPage() {
                     <strong>订单号</strong>
                     <span>{order.orderNo}</span>
                   </div>
-                  <div className="draw-observability-metric">
-                    <strong>客服微信</strong>
-                    <span>{getContactWechatId(orderConfig)}</span>
-                  </div>
                 </div>
-                <p className="storage-note">请在 {formatDateTime(order.expiresAt)} 前完成付款，并将订单卡片发送给客服。</p>
+                <p className="storage-note">请在 {formatDateTime(order.expiresAt)} 前完成付款；转账备注请填写订单号，便于快速核验。</p>
                 <div className="manual-payment-actions">
-                  <button className="secondary-button" onClick={handleOpenPaymentCard} type="button">
-                    <Download size={18} />
-                    <span>保存订单卡片</span>
-                  </button>
-                  <button className="secondary-button" onClick={handleCopyPaymentMessage} type="button">
-                    <Clipboard size={18} />
-                    <span>{messageCopied ? "付款信息已复制" : "复制付款信息"}</span>
-                  </button>
-                  <button className="secondary-button" onClick={handleCopyContactWeChat} type="button">
-                    <Clipboard size={18} />
-                    <span>{contactCopied ? "微信号已复制" : "复制客服微信"}</span>
-                  </button>
                   <button className="secondary-button" onClick={handleCopyOrderNo} type="button">
                     <Clipboard size={18} />
                     <span>{orderCopied ? "订单号已复制" : "复制订单号"}</span>
@@ -1375,7 +1183,7 @@ function FridgeMagnetOrderPage() {
                 <div className="draw-observability-main">
                   <div className="task-meta-row">
                     <strong>{order.orderNo}</strong>
-                    <span className={`task-status ${orderStatusTone(order.orderStatus)}`}>{orderStatusLabel(order.orderStatus)}</span>
+                    <span className={`task-status ${orderStatusTone(order.orderStatus)}`}>{getOrderPrimaryStatusLabel(order)}</span>
                   </div>
                   <p className="storage-note">下单时间 {formatDateTime(order.createdAt)}，合计 {formatCurrencyCents(order.totalCents)}</p>
                 </div>
@@ -1425,30 +1233,6 @@ function FridgeMagnetOrderPage() {
           </section>
         ) : null}
       </section>
-      {paymentCardUrl ? (
-        <div className="modal-backdrop draw-card-confirm" onClick={() => setPaymentCardUrl("")} role="presentation">
-          <section className="draw-card-confirm-panel draw-card-payment-card-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="订单卡片">
-            <button className="icon-button" onClick={() => setPaymentCardUrl("")} type="button" aria-label="关闭订单卡片">
-              <X size={18} />
-            </button>
-            <div className="draw-card-payment-card-copy">
-              <h3>长按保存订单卡片</h3>
-              <p className="draw-card-contact-note">建议先保存到相册，再去添加客服，避免返回后找不到订单。</p>
-            </div>
-            <img alt="人工订单卡片" className="draw-card-payment-card-image" src={paymentCardUrl} />
-          </section>
-        </div>
-      ) : null}
-      {nativePayment ? (
-        <div className="modal-backdrop draw-card-confirm" onClick={() => setNativePayment(null)} role="presentation">
-          <section className="draw-card-confirm-panel native-payment-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="微信扫码支付">
-            <button className="icon-button" onClick={() => setNativePayment(null)} type="button" aria-label="关闭扫码支付"><X size={18} /></button>
-            <h2>请用微信扫码付款</h2>
-            <p>付款成功后，本页面会自动更新订单状态。</p>
-            <img alt="微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(nativePayment.codeUrl, { margin: 2 })} />
-          </section>
-        </div>
-      ) : null}
     </main>
   );
 }
@@ -2414,14 +2198,10 @@ function PublicExperiencePage({ config }) {
         })),
         ...orderForm
       });
-      const payResult = await payOrderRequest(created.order.id, {});
-      if (!payResult.payment?.jsapi) throw new Error("微信支付参数创建失败，请重试。");
-      try {
-        await invokeWechatJsapiPayment(payResult.payment.jsapi);
-      } catch (paymentError) {
-        setOrderError(paymentError.message || "支付未完成，可在订单页继续支付。");
-      }
-      goToOrderDetail(created.order.id, created.order.publicToken);
+      setShowOrderModal(false);
+      syncLatestManualOrder(created.order, orderConfig, created.order.publicToken);
+      setLatestManualOrder(readLatestManualOrder());
+      setManualPaymentOrder(created);
     } catch (nextError) {
       setOrderError(nextError.message || "下单失败，请稍后再试。");
     } finally {
@@ -3137,11 +2917,11 @@ function PublicExperiencePage({ config }) {
 
       {manualPaymentOrder ? (
         <div className="modal-backdrop draw-card-confirm" onClick={() => goToOrderDetail(manualPaymentOrder.order.id, manualPaymentOrder.order.publicToken)} role="presentation">
-          <section className="draw-card-confirm-panel draw-card-order-panel draw-card-manual-payment-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="联系客服付款">
+          <section className="draw-card-confirm-panel draw-card-order-panel draw-card-manual-payment-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="微信扫码付款">
             <div className="draw-card-order-head">
               <div>
                 <p className="draw-card-kicker">Order created</p>
-                <h2>订单已创建，请联系客服付款</h2>
+                <h2>订单已创建，请扫码付款</h2>
               </div>
               <button className="icon-button" onClick={() => goToOrderDetail(manualPaymentOrder.order.id, manualPaymentOrder.order.publicToken)} type="button" aria-label="查看订单详情">
                 <X size={18} />
@@ -3150,35 +2930,15 @@ function PublicExperiencePage({ config }) {
             <div className="draw-card-order-summary">
               <p>应付金额 {formatCurrencyCents(manualPaymentOrder.order.totalCents)}</p>
               <p>订单号 {manualPaymentOrder.order.orderNo}</p>
-              <p>客服微信 {getContactWechatId(orderConfig)}</p>
               <strong>请在 {formatDateTime(manualPaymentOrder.payment?.expiresAt || manualPaymentOrder.order.expiresAt)} 前完成付款</strong>
-              <span className="storage-note">请按下面两步操作。订单卡片里已经包含订单号、金额和客服微信，先保存，再去微信添加好友。</span>
+              <span className="storage-note">请使用微信扫描下方商户收款码，并按订单金额付款。转账备注请填写订单号；管理员核验到账后会更新订单状态。</span>
             </div>
-            <div className="manual-payment-step-list">
-              <article className="manual-payment-step-card">
-                <div className="manual-payment-step-head">
-                  <span className="manual-payment-step-index">第一步</span>
-                  <strong>保存订单卡片</strong>
-                </div>
-                <p className="storage-note">一键打开订单卡片。卡片里已经包含订单号、金额和客服微信，保存后就不用再回页面找订单号。</p>
-                <button className="draw-card-primary manual-payment-step-button" onClick={() => handleOpenManualPaymentCard(manualPaymentOrder.order)} type="button">
-                  <Download size={16} />
-                  <span>保存订单卡片</span>
-                </button>
-              </article>
-              <article className="manual-payment-step-card">
-                <div className="manual-payment-step-head">
-                  <span className="manual-payment-step-index">第二步</span>
-                  <strong>复制客服微信，去微信添加好友</strong>
-                </div>
-                <p className="storage-note">复制后直接切换到微信搜索并添加客服，付款时把刚保存的订单卡片发给客服即可。</p>
-                <button className="draw-card-primary manual-payment-step-button" onClick={handleCopyManualPaymentContact} type="button">
-                  <Clipboard size={16} />
-                  <span>{manualContactCopied ? "客服微信已复制" : "复制客服微信"}</span>
-                </button>
-              </article>
-            </div>
+            <img alt="微信商户收款码" className="manual-payment-qr" src="/payment/wechat-merchant-collection.png" />
             <div className="draw-card-confirm-actions">
+              <button className="draw-card-secondary" onClick={handleCopyManualPaymentOrderNo} type="button">
+                <Clipboard size={16} />
+                <span>{manualOrderCopied ? "订单号已复制" : "复制订单号"}</span>
+              </button>
               <button className="draw-card-secondary" onClick={() => goToOrderDetail(manualPaymentOrder.order.id, manualPaymentOrder.order.publicToken)} type="button">
                 <Eye size={16} />
                 <span>稍后查看订单详情</span>
@@ -5436,6 +5196,17 @@ async function updateAdminOrder(orderId, payload) {
   return data.order;
 }
 
+async function confirmAdminManualPayment(orderId) {
+  const response = await fetch(`/api/admin/orders/${orderId}/confirm-manual-payment`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({})
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "确认收款失败。");
+  return data.order;
+}
+
 function parseDownloadFilename(contentDisposition, fallback = "order-originals.zip") {
   const value = String(contentDisposition || "");
   const encodedMatch = value.match(/filename\*=UTF-8''([^;]+)/i);
@@ -6508,6 +6279,24 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
     }
   }
 
+  async function confirmManualPayment() {
+    if (!selectedOrder?.id || selectedOrder.paymentStatus === "paid") return;
+    if (!window.confirm(`确认订单 ${selectedOrder.orderNo} 已收到 ${formatCurrencyCents(selectedOrder.totalCents)} 吗？确认后将赠送点数、解锁原图并转为待发货。`)) return;
+    setIsBusy(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      const updated = await confirmAdminManualPayment(selectedOrder.id);
+      setSelectedOrder(updated);
+      await refreshList({}, { showLoading: false });
+      setStatusMessage("已确认收款，订单已转为待发货。");
+    } catch (nextError) {
+      setError(nextError.message || "确认收款失败。");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   async function downloadOrderOriginals() {
     if (!selectedOrder?.id) return;
     setIsBusy(true);
@@ -6608,7 +6397,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
               单张邮费（分）
               <input min="0" onChange={(event) => setSingleItemShippingFeeCents(Number(event.target.value) || 0)} type="number" value={singleItemShippingFeeCents} />
             </label>
-            <p className="storage-note">系统会自动选择微信内 JSAPI、手机 H5 或电脑扫码支付。金额规则固定为：1 枚收邮费，2 枚及以上包邮。</p>
+            <p className="storage-note">用户提交订单后扫描商户收款码付款；管理员核验到账后，在订单详情中确认收款。金额规则固定为：1 枚收邮费，2 枚及以上包邮。</p>
             <div className="card-actions generator-actions">
               <button className="secondary-button" disabled={isBusy} onClick={saveOrderSettings} type="button">
                 <Save size={18} />
@@ -6751,9 +6540,11 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
                 <Download size={18} />
                 <span>下载原图</span>
               </button>
-              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, shippingCarrier, shippingTrackingNo, orderStatus: "pending_shipment" })} type="button">
-                <span>标记待发货</span>
-              </button>
+              {selectedOrder.paymentStatus !== "paid" ? (
+                <button className="draw-card-primary" disabled={isBusy} onClick={confirmManualPayment} type="button">
+                  <span>确认已收款</span>
+                </button>
+              ) : null}
               <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, shippingCarrier, shippingTrackingNo, orderStatus: "shipped" })} type="button">
                 <span>标记已发货</span>
               </button>
@@ -7397,6 +7188,11 @@ function orderStatusTone(status) {
 }
 
 function getAdminOrderPrimaryStatusLabel(order) {
+  return getOrderPrimaryStatusLabel(order);
+}
+
+function getOrderPrimaryStatusLabel(order) {
+  if (String(order?.orderStatus || "") === "pending_payment" && isManualPaymentOrder(order)) return "待确认收款";
   return orderStatusLabel(String(order?.orderStatus || ""));
 }
 
@@ -7653,7 +7449,7 @@ function buildOrderDetailUrl(orderId, token = "") {
 }
 
 function isManualPaymentOrder(order, config) {
-  return String(order?.lastPaymentChannel || "") === "manual" || String(config?.paymentMode || "") === "manual";
+  return ["manual", "manual_collection"].includes(String(order?.lastPaymentChannel || "")) || String(config?.paymentMode || "") === "manual";
 }
 
 function maskPhone(phone) {
