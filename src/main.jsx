@@ -217,6 +217,7 @@ function readRoute() {
   if (pathname === "/admin" || pathname === "/admin/") return "admin-gallery";
   if (pathname === "/admin/login") return "admin-login";
   if (pathname === "/admin/orders") return "admin-orders";
+  if (/^\/admin\/users\/[^/]+\/clip\/?$/.test(pathname)) return "admin-user-clip";
   if (pathname === "/admin/users") return "admin-users";
   if (pathname === "/admin/merchants") return "admin-merchants";
   if (pathname === "/admin/styles") return "admin-gallery";
@@ -243,7 +244,8 @@ function App() {
       "public-draw-checkout": "选图定制",
       "public-fridge-order": "冰箱贴订单",
       "public-fridge-orders": "我的冰箱贴订单",
-      "admin-api-providers": "API 配置"
+      "admin-api-providers": "API 配置",
+      "admin-user-clip": "用户卡夹"
     };
     document.title = titleByRoute[route] || "AI风格转绘";
   }, [route]);
@@ -434,6 +436,12 @@ function AdminApp({ navigate, route }) {
   const [activeGenerator, setActiveGenerator] = useState(null);
   const [adminReady, setAdminReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  function openUserClip(userId) {
+    const path = `/admin/users/${encodeURIComponent(userId)}/clip`;
+    window.history.pushState({}, "", path);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }
 
   useEffect(() => {
     let isActive = true;
@@ -725,7 +733,9 @@ function AdminApp({ navigate, route }) {
             onRefreshAllMerchants={() => refreshAdminMerchants({ page: 1, limit: 500 }).then((payload) => setMerchants(payload.merchants || []))}
           />
         ) : route === "admin-users" ? (
-          <UserAdminPage />
+          <UserAdminPage onOpenClip={openUserClip} />
+        ) : route === "admin-user-clip" ? (
+          <UserClipAdminPage onBack={() => navigate("admin-users")} userId={getAdminUserClipId()} />
         ) : route === "admin-batch" ? (
           <BatchGeneratePage
             groups={styleGroups}
@@ -4996,6 +5006,17 @@ async function fetchAdminUser(userId) {
   return payload;
 }
 
+async function fetchAdminUserClipItems(userId) {
+  const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/clip-items`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取用户卡夹失败。");
+  return payload;
+}
+
+function getAdminUserClipDownloadUrl(userId, jobId) {
+  return `/api/admin/users/${encodeURIComponent(userId)}/clip-items/${encodeURIComponent(jobId)}/download-original`;
+}
+
 async function updateAdminUserStatus(userId, status) {
   const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/status`, {
     method: "PATCH",
@@ -5982,7 +6003,7 @@ function ApiProviderAdminPage() {
   );
 }
 
-function UserAdminPage() {
+function UserAdminPage({ onOpenClip }) {
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -6074,6 +6095,7 @@ function UserAdminPage() {
               <col className="user-admin-date-column" />
               <col className="user-admin-date-column" />
               <col className="user-admin-orders-column" />
+              <col className="user-admin-clip-column" />
               <col className="user-admin-action-column" />
             </colgroup>
             <thead>
@@ -6084,6 +6106,7 @@ function UserAdminPage() {
                 <th scope="col">注册时间</th>
                 <th scope="col">最近登录</th>
                 <th scope="col">订单</th>
+                <th scope="col">用户卡夹</th>
                 <th scope="col" aria-label="操作" />
               </tr>
             </thead>
@@ -6101,6 +6124,7 @@ function UserAdminPage() {
                   <td className="user-admin-date">{formatDateTime(user.registeredAt)}</td>
                   <td className="user-admin-date">{formatDateTime(user.lastLoginAt)}</td>
                   <td><div className="user-admin-orders"><strong>{user.orderCount} 笔</strong><span>{formatCurrencyCents(user.paidTotalCents)}</span></div></td>
+                  <td><button className="secondary-button user-admin-clip-button" onClick={() => onOpenClip(user.id)} type="button"><Layers3 size={15} /><span>查看卡夹</span></button></td>
                   <td className="user-admin-action"><button className="secondary-button user-admin-detail-button" onClick={() => openDetail(user)} type="button"><Eye size={15} /><span>详情</span></button></td>
                 </tr>
               ))}
@@ -6119,6 +6143,67 @@ function UserAdminPage() {
             <h3>点数流水</h3><div className="task-list">{(detail?.ledger || []).slice(0, 20).map((item) => <div className="task-meta-row" key={item.id}><strong>{item.delta > 0 ? "+" : ""}{item.delta} 点</strong><span>{item.reason}{item.note ? `：${item.note}` : ""}</span><span>{formatDateTime(item.createdAt)}</span></div>)}</div>
             <h3>订单摘要</h3><div className="task-list">{(detail?.orders || []).slice(0, 20).map((order) => <div className="task-meta-row" key={order.id}><strong>{order.orderNo}</strong><span>{order.paymentStatus === "paid" ? "已支付" : "未支付"}</span><span>{formatCurrencyCents(order.totalCents)}</span></div>)}</div>
           </section>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function UserClipAdminPage({ onBack, userId }) {
+  const [user, setUser] = useState(null);
+  const [items, setItems] = useState([]);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  async function load() {
+    if (!userId) {
+      setError("用户地址无效。");
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const payload = await fetchAdminUserClipItems(userId);
+      setUser(payload.user || null);
+      setItems(payload.items || []);
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "读取用户卡夹失败。");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => { void load(); }, [userId]);
+
+  return (
+    <section className="task-page user-clip-admin-page" aria-label="用户卡夹">
+      <div className="task-toolbar">
+        <div>
+          <p className="eyebrow">User clip</p>
+          <h2>{user?.username ? `${user.username} 的卡夹` : "用户卡夹"}</h2>
+          <p className="storage-note">{user?.email || "查看该用户已收藏的生成图片，可下载原始生成文件。"}</p>
+        </div>
+        <div className="task-actions user-clip-admin-actions">
+          <button className="secondary-button" onClick={onBack} type="button"><ArrowLeft size={18} /><span>返回用户列表</span></button>
+          <button className="secondary-button" disabled={isLoading} onClick={() => void load()} type="button"><RefreshCw size={18} /><span>刷新</span></button>
+        </div>
+      </div>
+      {error ? <p className="error-note">{error}</p> : null}
+      {isLoading ? <p className="storage-note">正在读取用户卡夹...</p> : null}
+      {!isLoading && !error && !items.length ? <p className="empty-note">该用户的卡夹中暂无图片。</p> : null}
+      {items.length ? (
+        <div className="user-clip-admin-grid">
+          {items.map((item) => (
+            <article className="user-clip-admin-card" key={item.jobId}>
+              <img alt={item.styleName || "用户卡夹图片"} className="user-clip-admin-image" src={item.imageUrl || item.thumbnailUrl} />
+              <div className="user-clip-admin-copy">
+                <strong>{item.styleName || "未命名风格"}</strong>
+                <span>{publicExperienceLabel(item.experienceType)} · 收藏于 {formatDateTime(item.likedAt || item.completedAt || item.createdAt)}</span>
+              </div>
+              <a className="secondary-button user-clip-admin-download" href={getAdminUserClipDownloadUrl(userId, item.jobId)}><Download size={16} /><span>下载原图</span></a>
+            </article>
+          ))}
         </div>
       ) : null}
     </section>
@@ -7450,6 +7535,16 @@ function buildOrderDetailUrl(orderId, token = "") {
 
 function isManualPaymentOrder(order, config) {
   return ["manual", "manual_collection"].includes(String(order?.lastPaymentChannel || "")) || String(config?.paymentMode || "") === "manual";
+}
+
+function getAdminUserClipId() {
+  const match = window.location.pathname.match(/^\/admin\/users\/([^/]+)\/clip\/?$/);
+  if (!match) return "";
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return "";
+  }
 }
 
 function maskPhone(phone) {

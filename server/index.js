@@ -2301,6 +2301,29 @@ app.get("/api/admin/users/:id", requireAdmin, (req, res, next) => {
   }
 });
 
+app.get("/api/admin/users/:id/clip-items", requireAdmin, async (req, res, next) => {
+  try {
+    const account = commerceStore.readAccount(req.params.id);
+    if (!account?.isRegistered) throw createHttpError(404, "用户不存在。");
+    const items = await listAdminUserClipItems(account.id);
+    res.json({ user: toPublicAdminUser(account), items });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/users/:id/clip-items/:jobId/download-original", requireAdmin, async (req, res, next) => {
+  try {
+    const account = commerceStore.readAccount(req.params.id);
+    if (!account?.isRegistered) throw createHttpError(404, "用户不存在。");
+    const job = await readImageJob(req.params.jobId);
+    if (!isAdminUserClipItem(account.id, job)) throw createHttpError(404, "卡夹图片不存在。");
+    await sendAdminJobImage(res, job, { asDownload: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.patch("/api/admin/users/:id/status", requireAdmin, (req, res, next) => {
   try {
     const current = commerceStore.readAccount(req.params.id);
@@ -6288,6 +6311,33 @@ function toPublicClipItem(job) {
     isLiked: Boolean(job.isLiked),
     likedAt: job.likedAt || null
   };
+}
+
+async function listAdminUserClipItems(accountId) {
+  const visitorIds = new Set(commerceStore.listVisitorIds(accountId));
+  const jobs = await listImageJobs();
+  return jobs
+    .filter((job) => isAdminUserClipItem(accountId, job, visitorIds))
+    .sort((a, b) => String(b.likedAt || b.updatedAt || b.createdAt || "").localeCompare(String(a.likedAt || a.updatedAt || a.createdAt || "")))
+    .map((job) => {
+      const item = toPublicClipItem(job);
+      return {
+        ...item,
+        createdAt: job.createdAt || null,
+        completedAt: job.completedAt || null
+      };
+    });
+}
+
+function isAdminUserClipItem(accountId, job, visitorIds = null) {
+  const ownedVisitorIds = visitorIds || new Set(commerceStore.listVisitorIds(accountId));
+  return Boolean(
+    job &&
+      job.visibility === "public" &&
+      job.status === "succeeded" &&
+      job.isLiked &&
+      ownedVisitorIds.has(job.ownerVisitorId)
+  );
 }
 
 function toPublicDrawCardStyle(style) {

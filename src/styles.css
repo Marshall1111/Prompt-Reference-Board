@@ -2723,6 +2723,10 @@ h2 {
   width: 112px;
 }
 
+.user-admin-clip-column {
+  width: 112px;
+}
+
 .user-admin-action-column {
   width: 76px;
 }
@@ -2810,6 +2814,76 @@ h2 {
   gap: 5px;
   font-size: 0.78rem;
   white-space: nowrap;
+}
+
+.user-admin-clip-button {
+  min-height: 30px;
+  padding: 0 9px;
+  gap: 5px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.user-clip-admin-actions {
+  justify-content: flex-end;
+}
+
+.user-clip-admin-actions > button {
+  flex: 0 0 auto;
+}
+
+.user-clip-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+.user-clip-admin-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #ded8ce;
+  border-radius: 8px;
+  background: rgba(255, 253, 249, 0.96);
+  box-shadow: 0 12px 32px rgba(33, 38, 40, 0.06);
+}
+
+.user-clip-admin-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 5px;
+  background: #f2efea;
+  object-fit: cover;
+}
+
+.user-clip-admin-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.user-clip-admin-copy strong,
+.user-clip-admin-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-clip-admin-copy strong {
+  color: #263532;
+}
+
+.user-clip-admin-copy span {
+  color: #60706d;
+  font-size: 0.78rem;
+}
+
+.user-clip-admin-download {
+  width: 100%;
+  min-height: 34px;
+  text-decoration: none;
 }
 
 .empty-note {
@@ -3354,6 +3428,10 @@ textarea {
   grid-template-columns: auto 96px minmax(0, 1fr);
 }
 
+.checkout-order-items {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .checkout-order-items .draw-card-order-item.is-selected {
   border-color: rgba(110, 162, 171, 0.86);
   background: rgba(225, 242, 240, 0.45);
@@ -3822,6 +3900,18 @@ textarea {
 
   .draw-card-order-items {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .checkout-order-items {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .checkout-order-items .draw-card-order-item {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .checkout-order-items .checkout-item-select {
+    grid-column: 1 / -1;
   }
 
   .order-task-card {
