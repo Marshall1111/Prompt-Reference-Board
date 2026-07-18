@@ -3580,6 +3580,30 @@ textarea {
   }
 }
 
+@media (max-width: 1024px) {
+  .draw-card-shell.theme-draw-card .draw-card-stage-layout,
+  .draw-card-shell.theme-draw-card .draw-card-results-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .draw-card-shell.theme-draw-card .draw-card-stage-main,
+  .draw-card-shell.theme-draw-card .draw-card-account-column,
+  .draw-card-shell.theme-draw-card .draw-card-upload-panel,
+  .draw-card-shell.theme-draw-card .draw-card-clip-panel {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .draw-card-shell.theme-draw-card .draw-card-account-column {
+    margin-top: 0;
+  }
+
+  .draw-card-shell.theme-draw-card .draw-card-clip-panel.has-account {
+    position: relative;
+    top: auto;
+  }
+}
+
 @media (max-width: 820px) {
   .gallery-toolbar .storage-note {
     margin-left: 0;
