@@ -429,24 +429,25 @@ function createExperiencePage(config) {
       var self = this;
       var jobId = event.currentTarget.dataset.jobid;
       var visitorState = this.data.visitorState || {};
+      var clipItem = (this.data.clipItems || []).find(function (item) { return item.jobId === jobId; });
 
       if (!jobId) return;
-      if (visitorState.tier !== "invited") {
-        showOriginalDownloadInviteModal(this.data.orderConfig);
+      if (!visitorState.account || !visitorState.account.canRedeemOriginalDownloads) {
+        showOriginalDownloadOrderModal(this.data.orderConfig);
         return;
       }
-
-      wx.showLoading({ title: "正在下载", mask: true });
-      publicExperience.downloadClipOriginal(jobId).then(function (tempFilePath) {
-        return saveImageToAlbum(tempFilePath);
-      }).then(function () {
-        wx.hideLoading();
-        self.setData({ errorMessage: "" });
-        wx.showToast({ title: "已保存", icon: "success" });
-      }).catch(function (error) {
-        wx.hideLoading();
-        self.setData({ errorMessage: (error && error.message) || "保存原图失败，请稍后再试。" });
-      });
+      if (clipItem && !clipItem.originalRedeemed) {
+        wx.showModal({
+          title: "兑换原图",
+          content: "本次下载将消耗 1 个点数。",
+          confirmText: "确认兑换",
+          success: function (result) {
+            if (result.confirm) downloadClipOriginalToAlbum(self, jobId);
+          }
+        });
+        return;
+      }
+      downloadClipOriginalToAlbum(self, jobId);
     },
 
     addToClip: function (event) {
@@ -728,12 +729,27 @@ function saveImageToAlbum(filePath) {
   });
 }
 
-function showOriginalDownloadInviteModal(orderConfig) {
+function downloadClipOriginalToAlbum(page, jobId) {
+  wx.showLoading({ title: "正在下载", mask: true });
+  publicExperience.downloadClipOriginal(jobId).then(function (tempFilePath) {
+    return saveImageToAlbum(tempFilePath);
+  }).then(function () {
+    wx.hideLoading();
+    page.setData({ errorMessage: "" });
+    wx.showToast({ title: "已保存", icon: "success" });
+    return page.refreshPublicState();
+  }).catch(function (error) {
+    wx.hideLoading();
+    page.setData({ errorMessage: (error && error.message) || "保存原图失败，请稍后再试。" });
+  });
+}
+
+function showOriginalDownloadOrderModal(orderConfig) {
   var contact = getContact(orderConfig);
 
   wx.showModal({
-    title: "下载原图需邀请码",
-    content: "下载无水印原图需要先填写邀请码。请联系客服获取邀请码后，在卡夹下方输入并兑换。",
+    title: "下单后可兑换原图",
+    content: "任意定制订单支付成功后即可获得兑换资格；每张原图兑换需消耗 1 点。用于制作冰箱贴的图片会自动兑换，不额外消耗点数。",
     confirmText: "联系客服",
     cancelText: "知道了",
     success: function (result) {

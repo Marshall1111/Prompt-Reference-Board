@@ -75,7 +75,7 @@
             <view class="clip-meta">
               <text>{{item.styleName || clipItemFallback}}</text>
               <view class="clip-item-actions">
-                <button bindtap="downloadClipOriginal" class="mini-primary" data-jobid="{{item.jobId}}">下载原图</button>
+                <button bindtap="downloadClipOriginal" class="mini-primary" data-jobid="{{item.jobId}}">{{item.originalRedeemed ? '下载原图' : (visitorState && visitorState.account && visitorState.account.canRedeemOriginalDownloads ? '1点兑换原图' : '下单后兑换')}}</button>
                 <button bindtap="removeFromClip" class="mini-danger" data-jobid="{{item.jobId}}">{{pocketRemoveLabel}}</button>
               </view>
             </view>

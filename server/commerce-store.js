@@ -124,6 +124,16 @@ export function createCommerceStore({ dbPath }) {
       FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS commerce_original_image_redemptions (
+      account_id TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      redemption_type TEXT NOT NULL,
+      source_order_id TEXT NOT NULL DEFAULT '',
+      redeemed_at TEXT NOT NULL,
+      PRIMARY KEY (account_id, job_id),
+      FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS commerce_payment_intents (
       id TEXT PRIMARY KEY,
       out_trade_no TEXT NOT NULL UNIQUE,
@@ -182,6 +192,7 @@ export function createCommerceStore({ dbPath }) {
     CREATE INDEX IF NOT EXISTS idx_commerce_payment_intents_account ON commerce_payment_intents(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_payment_intents_transaction ON commerce_payment_intents(transaction_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_credit_ledger_account ON commerce_credit_ledger(account_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_commerce_original_image_redemptions_order ON commerce_original_image_redemptions(source_order_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_user_sessions_account ON commerce_user_sessions(account_id, expires_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_email_verifications_lookup ON commerce_email_verifications(email, purpose, created_at DESC);
   `);
@@ -211,6 +222,15 @@ export function createCommerceStore({ dbPath }) {
   const readAccountByUsernameStatement = db.prepare("SELECT * FROM commerce_accounts WHERE username = ?");
   const readIntentByIdStatement = db.prepare("SELECT * FROM commerce_payment_intents WHERE id = ?");
   const readIntentByTradeNoStatement = db.prepare("SELECT * FROM commerce_payment_intents WHERE out_trade_no = ?");
+  const readOriginalImageRedemptionStatement = db.prepare(`
+    SELECT * FROM commerce_original_image_redemptions
+    WHERE account_id = ? AND job_id = ?
+  `);
+  const readPaidPhysicalOrderStatement = db.prepare(`
+    SELECT id FROM commerce_payment_intents
+    WHERE account_id = ? AND kind = 'physical_order' AND status = 'paid'
+    LIMIT 1
+  `);
 
   function readAccount(accountId) {
     return mapAccount(readAccountByIdStatement.get(String(accountId || "")));
@@ -226,6 +246,28 @@ export function createCommerceStore({ dbPath }) {
 
   function readAccountByUsername(username) {
     return mapAccount(readAccountByUsernameStatement.get(String(username || "").trim()));
+  }
+
+  function hasPaidPhysicalOrder(accountId) {
+    return Boolean(readPaidPhysicalOrderStatement.get(String(accountId || "")));
+  }
+
+  function isOriginalImageRedeemed(accountId, jobId) {
+    const safeAccountId = String(accountId || "");
+    const safeJobId = String(jobId || "");
+    if (readOriginalImageRedemptionStatement.get(safeAccountId, safeJobId)) return true;
+    return Boolean(db.prepare(`
+      SELECT 1
+      FROM commerce_payment_intents p
+      INNER JOIN orders o ON o.id = p.target_order_id
+      INNER JOIN order_items i ON i.order_id = o.id
+      WHERE p.account_id = ?
+        AND p.kind = 'physical_order'
+        AND p.status = 'paid'
+        AND o.account_id = ?
+        AND i.job_id = ?
+      LIMIT 1
+    `).get(safeAccountId, safeAccountId, safeJobId));
   }
 
   function createUserSession(accountId, { ttlMs = 30 * 24 * 60 * 60 * 1000 } = {}) {
@@ -548,13 +590,7 @@ export function createCommerceStore({ dbPath }) {
             referenceId: intent.id
           });
         }
-      }
-      if (intent.kind === "physical_order") {
-        db.prepare(`
-          UPDATE commerce_accounts
-          SET original_downloads_unlocked_at = COALESCE(original_downloads_unlocked_at, ?), updated_at = ?
-          WHERE id = ?
-        `).run(now, nowIso(), intent.accountId);
+        redeemPhysicalOrderOriginals(intent.accountId, intent.targetOrderId, now);
       }
       recordPaymentEvent({ paymentIntentId: intent.id, eventType: "payment_notify", eventId, success: true, payload, headers });
       return { intent: readPaymentIntent(intent.id), settledNow: true, account: readAccount(intent.accountId) };
@@ -567,6 +603,81 @@ export function createCommerceStore({ dbPath }) {
       referenceType: "generation_session",
       referenceId: String(referenceId || "")
     }));
+  }
+
+  function redeemOriginalImage({ accountId, jobId }) {
+    const safeAccountId = String(accountId || "");
+    const safeJobId = String(jobId || "");
+    return withTransaction(db, () => {
+      const existing = readOriginalImageRedemptionStatement.get(safeAccountId, safeJobId);
+      if (existing) {
+        return { account: readAccount(safeAccountId), redeemedNow: false, redemptionType: String(existing.redemption_type || "") };
+      }
+      if (!hasPaidPhysicalOrder(safeAccountId)) {
+        const error = new Error("定制订单支付成功后，才可兑换原图。");
+        error.code = "ORIGINAL_REDEMPTION_REQUIRES_PAID_ORDER";
+        error.publicMessage = error.message;
+        throw error;
+      }
+
+      const includedOrder = db.prepare(`
+        SELECT o.id
+        FROM orders o
+        INNER JOIN order_items i ON i.order_id = o.id
+        WHERE o.account_id = ?
+          AND o.payment_status = 'paid'
+          AND i.job_id = ?
+        LIMIT 1
+      `).get(safeAccountId, safeJobId);
+      const redeemedAt = nowIso();
+      if (includedOrder) {
+        db.prepare(`
+          INSERT INTO commerce_original_image_redemptions (
+            account_id, job_id, redemption_type, source_order_id, redeemed_at
+          ) VALUES (?, ?, 'fridge_order', ?, ?)
+        `).run(safeAccountId, safeJobId, String(includedOrder.id), redeemedAt);
+        return { account: readAccount(safeAccountId), redeemedNow: true, redemptionType: "fridge_order" };
+      }
+
+      let debit;
+      try {
+        debit = appendLedger(safeAccountId, -1, {
+          reason: "original_image_redemption",
+          referenceType: "original_image_redemption",
+          referenceId: safeJobId
+        });
+      } catch (error) {
+        if (error.code === "INSUFFICIENT_CREDITS") {
+          error.publicMessage = "兑换原图需要 1 点，当前点数不足。";
+        }
+        throw error;
+      }
+      db.prepare(`
+        INSERT INTO commerce_original_image_redemptions (
+          account_id, job_id, redemption_type, source_order_id, redeemed_at
+        ) VALUES (?, ?, 'credit', '', ?)
+      `).run(safeAccountId, safeJobId, redeemedAt);
+      return { account: debit.account, redeemedNow: true, redemptionType: "credit" };
+    });
+  }
+
+  function redeemPhysicalOrderOriginals(accountId, orderId, redeemedAt = nowIso()) {
+    const order = db.prepare(`
+      SELECT id FROM orders
+      WHERE id = ? AND account_id = ?
+      LIMIT 1
+    `).get(String(orderId || ""), String(accountId || ""));
+    if (!order) return 0;
+    const items = db.prepare("SELECT job_id FROM order_items WHERE order_id = ?").all(String(order.id));
+    const insert = db.prepare(`
+      INSERT OR IGNORE INTO commerce_original_image_redemptions (
+        account_id, job_id, redemption_type, source_order_id, redeemed_at
+      ) VALUES (?, ?, 'fridge_order', ?, ?)
+    `);
+    items.forEach((item) => {
+      insert.run(String(accountId || ""), String(item.job_id || ""), String(order.id), String(redeemedAt || nowIso()));
+    });
+    return items.length;
   }
 
   function grantCredits({ accountId, amount, referenceType, referenceId, reason = "promotion" }) {
@@ -704,6 +815,8 @@ export function createCommerceStore({ dbPath }) {
     adjustCredits,
     deleteUserSession,
     grantCredits,
+    hasPaidPhysicalOrder,
+    isOriginalImageRedeemed,
     linkVisitor,
     listCreditLedger,
     listAllCreditLedger,
@@ -721,6 +834,7 @@ export function createCommerceStore({ dbPath }) {
     readPaymentIntent,
     readPaymentIntentByOutTradeNo,
     recordPaymentEvent,
+    redeemOriginalImage,
     settlePayment,
     consumeEmailVerification,
     recordAccountLogin,

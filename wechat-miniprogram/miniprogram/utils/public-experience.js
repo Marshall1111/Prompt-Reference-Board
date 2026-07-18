@@ -269,6 +269,7 @@ function normalizeClipItem(item) {
     imageUrl: publicApi.toAbsoluteUrl(item && (item.imageUrl || item.thumbnailUrl) || ""),
     thumbnailUrl: publicApi.toAbsoluteUrl(item && (item.thumbnailUrl || item.imageUrl) || ""),
     isLiked: Boolean(item && item.isLiked),
+    originalRedeemed: Boolean(item && item.originalRedeemed),
     likedAt: item && item.likedAt || null
   };
 }

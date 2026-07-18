@@ -1863,7 +1863,10 @@ app.get("/api/public/clip-items", requireWebAccount, async (req, res) => {
           (!experienceType || normalizePublicExperienceType(job.experienceType) === normalizePublicExperienceType(experienceType))
       )
       .sort((a, b) => String(b.likedAt || b.updatedAt || b.createdAt || "").localeCompare(String(a.likedAt || a.updatedAt || a.createdAt || "")))
-      .map((job) => toPublicClipItem(job));
+      .map((job) => ({
+        ...toPublicClipItem(job),
+        originalRedeemed: commerceStore.isOriginalImageRedeemed(req.webAccount.id, job.jobId)
+      }));
     res.json({ items });
   } catch (error) {
     console.error(error);
@@ -1873,13 +1876,12 @@ app.get("/api/public/clip-items", requireWebAccount, async (req, res) => {
 
 app.get("/api/public/clip-items/:jobId/download-original", requireWebAccount, async (req, res) => {
   try {
-    if (!req.webAccount.originalDownloadsUnlockedAt) {
-      return res.status(403).json({ message: "定制订单支付成功后，卡夹中的全部原图都会永久解锁下载。" });
-    }
-
     const job = await readImageJob(req.params.jobId);
     assertCanDownloadClipOriginal(req, job);
-    await sendPublicClipOriginalImage(res, job);
+    const file = await resolveJobImageFile(job);
+    if (!file) throw createHttpError(404, "原图不存在。");
+    commerceStore.redeemOriginalImage({ accountId: req.webAccount.id, jobId: job.jobId });
+    await sendPublicClipOriginalImage(res, job, file);
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "下载原图失败，请稍后再试。" });
@@ -5447,8 +5449,7 @@ function toPublicCommerceAccount(account) {
     email: account.email || "",
     accountStatus: account.accountStatus || "active",
     creditBalance: Math.max(0, Number(account.creditBalance || 0)),
-    originalDownloadsUnlocked: Boolean(account.originalDownloadsUnlockedAt),
-    originalDownloadsUnlockedAt: account.originalDownloadsUnlockedAt || null,
+    canRedeemOriginalDownloads: commerceStore.hasPaidPhysicalOrder(account.id),
     createdAt: account.createdAt || null
   };
 }
@@ -6408,8 +6409,8 @@ async function sendAdminJobImage(res, job, options = {}) {
   res.sendFile(file);
 }
 
-async function sendPublicClipOriginalImage(res, job) {
-  const file = await resolveJobImageFile(job);
+async function sendPublicClipOriginalImage(res, job, resolvedFile = "") {
+  const file = resolvedFile || await resolveJobImageFile(job);
   if (!file) throw createHttpError(404, "原图不存在。");
   const mimeType = mimeForExtension(path.extname(file).toLowerCase()) || "application/octet-stream";
   res.setHeader("Content-Disposition", `inline; filename="${path.basename(file)}"`);

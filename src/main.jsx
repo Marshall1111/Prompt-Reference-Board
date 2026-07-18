@@ -2045,6 +2045,7 @@ function PublicExperiencePage({ config }) {
   }
 
   function closeOriginalPreview() {
+    if (originalPreview?.url?.startsWith("blob:")) URL.revokeObjectURL(originalPreview.url);
     setOriginalPreview(null);
   }
 
@@ -2093,22 +2094,33 @@ function PublicExperiencePage({ config }) {
       }
       return;
     }
-    if (!latestVisitorState?.account?.originalDownloadsUnlocked) {
-      if (experienceType === "draw-card") {
-        setShowOriginalUnlockPrompt(true);
-      } else {
-        setError("完成任意一次消费后，即可永久下载全部原图。");
-      }
+    if (!latestVisitorState?.account?.canRedeemOriginalDownloads) {
+      setShowOriginalUnlockPrompt(true);
       return;
     }
 
+    const clipItem = clipItems.find((clip) => clip.jobId === item.jobId);
+    const isAlreadyRedeemed = Boolean(clipItem?.originalRedeemed);
+    if (!isAlreadyRedeemed && Number(latestVisitorState.account.creditBalance || 0) < 1) {
+      setError("兑换原图需要 1 点，当前点数不足。");
+      return;
+    }
+    if (!isAlreadyRedeemed && !window.confirm("本次兑换将消耗 1 个点数。是否继续？")) return;
+
     try {
       setOriginalPreviewLoadingJobId(item.jobId);
+      const url = await fetchPublicClipOriginalPreview(item.jobId);
       setOriginalPreview({
         jobId: item.jobId,
         styleName: item.styleName || "",
-        url: getPublicClipOriginalPreviewUrl(item.jobId)
+        url
       });
+      const [nextVisitorState, nextClipPayload] = await Promise.all([
+        fetchVisitorState(),
+        fetchPublicClipItems(experienceType)
+      ]);
+      setVisitorState(nextVisitorState);
+      setClipItems(nextClipPayload.items || []);
       setError("");
     } catch (nextError) {
       setError(nextError.message || "下载原图失败，请稍后再试。");
@@ -2247,7 +2259,7 @@ function PublicExperiencePage({ config }) {
                           {pocketRemoveLabel}
                         </button>
                         <button className="draw-card-clip-download" disabled={originalPreviewLoadingJobId === item.jobId} onClick={() => handleDownloadClipOriginal(item)} type="button">
-                          {originalPreviewLoadingJobId === item.jobId ? "加载中" : visitorState?.account?.originalDownloadsUnlocked ? "下载原图" : "消费后解锁原图"}
+                          {originalPreviewLoadingJobId === item.jobId ? "加载中" : item.originalRedeemed ? "下载原图" : visitorState?.account?.canRedeemOriginalDownloads ? "1点兑换原图" : "下单后兑换"}
                         </button>
                       </div>
                     </div>
@@ -2279,7 +2291,7 @@ function PublicExperiencePage({ config }) {
           <div className="draw-card-account-summary">
             <span>账户点数</span>
             <strong>{visitorState ? `${visitorState.quotaRemaining}` : "--"}</strong>
-            <p>{visitorState?.account?.originalDownloadsUnlocked ? "原图已永久解锁" : experienceType === "draw-card" ? "定制订单支付成功后即可解锁全部原图" : "任意消费后永久解锁全部原图"}</p>
+            <p>{visitorState?.account?.canRedeemOriginalDownloads ? "已获得原图兑换资格，每张兑换消耗 1 点" : "定制订单支付成功后即可兑换原图"}</p>
             <p>每定制1枚冰箱贴，可获赠10点。</p>
           </div>
           {visitorState?.sourceMerchantName ? <p>来源商户：{visitorState.sourceMerchantName}</p> : null}
@@ -2584,7 +2596,7 @@ function PublicExperiencePage({ config }) {
                             </button>
                             <button className="draw-card-save-button" onClick={() => handleDownloadClipOriginal(result)} type="button">
                               <Download size={16} />
-                              <span>{experienceType === "draw-card" || visitorState?.account?.originalDownloadsUnlocked ? "下载原图" : "消费后解锁"}</span>
+                              <span>{visitorState?.account?.canRedeemOriginalDownloads ? "1点兑换原图" : "下单后兑换"}</span>
                             </button>
                           </>
                         ) : (
@@ -2817,7 +2829,7 @@ function PublicExperiencePage({ config }) {
           <section className="draw-card-confirm-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="解锁原图">
             <p className="draw-card-kicker">Original images</p>
             <h2>下载原图</h2>
-            <p className="storage-note">定制订单支付成功后，卡夹中的全部原图都会永久解锁下载。</p>
+            <p className="storage-note">任意定制订单支付成功后可兑换原图，每张需消耗 1 点。已下单制作冰箱贴的图片会自动兑换，不额外消耗点数。</p>
             <div className="draw-card-confirm-actions">
               <button className="draw-card-secondary" onClick={() => setShowOriginalUnlockPrompt(false)} type="button">暂不定制</button>
               <button className="draw-card-primary" onClick={() => window.location.assign("/draw/order")} type="button">选图定制</button>
@@ -4939,9 +4951,16 @@ async function fetchPublicClipItems(experienceType = "") {
   return payload;
 }
 
-function getPublicClipOriginalPreviewUrl(jobId) {
+async function fetchPublicClipOriginalPreview(jobId) {
   const cacheKey = Date.now().toString(36);
-  return `/api/public/clip-items/${encodeURIComponent(jobId)}/download-original?preview=${cacheKey}`;
+  const response = await fetch(`/api/public/clip-items/${encodeURIComponent(jobId)}/download-original?preview=${cacheKey}`, {
+    credentials: "same-origin"
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.message || "下载原图失败，请稍后再试。");
+  }
+  return URL.createObjectURL(await response.blob());
 }
 
 async function readJsonPayload(response, fallbackMessage, options = {}) {
