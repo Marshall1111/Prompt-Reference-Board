@@ -5336,7 +5336,7 @@ function toPublicWebAccountState(req, account) {
     quotaUsed: 0,
     quotaRemaining: publicAccount.creditBalance,
     canGenerate: publicAccount.accountStatus !== "disabled" && publicAccount.creditBalance > 0,
-    contactMessage: publicAccount.accountStatus === "disabled" ? "该账户已被禁用，请联系管理员。" : "点数不足时，可定制冰箱贴获得更多点数。",
+    contactMessage: publicAccount.accountStatus === "disabled" ? "该账户已被禁用，请联系管理员。" : "每定制1枚冰箱贴，可获赠10点。",
     account: publicAccount,
     authorizationUrl: ""
   };

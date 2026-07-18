@@ -1063,7 +1063,7 @@ function DrawCardCheckoutPage() {
                 <p>单价 {formatCurrencyCents(amountPreview.unitPriceCents)} / 枚</p>
                 <p>邮费 {amountPreview.shippingFeeCents > 0 ? formatCurrencyCents(amountPreview.shippingFeeCents) : "包邮"}</p>
                 <strong>合计 {formatCurrencyCents(amountPreview.totalCents)}</strong>
-                <span className="storage-note">每支付成功 1 枚冰箱贴，赠送 10 点。</span>
+                <span className="storage-note">购买 {totalItemCount} 枚冰箱贴，可赠送 {totalItemCount * 10} 点。</span>
               </div>
               <div className="draw-card-order-form">
                 <label className="field-label">收件人<input onChange={(event) => setOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={orderForm.receiverName} /></label>
@@ -2262,10 +2262,15 @@ function PublicExperiencePage({ config }) {
             )}
 
             {experienceType === "draw-card" ? (
-              <button className="draw-card-clip-order draw-card-clip-order-prominent" disabled={!clipItems.length || !orderConfig?.enabled} onClick={() => window.location.assign("/draw/order")} type="button">
-                <Sparkles size={18} />
-                <span>{orderConfig?.enabled ? "选图定制" : "定制暂未开放"}</span>
-              </button>
+              <div className="draw-card-clip-order-row">
+                <button className="draw-card-clip-order draw-card-clip-order-prominent" disabled={!clipItems.length || !orderConfig?.enabled} onClick={() => window.location.assign("/draw/order")} type="button">
+                  <Sparkles size={16} />
+                  <span>{orderConfig?.enabled ? "选图定制" : "定制暂未开放"}</span>
+                </button>
+                <span className="draw-card-clip-order-price">
+                  {Number(orderConfig?.unitPriceCents || 0) > 0 ? `冰箱贴 ${formatCurrencyCents(orderConfig.unitPriceCents)} / 枚` : "冰箱贴价格加载中"}
+                </span>
+              </div>
             ) : null}
           </>
         ) : null}
@@ -2275,6 +2280,7 @@ function PublicExperiencePage({ config }) {
             <span>账户点数</span>
             <strong>{visitorState ? `${visitorState.quotaRemaining}` : "--"}</strong>
             <p>{visitorState?.account?.originalDownloadsUnlocked ? "原图已永久解锁" : experienceType === "draw-card" ? "定制订单支付成功后即可解锁全部原图" : "任意消费后永久解锁全部原图"}</p>
+            <p>每定制1枚冰箱贴，可获赠10点。</p>
           </div>
           {visitorState?.sourceMerchantName ? <p>来源商户：{visitorState.sourceMerchantName}</p> : null}
           <input className="field-inline-input" onChange={(event) => setInviteCode(event.target.value)} placeholder={clipInvitePlaceholder} value={inviteCode} />
@@ -2318,7 +2324,6 @@ function PublicExperiencePage({ config }) {
               <span>{orderConfig?.enabled ? "提交订单" : "下单未开放"}</span>
             </button>
           ) : null}
-          <p>{visitorState?.contactMessage || clipContactFallback}</p>
         </div> : null}
       </aside>
     );

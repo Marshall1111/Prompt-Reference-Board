@@ -3249,6 +3249,20 @@ textarea {
   background: rgba(255, 216, 149, 0.2);
 }
 
+.draw-card-clip-order-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.draw-card-clip-order-price {
+  color: rgba(243, 237, 225, 0.72);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .draw-card-shell.theme-draw-card .draw-card-clip-panel.has-collection {
   position: relative;
   top: auto;
@@ -3391,14 +3405,16 @@ textarea {
 }
 
 .draw-card-clip-order-prominent {
-  width: 100%;
-  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 16px;
   justify-content: center;
   gap: 8px;
   border-color: rgba(255, 216, 149, 0.84);
   background: linear-gradient(135deg, rgba(255, 216, 149, 0.3), rgba(255, 161, 150, 0.24));
   color: #fff1c7;
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
 .draw-card-clip-order-prominent:disabled {
