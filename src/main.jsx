@@ -2531,10 +2531,6 @@ function PublicExperiencePage({ config }) {
               <h2>{resultsHeading}</h2>
               <p className="draw-card-subtitle">{resultsBodyCopy}</p>
             </div>
-            <button className="draw-card-secondary draw-card-results-restart draw-card-results-restart-desktop" onClick={confirmResetExperience} type="button">
-              <RefreshCw size={18} />
-              <span>换张图片重做</span>
-            </button>
           </div>
 
           {error ? <p className="error-note draw-card-inline-error">{error}</p> : null}
@@ -2584,10 +2580,12 @@ function PublicExperiencePage({ config }) {
                   );
                 })}
               </div>
-              <button className="draw-card-secondary draw-card-results-restart draw-card-results-restart-mobile" onClick={confirmResetExperience} type="button">
-                <RefreshCw size={18} />
-                <span>换张图片重做</span>
-              </button>
+              <div className="draw-card-results-actions">
+                <button className="draw-card-secondary draw-card-results-restart" onClick={confirmResetExperience} type="button">
+                  <RefreshCw size={18} />
+                  <span>换张图片重做</span>
+                </button>
+              </div>
               {isDrawCardExperience ? renderClipPanel({ showAccount: false }) : null}
             </div>
 

@@ -685,8 +685,15 @@ body {
   align-items: start;
 }
 
-.draw-card-results-restart-mobile {
-  display: none;
+.draw-card-results-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.draw-card-results-restart {
+  min-height: 38px;
+  padding: 0 16px;
 }
 
 .draw-card-result-card {
@@ -3797,15 +3804,6 @@ textarea {
   .draw-card-results-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
-  }
-
-  .draw-card-results-restart-desktop {
-    display: none;
-  }
-
-  .draw-card-results-restart-mobile {
-    display: inline-flex;
-    width: 100%;
   }
 
   .draw-card-result-card {
