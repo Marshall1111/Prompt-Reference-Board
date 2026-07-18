@@ -465,6 +465,26 @@ body {
   gap: 24px;
 }
 
+.draw-card-shell.theme-draw-card .draw-card-stage-layout {
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 28px;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-upload {
+  min-height: 238px;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-hero {
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-upload-panel {
+  gap: 16px;
+  padding: 18px;
+  border-radius: 24px;
+}
+
 .draw-card-primary,
 .draw-card-secondary,
 .draw-card-save-button {
@@ -1753,6 +1773,30 @@ button:disabled {
   margin: 0 auto 8px;
 }
 
+.draw-card-shell.theme-draw-card .draw-card-utility-bar-draw {
+  position: absolute;
+  top: 132px;
+  left: 50%;
+  width: min(1180px, calc(100% - 64px));
+  margin: 0;
+  z-index: 3;
+  transform: translateX(-50%);
+}
+
+.draw-card-shell.theme-draw-card .draw-card-account-column {
+  margin-top: 138px;
+}
+
+.draw-card-page-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  width: min(1180px, 100%);
+  margin: 8px auto 0;
+  padding-top: 16px;
+}
+
 .draw-card-utility-link {
   display: inline-flex;
   align-items: center;
@@ -3000,11 +3044,106 @@ textarea {
   background: rgba(255, 216, 149, 0.2);
 }
 
-.draw-card-shell.theme-draw-card .draw-card-clip-panel {
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+.draw-card-shell.theme-draw-card .draw-card-clip-panel.has-collection {
+  position: relative;
+  top: auto;
+  grid-template-rows: auto auto auto;
+  gap: 14px;
+  min-height: 0;
+  max-height: none;
+  padding: 18px 20px 20px;
+  border-radius: 24px;
 }
 
-.draw-card-shell.theme-draw-card .draw-card-clip-list {
+.draw-card-shell.theme-draw-card .draw-card-clip-panel.has-account {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+  grid-template-rows: auto;
+  min-height: 0;
+  max-height: none;
+  padding: 18px;
+  border-radius: 24px;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-panel.has-account .draw-card-account-card {
+  display: grid;
+  align-items: stretch;
+  justify-items: stretch;
+  height: auto;
+  min-height: 0;
+  gap: 14px;
+  padding: 2px;
+  border: 0;
+  border-radius: 0;
+  color: rgba(243, 237, 225, 0.72);
+  text-align: left;
+}
+
+.draw-card-account-summary {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid rgba(255, 216, 149, 0.18);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 216, 149, 0.13), rgba(255, 188, 216, 0.07));
+}
+
+.draw-card-account-summary > span {
+  color: rgba(243, 237, 225, 0.58);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.draw-card-account-summary > strong {
+  color: #fff0c8;
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: 2.15rem;
+  line-height: 1;
+}
+
+.draw-card-account-summary > p,
+.draw-card-account-card > p {
+  color: rgba(243, 237, 225, 0.62);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-panel.has-account .field-inline-input {
+  width: 100%;
+  min-height: 42px;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-panel.has-account .draw-card-clip-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-panel.has-account .draw-card-clip-actions > button {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-panel.has-account .draw-card-secondary {
+  border-color: rgba(239, 225, 198, 0.18);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-panel.has-account .draw-card-secondary:hover {
+  border-color: rgba(255, 216, 149, 0.46);
+  background: rgba(255, 216, 149, 0.1);
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-panel.has-collection .draw-card-clip-empty {
+  height: auto;
+  min-height: 152px;
+  padding: 16px;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-panel.has-collection .draw-card-clip-list {
   display: flex;
   gap: 10px;
   min-height: 152px;
@@ -3282,10 +3421,23 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .draw-card-shell.theme-draw-card .draw-card-stage-layout {
+    gap: 20px;
+  }
+
+  .draw-card-shell.theme-draw-card .draw-card-account-column {
+    margin-top: 0;
+  }
+
   .draw-card-clip-panel {
     position: relative;
     top: auto;
     max-height: none;
+  }
+
+  .draw-card-shell.theme-draw-card .draw-card-clip-panel.has-account {
+    position: relative;
+    top: auto;
   }
 
   .draw-card-style-upload {
@@ -3328,6 +3480,20 @@ textarea {
 
   .draw-card-utility-bar {
     margin-bottom: 14px;
+  }
+
+  .draw-card-shell.theme-draw-card .draw-card-utility-bar-draw {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: min(1180px, 100%);
+    margin: 0 auto 14px;
+    transform: none;
+  }
+
+  .draw-card-page-footer {
+    margin-top: 14px;
+    padding-top: 12px;
   }
 
   .manage-card {

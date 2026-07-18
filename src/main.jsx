@@ -1252,7 +1252,6 @@ function PublicExperiencePage({ config }) {
     errorTitle,
     experienceType,
     inviteErrorMessage,
-    latestErrorMessage,
     lightboxResultAlt,
     pocketAddLabel = "加入卡夹",
     pocketAddedLabel = "已加入卡夹",
@@ -1261,7 +1260,6 @@ function PublicExperiencePage({ config }) {
     previewAlt,
     readErrorMessage,
     removeClipErrorMessage,
-    restoreErrorMessage,
     resultAltPrefix,
     resultNameFallback,
     resultsKicker,
@@ -1509,21 +1507,10 @@ function PublicExperiencePage({ config }) {
     } catch {}
   }
 
-  function persistSession(nextSessionId) {
-    if (!nextSessionId) {
-      clearPersistedSession();
-      return;
-    }
-    try {
-      window.localStorage.setItem(sessionStorageKey, nextSessionId);
-    } catch {}
-  }
-
   function applySession(payload) {
     const nextSessionId = String(payload?.sessionId || "");
     setSession(payload);
     setSessionId(nextSessionId);
-    persistSession(nextSessionId);
     setResults(Array.isArray(payload?.results) ? payload.results : []);
     setError("");
     if (["succeeded", "partial", "failed"].includes(String(payload?.status || ""))) {
@@ -1664,41 +1651,14 @@ function PublicExperiencePage({ config }) {
 
     loadClipItems();
 
-    async function restoreSessionProgress() {
-      const restoredSessionId = readPersistedSessionId(sessionStorageKey);
-      if (restoredSessionId) {
-        try {
-          const payload = await fetchPublicExperienceSession(apiBase, restoredSessionId, readErrorMessage);
-          if (!isActive) return;
-          applySession(payload);
-          return;
-        } catch (nextError) {
-          if (!isActive) return;
-          if (![403, 404].includes(nextError?.status)) {
-            setError((current) => current || nextError.message || restoreErrorMessage);
-            return;
-          }
-          clearPersistedSession();
-        }
-      }
-
-      try {
-        const payload = await fetchLatestPublicExperienceSession(apiBase, latestErrorMessage);
-        if (!isActive) return;
-        applySession(payload);
-      } catch (nextError) {
-        if (!isActive) return;
-        if (nextError?.status === 404) return;
-        setError((current) => current || nextError.message || restoreErrorMessage);
-      }
-    }
-
-    restoreSessionProgress();
+    // 首页始终从上传图片开始。生成结果仅在当前页面会话中展示；用户加入卡夹的图片
+    // 已由卡夹接口独立保存，因此不会受刷新或重新打开首页的影响。
+    clearPersistedSession();
 
     return () => {
       isActive = false;
     };
-  }, [apiBase, clipErrorMessage, experienceType, latestErrorMessage, readErrorMessage, restoreErrorMessage, sessionStorageKey]);
+  }, [clipErrorMessage, experienceType, sessionStorageKey]);
 
   useEffect(() => {
     if (experienceType !== "fridge-magnet") return;
@@ -2231,76 +2191,78 @@ function PublicExperiencePage({ config }) {
     setPendingRemoval(result);
   }
 
-  function renderClipPanel() {
+  function renderClipPanel({ showCollection = true, showAccount = true } = {}) {
     return (
-      <aside className={`draw-card-clip-panel ${clipReceiving ? "is-receiving" : ""}`} ref={cardClipPanelRef}>
-        <div className="draw-card-clip-head">
-          <div>
-            <p className="draw-card-kicker">{clipKicker}</p>
-            <h3>{clipTitle}</h3>
-          </div>
-          <div className="draw-card-clip-head-actions">
-            <span className="draw-card-clip-count">{clipItems.length}</span>
-          </div>
-        </div>
-
-        {clipItems.length ? (
-          <div className="draw-card-clip-list">
-            {clipItems.map((item, index) => experienceType === "draw-card" ? (
-              <button
-                aria-label={`放大查看 ${item.styleName || `${clipItemFallback} ${index + 1}`}`}
-                className="draw-card-clip-thumbnail"
-                key={`clip-${item.jobId}-${index}`}
-                onClick={() => openClipPreview(item.jobId)}
-                title={item.styleName || `${clipItemFallback} ${index + 1}`}
-                type="button"
-              >
-                <img alt={item.styleName || `${clipItemFallback} ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
-              </button>
-            ) : (
-              <article className="draw-card-clip-item" key={`clip-${item.jobId}-${index}`}>
-                <button className="draw-card-clip-preview" onClick={() => openClipPreview(item.jobId)} type="button">
-                  <img alt={item.styleName || `${clipItemFallback} ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
-                </button>
-                <div className="draw-card-clip-meta">
-                  <strong>{item.styleName || `${clipItemFallback} ${index + 1}`}</strong>
-                  <div className="draw-card-clip-item-actions">
-                    <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(item)} type="button">
-                      {pocketRemoveLabel}
-                    </button>
-                    <button className="draw-card-clip-download" disabled={originalPreviewLoadingJobId === item.jobId} onClick={() => handleDownloadClipOriginal(item)} type="button">
-                      {originalPreviewLoadingJobId === item.jobId ? "加载中" : visitorState?.account?.originalDownloadsUnlocked ? "下载原图" : "消费后解锁原图"}
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="draw-card-clip-empty">
-            <Sparkles size={18} />
-            <p>{clipEmptyText}</p>
-          </div>
-        )}
-
-        {experienceType === "draw-card" ? (
+      <aside
+        className={`draw-card-clip-panel ${showCollection ? "has-collection" : ""} ${showAccount ? "has-account" : ""} ${clipReceiving && showCollection ? "is-receiving" : ""}`}
+        ref={showCollection ? cardClipPanelRef : null}
+      >
+        {showCollection ? (
           <>
-            <button className="draw-card-clip-order draw-card-clip-order-prominent" disabled={!clipItems.length || !orderConfig?.enabled} onClick={() => window.location.assign("/draw/order")} type="button">
-              <Sparkles size={18} />
-              <span>{orderConfig?.enabled ? "选图定制" : "定制暂未开放"}</span>
-            </button>
-            {visitorState?.account?.isRegistered ? (
-              <button className="draw-card-clip-order draw-card-clip-order-prominent draw-card-clip-order-secondary" onClick={() => window.location.assign("/fridge/orders")} type="button">
-                <Clipboard size={18} />
-                <span>我的订单</span>
+            <div className="draw-card-clip-head">
+              <div>
+                <p className="draw-card-kicker">{clipKicker}</p>
+                <h3>{clipTitle}</h3>
+              </div>
+              <div className="draw-card-clip-head-actions">
+                <span className="draw-card-clip-count">{clipItems.length}</span>
+              </div>
+            </div>
+
+            {clipItems.length ? (
+              <div className="draw-card-clip-list">
+                {clipItems.map((item, index) => experienceType === "draw-card" ? (
+                  <button
+                    aria-label={`放大查看 ${item.styleName || `${clipItemFallback} ${index + 1}`}`}
+                    className="draw-card-clip-thumbnail"
+                    key={`clip-${item.jobId}-${index}`}
+                    onClick={() => openClipPreview(item.jobId)}
+                    title={item.styleName || `${clipItemFallback} ${index + 1}`}
+                    type="button"
+                  >
+                    <img alt={item.styleName || `${clipItemFallback} ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
+                  </button>
+                ) : (
+                  <article className="draw-card-clip-item" key={`clip-${item.jobId}-${index}`}>
+                    <button className="draw-card-clip-preview" onClick={() => openClipPreview(item.jobId)} type="button">
+                      <img alt={item.styleName || `${clipItemFallback} ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
+                    </button>
+                    <div className="draw-card-clip-meta">
+                      <strong>{item.styleName || `${clipItemFallback} ${index + 1}`}</strong>
+                      <div className="draw-card-clip-item-actions">
+                        <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(item)} type="button">
+                          {pocketRemoveLabel}
+                        </button>
+                        <button className="draw-card-clip-download" disabled={originalPreviewLoadingJobId === item.jobId} onClick={() => handleDownloadClipOriginal(item)} type="button">
+                          {originalPreviewLoadingJobId === item.jobId ? "加载中" : visitorState?.account?.originalDownloadsUnlocked ? "下载原图" : "消费后解锁原图"}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="draw-card-clip-empty">
+                <Sparkles size={18} />
+                <p>{clipEmptyText}</p>
+              </div>
+            )}
+
+            {experienceType === "draw-card" ? (
+              <button className="draw-card-clip-order draw-card-clip-order-prominent" disabled={!clipItems.length || !orderConfig?.enabled} onClick={() => window.location.assign("/draw/order")} type="button">
+                <Sparkles size={18} />
+                <span>{orderConfig?.enabled ? "选图定制" : "定制暂未开放"}</span>
               </button>
             ) : null}
           </>
         ) : null}
 
-        <div className="draw-card-clip-empty">
-          <p>剩余点数：{visitorState ? `${visitorState.quotaRemaining}` : "--"}</p>
-          <p>{visitorState?.account?.originalDownloadsUnlocked ? "原图已永久解锁" : experienceType === "draw-card" ? "定制订单支付成功后即可解锁全部原图" : "任意消费后永久解锁全部原图"}</p>
+        {showAccount ? <div className="draw-card-clip-empty draw-card-account-card">
+          <div className="draw-card-account-summary">
+            <span>账户点数</span>
+            <strong>{visitorState ? `${visitorState.quotaRemaining}` : "--"}</strong>
+            <p>{visitorState?.account?.originalDownloadsUnlocked ? "原图已永久解锁" : experienceType === "draw-card" ? "定制订单支付成功后即可解锁全部原图" : "任意消费后永久解锁全部原图"}</p>
+          </div>
           {visitorState?.sourceMerchantName ? <p>来源商户：{visitorState.sourceMerchantName}</p> : null}
           <input className="field-inline-input" onChange={(event) => setInviteCode(event.target.value)} placeholder={clipInvitePlaceholder} value={inviteCode} />
           <div className="draw-card-clip-actions">
@@ -2320,6 +2282,11 @@ function PublicExperiencePage({ config }) {
             >
               <span>兑换邀请码</span>
             </button>
+            {experienceType === "draw-card" && visitorState?.account?.isRegistered ? (
+              <button className="draw-card-secondary" onClick={() => window.location.assign("/fridge/orders")} type="button">
+                <span>我的订单</span>
+              </button>
+            ) : null}
             <button className="draw-card-secondary" onClick={() => setShowContactModal(true)} type="button">
               <span>联系客服</span>
             </button>
@@ -2339,7 +2306,7 @@ function PublicExperiencePage({ config }) {
             </button>
           ) : null}
           <p>{visitorState?.contactMessage || clipContactFallback}</p>
-        </div>
+        </div> : null}
       </aside>
     );
   }
@@ -2348,11 +2315,9 @@ function PublicExperiencePage({ config }) {
     <main className={`draw-card-shell ${themeClass} ${route} phase-${phase}`}>
       <div className="draw-card-ambient draw-card-ambient-a" />
       <div className="draw-card-ambient draw-card-ambient-b" />
-      <div className="draw-card-utility-bar">
-        <a className="draw-card-utility-link" href="/admin" aria-label="进入后台管理">
-          后台入口
-        </a>
-        {experienceType === "draw-card" && visitorState?.account?.isRegistered ? (
+      {experienceType === "draw-card" ? (
+        <div className="draw-card-utility-bar draw-card-utility-bar-draw">
+          {visitorState?.account?.isRegistered ? (
           <>
             <button
               className="draw-card-utility-link"
@@ -2367,10 +2332,11 @@ function PublicExperiencePage({ config }) {
               {visitorState.account.username || "已登录"} · 退出
             </button>
           </>
-        ) : experienceType === "draw-card" ? (
-          <button className="draw-card-utility-link" onClick={() => setShowAuthModal(true)} type="button">登录 / 注册</button>
-        ) : null}
-      </div>
+          ) : (
+            <button className="draw-card-utility-link" onClick={() => setShowAuthModal(true)} type="button">登录 / 注册</button>
+          )}
+        </div>
+      ) : null}
 
       {(phase === "idle" || phase === "ready") && (
         <section className="draw-card-stage">
@@ -2433,9 +2399,13 @@ function PublicExperiencePage({ config }) {
 
                 {error ? <p className="error-note draw-card-inline-error">{error}</p> : null}
               </section>
+
+              {isDrawCardExperience ? renderClipPanel({ showAccount: false }) : null}
             </div>
 
-            {renderClipPanel()}
+            <div className={isDrawCardExperience ? "draw-card-account-column" : ""}>
+              {isDrawCardExperience ? renderClipPanel({ showCollection: false }) : renderClipPanel()}
+            </div>
           </div>
         </section>
       )}
@@ -2615,9 +2585,10 @@ function PublicExperiencePage({ config }) {
                 <RefreshCw size={18} />
                 <span>换张图片重做</span>
               </button>
+              {isDrawCardExperience ? renderClipPanel({ showAccount: false }) : null}
             </div>
 
-            {renderClipPanel()}
+            {isDrawCardExperience ? renderClipPanel({ showCollection: false }) : renderClipPanel()}
           </div>
         </section>
       )}
@@ -2635,6 +2606,12 @@ function PublicExperiencePage({ config }) {
           </div>
         </section>
       )}
+
+      <footer className="draw-card-page-footer">
+        <a className="draw-card-utility-link" href="/admin" aria-label="进入后台管理">
+          后台入口
+        </a>
+      </footer>
 
       {activeResult && (
         <div className="modal-backdrop draw-card-lightbox" onClick={closeActivePreview} role="presentation">
@@ -7128,26 +7105,6 @@ async function fetchPublicExperienceSession(apiBase, sessionId, fallbackMessage)
     throw error;
   }
   return payload;
-}
-
-async function fetchLatestPublicExperienceSession(apiBase, fallbackMessage) {
-  const response = await fetch(`${apiBase}/sessions/latest`);
-  const payload = await response.json();
-  if (!response.ok) {
-    const error = new Error(payload.message || fallbackMessage || "恢复公开玩法进度失败，请稍后再试。");
-    error.status = response.status;
-    throw error;
-  }
-  return payload;
-}
-
-function readPersistedSessionId(storageKey) {
-  try {
-    const stored = window.localStorage.getItem(storageKey);
-    return stored ? String(stored) : "";
-  } catch {
-    return "";
-  }
 }
 
 async function likeImageJob(jobId) {
