@@ -2681,6 +2681,130 @@ h2 {
   min-width: 0;
 }
 
+.user-admin-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #ded8ce;
+  border-radius: 8px;
+  background: rgba(255, 253, 249, 0.96);
+  box-shadow: 0 12px 32px rgba(33, 38, 40, 0.06);
+}
+
+.user-admin-table {
+  width: 100%;
+  min-width: 940px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.user-admin-status-column {
+  width: 92px;
+}
+
+.user-admin-identity-column {
+  width: 25%;
+}
+
+.user-admin-credit-column {
+  width: 82px;
+}
+
+.user-admin-date-column {
+  width: 146px;
+}
+
+.user-admin-orders-column {
+  width: 112px;
+}
+
+.user-admin-action-column {
+  width: 76px;
+}
+
+.user-admin-table th,
+.user-admin-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #ebe6de;
+  color: #42524d;
+  font-size: 0.84rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.user-admin-table th {
+  color: #60706d;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.user-admin-table thead {
+  background: #f7f5ef;
+}
+
+.user-admin-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.user-admin-table tbody tr:hover {
+  background: #fafcf9;
+}
+
+.user-admin-status {
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.user-admin-identity {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.user-admin-identity strong,
+.user-admin-identity span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-admin-identity strong,
+.user-admin-number,
+.user-admin-orders strong {
+  color: #263532;
+  font-weight: 800;
+}
+
+.user-admin-identity span,
+.user-admin-orders span {
+  color: #60706d;
+}
+
+.user-admin-number,
+.user-admin-date {
+  white-space: nowrap;
+}
+
+.user-admin-orders {
+  display: grid;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.user-admin-action {
+  text-align: right;
+}
+
+.user-admin-detail-button {
+  min-height: 30px;
+  padding: 0 9px;
+  gap: 5px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
 .empty-note {
   padding: 18px;
   border: 1px dashed #cbd5d0;

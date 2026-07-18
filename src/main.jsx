@@ -6055,7 +6055,7 @@ function UserAdminPage() {
   }
 
   return (
-    <section className="task-page" aria-label="用户管理">
+    <section className="task-page user-admin-page" aria-label="用户管理">
       <div className="task-toolbar">
         <div><p className="eyebrow">Users</p><h2>用户管理</h2><p className="storage-note">管理邮箱注册用户、账户状态与点数余额。</p></div>
         <button className="secondary-button" disabled={busy} onClick={() => load()} type="button"><RefreshCw size={18} /><span>刷新</span></button>
@@ -6066,16 +6066,50 @@ function UserAdminPage() {
         <button className="secondary-button" onClick={() => load({ page: 1 })} type="button">筛选</button>
       </div>
       {error ? <p className="error-note">{error}</p> : null}
-      <div className="task-list">
-        {users.map((user) => (
-          <article className="task-card" key={user.id}>
-            <div className={`task-status ${user.status === "disabled" ? "failed" : "succeeded"}`}>{user.status === "disabled" ? "已禁用" : "正常"}</div>
-            <div className="task-detail"><div className="task-meta-row"><strong>{user.username}</strong><span>{user.email}</span><span>{user.creditBalance} 点</span></div><p className="storage-note">注册 {formatDateTime(user.registeredAt)} · 最近登录 {formatDateTime(user.lastLoginAt)} · {user.orderCount} 笔订单 / {formatCurrencyCents(user.paidTotalCents)}</p></div>
-            <div className="task-actions"><button className="secondary-button" onClick={() => openDetail(user)} type="button"><Eye size={18} /><span>详情</span></button></div>
-          </article>
-        ))}
-        {!users.length ? <p className="empty-note">暂无注册用户。</p> : null}
-      </div>
+      {users.length ? (
+        <div className="user-admin-table-wrap">
+          <table className="user-admin-table">
+            <colgroup>
+              <col className="user-admin-status-column" />
+              <col className="user-admin-identity-column" />
+              <col className="user-admin-credit-column" />
+              <col className="user-admin-date-column" />
+              <col className="user-admin-date-column" />
+              <col className="user-admin-orders-column" />
+              <col className="user-admin-action-column" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col">状态</th>
+                <th scope="col">用户</th>
+                <th scope="col">点数</th>
+                <th scope="col">注册时间</th>
+                <th scope="col">最近登录</th>
+                <th scope="col">订单</th>
+                <th scope="col" aria-label="操作" />
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user.id}>
+                  <td><span className={`task-status user-admin-status ${user.status === "disabled" ? "failed" : "succeeded"}`}>{user.status === "disabled" ? "已禁用" : "正常"}</span></td>
+                  <td>
+                    <div className="user-admin-identity">
+                      <strong title={user.username}>{user.username}</strong>
+                      <span title={user.email}>{user.email}</span>
+                    </div>
+                  </td>
+                  <td className="user-admin-number">{user.creditBalance} 点</td>
+                  <td className="user-admin-date">{formatDateTime(user.registeredAt)}</td>
+                  <td className="user-admin-date">{formatDateTime(user.lastLoginAt)}</td>
+                  <td><div className="user-admin-orders"><strong>{user.orderCount} 笔</strong><span>{formatCurrencyCents(user.paidTotalCents)}</span></div></td>
+                  <td className="user-admin-action"><button className="secondary-button user-admin-detail-button" onClick={() => openDetail(user)} type="button"><Eye size={15} /><span>详情</span></button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <p className="empty-note">暂无注册用户。</p>}
       <div className="task-pagination"><p className="storage-note">共 {total} 位用户，当前第 {page} / {totalPages} 页。</p><div className="task-pagination-actions"><button className="secondary-button" disabled={busy || page <= 1} onClick={() => load({ page: page - 1 })} type="button">上一页</button><button className="secondary-button" disabled={busy || page >= totalPages} onClick={() => load({ page: page + 1 })} type="button">下一页</button></div></div>
       {selected ? (
         <div className="modal-backdrop" onClick={() => setSelected(null)} role="presentation">
