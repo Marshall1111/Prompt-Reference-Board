@@ -4,7 +4,7 @@ import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createHash, createHmac, createPrivateKey, createPublicKey, createSign, createVerify, randomInt, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
-import { access, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { access, appendFile, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createOrderStore } from "./order-store.js";
@@ -15,6 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
 const localEnvPath = path.join(rootDir, ".env");
+const authDebugLogPath = path.join(rootDir, "data", "auth-debug.log");
 const dataPath = path.join(rootDir, "data", "styles.json");
 const styleGroupsPath = path.join(rootDir, "data", "style-groups.json");
 const imageJobRoot = path.join(rootDir, "data", "image-jobs");
@@ -745,7 +746,7 @@ app.post("/api/auth/email-code", async (req, res, next) => {
     await sendEmailVerificationCode({ email, code, purpose });
     res.status(201).json({ ok: true, expiresAt, resendAfterSeconds: 60, ...(isEmailCodeLogOnly() ? { developmentCode: code } : {}) });
   } catch (error) {
-    next(toAuthHttpError(error));
+    next(await toLoggedAuthHttpError("email-code", error));
   }
 });
 
@@ -770,7 +771,7 @@ app.post("/api/auth/register", requireWebAccount, async (req, res, next) => {
     setUserSessionCookie(req, res, session.id);
     res.status(201).json({ authenticated: true, account: toPublicCommerceAccount(account) });
   } catch (error) {
-    next(toAuthHttpError(error));
+    next(await toLoggedAuthHttpError("register", error));
   }
 });
 
@@ -790,7 +791,7 @@ app.post("/api/auth/login", async (req, res, next) => {
     setUserSessionCookie(req, res, session.id);
     res.json({ authenticated: true, account: toPublicCommerceAccount(loggedInAccount) });
   } catch (error) {
-    next(toAuthHttpError(error));
+    next(await toLoggedAuthHttpError("login", error));
   }
 });
 
@@ -818,7 +819,7 @@ app.post("/api/auth/password-reset", async (req, res, next) => {
     commerceStore.updateAccountPassword(account.id, hashPassword(password));
     res.json({ ok: true });
   } catch (error) {
-    next(toAuthHttpError(error));
+    next(await toLoggedAuthHttpError("password-reset", error));
   }
 });
 
@@ -5494,6 +5495,29 @@ function hashEmailVerificationCode({ email, purpose, code }) {
     .digest("base64url");
 }
 
+async function toLoggedAuthHttpError(action, error) {
+  await writeAuthDebugLog(action, error);
+  return toAuthHttpError(error);
+}
+
+async function writeAuthDebugLog(action, error) {
+  if (!isEmailCodeLogOnly()) return;
+  try {
+    await mkdir(path.dirname(authDebugLogPath), { recursive: true });
+    const entry = {
+      at: new Date().toISOString(),
+      action,
+      code: error?.code || "",
+      status: error?.status || null,
+      message: error?.message || String(error || ""),
+      stack: error?.stack || ""
+    };
+    await appendFile(authDebugLogPath, `${JSON.stringify(entry)}\n`, "utf-8");
+  } catch {
+    // Logging must never mask the original auth failure.
+  }
+}
+
 function toAuthHttpError(error) {
   if (error?.status) return error;
   const code = String(error?.code || "");
@@ -5504,6 +5528,7 @@ function toAuthHttpError(error) {
   if (code === "EMAIL_EXISTS") return createHttpError(409, "该邮箱已注册，请直接登录。");
   if (code === "USERNAME_EXISTS") return createHttpError(409, "用户名已被使用。");
   if (code === "ALREADY_REGISTERED") return createHttpError(409, "当前账户已完成注册。");
+  if (isEmailCodeLogOnly()) return createHttpError(500, `本地认证错误：${error?.message || "未知错误。"}`);
   return error;
 }
 

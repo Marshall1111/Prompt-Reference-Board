@@ -344,7 +344,10 @@ function AuthModal({ onAuthenticated, onClose }) {
       const payload = await requestEmailCode(email, purpose);
       setResendSeconds(Number(payload.resendAfterSeconds || 60));
       setMessage("验证码已发送，请查收邮箱。");
-      if (payload.developmentCode) setMessage(`本地验证码：${payload.developmentCode}`);
+      if (payload.developmentCode) {
+        setCode(String(payload.developmentCode));
+        setMessage(`本地验证码：${payload.developmentCode}`);
+      }
     } catch (nextError) {
       setError(nextError.message || "验证码发送失败。");
     } finally {
@@ -4797,13 +4800,21 @@ async function fetchCurrentAccount() {
   return payload;
 }
 
+async function readAuthJsonResponse(response, fallbackPayload = {}) {
+  try {
+    return await response.json();
+  } catch {
+    return fallbackPayload;
+  }
+}
+
 async function requestEmailCode(email, purpose) {
   const response = await fetch("/api/auth/email-code", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, purpose })
   });
-  const payload = await response.json();
+  const payload = await readAuthJsonResponse(response, { message: "验证码发送失败。" });
   if (!response.ok) throw new Error(payload.message || "验证码发送失败。");
   return payload;
 }
@@ -4814,7 +4825,7 @@ async function registerWithEmail(payload) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
-  const data = await response.json();
+  const data = await readAuthJsonResponse(response, { message: "注册失败。" });
   if (!response.ok) throw new Error(data.message || "注册失败。");
   return data;
 }
@@ -4825,7 +4836,7 @@ async function loginWithEmail(email, password) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password })
   });
-  const data = await response.json();
+  const data = await readAuthJsonResponse(response, { message: "登录失败。" });
   if (!response.ok) throw new Error(data.message || "登录失败。");
   return data;
 }
@@ -4836,7 +4847,7 @@ async function resetPasswordWithEmail(payload) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
-  const data = await response.json();
+  const data = await readAuthJsonResponse(response, { message: "密码重设失败。" });
   if (!response.ok) throw new Error(data.message || "密码重设失败。");
   return data;
 }

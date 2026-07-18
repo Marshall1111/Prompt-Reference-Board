@@ -6,6 +6,7 @@ config.local.js
 npm-debug.log*
 server.out.log
 server.err.log
+data/*.log
 .git-work/
 data/image-jobs/
 data/draw-card-sessions/

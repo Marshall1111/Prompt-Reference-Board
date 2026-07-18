@@ -282,11 +282,12 @@ export function createCommerceStore({ dbPath }) {
         throw error;
       }
       const now = nowIso();
+      const emailAccountOpenId = randomUUID();
       db.prepare(`
         UPDATE commerce_accounts
-        SET channel = 'email_user', email = ?, username = ?, password_hash = ?, account_status = 'active', registered_at = ?, last_login_at = ?, updated_at = ?
+        SET channel = 'email_user', open_id = ?, email = ?, username = ?, password_hash = ?, account_status = 'active', registered_at = ?, last_login_at = ?, updated_at = ?
         WHERE id = ?
-      `).run(normalizedEmail, normalizedUsername, String(passwordHash), now, now, now, account.id);
+      `).run(emailAccountOpenId, normalizedEmail, normalizedUsername, String(passwordHash), now, now, now, account.id);
       return readAccount(account.id);
     });
   }
