@@ -71,7 +71,13 @@
 
         <view class="clip-list" wx:if="{{clipItems.length}}">
           <view wx:for="{{clipItems}}" wx:key="jobId" class="clip-item">
-            <image bindtap="previewClip" class="clip-image" data-url="{{item.imageUrl || item.thumbnailUrl}}" mode="aspectFill" src="{{item.thumbnailUrl || item.imageUrl}}" />
+            <view bindtap="previewClip" class="clip-magnet-frame" data-url="{{item.imageUrl || item.thumbnailUrl}}">
+              <image class="clip-image" mode="aspectFill" src="{{item.thumbnailUrl || item.imageUrl}}" />
+              <view class="magnet-corner top-left"></view>
+              <view class="magnet-corner top-right"></view>
+              <view class="magnet-corner bottom-left"></view>
+              <view class="magnet-corner bottom-right"></view>
+            </view>
             <view class="clip-meta">
               <text>{{item.styleName || clipItemFallback}}</text>
               <view class="clip-item-actions">

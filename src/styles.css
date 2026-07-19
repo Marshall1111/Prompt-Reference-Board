@@ -906,19 +906,63 @@ body {
 
 .draw-card-clip-preview {
   width: 84px;
-  padding: 0;
+  position: relative;
+  box-sizing: border-box;
+  padding: 6px;
   overflow: hidden;
-  border: 0;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(239, 248, 249, 0.74);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(194, 221, 225, 0.2));
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.22),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.13);
+  isolation: isolate;
 }
 
 .draw-card-clip-preview img {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   aspect-ratio: 2 / 3;
+  border-radius: 4px;
   object-fit: cover;
 }
+
+.draw-card-clip-preview::before,
+.draw-card-shell.theme-draw-card .draw-card-clip-thumbnail::before {
+  position: absolute;
+  z-index: 2;
+  inset: 2px;
+  content: "";
+  pointer-events: none;
+  border-radius: 8px;
+  background: linear-gradient(118deg, transparent 31%, rgba(255, 255, 255, 0.08) 39%, rgba(255, 255, 255, 0.68) 48%, rgba(255, 255, 255, 0.12) 56%, transparent 65%);
+  mix-blend-mode: screen;
+}
+
+.acrylic-magnet-corners {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+}
+
+.acrylic-magnet-corner {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 32%, #f8ffff 0 18%, #899da0 23% 46%, #435054 52% 70%, #1b2225 76%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.42), inset 0 1px 1px rgba(255, 255, 255, 0.76);
+}
+
+.acrylic-magnet-corner.top-left { top: 4px; left: 4px; }
+.acrylic-magnet-corner.top-right { top: 4px; right: 4px; }
+.acrylic-magnet-corner.bottom-left { bottom: 4px; left: 4px; }
+.acrylic-magnet-corner.bottom-right { right: 4px; bottom: 4px; }
 
 .draw-card-clip-meta {
   display: grid;
@@ -1446,6 +1490,16 @@ body {
 .draw-card-shell.theme-fridge-magnet .draw-card-result-media-original,
 .draw-card-shell.theme-fridge-magnet .draw-card-lightbox-panel img {
   border-radius: 20px;
+}
+
+.draw-card-shell.theme-fridge-magnet .draw-card-clip-preview {
+  border-color: rgba(198, 217, 219, 0.94);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.68), rgba(189, 219, 222, 0.24));
+  box-shadow:
+    0 8px 18px rgba(51, 73, 78, 0.2),
+    inset 0 1px 1px rgba(255, 255, 255, 0.92),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.14);
 }
 
 .draw-card-shell.theme-fridge-magnet .draw-card-result-placeholder {
@@ -3381,11 +3435,17 @@ textarea {
 
 .draw-card-shell.theme-draw-card .draw-card-clip-thumbnail {
   flex: 0 0 96px;
-  padding: 0;
+  position: relative;
+  box-sizing: border-box;
+  padding: 6px;
   overflow: hidden;
-  border: 1px solid rgba(239, 225, 198, 0.18);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(248, 245, 230, 0.78);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.54), rgba(211, 224, 225, 0.18));
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.22),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.12);
   cursor: pointer;
   scroll-snap-align: start;
 }
@@ -3398,9 +3458,12 @@ textarea {
 }
 
 .draw-card-shell.theme-draw-card .draw-card-clip-thumbnail img {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   aspect-ratio: 2 / 3;
+  border-radius: 4px;
   object-fit: cover;
 }
 

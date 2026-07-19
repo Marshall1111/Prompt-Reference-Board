@@ -471,10 +471,58 @@
   background: #f5faf6;
 }
 
-.clip-image {
+.clip-magnet-frame {
+  position: relative;
   width: 104rpx;
   height: 104rpx;
-  border-radius: 16rpx;
+  box-sizing: border-box;
+  padding: 7rpx;
+  overflow: hidden;
+  border: 2rpx solid rgba(239, 248, 249, 0.82);
+  border-radius: 14rpx;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(194, 221, 225, 0.2));
+  box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.2), inset 0 2rpx 2rpx rgba(255, 255, 255, 0.9), inset 0 0 0 3rpx rgba(255, 255, 255, 0.13);
+}
+
+.theme-fridge .clip-magnet-frame {
+  border-color: rgba(196, 214, 213, 0.96);
+}
+
+.clip-magnet-frame::before {
+  position: absolute;
+  z-index: 2;
+  inset: 3rpx;
+  content: "";
+  pointer-events: none;
+  border-radius: 10rpx;
+  background: linear-gradient(118deg, transparent 31%, rgba(255, 255, 255, 0.08) 39%, rgba(255, 255, 255, 0.68) 48%, rgba(255, 255, 255, 0.12) 56%, transparent 65%);
+}
+
+.clip-image {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 5rpx;
+}
+
+.magnet-corner {
+  position: absolute;
+  z-index: 3;
+  width: 11rpx;
+  height: 11rpx;
+  box-sizing: border-box;
+  border: 2rpx solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 32%, #f8ffff 0 18%, #899da0 23% 46%, #435054 52% 70%, #1b2225 76%);
+  box-shadow: 0 2rpx 3rpx rgba(0, 0, 0, 0.42), inset 0 1rpx 1rpx rgba(255, 255, 255, 0.76);
+}
+
+.magnet-corner.top-left { top: 5rpx; left: 5rpx; }
+.magnet-corner.top-right { top: 5rpx; right: 5rpx; }
+.magnet-corner.bottom-left { bottom: 5rpx; left: 5rpx; }
+.magnet-corner.bottom-right { right: 5rpx; bottom: 5rpx; }
 }
 
 .clip-meta {

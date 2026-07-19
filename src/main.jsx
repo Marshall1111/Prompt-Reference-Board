@@ -2246,11 +2246,13 @@ function PublicExperiencePage({ config }) {
                     type="button"
                   >
                     <img alt={item.styleName || `${clipItemFallback} ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
+                    <AcrylicMagnetCorners />
                   </button>
                 ) : (
                   <article className="draw-card-clip-item" key={`clip-${item.jobId}-${index}`}>
                     <button className="draw-card-clip-preview" onClick={() => openClipPreview(item.jobId)} type="button">
                       <img alt={item.styleName || `${clipItemFallback} ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
+                      <AcrylicMagnetCorners />
                     </button>
                     <div className="draw-card-clip-meta">
                       <strong>{item.styleName || `${clipItemFallback} ${index + 1}`}</strong>
@@ -4961,6 +4963,15 @@ async function fetchPublicClipOriginalPreview(jobId) {
     throw new Error(payload.message || "下载原图失败，请稍后再试。");
   }
   return URL.createObjectURL(await response.blob());
+}
+
+function AcrylicMagnetCorners() {
+  return <span aria-hidden="true" className="acrylic-magnet-corners">
+    <i className="acrylic-magnet-corner top-left" />
+    <i className="acrylic-magnet-corner top-right" />
+    <i className="acrylic-magnet-corner bottom-left" />
+    <i className="acrylic-magnet-corner bottom-right" />
+  </span>;
 }
 
 async function readJsonPayload(response, fallbackMessage, options = {}) {
