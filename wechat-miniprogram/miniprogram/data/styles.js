@@ -961,7 +961,7 @@ const styles = [
     "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/images-small/style_1780637137263.jpg",
-    "prompt": "生成一张严格3×3九宫格绘本页面总览图，\n共9格，必须铺满整张正方形画面，不留空\n白。每一格都是独立1:1正方形页面。内容只\n包含：封面、Eyes眼睛、Ears耳朵、Nose鼻\n子、Mouth嘴巴、Hands手、Tummy肚子、\nLegs腿、Feet脚。不要生成第10页，每一\n页都要不同的人物动作或姿势，不出现相似\n页，中英双语儿童启蒙书，绘本封面标题“My\nFirst Body 我的第一本身体认知书”，真实摄\n影风格，真实皮肤纹理，白色摄影棚背景，柔\n和自然光,极简留白设计，高级母婴杂志感，\n儿童认知卡片布局，每页一个身体部位主题，\n包含英文标题、中文标题、彩色编号、虚线\n箭头标注、小器官图标（可爱幼稚)、简洁双\n语文案，文案类似：这是我的眼睛，文字可\n爱一点，字体粗一点，文字颜色可以五颜六\n色，DK百科式排版，浅景深，商业儿童摄影,\n温暖奶油白色调，低饱和莫兰迪配色，治愈\n系儿童绘本风格，高清8k, ultra detailed,\nrealistic baby portrait, editorial layout, soft\nlighting, minimal background",
+    "prompt": "生成一张严格3×3九宫格绘本页面总览图，共9格，必须铺满整张正方形画面，不留空白。\n每一格都是独立1:1正方形页面。内容只包含：封面、Eyes眼睛、Ears耳朵、Nose鼻子、Mouth嘴巴、Hands手、Tummy肚子、Legs腿、Feet脚。不要生成第10页，每一页都要不同的人物动作或姿势，不出现相似页，中英双语儿童启蒙书，绘本封面标题“My First Body 我的第一本身体认知书”，真实摄影风格，真实皮肤纹理，白色摄影棚背景，柔和自然光,极简留白设计，高级母婴杂志感，儿童认知卡片布局，每页一个身体部位主题，包含英文标题、中文标题、彩色编号、虚线箭头标注、小器官图标（可爱幼稚)、简洁双语文案，文案类似：这是我的眼睛，文字可爱一点，字体粗一点，文字颜色可以五颜六色，DK百科式排版，浅景深，商业儿童摄影,温暖奶油白色调，低饱和莫兰迪配色，治愈系儿童绘本风格，高清8k, ultra detailed, realistic baby portrait, editorial layout, soft\nlighting, minimal background",
     "useStyleImageAsReference": false
   },
   {
