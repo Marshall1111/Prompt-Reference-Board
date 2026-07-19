@@ -15,6 +15,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
 const localEnvPath = path.join(rootDir, ".env");
+
+// Load .env before reading any environment-backed configuration constants below.
+loadLocalEnv();
+
 const authDebugLogPath = path.join(rootDir, "data", "auth-debug.log");
 const dataPath = path.join(rootDir, "data", "styles.json");
 const styleGroupsPath = path.join(rootDir, "data", "style-groups.json");
@@ -256,8 +260,6 @@ const ipRequestLog = new Map();
 const orderStore = createOrderStore({ dbPath: orderDbPath });
 const commerceStore = createCommerceStore({ dbPath: orderDbPath });
 const merchantStore = createMerchantStore({ filePath: merchantDataPath });
-
-loadLocalEnv();
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
