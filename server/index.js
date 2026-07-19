@@ -111,6 +111,7 @@ const DRAW_CARD_DEFAULT_STYLE_COUNT = 2;
 const BODY_BOOK_SIZE = "1024x1024";
 const BODY_BOOK_GENERATION_MODE = String(process.env.BODY_BOOK_GENERATION_MODE || "mock").trim().toLowerCase();
 const BODY_BOOK_MOCK_MODE = BODY_BOOK_GENERATION_MODE !== "live";
+const BODY_BOOK_BILLING_ENABLED = ["1", "true", "yes", "on"].includes(String(process.env.BODY_BOOK_BILLING_ENABLED || "false").trim().toLowerCase());
 const BODY_BOOK_MOCK_PROVIDER = { id: "body-book-mock", name: "开发模拟", model: "mock" };
 const BODY_BOOK_PARTS = [
   { key: "head", chinese: "头部", english: "Head", copy: "This is my head. 这是我的头部。" },
@@ -1562,7 +1563,7 @@ app.post("/api/body-book/sessions", requireWebAccount, upload.single("image"), a
   try {
     if (!req.file) throw createHttpError(400, "请先上传一张宝宝照片。");
     if (req.file.mimetype === "image/svg+xml") throw createHttpError(400, "请上传 JPG、PNG 或 WebP 图片。");
-    if (!BODY_BOOK_MOCK_MODE && Number(req.webAccount.creditBalance || 0) < 1) throw createHttpError(409, "生成封面需要 1 点，当前点数不足。");
+    if (!BODY_BOOK_MOCK_MODE && BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.creditBalance || 0) < 1) throw createHttpError(409, "生成封面需要 1 点，当前点数不足。");
 
     const visitor = await getVisitorState(req);
     enforcePublicRateLimits(req);
@@ -1581,7 +1582,7 @@ app.post("/api/body-book/sessions", requireWebAccount, upload.single("image"), a
 });
 
 app.get("/api/body-book/themes", requireWebAccount, (_req, res) => {
-  res.json({ themes: BOOK_THEME_DEFINITIONS.map(toPublicBookTheme) });
+  res.json({ themes: BOOK_THEME_DEFINITIONS.map(toPublicBookTheme), billingEnabled: BODY_BOOK_BILLING_ENABLED });
 });
 
 app.get("/api/body-book/sessions/latest", requireWebAccount, async (req, res) => {
@@ -1670,7 +1671,7 @@ app.post("/api/body-book/sessions/:sessionId/confirm-cover", requireWebAccount, 
     if (current.stage !== "cover_review" || current.cover.status !== "succeeded") {
       throw createHttpError(409, "请等待封面生成完成后再确认。");
     }
-    if (!BODY_BOOK_MOCK_MODE && Number(req.webAccount.creditBalance || 0) < current.cards.length) {
+    if (!BODY_BOOK_MOCK_MODE && BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.creditBalance || 0) < current.cards.length) {
       throw createHttpError(409, `生成 ${current.cards.length} 张认知卡需要 ${current.cards.length} 点，当前点数不足。`);
     }
     const next = await startBodyBookCards(current);
@@ -1714,7 +1715,7 @@ app.post("/api/body-book/sessions/:sessionId/cards/:partKey/regenerate", require
       throw createHttpError(409, "该认知卡尚未结束，暂时不能重新生成。");
     }
     if (req.file?.mimetype === "image/svg+xml") throw createHttpError(400, "请上传 JPG、PNG 或 WebP 图片。");
-    if (!BODY_BOOK_MOCK_MODE && Number(req.webAccount.creditBalance || 0) < 1) throw createHttpError(409, "重新生成需要 1 点，当前点数不足。");
+    if (!BODY_BOOK_MOCK_MODE && BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.creditBalance || 0) < 1) throw createHttpError(409, "重新生成需要 1 点，当前点数不足。");
     const next = await regenerateBodyBookCard(current, part, {
       prompt: normalizeBodyBookPrompt(req.body?.prompt, card.prompt || buildBodyBookPartPrompt(part, card.order)),
       referenceFile: req.file || null
@@ -3145,7 +3146,10 @@ app.use((error, _req, res, next) => {
 
 app.use((req, res) => {
   const pathname = req.path || "/";
-  if (pathname === "/" || pathname === "/fridge" || pathname === "/fridge/" || pathname === "/fridge/orders" || pathname === "/fridge/orders/" || pathname.startsWith("/fridge/orders/") || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
+  if (pathname === "/body-book" || pathname === "/body-book/") {
+    return res.redirect(302, "/book");
+  }
+  if (pathname === "/" || pathname === "/book" || pathname === "/book/" || pathname === "/fridge" || pathname === "/fridge/" || pathname === "/fridge/orders" || pathname === "/fridge/orders/" || pathname.startsWith("/fridge/orders/") || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
     return res.sendFile(path.join(rootDir, "dist", "index.html"));
   }
   if (pathname === "/luck" || pathname === "/manage" || pathname === "/tasks" || pathname === "/batch") {
@@ -7777,7 +7781,7 @@ async function synchronizeBodyBookSession(session) {
     let billingError = "";
     for (const item of [cover, ...cards]) {
       if (item.status !== "succeeded" || !item.jobId || chargedJobIds.has(item.jobId)) continue;
-      if (BODY_BOOK_MOCK_MODE) continue;
+      if (BODY_BOOK_MOCK_MODE || !BODY_BOOK_BILLING_ENABLED) continue;
       try {
         commerceStore.debitCredits({
           accountId: current.ownerAccountId,
@@ -7918,6 +7922,7 @@ function toPublicBodyBookSession(session) {
     billingError: current.billingError,
     chargedCount: current.chargedJobIds.length,
     mockMode: BODY_BOOK_MOCK_MODE,
+    billingEnabled: BODY_BOOK_BILLING_ENABLED,
     referenceUrl: `/api/body-book/sessions/${encodeURIComponent(current.sessionId)}/reference`,
     cover: current.cover,
     cards: current.cards.map((card) => ({

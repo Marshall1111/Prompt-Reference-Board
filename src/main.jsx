@@ -223,7 +223,7 @@ function readRoute() {
   if (pathname === "/fridge/orders") return "public-fridge-orders";
   if (pathname.startsWith("/fridge/orders/")) return "public-fridge-order";
   if (pathname === "/fridge") return "public-fridge";
-  if (pathname === "/body-book") return "public-body-book";
+  if (pathname === "/book") return "public-body-book";
   if (pathname === "/gallery") return "admin-gallery";
   if (pathname === "/admin" || pathname === "/admin/") return "admin-gallery";
   if (pathname === "/admin/login") return "admin-login";
@@ -266,7 +266,7 @@ function App() {
     const pathByRoute = {
       "public-draw": "/",
       "public-fridge": "/fridge",
-      "public-body-book": "/body-book",
+      "public-body-book": "/book",
       "public-draw-checkout": "/draw/order",
       "public-fridge-orders": "/fridge/orders",
       "public-fridge-order": window.location.pathname,
@@ -832,6 +832,7 @@ function FridgeMagnetPage() {
 
 function BodyBookPage() {
   const [themes, setThemes] = useState(BODY_BOOK_THEME_FALLBACKS);
+  const [bodyBookBillingEnabled, setBodyBookBillingEnabled] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState(null);
   const [referenceFile, setReferenceFile] = useState(null);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState("");
@@ -904,7 +905,11 @@ function BodyBookPage() {
       if (isActive) setVisitorState(null);
     });
     loadSavedBooks();
-    fetchBodyBookThemes().then((payload) => { if (isActive && payload?.themes?.length) setThemes(payload.themes); }).catch(() => {});
+    fetchBodyBookThemes().then((payload) => {
+      if (!isActive) return;
+      if (payload?.themes?.length) setThemes(payload.themes);
+      setBodyBookBillingEnabled(Boolean(payload?.billingEnabled));
+    }).catch(() => {});
     const storedId = (() => {
       try { return window.localStorage.getItem(BODY_BOOK_SESSION_STORAGE_KEY) || ""; } catch { return ""; }
     })();
@@ -1077,6 +1082,7 @@ function BodyBookPage() {
   const isCoverReview = session?.stage === "cover_review";
   const isGenerating = ["cover_generating", "cards_generating"].includes(session?.stage);
   const canDownloadAll = allItems.length === 10 && allItems.every((item) => item?.status === "succeeded" && item?.result?.imageUrl);
+  const billingEnabled = session?.billingEnabled ?? bodyBookBillingEnabled;
   const regenerationReferenceUrl = regenerationDraft
     ? regenerationDraft.referenceUrl || session?.referenceUrl || `/api/body-book/sessions/${encodeURIComponent(sessionId)}/cards/${encodeURIComponent(regenerationDraft.key)}/reference`
     : "";
@@ -1091,7 +1097,7 @@ function BodyBookPage() {
         </div>
         <div className="body-book-header-actions">
           {!session && selectedTheme ? <button className="draw-card-secondary body-book-back-to-themes" disabled={isSubmitting} onClick={() => { setSelectedTheme(null); setReferenceFile(null); setError(""); }} type="button">返回主题选择</button> : null}
-          <div className="body-book-credit">{session?.mockMode ? "开发模拟 · 不扣点" : `剩余 ${Number(visitorState?.quotaRemaining || 0)} 点`}</div>
+          <div className="body-book-credit">{session?.mockMode ? "开发模拟 · 不扣点" : billingEnabled ? `剩余 ${Number(visitorState?.quotaRemaining || 0)} 点` : "内测免费 · 不扣点"}</div>
         </div>
       </header>
 
@@ -1114,7 +1120,7 @@ function BodyBookPage() {
             <p>将以这张照片制作《{selectedTheme.name}》封面，确认后再生成九张主题认知卡。</p>
             <button className="draw-card-primary" disabled={!referenceFile || isSubmitting} onClick={startCover} type="button">
               {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
-              <span>{isSubmitting ? "正在提交" : "生成封面（1 点）"}</span>
+              <span>{isSubmitting ? "正在提交" : billingEnabled ? "生成封面（1 点）" : "生成封面（内测免费）"}</span>
             </button>
           </div>
         </section>
@@ -1135,11 +1141,11 @@ function BodyBookPage() {
           {isCoverReview ? (
             <div className="body-book-cover-review">
               <BodyBookItem item={session.cover} onOpen={setActiveItem} />
-              <div className="body-book-confirm-copy"><p>封面满意后，将继续生成九张认知卡。</p><button className="draw-card-primary" disabled={isSubmitting} onClick={confirmCover} type="button">{isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Check size={18} />}<span>确认并生成 9 页（9 点）</span></button></div>
+              <div className="body-book-confirm-copy"><p>封面满意后，将继续生成九张认知卡。</p><button className="draw-card-primary" disabled={isSubmitting} onClick={confirmCover} type="button">{isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Check size={18} />}<span>{billingEnabled ? "确认并生成 9 页（9 点）" : "确认并生成 9 页（内测免费）"}</span></button></div>
             </div>
           ) : (
             <>
-              <p className="body-book-progress">已完成 {Number(cardSummary?.succeeded || 0)} / 9 张认知卡。{session?.mockMode ? "当前为开发模拟，不调用图片 API，也不会扣点。" : "封面和每张卡片均可单独下载。"}</p>
+              <p className="body-book-progress">已完成 {Number(cardSummary?.succeeded || 0)} / 9 张认知卡。{session?.mockMode ? "当前为开发模拟，不调用图片 API，也不会扣点。" : billingEnabled ? "封面和每张卡片均可单独下载。" : "内测阶段，图片生成不扣点。"}</p>
               <div className="body-book-grid">
                 {allItems.map((item) => <BodyBookItem item={item} key={`${item.key}-${item.jobId || "pending"}`} onOpen={setActiveItem} onRegenerate={item.key === "cover" ? null : openRegenerationDialog} regenerating={regeneratingKey === item.key} />)}
               </div>
@@ -1198,7 +1204,7 @@ function BodyBookPage() {
               </label>
               <label className="body-book-prompt-editor">提示词<textarea maxLength={6000} onChange={(event) => setRegenerationPrompt(event.target.value)} value={regenerationPrompt} /></label>
             </div>
-            <div className="body-book-regenerate-actions"><button className="draw-card-secondary" disabled={Boolean(regeneratingKey)} onClick={closeRegenerationDialog} type="button">取消</button><button className="draw-card-primary" disabled={Boolean(regeneratingKey)} onClick={regenerateCard} type="button">{regeneratingKey ? <LoaderCircle className="spin" size={18} /> : <RefreshCw size={18} />}<span>{session?.mockMode ? "继续生成（模拟）" : "继续生成（1 点）"}</span></button></div>
+            <div className="body-book-regenerate-actions"><button className="draw-card-secondary" disabled={Boolean(regeneratingKey)} onClick={closeRegenerationDialog} type="button">取消</button><button className="draw-card-primary" disabled={Boolean(regeneratingKey)} onClick={regenerateCard} type="button">{regeneratingKey ? <LoaderCircle className="spin" size={18} /> : <RefreshCw size={18} />}<span>{session?.mockMode ? "继续生成（模拟）" : billingEnabled ? "继续生成（1 点）" : "继续生成（内测免费）"}</span></button></div>
           </section>
         </div>
       ) : null}
