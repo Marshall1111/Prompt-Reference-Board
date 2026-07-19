@@ -20,6 +20,7 @@ const dataPath = path.join(rootDir, "data", "styles.json");
 const styleGroupsPath = path.join(rootDir, "data", "style-groups.json");
 const imageJobRoot = path.join(rootDir, "data", "image-jobs");
 const drawCardSessionRoot = path.join(rootDir, "data", "draw-card-sessions");
+const bodyBookSessionRoot = path.join(rootDir, "data", "body-book-sessions");
 const visitSessionRoot = path.join(rootDir, "data", "visit-sessions");
 const tempReferenceRoot = path.join(rootDir, "data", "temp-image-references");
 const visitorStateRoot = path.join(rootDir, "data", "visitor-states");
@@ -107,6 +108,86 @@ const SUBJECT_CLASSIFIER_CONFIDENCE_THRESHOLD = 0.55;
 const DRAW_CARD_MIN_STYLE_COUNT = 1;
 const DRAW_CARD_MAX_STYLE_COUNT = 6;
 const DRAW_CARD_DEFAULT_STYLE_COUNT = 2;
+const BODY_BOOK_SIZE = "1024x1024";
+const BODY_BOOK_GENERATION_MODE = String(process.env.BODY_BOOK_GENERATION_MODE || "mock").trim().toLowerCase();
+const BODY_BOOK_MOCK_MODE = BODY_BOOK_GENERATION_MODE !== "live";
+const BODY_BOOK_MOCK_PROVIDER = { id: "body-book-mock", name: "开发模拟", model: "mock" };
+const BODY_BOOK_PARTS = [
+  { key: "head", chinese: "头部", english: "Head", copy: "This is my head. 这是我的头部。" },
+  { key: "eyes", chinese: "眼睛", english: "Eyes", copy: "I see with my eyes. 我用眼睛看世界。" },
+  { key: "ears", chinese: "耳朵", english: "Ears", copy: "I hear with my ears. 我用耳朵听声音。" },
+  { key: "nose", chinese: "鼻子", english: "Nose", copy: "I smell with my nose. 我用鼻子闻一闻。" },
+  { key: "mouth", chinese: "嘴巴", english: "Mouth", copy: "I smile with my mouth. 我用嘴巴笑一笑。" },
+  { key: "hands", chinese: "手", english: "Hands", copy: "My hands can touch. 我的小手会触摸。" },
+  { key: "feet", chinese: "脚", english: "Feet", copy: "My feet help me walk. 我用小脚走路。" },
+  { key: "tummy", chinese: "肚子", english: "Tummy", copy: "This is my tummy. 这是我的小肚子。" },
+  { key: "knees", chinese: "膝盖", english: "Knees", copy: "My knees can bend. 我的小膝盖会弯曲。" }
+];
+const BOOK_THEME_DEFINITIONS = [
+  { id: "body", name: "身体认知书", englishName: "My First Body", title: "我的第一本身体认知书", parts: BODY_BOOK_PARTS },
+  { id: "career", name: "职业认知书", englishName: "My First Jobs", title: "我的第一本职业认知书", parts: [
+    ["doctor", "医生", "Doctor"], ["teacher", "老师", "Teacher"], ["firefighter", "消防员", "Firefighter"], ["chef", "厨师", "Chef"], ["police", "警察", "Police Officer"], ["farmer", "农夫", "Farmer"], ["builder", "建筑师", "Builder"], ["scientist", "科学家", "Scientist"], ["artist", "艺术家", "Artist"]
+  ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `I can be a ${english}. 我可以成为${chinese}。` })) },
+  { id: "color", name: "颜色认知书", englishName: "My First Colors", title: "我的第一本颜色认知书", parts: [
+    ["red", "红色", "Red"], ["orange", "橙色", "Orange"], ["yellow", "黄色", "Yellow"], ["green", "绿色", "Green"], ["blue", "蓝色", "Blue"], ["purple", "紫色", "Purple"], ["pink", "粉色", "Pink"], ["black", "黑色", "Black"], ["white", "白色", "White"]
+  ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `This is ${english}. 这是${chinese}。` })) },
+  { id: "emotion", name: "情绪认知书", englishName: "My First Feelings", title: "我的第一本情绪认知书", parts: [
+    ["happy", "开心", "Happy"], ["sad", "难过", "Sad"], ["angry", "生气", "Angry"], ["surprised", "惊讶", "Surprised"], ["scared", "害怕", "Scared"], ["shy", "害羞", "Shy"], ["excited", "兴奋", "Excited"], ["calm", "平静", "Calm"], ["proud", "自豪", "Proud"]
+  ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `I feel ${english}. 我感到${chinese}。` })) },
+  { id: "transport", name: "交通工具认知书", englishName: "My First Vehicles", title: "我的第一本交通工具认知书", parts: [
+    ["car", "汽车", "Car"], ["bus", "公交车", "Bus"], ["train", "火车", "Train"], ["airplane", "飞机", "Airplane"], ["boat", "小船", "Boat"], ["bicycle", "自行车", "Bicycle"], ["truck", "卡车", "Truck"], ["taxi", "出租车", "Taxi"], ["ambulance", "救护车", "Ambulance"]
+  ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `This is a ${english}. 这是一辆${chinese}。` })) },
+  { id: "animal", name: "动物认知书", englishName: "My First Animals", title: "我的第一本动物认知书", parts: [
+    ["cat", "小猫", "Cat"], ["dog", "小狗", "Dog"], ["rabbit", "兔子", "Rabbit"], ["bear", "小熊", "Bear"], ["lion", "狮子", "Lion"], ["elephant", "大象", "Elephant"], ["giraffe", "长颈鹿", "Giraffe"], ["penguin", "企鹅", "Penguin"], ["butterfly", "蝴蝶", "Butterfly"]
+  ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `Hello, ${english}! 你好，${chinese}！` })) },
+  { id: "daily", name: "日常行为认知书", englishName: "My First Daily Routines", title: "我的第一本日常行为认知书", parts: [
+    ["wake-up", "起床", "Wake Up"], ["brush-teeth", "刷牙", "Brush Teeth"], ["eat", "吃饭", "Eat"], ["wash-hands", "洗手", "Wash Hands"], ["play", "玩耍", "Play"], ["read", "阅读", "Read"], ["tidy-up", "收拾玩具", "Tidy Up"], ["bath", "洗澡", "Bath Time"], ["sleep", "睡觉", "Sleep"]
+  ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `I can ${english.toLowerCase()}. 我会${chinese}。` })) }
+];
+const BODY_BOOK_PROMPT_PROFILES = {
+  body: {
+    coverScene: "the baby naturally pointing to or touching several body-part cues, with a few restrained arrows and tiny learning markers",
+    cardScene: "a close, natural baby pose in which the requested body part is unmistakably visible; use one restrained dotted arrow to that body part",
+    accents: "warm cream, sage green, and soft apricot",
+    icons: "simple body-part learning symbols"
+  },
+  career: {
+    coverScene: "the baby in one charming, soft-fabric career outfit, with a small matching prop and a few floating career symbols",
+    cardScene: "the baby in a child-safe, soft-fabric version of the requested profession's outfit, doing one natural action with one simple matching prop",
+    accents: "soft sky blue, coral, sunny yellow, and warm cream",
+    icons: "small career tools and symbols"
+  },
+  color: {
+    coverScene: "the baby surrounded by six clearly separated, floating everyday objects in different natural rainbow colors, each with generous white space",
+    cardScene: "the baby interacting with one clearly recognizable object in the requested color; the color must be dominant, natural, and easy to identify",
+    accents: "the requested color with warm cream and a complementary pastel accent",
+    icons: "simple color swatches and matching everyday objects"
+  },
+  emotion: {
+    coverScene: "a warm, expressive baby portrait with a small, calm ring of simple emotion symbols around the baby",
+    cardScene: "a close baby portrait showing the requested emotion clearly and gently through facial expression and natural pose; no exaggerated or distressing expression",
+    accents: "soft peach, butter yellow, pale blue, and warm cream",
+    icons: "small, friendly emotion symbols such as stars, clouds, hearts, or smile marks"
+  },
+  transport: {
+    coverScene: "the baby with six clearly separated toy-like vehicles floating on a white page, with no road scene or cluttered environment",
+    cardScene: "the baby naturally engaging with one clearly recognizable requested vehicle, presented as a simple toy-like cutout object on a white page",
+    accents: "soft primary colors, pale blue, and warm cream",
+    icons: "small transport symbols and movement marks"
+  },
+  animal: {
+    coverScene: "the baby surrounded by six friendly, clearly separated animal illustrations or toy-like animal cutouts with generous white space",
+    cardScene: "the baby gently engaging with one friendly, child-safe requested animal illustration or toy-like animal cutout; keep the animal easy to recognize",
+    accents: "leaf green, sunshine yellow, pale blue, and warm cream",
+    icons: "small animal footprints, leaves, and matching nature symbols"
+  },
+  daily: {
+    coverScene: "the baby in a cheerful everyday moment, surrounded by six clearly separated daily-routine objects floating on a white page",
+    cardScene: "the baby doing the requested daily routine in a simple, safe, natural action; show only a few clearly separated matching objects and no realistic room scene",
+    accents: "soft pastel blue, peach, butter yellow, and warm cream",
+    icons: "small daily-routine objects and gentle action marks"
+  }
+};
 const DEFAULT_DRAW_CARD_WEIGHT = 100;
 const SUBJECT_PERSON = "person";
 const SUBJECT_PET = "pet";
@@ -148,6 +229,22 @@ const PUBLIC_EXPERIENCE_CONFIGS = {
     restoreFailureMessage: "恢复冰箱贴进度失败，请稍后再试。",
     runningLimitMessage: "当前已有进行中的冰箱贴，请等待这一轮完成。",
     promptSuffix: ""
+  },
+  "body-book": {
+    experienceType: "body-book",
+    label: "宝宝身体认知书",
+    styleGroupName: "",
+    waitingMessage: "正在制作宝宝身体认知书。",
+    successMessage: "宝宝身体认知书已准备好。",
+    failureMessage: "认知书图片生成失败，请重试。",
+    partialMessage: "部分认知卡已准备好。",
+    unavailableMessage: "宝宝身体认知书暂时不可用，请稍后再试。",
+    missingSessionMessage: "这本认知书记录不存在或已失效。",
+    latestMissingMessage: "当前没有可恢复的认知书进度。",
+    readFailureMessage: "读取认知书状态失败，请稍后再试。",
+    restoreFailureMessage: "恢复认知书进度失败，请稍后再试。",
+    runningLimitMessage: "当前已有一本正在制作的认知书，请等待完成。",
+    promptSuffix: ""
   }
 };
 const UPLOAD_FILE_LIMIT_BYTES = 40 * 1024 * 1024;
@@ -175,6 +272,7 @@ const upload = multer({
 });
 const activeImageJobs = new Map();
 const drawCardSessionSyncLocks = new Map();
+const bodyBookSessionSyncLocks = new Map();
 
 function nowMs() {
   return Date.now();
@@ -1458,6 +1556,174 @@ app.get("/api/fridge-magnet/sessions/latest", requireWebAccount, async (req, res
 
 app.get("/api/fridge-magnet/sessions/:sessionId", requireWebAccount, async (req, res) => {
   return handleGetPublicExperienceSession(req, res, "fridge-magnet");
+});
+
+app.post("/api/body-book/sessions", requireWebAccount, upload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) throw createHttpError(400, "请先上传一张宝宝照片。");
+    if (req.file.mimetype === "image/svg+xml") throw createHttpError(400, "请上传 JPG、PNG 或 WebP 图片。");
+    if (!BODY_BOOK_MOCK_MODE && Number(req.webAccount.creditBalance || 0) < 1) throw createHttpError(409, "生成封面需要 1 点，当前点数不足。");
+
+    const visitor = await getVisitorState(req);
+    enforcePublicRateLimits(req);
+    await assertNoRunningBodyBookSession(req.webAccount.id);
+    const theme = getBookTheme(req.body?.themeId);
+    if (!theme) throw createHttpError(400, "请选择认知书主题。");
+    const session = await createBodyBookSession(req.file, visitor, req.webAccount.id, theme);
+    res.status(202).json(toPublicBodyBookSession(session));
+  } catch (error) {
+    if (error.message === "UNSUPPORTED_IMAGE_TYPE") {
+      return res.status(400).json({ message: "请上传 JPG、PNG 或 WebP 图片。" });
+    }
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "创建认知书失败，请稍后再试。" });
+  }
+});
+
+app.get("/api/body-book/themes", requireWebAccount, (_req, res) => {
+  res.json({ themes: BOOK_THEME_DEFINITIONS.map(toPublicBookTheme) });
+});
+
+app.get("/api/body-book/sessions/latest", requireWebAccount, async (req, res) => {
+  try {
+    const session = await readLatestBodyBookSession(req.webAccount.id);
+    res.json(session ? toPublicBodyBookSession(await synchronizeBodyBookSession(session)) : {});
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "恢复认知书进度失败，请稍后再试。" });
+  }
+});
+
+app.get("/api/body-book/books", requireWebAccount, async (req, res) => {
+  try {
+    const sessions = await listBodyBookSessions();
+    const books = sessions
+      .filter((session) => session.ownerAccountId === req.webAccount.id && session.savedAt)
+      .sort((left, right) => String(right.savedAt || "").localeCompare(String(left.savedAt || "")))
+      .map(toPublicBodyBookLibraryItem);
+    res.json({ books });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "读取我的认知书失败，请稍后再试。" });
+  }
+});
+
+app.delete("/api/body-book/books/:sessionId", requireWebAccount, async (req, res) => {
+  try {
+    const session = await readBodyBookSession(req.params.sessionId);
+    if (!session || !session.savedAt) throw createHttpError(404, "这本已保存的认知书不存在或已删除。");
+    assertWebAccountOwnsBodyBookSession(req, session);
+    await deleteBodyBookSession(session);
+    res.status(204).end();
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "删除认知书失败，请稍后再试。" });
+  }
+});
+
+app.get("/api/body-book/sessions/:sessionId", requireWebAccount, async (req, res) => {
+  try {
+    const session = await readBodyBookSession(req.params.sessionId);
+    if (!session) throw createHttpError(404, "这本认知书记录不存在或已失效。");
+    assertWebAccountOwnsBodyBookSession(req, session);
+    res.json(toPublicBodyBookSession(await synchronizeBodyBookSession(session)));
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "读取认知书状态失败，请稍后再试。" });
+  }
+});
+
+app.get("/api/body-book/sessions/:sessionId/reference", requireWebAccount, async (req, res) => {
+  try {
+    const session = await readBodyBookSession(req.params.sessionId);
+    if (!session) throw createHttpError(404, "这本认知书记录不存在或已失效。");
+    assertWebAccountOwnsBodyBookSession(req, session);
+    const reference = await readBodyBookReference(session);
+    res.type(reference.mimetype).send(reference.buffer);
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "读取参考图失败，请稍后再试。" });
+  }
+});
+
+app.get("/api/body-book/sessions/:sessionId/cards/:partKey/reference", requireWebAccount, async (req, res) => {
+  try {
+    const session = await readBodyBookSession(req.params.sessionId);
+    if (!session) throw createHttpError(404, "这本认知书记录不存在或已失效。");
+    assertWebAccountOwnsBodyBookSession(req, session);
+    const card = session.cards.find((item) => item.key === String(req.params.partKey || "").toLowerCase());
+    if (!card) throw createHttpError(404, "找不到该身体部位认知卡。");
+    const reference = await readBodyBookReference(session, card.reference || session.reference);
+    res.type(reference.mimetype).send(reference.buffer);
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "读取参考图失败，请稍后再试。" });
+  }
+});
+
+app.post("/api/body-book/sessions/:sessionId/confirm-cover", requireWebAccount, async (req, res) => {
+  try {
+    const session = await readBodyBookSession(req.params.sessionId);
+    if (!session) throw createHttpError(404, "这本认知书记录不存在或已失效。");
+    assertWebAccountOwnsBodyBookSession(req, session);
+    const current = await synchronizeBodyBookSession(session);
+    if (current.stage !== "cover_review" || current.cover.status !== "succeeded") {
+      throw createHttpError(409, "请等待封面生成完成后再确认。");
+    }
+    if (!BODY_BOOK_MOCK_MODE && Number(req.webAccount.creditBalance || 0) < current.cards.length) {
+      throw createHttpError(409, `生成 ${current.cards.length} 张认知卡需要 ${current.cards.length} 点，当前点数不足。`);
+    }
+    const next = await startBodyBookCards(current);
+    res.status(202).json(toPublicBodyBookSession(next));
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "启动认知卡生成失败，请稍后再试。" });
+  }
+});
+
+app.post("/api/body-book/sessions/:sessionId/save", requireWebAccount, async (req, res) => {
+  try {
+    const session = await readBodyBookSession(req.params.sessionId);
+    if (!session) throw createHttpError(404, "这本认知书记录不存在或已失效。");
+    assertWebAccountOwnsBodyBookSession(req, session);
+    const current = await synchronizeBodyBookSession(session);
+    const allPagesReady = current.cover.status === "succeeded" && current.cards.every((card) => card.status === "succeeded");
+    if (!allPagesReady) throw createHttpError(409, "请等待封面和全部 9 张认知卡生成完成后再保存。");
+    const saved = await saveBodyBookSession({
+      ...current,
+      savedAt: current.savedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    res.json({ session: toPublicBodyBookSession(saved), book: toPublicBodyBookLibraryItem(saved) });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "保存认知书失败，请稍后再试。" });
+  }
+});
+
+app.post("/api/body-book/sessions/:sessionId/cards/:partKey/regenerate", requireWebAccount, upload.single("image"), async (req, res) => {
+  try {
+    const session = await readBodyBookSession(req.params.sessionId);
+    if (!session) throw createHttpError(404, "这本认知书记录不存在或已失效。");
+    assertWebAccountOwnsBodyBookSession(req, session);
+    const part = getBodyBookPart(req.params.partKey, session.themeId);
+    if (!part) throw createHttpError(404, "找不到该身体部位认知卡。");
+    const current = await synchronizeBodyBookSession(session);
+    const card = current.cards.find((item) => item.key === part.key);
+    if (!card || !["succeeded", "failed", "cancelled"].includes(card.status)) {
+      throw createHttpError(409, "该认知卡尚未结束，暂时不能重新生成。");
+    }
+    if (req.file?.mimetype === "image/svg+xml") throw createHttpError(400, "请上传 JPG、PNG 或 WebP 图片。");
+    if (!BODY_BOOK_MOCK_MODE && Number(req.webAccount.creditBalance || 0) < 1) throw createHttpError(409, "重新生成需要 1 点，当前点数不足。");
+    const next = await regenerateBodyBookCard(current, part, {
+      prompt: normalizeBodyBookPrompt(req.body?.prompt, card.prompt || buildBodyBookPartPrompt(part, card.order)),
+      referenceFile: req.file || null
+    });
+    res.status(202).json(toPublicBodyBookSession(next));
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "重新生成认知卡失败，请稍后再试。" });
+  }
 });
 
 async function handleCreatePublicExperienceSession(req, res, experienceType) {
@@ -7228,9 +7494,550 @@ function toPublicDrawCardSession(session) {
   };
 }
 
+function getBookTheme(themeId) {
+  return BOOK_THEME_DEFINITIONS.find((theme) => theme.id === String(themeId || "").trim().toLowerCase()) || null;
+}
+
+function toPublicBookTheme(theme) {
+  return { id: theme.id, name: theme.name, englishName: theme.englishName, title: theme.title, pageCount: theme.parts.length };
+}
+
+function getBodyBookPart(partKey, themeId = "body") {
+  const key = String(partKey || "").trim().toLowerCase();
+  return getBookTheme(themeId)?.parts.find((part) => part.key === key) || null;
+}
+
+function buildBodyBookCoverPrompt(theme = getBookTheme("body")) {
+  const profile = getBodyBookPromptProfile(theme);
+  return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Create one square 1:1 cover for a bilingual 0-3 year-old ${theme.name}. The main title should read exactly: "${theme.englishName}". The Chinese subtitle should read exactly: "${theme.title}". Beneath it, add the small English line: "A Bilingual Book for Babies" and the small Chinese line: "中英双语 · 0-3岁宝宝启蒙". Use rounded, highly legible sans-serif typography; make the English title playful with a refined natural rainbow palette, while keeping Chinese text dark and clear. Add a small pink circular badge in the upper-right that reads "0-3岁适用". Compose the baby as the clear central subject in a realistic, detailed professional baby portrait with soft warm daylight and natural skin texture. Theme scene: ${profile.coverScene}. Use a clean white or warm-cream studio page, ${profile.accents} accents, ample breathing room, subtle paper texture, and a few neat cutout-style elements with fine white outlines. DK children's encyclopedia style: premium early-learning editorial layout, white-background cutout-object collage composition, realistic baby photography blended with restrained children's illustration, bright but gentle, clean and modern. Do not create a busy room, scenic background, deep depth, extra people, watermark, border, illegible decorative text, collage panels, or 3D animation look.`;
+}
+
+function buildBodyBookPartPrompt(part, order, theme = getBookTheme("body")) {
+  const profile = getBodyBookPromptProfile(theme);
+  return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Create one square 1:1 bilingual ${theme.name} learning card for ages 0-3. This is page ${order}; the sole learning concept is "${part.english} / ${part.chinese}". The image must attempt to render this heading exactly: "${part.chinese} ${part.english}". Include this short bilingual sentence exactly: "${part.copy}". Add page number "${order}" in the lower-right. Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: ${profile.cardScene}. Keep the same baby recognizable in a natural, age-appropriate pose. Use a white or warm-cream page, ${profile.accents} accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching ${profile.icons}. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.`;
+}
+
+function getBodyBookPromptProfile(theme) {
+  return BODY_BOOK_PROMPT_PROFILES[theme?.id] || BODY_BOOK_PROMPT_PROFILES.body;
+}
+
+async function createBodyBookSession(file, visitor, accountId, theme) {
+  const { provider, providers } = await getBodyBookGenerationConfig();
+
+  const sessionId = randomUUID();
+  const now = new Date().toISOString();
+  const reference = await persistBodyBookReference(sessionId, file);
+  const session = await saveBodyBookSession({
+    sessionId,
+    experienceType: "body-book",
+    themeId: theme.id,
+    ownerAccountId: String(accountId || ""),
+    ownerVisitorId: String(visitor?.visitorId || ""),
+    stage: "cover_generating",
+    status: "queued",
+    message: "正在生成认知书封面。",
+    createdAt: now,
+    updatedAt: now,
+    coverConfirmedAt: null,
+    reference,
+    chargedJobIds: [],
+    billingError: "",
+    cover: { key: "cover", title: "封面 Cover", order: 0, version: 1, jobId: "", status: "queued", result: null, errorMessage: "", historyJobIds: [] },
+    cards: theme.parts.map((part, index) => ({
+      ...part,
+      order: index + 1,
+      version: 0,
+      jobId: "",
+      status: "not_started",
+      result: null,
+      errorMessage: "",
+      historyJobIds: []
+    }))
+  });
+  const queued = await createBodyBookImageJob(session, {
+    key: "cover",
+    title: "封面 Cover",
+    order: 0,
+    version: 1,
+    prompt: buildBodyBookCoverPrompt(theme),
+    bookTitle: theme.englishName,
+    bookSubtitle: theme.title
+  }, provider, providers);
+  const next = await saveBodyBookSession({
+    ...session,
+    cover: { ...session.cover, jobId: queued.job.jobId },
+    updatedAt: new Date().toISOString()
+  });
+  queued.run();
+  return next;
+}
+
+async function startBodyBookCards(session) {
+  const { provider, providers } = await getBodyBookGenerationConfig();
+  const theme = getBookTheme(session.themeId) || getBookTheme("body");
+  const now = new Date().toISOString();
+  const nextSession = {
+    ...session,
+    stage: "cards_generating",
+    status: "queued",
+    message: "正在生成 9 张身体认知卡。",
+    coverConfirmedAt: session.coverConfirmedAt || now,
+    updatedAt: now
+  };
+  const queued = await Promise.all(nextSession.cards.map((card) => createBodyBookImageJob(nextSession, {
+    key: card.key,
+    title: `${card.english} ${card.chinese}`,
+    order: card.order,
+    version: 1,
+    prompt: buildBodyBookPartPrompt(card, card.order, theme),
+    bookTitle: theme.englishName,
+    bookSubtitle: theme.name
+  }, provider, providers)));
+  const jobByKey = new Map(queued.map((item) => [item.key, item.job.jobId]));
+  const saved = await saveBodyBookSession({
+    ...nextSession,
+    cards: nextSession.cards.map((card) => ({ ...card, version: 1, jobId: jobByKey.get(card.key) || "", status: "queued" }))
+  });
+  queued.forEach((item) => item.run());
+  return saved;
+}
+
+async function regenerateBodyBookCard(session, part, options = {}) {
+  const { provider, providers } = await getBodyBookGenerationConfig();
+  const theme = getBookTheme(session.themeId) || getBookTheme("body");
+  const card = session.cards.find((item) => item.key === part.key);
+  const version = Math.max(0, Number(card?.version || 0)) + 1;
+  const prompt = normalizeBodyBookPrompt(options.prompt, card?.prompt || buildBodyBookPartPrompt(part, Number(card?.order || 1), theme));
+  const reference = options.referenceFile
+    ? await persistBodyBookReference(session.sessionId, options.referenceFile, `card-${part.key}-${version}`)
+    : card?.reference || session.reference;
+  const queued = await createBodyBookImageJob(session, {
+    key: part.key,
+    title: `${part.english} ${part.chinese}`,
+    order: Number(card?.order || 1),
+    version,
+    prompt,
+    bookTitle: theme.englishName,
+    bookSubtitle: theme.name
+  }, provider, providers, reference);
+  const next = await saveBodyBookSession({
+    ...session,
+    stage: "cards_generating",
+    status: "running",
+    message: `正在重新生成${part.chinese}认知卡。`,
+    cards: session.cards.map((item) => item.key === part.key
+      ? { ...item, version, jobId: queued.job.jobId, status: "queued", result: null, errorMessage: "", prompt, reference, historyJobIds: [...(item.historyJobIds || []), item.jobId].filter(Boolean) }
+      : item),
+    updatedAt: new Date().toISOString()
+  });
+  queued.run();
+  return next;
+}
+
+async function createBodyBookImageJob(session, slot, provider, providers, referenceMetadata = session.reference) {
+  const reference = await readBodyBookReference(session, referenceMetadata);
+  const jobId = randomUUID();
+  const originalReferences = reference ? await persistImageJobReferences(jobId, [reference]) : [];
+  const now = new Date().toISOString();
+  const job = {
+    jobId,
+    experienceType: "body-book",
+    status: "queued",
+    message: "任务已提交，等待生成。",
+    result: null,
+    createdAt: now,
+    updatedAt: now,
+    completedAt: null,
+    prompt: slot.prompt,
+    size: BODY_BOOK_SIZE,
+    referenceCount: 1,
+    originalReferences,
+    styleId: slot.key,
+    styleName: slot.title,
+    styleGroupId: "body-book",
+    styleGroupName: (getBookTheme(session.themeId) || getBookTheme("body")).name,
+    provider: { id: provider.id, name: provider.name, model: provider.model },
+    mode: BODY_BOOK_MOCK_MODE ? "mock" : "edit",
+    ownerVisitorId: session.ownerVisitorId,
+    ownerAccountId: session.ownerAccountId,
+    visibility: "public",
+    telemetry: { sessionId: session.sessionId, styleId: slot.key, styleName: slot.title, order: slot.order }
+  };
+  await saveImageJob(job);
+  return {
+    key: slot.key,
+    job,
+    run: () => BODY_BOOK_MOCK_MODE
+      ? runBodyBookMockJob({ jobId, sessionId: session.sessionId, slot })
+      : runImageJob({
+          jobId,
+          body: { size: BODY_BOOK_SIZE, quality: "medium", output_format: "png", background: "opaque", moderation: "auto" },
+          files: [{ ...reference, buffer: Buffer.from(reference.buffer) }],
+          outputFormat: "png",
+          prompt: slot.prompt,
+          provider,
+          providers,
+          telemetry: { sessionId: session.sessionId, visitorId: session.ownerVisitorId, styleId: slot.key, styleName: slot.title, order: slot.order }
+        }).catch((error) => console.error("Body book image job failed.", error))
+  };
+}
+
+async function getBodyBookGenerationConfig() {
+  if (BODY_BOOK_MOCK_MODE) {
+    return { provider: BODY_BOOK_MOCK_PROVIDER, providers: [] };
+  }
+  const availableProviders = getImageProviders();
+  const settings = await readAppSettings();
+  const provider = resolveImageProvider("", availableProviders, settings);
+  if (!provider) throw createHttpError(503, "暂无可用的生图服务，请稍后再试。");
+  return { provider, providers: getProviderFallbackChain("", availableProviders, settings) };
+}
+
+async function runBodyBookMockJob({ jobId, sessionId, slot }) {
+  let job = await readImageJob(jobId);
+  if (!job || job.status === "cancelled") return;
+  await saveImageJob({
+    ...job,
+    status: "running",
+    message: "开发模拟：正在准备示例图片。",
+    updatedAt: new Date().toISOString()
+  });
+
+  // Stagger completion so the page exercises its per-image polling and refresh states.
+  await new Promise((resolve) => setTimeout(resolve, 600 + Math.max(0, Number(slot?.order || 0)) * 420));
+  job = await readImageJob(jobId);
+  if (!job || job.status === "cancelled") return;
+  const result = await createBodyBookMockResult(jobId, slot);
+  await saveImageJob({
+    ...job,
+    status: "succeeded",
+    message: "开发模拟：示例图片已准备好。",
+    result,
+    provider: BODY_BOOK_MOCK_PROVIDER,
+    updatedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString()
+  });
+  await synchronizeBodyBookSessionByJobId(jobId);
+}
+
+async function createBodyBookMockResult(jobId, slot) {
+  const isCover = slot?.key === "cover";
+  const heading = isCover ? String(slot?.bookTitle || "My First Book") : String(slot?.title || "Learning Card");
+  const subheading = isCover ? String(slot?.bookSubtitle || "我的第一本认知书") : `第 ${Number(slot?.order || 1)} 页  /  ${String(slot?.bookSubtitle || "开发模拟")}`;
+  const marker = isCover ? "01" : String(Number(slot?.order || 1)).padStart(2, "0");
+  const filename = `${jobId}.svg`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#f7f4eb"/>
+  <rect x="58" y="58" width="908" height="908" rx="20" fill="#fffdf8" stroke="#c7d4c9" stroke-width="4"/>
+  <text x="110" y="148" fill="#315d50" font-family="Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="3">BABY BODY BOOK</text>
+  <text x="110" y="222" fill="#273d37" font-family="Georgia, serif" font-size="64" font-weight="700">${escapeBodyBookMockText(heading)}</text>
+  <text x="110" y="270" fill="#5e766e" font-family="Arial, sans-serif" font-size="28">${escapeBodyBookMockText(subheading)}</text>
+  <circle cx="512" cy="540" r="192" fill="#d9e7d5"/>
+  <circle cx="512" cy="483" r="104" fill="#f3c9ad"/>
+  <path d="M420 472c15-104 154-125 191 1-42-34-141-31-191-1z" fill="#455f4f"/>
+  <circle cx="474" cy="493" r="10" fill="#36443c"/><circle cx="550" cy="493" r="10" fill="#36443c"/>
+  <path d="M476 548q36 30 72 0" fill="none" stroke="#b76761" stroke-width="10" stroke-linecap="round"/>
+  <path d="M403 745c27-126 190-126 218 0" fill="#96b79f"/>
+  <path d="M250 700c90-70 150-80 204-74" fill="none" stroke="#8ea88d" stroke-width="8" stroke-dasharray="12 14"/>
+  <circle cx="240" cy="708" r="42" fill="#f4c36d"/><text x="221" y="725" fill="#fff" font-family="Arial, sans-serif" font-size="34" font-weight="700">${marker}</text>
+  <rect x="110" y="850" width="804" height="54" rx="12" fill="#edf3eb"/>
+  <text x="140" y="886" fill="#416455" font-family="Arial, sans-serif" font-size="22">Development placeholder · No image API request · No credits deducted</text>
+</svg>`;
+  await mkdir(generatedImageRoot, { recursive: true });
+  await writeFile(path.join(generatedImageRoot, filename), svg, "utf-8");
+  const imageUrl = `/generated-images/${filename}`;
+  return {
+    imageDataUrl: "",
+    imageUrl,
+    mimeType: "image/svg+xml",
+    previewUrl: imageUrl,
+    thumbnailUrl: imageUrl,
+    originalImageUrl: "",
+    provider: BODY_BOOK_MOCK_PROVIDER,
+    mode: "mock"
+  };
+}
+
+function escapeBodyBookMockText(value) {
+  return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
+}
+
+function normalizeBodyBookPrompt(value, fallback) {
+  const prompt = String(value || "").trim();
+  return (prompt || String(fallback || "").trim()).slice(0, 6000);
+}
+
+async function synchronizeBodyBookSession(session) {
+  const sessionId = String(session?.sessionId || "");
+  return withBodyBookSessionSyncLock(sessionId, async () => {
+    const current = (await readBodyBookSession(sessionId)) || session;
+    const cover = await hydrateBodyBookItem(current.cover);
+    const cards = await Promise.all((current.cards || []).map(hydrateBodyBookItem));
+    const chargedJobIds = new Set(current.chargedJobIds || []);
+    let billingError = "";
+    for (const item of [cover, ...cards]) {
+      if (item.status !== "succeeded" || !item.jobId || chargedJobIds.has(item.jobId)) continue;
+      if (BODY_BOOK_MOCK_MODE) continue;
+      try {
+        commerceStore.debitCredits({
+          accountId: current.ownerAccountId,
+          amount: 1,
+          referenceId: `body-book:${current.sessionId}:${item.jobId}`,
+          reason: "body_book_generation"
+        });
+        chargedJobIds.add(item.jobId);
+      } catch (error) {
+        billingError = error.publicMessage || error.message || "点数结算失败，请联系客服。";
+      }
+    }
+    const cardSummary = summarizeBodyBookItems(cards);
+    let stage = current.stage;
+    let status = current.status;
+    let message = current.message;
+    if (cover.status === "failed" || cover.status === "cancelled") {
+      stage = "cover_failed";
+      status = "failed";
+      message = cover.errorMessage || "封面生成失败，请换张照片重新开始。";
+    } else if (["queued", "running"].includes(cover.status)) {
+      stage = "cover_generating";
+      status = cover.status;
+      message = "正在生成认知书封面。";
+    } else if (!current.coverConfirmedAt) {
+      stage = "cover_review";
+      status = "succeeded";
+      message = "封面已生成，请确认后继续制作 9 张认知卡。";
+    } else if (cardSummary.pending > 0 || cardSummary.notStarted > 0) {
+      stage = "cards_generating";
+      status = cardSummary.running > 0 ? "running" : "queued";
+      message = `正在生成认知卡（${cardSummary.succeeded}/${current.cards.length}）。`;
+    } else if (cardSummary.failed > 0) {
+      stage = "cards_partial";
+      status = "partial";
+      message = "部分认知卡生成失败，可单独重新生成。";
+    } else {
+      stage = "complete";
+      status = "succeeded";
+      message = "宝宝身体认知书已制作完成。";
+    }
+    return saveBodyBookSession({
+      ...current,
+      cover,
+      cards,
+      stage,
+      status,
+      message,
+      chargedJobIds: [...chargedJobIds],
+      billingError,
+      updatedAt: new Date().toISOString(),
+      completedAt: stage === "complete" || stage === "cards_partial" || stage === "cover_failed" ? current.completedAt || new Date().toISOString() : null
+    });
+  });
+}
+
+async function hydrateBodyBookItem(item) {
+  if (!item?.jobId) return { ...item, status: item?.status || "not_started", result: item?.result || null, errorMessage: item?.errorMessage || "" };
+  const job = await readImageJob(item.jobId);
+  const status = String(job?.status || "failed");
+  return {
+    ...item,
+    status,
+    prompt: String(job?.prompt || item?.prompt || ""),
+    result: status === "succeeded" ? normalizeJobResult(job?.result) : null,
+    errorMessage: ["failed", "cancelled"].includes(status) ? String(job?.message || "生成失败，请重试。") : ""
+  };
+}
+
+function summarizeBodyBookItems(items) {
+  return (items || []).reduce((summary, item) => {
+    summary.total += 1;
+    if (item.status === "succeeded") summary.succeeded += 1;
+    else if (item.status === "running") { summary.running += 1; summary.pending += 1; }
+    else if (item.status === "queued") { summary.queued += 1; summary.pending += 1; }
+    else if (item.status === "not_started") summary.notStarted += 1;
+    else summary.failed += 1;
+    return summary;
+  }, { total: 0, succeeded: 0, running: 0, queued: 0, pending: 0, notStarted: 0, failed: 0 });
+}
+
+function normalizeBodyBookSession(session) {
+  const cardsByKey = new Map(Array.isArray(session?.cards) ? session.cards.map((item) => [String(item?.key || ""), item]) : []);
+  return {
+    sessionId: String(session?.sessionId || ""),
+    experienceType: "body-book",
+    themeId: getBookTheme(session?.themeId)?.id || "body",
+    ownerAccountId: String(session?.ownerAccountId || ""),
+    ownerVisitorId: String(session?.ownerVisitorId || ""),
+    stage: String(session?.stage || "cover_generating"),
+    status: String(session?.status || "queued"),
+    message: String(session?.message || "正在生成认知书封面。"),
+    createdAt: session?.createdAt || null,
+    updatedAt: session?.updatedAt || null,
+    completedAt: session?.completedAt || null,
+    savedAt: session?.savedAt || null,
+    coverConfirmedAt: session?.coverConfirmedAt || null,
+    reference: session?.reference && typeof session.reference === "object" ? session.reference : {},
+    chargedJobIds: Array.isArray(session?.chargedJobIds) ? session.chargedJobIds.map(String).filter(Boolean) : [],
+    billingError: String(session?.billingError || ""),
+    cover: normalizeBodyBookItem(session?.cover, { key: "cover", title: "封面 Cover", order: 0 }),
+    cards: (getBookTheme(session?.themeId)?.parts || BODY_BOOK_PARTS).map((part, index) => normalizeBodyBookItem(cardsByKey.get(part.key), { ...part, order: index + 1 }))
+  };
+}
+
+function normalizeBodyBookItem(item, defaults) {
+  return {
+    ...defaults,
+    ...(item || {}),
+    key: String(item?.key || defaults.key),
+    title: String(item?.title || defaults.title || `${defaults.english || ""} ${defaults.chinese || ""}`.trim()),
+    order: Number(item?.order ?? defaults.order),
+    version: Math.max(0, Number(item?.version || 0)),
+    jobId: String(item?.jobId || ""),
+    status: String(item?.status || (item?.jobId ? "queued" : "not_started")),
+    prompt: normalizeBodyBookPrompt(item?.prompt, defaults.key === "cover" ? buildBodyBookCoverPrompt() : buildBodyBookPartPrompt(defaults, Number(item?.order ?? defaults.order))),
+    reference: item?.reference && typeof item.reference === "object" ? item.reference : null,
+    result: item?.result ? normalizeJobResult(item.result) : null,
+    errorMessage: String(item?.errorMessage || ""),
+    historyJobIds: Array.isArray(item?.historyJobIds) ? item.historyJobIds.map(String).filter(Boolean) : []
+  };
+}
+
+function toPublicBodyBookSession(session) {
+  const current = normalizeBodyBookSession(session);
+  return {
+    sessionId: current.sessionId,
+    experienceType: current.experienceType,
+    theme: toPublicBookTheme(getBookTheme(current.themeId) || getBookTheme("body")),
+    stage: current.stage,
+    status: current.status,
+    message: current.message,
+    createdAt: current.createdAt,
+    updatedAt: current.updatedAt,
+    completedAt: current.completedAt,
+    savedAt: current.savedAt,
+    coverConfirmedAt: current.coverConfirmedAt,
+    billingError: current.billingError,
+    chargedCount: current.chargedJobIds.length,
+    mockMode: BODY_BOOK_MOCK_MODE,
+    referenceUrl: `/api/body-book/sessions/${encodeURIComponent(current.sessionId)}/reference`,
+    cover: current.cover,
+    cards: current.cards.map((card) => ({
+      ...card,
+      referenceUrl: `/api/body-book/sessions/${encodeURIComponent(current.sessionId)}/cards/${encodeURIComponent(card.key)}/reference`
+    })),
+    summary: { coverSucceeded: current.cover.status === "succeeded", cards: summarizeBodyBookItems(current.cards) }
+  };
+}
+
+function toPublicBodyBookLibraryItem(session) {
+  const current = normalizeBodyBookSession(session);
+  const theme = getBookTheme(current.themeId) || getBookTheme("body");
+  return {
+    sessionId: current.sessionId,
+    savedAt: current.savedAt || null,
+    theme: toPublicBookTheme(theme),
+    title: theme.englishName,
+    cover: current.cover,
+    cards: current.cards,
+    mockMode: BODY_BOOK_MOCK_MODE
+  };
+}
+
+async function saveBodyBookSession(session) {
+  await mkdir(bodyBookSessionRoot, { recursive: true });
+  const safeSession = normalizeBodyBookSession(session);
+  await writeFile(getBodyBookSessionPath(safeSession.sessionId), `${JSON.stringify(safeSession, null, 2)}\n`, "utf-8");
+  return safeSession;
+}
+
+async function deleteBodyBookSession(session) {
+  const current = normalizeBodyBookSession(session);
+  if (!current.savedAt || !isSafeImageJobId(current.sessionId)) {
+    throw createHttpError(409, "仅可删除已保存的认知书。");
+  }
+  const jobIds = [...new Set([current.cover, ...(current.cards || [])].map((item) => item?.jobId).filter(isSafeImageJobId))];
+  await Promise.all(jobIds.map(async (jobId) => {
+    const job = await readImageJob(jobId);
+    if (job) await deleteImageJob(job);
+  }));
+  await rm(getBodyBookSessionPath(current.sessionId), { force: true });
+  await rm(path.join(bodyBookSessionRoot, current.sessionId), { recursive: true, force: true });
+}
+
+async function readBodyBookSession(sessionId) {
+  if (!isSafeImageJobId(sessionId)) return null;
+  try {
+    return normalizeBodyBookSession(JSON.parse(await readFile(getBodyBookSessionPath(sessionId), "utf-8")));
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function listBodyBookSessions() {
+  await mkdir(bodyBookSessionRoot, { recursive: true });
+  const entries = await readdir(bodyBookSessionRoot, { withFileTypes: true });
+  const sessions = await Promise.all(entries.filter((entry) => entry.isFile() && entry.name.endsWith(".json")).map((entry) => readBodyBookSession(entry.name.replace(/\.json$/, ""))));
+  return sessions.filter(Boolean);
+}
+
+async function readLatestBodyBookSession(accountId) {
+  const sessions = await listBodyBookSessions();
+  return sessions.filter((session) => session.ownerAccountId === String(accountId || "")).sort((left, right) => String(right.updatedAt || right.createdAt || "").localeCompare(String(left.updatedAt || left.createdAt || "")))[0] || null;
+}
+
+async function assertNoRunningBodyBookSession(accountId) {
+  const latest = await readLatestBodyBookSession(accountId);
+  const current = latest ? await synchronizeBodyBookSession(latest) : null;
+  if (current && ["cover_generating", "cards_generating"].includes(current.stage)) {
+    throw createHttpError(409, "当前已有一本正在制作的认知书，请等待完成。", "当前已有一本正在制作的认知书，请等待完成。");
+  }
+}
+
+function assertWebAccountOwnsBodyBookSession(req, session) {
+  if (!req.webAccount?.id || String(session?.ownerAccountId || "") !== req.webAccount.id) {
+    throw createHttpError(403, "无权访问这本认知书。");
+  }
+}
+
+async function persistBodyBookReference(sessionId, file, key = "reference") {
+  const extension = extensionForMime(file.mimetype);
+  const filename = `${String(key || "reference").replace(/[^a-z0-9-]/gi, "-")}.${extension}`;
+  const directory = path.join(bodyBookSessionRoot, sessionId);
+  await mkdir(directory, { recursive: true });
+  await writeFile(path.join(directory, filename), file.buffer);
+  return { filename, mimeType: file.mimetype, size: Number(file.size || file.buffer?.length || 0), originalName: String(file.originalname || filename) };
+}
+
+async function readBodyBookReference(session, referenceMetadata = session?.reference) {
+  const filename = path.basename(String(referenceMetadata?.filename || ""));
+  if (!filename || !isSafeImageJobId(session?.sessionId)) throw createHttpError(500, "认知书参考图不存在，请换图重新开始。");
+  const buffer = await readFile(path.join(bodyBookSessionRoot, session.sessionId, filename));
+  return { originalname: String(referenceMetadata.originalName || filename), mimetype: String(referenceMetadata.mimeType || "image/jpeg"), size: buffer.length, buffer };
+}
+
+async function withBodyBookSessionSyncLock(sessionId, task) {
+  const key = String(sessionId || "");
+  const previous = bodyBookSessionSyncLocks.get(key) || Promise.resolve();
+  const current = previous.catch(() => {}).then(task);
+  bodyBookSessionSyncLocks.set(key, current);
+  try {
+    return await current;
+  } finally {
+    if (bodyBookSessionSyncLocks.get(key) === current) bodyBookSessionSyncLocks.delete(key);
+  }
+}
+
+async function synchronizeBodyBookSessionByJobId(jobId) {
+  if (!isSafeImageJobId(jobId)) return null;
+  const sessions = await listBodyBookSessions();
+  const session = sessions.find((item) => item.cover?.jobId === jobId || item.cards?.some((card) => card.jobId === jobId));
+  return session ? synchronizeBodyBookSession(session) : null;
+}
+
 async function prepareImageJobStorage() {
   await mkdir(imageJobRoot, { recursive: true });
   await mkdir(drawCardSessionRoot, { recursive: true });
+  await mkdir(bodyBookSessionRoot, { recursive: true });
   await mkdir(visitSessionRoot, { recursive: true });
   await mkdir(tempReferenceRoot, { recursive: true });
   await mkdir(visitorStateRoot, { recursive: true });
@@ -7466,6 +8273,7 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider,
       totalJobMs: elapsedMs(jobRunStartedAtMs)
     });
     await synchronizeDrawCardSessionByJobId(jobId);
+    await synchronizeBodyBookSessionByJobId(jobId);
   } catch (error) {
     const latestJob = await readImageJob(jobId);
     if (!latestJob || latestJob.status === "cancelled") return;
@@ -7510,6 +8318,7 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider,
       message: error.message || error.publicMessage || "unknown error"
     });
     await synchronizeDrawCardSessionByJobId(jobId);
+    await synchronizeBodyBookSessionByJobId(jobId);
   } finally {
     activeImageJobs.delete(jobId);
   }
@@ -8068,6 +8877,10 @@ function computeDurationSeconds(job) {
 
 function getDrawCardSessionPath(sessionId) {
   return path.join(drawCardSessionRoot, `${sessionId}.json`);
+}
+
+function getBodyBookSessionPath(sessionId) {
+  return path.join(bodyBookSessionRoot, `${sessionId}.json`);
 }
 
 function getVisitSessionPath(sessionId) {

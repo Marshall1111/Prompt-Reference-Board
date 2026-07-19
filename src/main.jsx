@@ -117,6 +117,16 @@ const REFERENCE_UPLOAD_LIMITS = {
 const GENERATION_STEPS = ["准备请求", "提交到中转站", "等待模型生成", "接收图片结果", "准备预览"];
 const DRAW_CARD_SESSION_STORAGE_KEY = "pg.public-draw.session-id";
 const FRIDGE_MAGNET_SESSION_STORAGE_KEY = "pg.public-fridge.session-id";
+const BODY_BOOK_SESSION_STORAGE_KEY = "pg.body-book.session-id";
+const BODY_BOOK_THEME_FALLBACKS = [
+  { id: "body", name: "身体认知书", englishName: "My First Body", title: "我的第一本身体认知书" },
+  { id: "career", name: "职业认知书", englishName: "My First Jobs", title: "我的第一本职业认知书" },
+  { id: "color", name: "颜色认知书", englishName: "My First Colors", title: "我的第一本颜色认知书" },
+  { id: "emotion", name: "情绪认知书", englishName: "My First Feelings", title: "我的第一本情绪认知书" },
+  { id: "transport", name: "交通工具认知书", englishName: "My First Vehicles", title: "我的第一本交通工具认知书" },
+  { id: "animal", name: "动物认知书", englishName: "My First Animals", title: "我的第一本动物认知书" },
+  { id: "daily", name: "日常行为认知书", englishName: "My First Daily Routines", title: "我的第一本日常行为认知书" }
+];
 const LATEST_MANUAL_ORDER_STORAGE_KEY = "pg.fridge.latest-manual-order";
 const DRAW_CARD_EXPERIENCE_CONFIG = {
   route: "public-draw",
@@ -213,6 +223,7 @@ function readRoute() {
   if (pathname === "/fridge/orders") return "public-fridge-orders";
   if (pathname.startsWith("/fridge/orders/")) return "public-fridge-order";
   if (pathname === "/fridge") return "public-fridge";
+  if (pathname === "/body-book") return "public-body-book";
   if (pathname === "/gallery") return "admin-gallery";
   if (pathname === "/admin" || pathname === "/admin/") return "admin-gallery";
   if (pathname === "/admin/login") return "admin-login";
@@ -241,6 +252,7 @@ function App() {
   useEffect(() => {
     const titleByRoute = {
       "public-fridge": "冰箱贴工作室",
+      "public-body-book": "宝宝身体认知书",
       "public-draw-checkout": "选图定制",
       "public-fridge-order": "冰箱贴订单",
       "public-fridge-orders": "我的冰箱贴订单",
@@ -254,6 +266,7 @@ function App() {
     const pathByRoute = {
       "public-draw": "/",
       "public-fridge": "/fridge",
+      "public-body-book": "/body-book",
       "public-draw-checkout": "/draw/order",
       "public-fridge-orders": "/fridge/orders",
       "public-fridge-order": window.location.pathname,
@@ -287,6 +300,9 @@ function App() {
   }
   if (route === "public-fridge") {
     return <FridgeMagnetPage />;
+  }
+  if (route === "public-body-book") {
+    return <BodyBookPage />;
   }
 
   return <AdminApp navigate={navigate} route={route} />;
@@ -812,6 +828,412 @@ function LuckDrawCardPage() {
 
 function FridgeMagnetPage() {
   return <PublicExperiencePage config={FRIDGE_MAGNET_EXPERIENCE_CONFIG} />;
+}
+
+function BodyBookPage() {
+  const [themes, setThemes] = useState(BODY_BOOK_THEME_FALLBACKS);
+  const [selectedTheme, setSelectedTheme] = useState(null);
+  const [referenceFile, setReferenceFile] = useState(null);
+  const [referencePreviewUrl, setReferencePreviewUrl] = useState("");
+  const [visitorState, setVisitorState] = useState(null);
+  const [session, setSession] = useState(null);
+  const [sessionId, setSessionId] = useState(() => {
+    try { return window.localStorage.getItem(BODY_BOOK_SESSION_STORAGE_KEY) || ""; } catch { return ""; }
+  });
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [regeneratingKey, setRegeneratingKey] = useState("");
+  const [activeItem, setActiveItem] = useState(null);
+  const [regenerationDraft, setRegenerationDraft] = useState(null);
+  const [regenerationPrompt, setRegenerationPrompt] = useState("");
+  const [regenerationReference, setRegenerationReference] = useState(null);
+  const [regenerationReferencePreviewUrl, setRegenerationReferencePreviewUrl] = useState("");
+  const [savedBooks, setSavedBooks] = useState([]);
+  const [libraryBook, setLibraryBook] = useState(null);
+  const [isSavingBook, setIsSavingBook] = useState(false);
+  const [deletingBookId, setDeletingBookId] = useState("");
+
+  function applySession(nextSession) {
+    if (!nextSession?.sessionId) return;
+    setSession(nextSession);
+    setSessionId(nextSession.sessionId);
+    try { window.localStorage.setItem(BODY_BOOK_SESSION_STORAGE_KEY, nextSession.sessionId); } catch {}
+  }
+
+  function clearSession() {
+    setSession(null);
+    setSessionId("");
+    setActiveItem(null);
+    try { window.localStorage.removeItem(BODY_BOOK_SESSION_STORAGE_KEY); } catch {}
+  }
+
+  async function loadSavedBooks() {
+    try {
+      const payload = await fetchSavedBodyBooks();
+      setSavedBooks(payload.books || []);
+    } catch {
+      setSavedBooks([]);
+    }
+  }
+
+  useEffect(() => {
+    if (!referenceFile) {
+      setReferencePreviewUrl("");
+      return undefined;
+    }
+    const url = URL.createObjectURL(referenceFile);
+    setReferencePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [referenceFile]);
+
+  useEffect(() => {
+    if (!regenerationReference) {
+      setRegenerationReferencePreviewUrl("");
+      return undefined;
+    }
+    const url = URL.createObjectURL(regenerationReference);
+    setRegenerationReferencePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [regenerationReference]);
+
+  useEffect(() => {
+    let isActive = true;
+    fetchVisitorState().then((payload) => {
+      if (isActive) setVisitorState(payload);
+    }).catch(() => {
+      if (isActive) setVisitorState(null);
+    });
+    loadSavedBooks();
+    fetchBodyBookThemes().then((payload) => { if (isActive && payload?.themes?.length) setThemes(payload.themes); }).catch(() => {});
+    const storedId = (() => {
+      try { return window.localStorage.getItem(BODY_BOOK_SESSION_STORAGE_KEY) || ""; } catch { return ""; }
+    })();
+    const load = storedId ? fetchBodyBookSession(storedId) : null;
+    load?.then((payload) => {
+      if (isActive && payload?.sessionId && ["cover_generating", "cover_review", "cards_generating"].includes(payload.stage)) applySession(payload);
+    }).catch(() => {});
+    return () => { isActive = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!sessionId || !["cover_generating", "cards_generating"].includes(session?.stage)) return undefined;
+    let isActive = true;
+    const refresh = () => fetchBodyBookSession(sessionId)
+      .then((payload) => { if (isActive) applySession(payload); })
+      .catch((nextError) => { if (isActive) setError(nextError.message || "读取认知书状态失败，请稍后再试。"); });
+    refresh();
+    const timer = window.setInterval(refresh, 2200);
+    return () => { isActive = false; window.clearInterval(timer); };
+  }, [session?.stage, sessionId]);
+
+  useEffect(() => {
+    if (!session?.sessionId) return undefined;
+    let isActive = true;
+    fetchVisitorState()
+      .then((payload) => {
+        if (isActive) setVisitorState(payload);
+      })
+      .catch(() => {});
+    return () => { isActive = false; };
+  }, [session?.chargedCount, session?.cover?.status, session?.sessionId, session?.summary?.cards?.succeeded]);
+
+  async function startCover() {
+    if (!referenceFile || !selectedTheme) return;
+    setIsSubmitting(true);
+    setError("");
+    try {
+      const account = await fetchVisitorState();
+      setVisitorState(account);
+      if (!account?.authenticated) {
+        if (account?.authorizationUrl) window.location.assign(account.authorizationUrl);
+        else throw new Error("请先完成账户授权后再开始制作。");
+        return;
+      }
+      const prepared = await prepareReferenceForUpload({ id: "body-book-reference", file: referenceFile });
+      const formData = new FormData();
+      formData.append("image", prepared.file);
+      formData.append("themeId", selectedTheme.id);
+      const payload = await createBodyBookSession(formData);
+      applySession(payload);
+    } catch (nextError) {
+      setError(nextError.message || "创建认知书失败，请稍后再试。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function confirmCover() {
+    if (!sessionId) return;
+    setIsSubmitting(true);
+    setError("");
+    try {
+      const payload = await confirmBodyBookCover(sessionId);
+      applySession(payload);
+      fetchVisitorState().then(setVisitorState).catch(() => {});
+    } catch (nextError) {
+      setError(nextError.message || "启动认知卡生成失败，请稍后再试。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function openRegenerationDialog(card) {
+    if (!card?.key) return;
+    setRegenerationDraft(card);
+    setRegenerationPrompt(card.prompt || "");
+    setRegenerationReference(null);
+    setError("");
+    fetchBodyBookSession(sessionId)
+      .then((payload) => {
+        applySession(payload);
+        const latestCard = payload.cards?.find((item) => item.key === card.key);
+        if (!latestCard) return;
+        setRegenerationDraft(latestCard);
+        setRegenerationPrompt(latestCard.prompt || "");
+      })
+      .catch(() => {});
+  }
+
+  function closeRegenerationDialog() {
+    if (regeneratingKey) return;
+    setRegenerationDraft(null);
+    setRegenerationPrompt("");
+    setRegenerationReference(null);
+  }
+
+  async function regenerateCard() {
+    if (!sessionId || !regenerationDraft?.key) return;
+    setRegeneratingKey(regenerationDraft.key);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("prompt", regenerationPrompt);
+      if (regenerationReference) formData.append("image", regenerationReference);
+      const payload = await regenerateBodyBookCard(sessionId, regenerationDraft.key, formData);
+      applySession(payload);
+      fetchVisitorState().then(setVisitorState).catch(() => {});
+      setRegenerationDraft(null);
+      setRegenerationPrompt("");
+      setRegenerationReference(null);
+    } catch (nextError) {
+      setError(nextError.message || "重新生成认知卡失败，请稍后再试。");
+    } finally {
+      setRegeneratingKey("");
+    }
+  }
+
+  function selectReference(file) {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setError("请上传 JPG、PNG 或 WebP 图片。");
+      return;
+    }
+    clearSession();
+    setReferenceFile(file);
+    setError("");
+  }
+
+  function restart() {
+    clearSession();
+    setReferenceFile(null);
+    setSelectedTheme(null);
+    setError("");
+  }
+
+  async function saveBook() {
+    if (!sessionId) return;
+    setIsSavingBook(true);
+    setError("");
+    try {
+      const payload = await saveBodyBook(sessionId);
+      await loadSavedBooks();
+      setLibraryBook(payload.book || null);
+      clearSession();
+    } catch (nextError) {
+      setError(nextError.message || "保存认知书失败，请稍后再试。");
+    } finally {
+      setIsSavingBook(false);
+    }
+  }
+
+  async function deleteSavedBook(book) {
+    if (!book?.sessionId || deletingBookId) return;
+    if (!window.confirm(`确定删除《${book.title}》吗？删除后无法恢复。`)) return;
+    setDeletingBookId(book.sessionId);
+    setError("");
+    try {
+      await deleteBodyBook(book.sessionId);
+      setSavedBooks((current) => current.filter((item) => item.sessionId !== book.sessionId));
+      if (libraryBook?.sessionId === book.sessionId) setLibraryBook(null);
+    } catch (nextError) {
+      setError(nextError.message || "删除认知书失败，请稍后再试。");
+    } finally {
+      setDeletingBookId("");
+    }
+  }
+
+  const allItems = session ? [session.cover, ...(session.cards || [])] : [];
+  const cardSummary = session?.summary?.cards;
+  const isCoverReview = session?.stage === "cover_review";
+  const isGenerating = ["cover_generating", "cards_generating"].includes(session?.stage);
+  const canDownloadAll = allItems.length === 10 && allItems.every((item) => item?.status === "succeeded" && item?.result?.imageUrl);
+  const regenerationReferenceUrl = regenerationDraft
+    ? regenerationDraft.referenceUrl || session?.referenceUrl || `/api/body-book/sessions/${encodeURIComponent(sessionId)}/cards/${encodeURIComponent(regenerationDraft.key)}/reference`
+    : "";
+
+  return (
+    <main className="body-book-page">
+      <header className="body-book-header">
+        <div>
+          <p className="body-book-kicker">Baby body book</p>
+          <h1>{session?.theme?.englishName || selectedTheme?.englishName || "My First Book"}</h1>
+          <p>{session?.theme ? `正在制作：${session.theme.name}` : selectedTheme ? `正在制作：${selectedTheme.name}` : "选择一个主题，制作一套中英双语宝宝认知书。"}</p>
+        </div>
+        <div className="body-book-header-actions">
+          {!session && selectedTheme ? <button className="draw-card-secondary body-book-back-to-themes" disabled={isSubmitting} onClick={() => { setSelectedTheme(null); setReferenceFile(null); setError(""); }} type="button">返回主题选择</button> : null}
+          <div className="body-book-credit">{session?.mockMode ? "开发模拟 · 不扣点" : `剩余 ${Number(visitorState?.quotaRemaining || 0)} 点`}</div>
+        </div>
+      </header>
+
+      {!session && !selectedTheme ? (
+        <section className="body-book-theme-home">
+          <div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>每本认知书包含一张封面和九张主题认知卡。</p></div>
+          <div className="body-book-theme-grid">{themes.map((theme, index) => <button className="body-book-theme-card" key={theme.id} onClick={() => { setSelectedTheme(theme); setError(""); }} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" src={`/body-book-samples/${encodeURIComponent(theme.id)}-cover.png`} /><span className="body-book-theme-index">{String(index + 1).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small></button>)}</div>
+        </section>
+      ) : null}
+
+      {!session && selectedTheme ? (
+        <section className="body-book-upload-layout">
+          <label className={`body-book-upload ${referencePreviewUrl ? "has-image" : ""}`} htmlFor="body-book-input">
+            {referencePreviewUrl ? <img alt="待制作的宝宝照片" src={referencePreviewUrl} /> : <><ImageUp size={30} /><strong>上传宝宝照片</strong><span>支持 JPG、PNG、WebP</span></>}
+            <input accept="image/png,image/jpeg,image/webp" id="body-book-input" onChange={(event) => { selectReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" />
+          </label>
+          <div className="body-book-upload-copy">
+            <span className="body-book-step">02</span>
+            <h2>上传宝宝照片</h2>
+            <p>将以这张照片制作《{selectedTheme.name}》封面，确认后再生成九张主题认知卡。</p>
+            <button className="draw-card-primary" disabled={!referenceFile || isSubmitting} onClick={startCover} type="button">
+              {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+              <span>{isSubmitting ? "正在提交" : "生成封面（1 点）"}</span>
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {session ? (
+        <section className="body-book-workspace">
+          <div className="body-book-status-row">
+            <div><span className="body-book-step">{isCoverReview ? "02" : "03"}</span><h2>{isCoverReview ? "确认封面效果" : isGenerating ? session.message : "认知书成品"}</h2></div>
+            <div className="body-book-page-actions">
+              <button className="draw-card-secondary" onClick={restart} type="button"><Home size={17} /><span>返回主页</span></button>
+              <button className="draw-card-secondary" disabled={!canDownloadAll || isSavingBook} onClick={saveBook} type="button"><Save size={17} /><span>{isSavingBook ? "保存中" : session?.savedAt ? "已保存全书" : "保存全书"}</span></button>
+            </div>
+          </div>
+          {error ? <p className="error-note">{error}</p> : null}
+          {session?.billingError ? <p className="error-note">{session.billingError}</p> : null}
+
+          {isCoverReview ? (
+            <div className="body-book-cover-review">
+              <BodyBookItem item={session.cover} onOpen={setActiveItem} />
+              <div className="body-book-confirm-copy"><p>封面满意后，将继续生成九张认知卡。</p><button className="draw-card-primary" disabled={isSubmitting} onClick={confirmCover} type="button">{isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Check size={18} />}<span>确认并生成 9 页（9 点）</span></button></div>
+            </div>
+          ) : (
+            <>
+              <p className="body-book-progress">已完成 {Number(cardSummary?.succeeded || 0)} / 9 张认知卡。{session?.mockMode ? "当前为开发模拟，不调用图片 API，也不会扣点。" : "封面和每张卡片均可单独下载。"}</p>
+              <div className="body-book-grid">
+                {allItems.map((item) => <BodyBookItem item={item} key={`${item.key}-${item.jobId || "pending"}`} onOpen={setActiveItem} onRegenerate={item.key === "cover" ? null : openRegenerationDialog} regenerating={regeneratingKey === item.key} />)}
+              </div>
+            </>
+          )}
+        </section>
+      ) : null}
+
+      {!session && !selectedTheme ? (
+        <section className="body-book-library">
+          <div className="body-book-library-head"><span className="body-book-step">MY BOOKS</span><h2>我的认知书</h2></div>
+          {error ? <p className="error-note">{error}</p> : null}
+          {savedBooks.length ? <div className="body-book-library-grid">{savedBooks.map((book) => {
+            return <article className="body-book-library-item" key={book.sessionId}>
+              <button className="body-book-library-cover" onClick={() => setLibraryBook(book)} type="button">
+                <img alt={`${book.title} 封面`} src={book.cover?.result?.previewUrl || book.cover?.result?.imageUrl} />
+                <span>{book.title}</span><small>查看全书</small>
+              </button>
+              <button className="body-book-library-delete" disabled={deletingBookId === book.sessionId} onClick={() => deleteSavedBook(book)} type="button"><Trash2 size={15} /><span>{deletingBookId === book.sessionId ? "删除中" : "删除"}</span></button>
+            </article>;
+          })}</div> : <p className="body-book-library-empty">保存完成的认知书后，会在这里展示封面和内页。</p>}
+        </section>
+      ) : null}
+
+      {libraryBook ? (
+        <div className="modal-backdrop body-book-library-modal" onClick={() => setLibraryBook(null)} role="presentation">
+          <section className="body-book-library-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={`${libraryBook.title} 全书`}>
+            <button className="icon-button" onClick={() => setLibraryBook(null)} type="button" aria-label="关闭全书预览"><X size={18} /></button>
+            <div className="body-book-library-panel-head"><div><p className="body-book-kicker">My body book</p><h2>{libraryBook.title}</h2></div><button className="draw-card-primary" onClick={() => downloadBodyBook(libraryBook)} type="button"><Download size={17} /><span>下载全书</span></button></div>
+            <div className="body-book-library-panel-grid">{[libraryBook.cover, ...(libraryBook.cards || [])].map((item) => <BodyBookItem item={item} key={`${libraryBook.sessionId}-${item.key}`} onOpen={setActiveItem} />)}</div>
+          </section>
+        </div>
+      ) : null}
+
+      {activeItem?.result?.imageUrl ? (
+        <div className="modal-backdrop body-book-lightbox" onClick={() => setActiveItem(null)} role="presentation">
+          <section className="body-book-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <button className="icon-button" onClick={() => setActiveItem(null)} type="button" aria-label="关闭预览"><X size={18} /></button>
+            <img alt={activeItem.title} src={activeItem.result.imageUrl} />
+            <div><strong>{activeItem.title}</strong><a className="draw-card-primary" download={getBodyBookDownloadName(activeItem)} href={activeItem.result.imageUrl}><Download size={17} /><span>下载图片</span></a></div>
+          </section>
+        </div>
+      ) : null}
+
+      {regenerationDraft ? (
+        <div className="modal-backdrop body-book-regenerate-modal" onClick={closeRegenerationDialog} role="presentation">
+          <section className="body-book-regenerate-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={`重新生成${regenerationDraft.title}`}>
+            <button className="icon-button" disabled={Boolean(regeneratingKey)} onClick={closeRegenerationDialog} type="button" aria-label="关闭重新生成编辑"><X size={18} /></button>
+            <div><p className="body-book-kicker">Regenerate page</p><h2>重新生成 {regenerationDraft.title}</h2></div>
+            <div className="body-book-regenerate-editor">
+              <label className="body-book-reference-picker" htmlFor="body-book-regenerate-reference">
+                <span>参考图</span>
+                {regenerationReferencePreviewUrl || regenerationReferenceUrl ? <img alt="当前参考图" src={regenerationReferencePreviewUrl || regenerationReferenceUrl} /> : <div className="body-book-reference-empty"><ImageUp size={22} /><span>选择参考图</span></div>}
+                <input accept="image/png,image/jpeg,image/webp" id="body-book-regenerate-reference" onChange={(event) => { const file = event.target.files?.[0] || null; if (file && !["image/jpeg", "image/png", "image/webp"].includes(file.type)) { setError("请上传 JPG、PNG 或 WebP 图片。"); return; } setRegenerationReference(file); event.target.value = ""; }} type="file" />
+                <small>点击替换本页参考图</small>
+              </label>
+              <label className="body-book-prompt-editor">提示词<textarea maxLength={6000} onChange={(event) => setRegenerationPrompt(event.target.value)} value={regenerationPrompt} /></label>
+            </div>
+            <div className="body-book-regenerate-actions"><button className="draw-card-secondary" disabled={Boolean(regeneratingKey)} onClick={closeRegenerationDialog} type="button">取消</button><button className="draw-card-primary" disabled={Boolean(regeneratingKey)} onClick={regenerateCard} type="button">{regeneratingKey ? <LoaderCircle className="spin" size={18} /> : <RefreshCw size={18} />}<span>{session?.mockMode ? "继续生成（模拟）" : "继续生成（1 点）"}</span></button></div>
+          </section>
+        </div>
+      ) : null}
+    </main>
+  );
+}
+
+function BodyBookItem({ item, onOpen, onRegenerate, regenerating = false }) {
+  const succeeded = item?.status === "succeeded" && item?.result?.imageUrl;
+  const pending = ["queued", "running"].includes(item?.status);
+  return (
+    <article className={`body-book-item ${pending ? "is-pending" : ""} ${item?.status === "failed" ? "is-failed" : ""}`}>
+      {succeeded ? <button className="body-book-item-media" onClick={() => onOpen(item)} type="button"><img alt={item.title} src={item.result.previewUrl || item.result.imageUrl} /></button> : <div className="body-book-placeholder">{pending ? <LoaderCircle className="spin" size={24} /> : <AlertTriangle size={24} />}<strong>{pending ? "正在生成" : item?.status === "not_started" ? "等待封面确认" : "生成失败"}</strong><span>{item?.errorMessage || (pending ? "图片完成后会自动出现。" : "")}</span></div>}
+      <div className="body-book-item-meta"><div><strong>{item.title}</strong>{item.key !== "cover" ? <span>第 {item.order} 页</span> : <span>封面</span>}</div>{succeeded ? <div className="body-book-item-actions"><button className="icon-button" onClick={() => onOpen(item)} title="查看大图" type="button"><Eye size={17} /></button><a className="icon-button" download={getBodyBookDownloadName(item)} href={item.result.imageUrl} title="下载图片"><Download size={17} /></a>{onRegenerate ? <button className="icon-button" disabled={regenerating} onClick={() => onRegenerate(item)} title="重新生成" type="button">{regenerating ? <LoaderCircle className="spin" size={17} /> : <RefreshCw size={17} />}</button> : null}</div> : onRegenerate && !pending && item?.status !== "not_started" ? <button className="body-book-regenerate" disabled={regenerating} onClick={() => onRegenerate(item)} type="button">{regenerating ? "生成中" : "重新生成"}</button> : null}</div>
+    </article>
+  );
+}
+
+function getBodyBookDownloadName(item) {
+  const extension = item?.result?.mimeType === "image/svg+xml" ? "svg" : "png";
+  return `my-first-body-${item?.key || "page"}.${extension}`;
+}
+
+function downloadBodyBook(book) {
+  const pages = [book?.cover, ...(book?.cards || [])].filter((item) => item?.result?.imageUrl);
+  pages.forEach((item, index) => {
+    window.setTimeout(() => {
+      const link = document.createElement("a");
+      link.href = item.result.imageUrl;
+      link.download = getBodyBookDownloadName(item);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }, index * 180);
+  });
 }
 
 function FridgeMagnetOrdersPage() {
@@ -7321,6 +7743,69 @@ async function fetchPublicExperienceSession(apiBase, sessionId, fallbackMessage)
   return payload;
 }
 
+async function fetchBodyBookSession(sessionId) {
+  const response = await fetch(`/api/body-book/sessions/${encodeURIComponent(sessionId)}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取认知书状态失败，请稍后再试。");
+  return payload;
+}
+
+async function fetchLatestBodyBookSession() {
+  const response = await fetch("/api/body-book/sessions/latest");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "恢复认知书进度失败，请稍后再试。");
+  return payload;
+}
+
+async function fetchSavedBodyBooks() {
+  const response = await fetch("/api/body-book/books");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取我的认知书失败，请稍后再试。");
+  return payload;
+}
+
+async function fetchBodyBookThemes() {
+  const response = await fetch("/api/body-book/themes");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取认知书主题失败，请稍后再试。");
+  return payload;
+}
+
+async function createBodyBookSession(formData) {
+  const response = await fetch("/api/body-book/sessions", { method: "POST", body: formData });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "创建认知书失败，请稍后再试。");
+  return payload;
+}
+
+async function confirmBodyBookCover(sessionId) {
+  const response = await fetch(`/api/body-book/sessions/${encodeURIComponent(sessionId)}/confirm-cover`, { method: "POST" });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "启动认知卡生成失败，请稍后再试。");
+  return payload;
+}
+
+async function saveBodyBook(sessionId) {
+  const response = await fetch(`/api/body-book/sessions/${encodeURIComponent(sessionId)}/save`, { method: "POST" });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "保存认知书失败，请稍后再试。");
+  return payload;
+}
+
+async function deleteBodyBook(sessionId) {
+  const response = await fetch(`/api/body-book/books/${encodeURIComponent(sessionId)}`, { method: "DELETE" });
+  if (response.status === 204) return;
+  const payload = await response.json().catch(() => ({}));
+  throw new Error(payload.message || "删除认知书失败，请稍后再试。");
+}
+
+async function regenerateBodyBookCard(sessionId, partKey, formData) {
+  const response = await fetch(`/api/body-book/sessions/${encodeURIComponent(sessionId)}/cards/${encodeURIComponent(partKey)}/regenerate`, { method: "POST", body: formData });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "重新生成认知卡失败，请稍后再试。");
+  return payload;
+}
+
 async function likeImageJob(jobId) {
   const response = await fetch(`/api/image-jobs/${jobId}/like`, { method: "POST" });
   const payload = await response.json();
@@ -7396,6 +7881,7 @@ function modeLabel(mode) {
 }
 
 function publicExperienceLabel(experienceType) {
+  if (experienceType === "body-book") return "宝宝身体认知书";
   if (experienceType === "fridge-magnet") return "冰箱贴";
   if (experienceType === "draw-card") return "抽卡";
   return "公开玩法";

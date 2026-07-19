@@ -1,0 +1,471 @@
+{
+  "sessionId": "0e4e14ea-68ad-42b0-82e9-8d1a48c1f446",
+  "experienceType": "body-book",
+  "ownerAccountId": "7076b5d2-3e17-4939-808f-1acfe7e0e252",
+  "ownerVisitorId": "5f323334-6528-4dfb-94e2-2dd326fd1673",
+  "stage": "complete",
+  "status": "succeeded",
+  "message": "宝宝身体认知书已制作完成。",
+  "createdAt": "2026-07-19T08:06:30.656Z",
+  "updatedAt": "2026-07-19T08:34:14.266Z",
+  "completedAt": "2026-07-19T08:14:13.520Z",
+  "coverConfirmedAt": "2026-07-19T08:09:22.449Z",
+  "reference": {
+    "filename": "reference.jpg",
+    "mimeType": "image/jpeg",
+    "size": 253239,
+    "originalName": "20260719-154824-compressed.jpg"
+  },
+  "chargedJobIds": [
+    "33143891-6b06-4df1-8d5f-c284f78001d2",
+    "50619cd4-2c3a-4d3c-86b6-b78424c1304b",
+    "853c4dbf-d9b0-4896-a85e-88e51fab503e",
+    "c7742dd1-b6e6-49f2-ba3b-113e68f15855",
+    "58827a5b-30e1-41af-89d4-ab18bdf2a819",
+    "aca09462-93f7-4934-b187-b91a093b1d43",
+    "472217fe-6056-48ec-a1a5-a42ea0f9ed44",
+    "568c9f14-090e-4278-81d4-8a295f9205aa",
+    "44fbdc52-8636-4647-807f-ddd686c2a2de",
+    "f3184158-b1fb-4c36-97e5-c31de45ac5f6"
+  ],
+  "billingError": "",
+  "cover": {
+    "key": "cover",
+    "title": "封面 Cover",
+    "order": 0,
+    "version": 1,
+    "jobId": "33143891-6b06-4df1-8d5f-c284f78001d2",
+    "status": "succeeded",
+    "result": {
+      "imageDataUrl": "",
+      "imageUrl": "/generated-images/33143891-6b06-4df1-8d5f-c284f78001d2.png",
+      "mimeType": "image/png",
+      "usage": {
+        "input_tokens": 1689,
+        "input_tokens_details": {
+          "image_tokens": 1452,
+          "text_tokens": 237
+        },
+        "output_tokens": 2058,
+        "output_tokens_details": {
+          "image_tokens": 2058,
+          "text_tokens": 0
+        },
+        "total_tokens": 3747
+      },
+      "mode": "edit",
+      "previewUrl": "/generated-previews/33143891-6b06-4df1-8d5f-c284f78001d2.webp",
+      "previewWidth": 1254,
+      "previewHeight": 1254,
+      "thumbnailUrl": "/generated-thumbnails/33143891-6b06-4df1-8d5f-c284f78001d2.webp",
+      "thumbnailWidth": 384,
+      "thumbnailHeight": 384,
+      "provider": {
+        "id": "llmtoken",
+        "name": "llmtoken",
+        "model": "gpt-image-2"
+      },
+      "originalImageUrl": ""
+    },
+    "errorMessage": "",
+    "historyJobIds": []
+  },
+  "cards": [
+    {
+      "key": "head",
+      "chinese": "头部",
+      "english": "Head",
+      "copy": "This is my head. 这是我的头部。",
+      "order": 1,
+      "version": 1,
+      "jobId": "aca09462-93f7-4934-b187-b91a093b1d43",
+      "status": "succeeded",
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/aca09462-93f7-4934-b187-b91a093b1d43.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 1713,
+          "input_tokens_details": {
+            "image_tokens": 1452,
+            "text_tokens": 261
+          },
+          "output_tokens": 2058,
+          "output_tokens_details": {
+            "image_tokens": 2058,
+            "text_tokens": 0
+          },
+          "total_tokens": 3771
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/aca09462-93f7-4934-b187-b91a093b1d43.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/aca09462-93f7-4934-b187-b91a093b1d43.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "llmtoken",
+          "name": "llmtoken",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": [],
+      "title": "Head 头部"
+    },
+    {
+      "key": "eyes",
+      "chinese": "眼睛",
+      "english": "Eyes",
+      "copy": "I see with my eyes. 我用眼睛看世界。",
+      "order": 2,
+      "version": 1,
+      "jobId": "f3184158-b1fb-4c36-97e5-c31de45ac5f6",
+      "status": "succeeded",
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/f3184158-b1fb-4c36-97e5-c31de45ac5f6.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 1759,
+          "input_tokens_details": {
+            "image_tokens": 1452,
+            "text_tokens": 307
+          },
+          "output_tokens": 8232,
+          "output_tokens_details": {
+            "image_tokens": 8232,
+            "text_tokens": 0
+          },
+          "total_tokens": 9991
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/f3184158-b1fb-4c36-97e5-c31de45ac5f6.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/f3184158-b1fb-4c36-97e5-c31de45ac5f6.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "llmtoken",
+          "name": "llmtoken",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": [],
+      "title": "Eyes 眼睛"
+    },
+    {
+      "key": "ears",
+      "chinese": "耳朵",
+      "english": "Ears",
+      "copy": "I hear with my ears. 我用耳朵听声音。",
+      "order": 3,
+      "version": 1,
+      "jobId": "50619cd4-2c3a-4d3c-86b6-b78424c1304b",
+      "status": "succeeded",
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/50619cd4-2c3a-4d3c-86b6-b78424c1304b.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 1710,
+          "input_tokens_details": {
+            "image_tokens": 1452,
+            "text_tokens": 258
+          },
+          "output_tokens": 2058,
+          "output_tokens_details": {
+            "image_tokens": 2058,
+            "text_tokens": 0
+          },
+          "total_tokens": 3768
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/50619cd4-2c3a-4d3c-86b6-b78424c1304b.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/50619cd4-2c3a-4d3c-86b6-b78424c1304b.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "llmtoken",
+          "name": "llmtoken",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": [],
+      "title": "Ears 耳朵"
+    },
+    {
+      "key": "nose",
+      "chinese": "鼻子",
+      "english": "Nose",
+      "copy": "I smell with my nose. 我用鼻子闻一闻。",
+      "order": 4,
+      "version": 1,
+      "jobId": "568c9f14-090e-4278-81d4-8a295f9205aa",
+      "status": "succeeded",
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/568c9f14-090e-4278-81d4-8a295f9205aa.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 1686,
+          "input_tokens_details": {
+            "image_tokens": 1452,
+            "text_tokens": 234
+          },
+          "output_tokens": 2058,
+          "output_tokens_details": {
+            "image_tokens": 2058,
+            "text_tokens": 0
+          },
+          "total_tokens": 3744
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/568c9f14-090e-4278-81d4-8a295f9205aa.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/568c9f14-090e-4278-81d4-8a295f9205aa.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "llmtoken",
+          "name": "llmtoken",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": [],
+      "title": "Nose 鼻子"
+    },
+    {
+      "key": "mouth",
+      "chinese": "嘴巴",
+      "english": "Mouth",
+      "copy": "I smile with my mouth. 我用嘴巴笑一笑。",
+      "order": 5,
+      "version": 1,
+      "jobId": "58827a5b-30e1-41af-89d4-ab18bdf2a819",
+      "status": "succeeded",
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/58827a5b-30e1-41af-89d4-ab18bdf2a819.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 1686,
+          "input_tokens_details": {
+            "image_tokens": 1452,
+            "text_tokens": 234
+          },
+          "output_tokens": 2058,
+          "output_tokens_details": {
+            "image_tokens": 2058,
+            "text_tokens": 0
+          },
+          "total_tokens": 3744
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/58827a5b-30e1-41af-89d4-ab18bdf2a819.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/58827a5b-30e1-41af-89d4-ab18bdf2a819.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "llmtoken",
+          "name": "llmtoken",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": [],
+      "title": "Mouth 嘴巴"
+    },
+    {
+      "key": "hands",
+      "chinese": "手",
+      "english": "Hands",
+      "copy": "My hands can touch. 我的小手会触摸。",
+      "order": 6,
+      "version": 1,
+      "jobId": "c7742dd1-b6e6-49f2-ba3b-113e68f15855",
+      "status": "succeeded",
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/c7742dd1-b6e6-49f2-ba3b-113e68f15855.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 1733,
+          "input_tokens_details": {
+            "image_tokens": 1452,
+            "text_tokens": 281
+          },
+          "output_tokens": 2058,
+          "output_tokens_details": {
+            "image_tokens": 2058,
+            "text_tokens": 0
+          },
+          "total_tokens": 3791
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/c7742dd1-b6e6-49f2-ba3b-113e68f15855.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/c7742dd1-b6e6-49f2-ba3b-113e68f15855.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "llmtoken",
+          "name": "llmtoken",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": [],
+      "title": "Hands 手"
+    },
+    {
+      "key": "feet",
+      "chinese": "脚",
+      "english": "Feet",
+      "copy": "My feet help me walk. 我用小脚走路。",
+      "order": 7,
+      "version": 1,
+      "jobId": "853c4dbf-d9b0-4896-a85e-88e51fab503e",
+      "status": "succeeded",
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/853c4dbf-d9b0-4896-a85e-88e51fab503e.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 1722,
+          "input_tokens_details": {
+            "image_tokens": 1452,
+            "text_tokens": 270
+          },
+          "output_tokens": 2058,
+          "output_tokens_details": {
+            "image_tokens": 2058,
+            "text_tokens": 0
+          },
+          "total_tokens": 3780
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/853c4dbf-d9b0-4896-a85e-88e51fab503e.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/853c4dbf-d9b0-4896-a85e-88e51fab503e.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "llmtoken",
+          "name": "llmtoken",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": [],
+      "title": "Feet 脚"
+    },
+    {
+      "key": "tummy",
+      "chinese": "肚子",
+      "english": "Tummy",
+      "copy": "This is my tummy. 这是我的小肚子。",
+      "order": 8,
+      "version": 1,
+      "jobId": "44fbdc52-8636-4647-807f-ddd686c2a2de",
+      "status": "succeeded",
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/44fbdc52-8636-4647-807f-ddd686c2a2de.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 1673,
+          "input_tokens_details": {
+            "image_tokens": 1452,
+            "text_tokens": 221
+          },
+          "output_tokens": 2058,
+          "output_tokens_details": {
+            "image_tokens": 2058,
+            "text_tokens": 0
+          },
+          "total_tokens": 3731
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/44fbdc52-8636-4647-807f-ddd686c2a2de.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/44fbdc52-8636-4647-807f-ddd686c2a2de.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "llmtoken",
+          "name": "llmtoken",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": [],
+      "title": "Tummy 肚子"
+    },
+    {
+      "key": "knees",
+      "chinese": "膝盖",
+      "english": "Knees",
+      "copy": "My knees can bend. 我的小膝盖会弯曲。",
+      "order": 9,
+      "version": 1,
+      "jobId": "472217fe-6056-48ec-a1a5-a42ea0f9ed44",
+      "status": "succeeded",
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/472217fe-6056-48ec-a1a5-a42ea0f9ed44.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 1736,
+          "input_tokens_details": {
+            "image_tokens": 1452,
+            "text_tokens": 284
+          },
+          "output_tokens": 2058,
+          "output_tokens_details": {
+            "image_tokens": 2058,
+            "text_tokens": 0
+          },
+          "total_tokens": 3794
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/472217fe-6056-48ec-a1a5-a42ea0f9ed44.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/472217fe-6056-48ec-a1a5-a42ea0f9ed44.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "llmtoken",
+          "name": "llmtoken",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": [],
+      "title": "Knees 膝盖"
+    }
+  ]
+}
