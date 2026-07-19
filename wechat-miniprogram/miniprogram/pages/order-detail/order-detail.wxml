@@ -11,6 +11,8 @@
         <text class="status {{order.statusClass}}">{{order.statusText}}</text>
       </view>
 
+      <button bindtap="copyContact" class="secondary-button full">联系客服</button>
+
       <view class="payment-card" wx:if="{{order.orderStatus === 'pending_payment'}}">
         <text class="card-title">请扫描商户收款码付款</text>
         <text>应付金额：{{order.totalText}}</text>

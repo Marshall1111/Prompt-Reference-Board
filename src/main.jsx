@@ -126,7 +126,7 @@ const DRAW_CARD_EXPERIENCE_CONFIG = {
   themeClass: "theme-draw-card",
   titleKicker: "",
   title: "AI小画家",
-  subtitle: "上传照片，一键制作AI小画",
+  subtitle: "上传照片，一键制作AI小画冰箱贴",
   waitingLines: ["总计需要约 5 分钟，请耐心等待。", "请保持当前页面开启，结果会在完成后自动出现。", "正在制作 AI 小画，请耐心等待。"],
   waitingFallback: "总计需要约 5 分钟，请耐心等待。",
   startButtonIdle: "我要抽卡",
@@ -247,7 +247,7 @@ function App() {
       "admin-api-providers": "API 配置",
       "admin-user-clip": "用户卡夹"
     };
-    document.title = titleByRoute[route] || "AI风格转绘";
+    document.title = titleByRoute[route] || "AI小画家";
   }, [route]);
 
   function navigate(nextRoute) {
@@ -1103,11 +1103,14 @@ function FridgeMagnetOrderPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [orderCopied, setOrderCopied] = useState(false);
+  const [contactCopied, setContactCopied] = useState(false);
   const orderCopiedTimeoutRef = useRef(null);
+  const contactCopiedTimeoutRef = useRef(null);
 
   useEffect(() => {
     return () => {
       if (orderCopiedTimeoutRef.current) window.clearTimeout(orderCopiedTimeoutRef.current);
+      if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
     };
   }, []);
 
@@ -1142,6 +1145,13 @@ function FridgeMagnetOrderPage() {
     orderCopiedTimeoutRef.current = window.setTimeout(() => setOrderCopied(false), 1600);
   }
 
+  async function handleCopyContact() {
+    await copyText(getContactWechatId(orderConfig));
+    setContactCopied(true);
+    if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
+    contactCopiedTimeoutRef.current = window.setTimeout(() => setContactCopied(false), 1600);
+  }
+
   return (
     <main className="app-shell">
       <section className="workspace order-page">
@@ -1154,6 +1164,12 @@ function FridgeMagnetOrderPage() {
           <button className="secondary-button" onClick={() => window.location.assign("/fridge/orders")} type="button">
             <Home size={18} />
             <span>返回我的订单</span>
+          </button>
+        </div>
+        <div className="task-actions order-detail-contact-action">
+          <button className="secondary-button" onClick={handleCopyContact} type="button">
+            <Clipboard size={18} />
+            <span>{contactCopied ? "客服微信已复制" : "联系客服"}</span>
           </button>
         </div>
         {isLoading ? <p className="storage-note">正在读取订单…</p> : null}
@@ -1316,6 +1332,8 @@ function PublicExperiencePage({ config }) {
   const [showContactModal, setShowContactModal] = useState(false);
   const [showDrawConfigModal, setShowDrawConfigModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isSwitchingAccount, setIsSwitchingAccount] = useState(false);
   const [contactCopied, setContactCopied] = useState(false);
   const [orderConfig, setOrderConfig] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -2049,6 +2067,22 @@ function PublicExperiencePage({ config }) {
     setOriginalPreview(null);
   }
 
+  async function handleSwitchAccount() {
+    setIsSwitchingAccount(true);
+    try {
+      await logoutCurrentAccount();
+      const payload = await fetchVisitorState().catch(() => null);
+      setVisitorState(payload);
+      setClipItems([]);
+      setShowUserMenu(false);
+      setShowAuthModal(true);
+    } catch (nextError) {
+      setError(nextError.message || "切换账号失败，请稍后再试。");
+    } finally {
+      setIsSwitchingAccount(false);
+    }
+  }
+
   async function handleCopyContactWeChat() {
     await copyText(getContactWechatId(orderConfig));
     setContactCopied(true);
@@ -2350,20 +2384,13 @@ function PublicExperiencePage({ config }) {
       {experienceType === "draw-card" ? (
         <div className="draw-card-utility-bar draw-card-utility-bar-draw">
           {visitorState?.account?.isRegistered ? (
-          <>
             <button
               className="draw-card-utility-link"
-              onClick={async () => {
-                await logoutCurrentAccount().catch(() => {});
-                const payload = await fetchVisitorState().catch(() => null);
-                setVisitorState(payload);
-                setClipItems([]);
-              }}
+              onClick={() => setShowUserMenu(true)}
               type="button"
             >
-              {visitorState.account.username || "已登录"} · 退出
+              {visitorState.account.username || "已登录"}
             </button>
-          </>
           ) : (
             <button className="draw-card-utility-link" onClick={() => setShowAuthModal(true)} type="button">登录 / 注册</button>
           )}
@@ -2848,6 +2875,30 @@ function PublicExperiencePage({ config }) {
           }}
           onClose={() => setShowAuthModal(false)}
         />
+      ) : null}
+
+      {showUserMenu ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => setShowUserMenu(false)} role="presentation">
+          <section className="draw-card-confirm-panel draw-card-user-menu" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="账户菜单">
+            <div className="draw-card-order-head">
+              <div>
+                <p className="draw-card-kicker">Account</p>
+                <h2>{visitorState?.account?.username || "我的账户"}</h2>
+              </div>
+              <button className="icon-button" onClick={() => setShowUserMenu(false)} type="button" aria-label="关闭账户菜单">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="draw-card-confirm-actions draw-card-user-menu-actions">
+              <button className="draw-card-secondary" disabled={isSwitchingAccount} onClick={handleSwitchAccount} type="button">
+                <span>{isSwitchingAccount ? "正在切换" : "切换账号"}</span>
+              </button>
+              <button className="draw-card-primary" onClick={() => window.location.assign("/fridge/orders")} type="button">
+                <span>我的订单</span>
+              </button>
+            </div>
+          </section>
+        </div>
       ) : null}
 
       {showOrderModal ? (

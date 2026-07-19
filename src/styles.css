@@ -152,6 +152,11 @@ body {
   line-height: 1.8;
 }
 
+.draw-card-shell.theme-draw-card .draw-card-hero .draw-card-subtitle {
+  font-size: 1.18rem;
+  line-height: 1.65;
+}
+
 .draw-card-upload-panel,
 .draw-card-error-panel {
   display: grid;
@@ -2880,6 +2885,19 @@ h2 {
 
 .user-clip-admin-actions {
   justify-content: flex-end;
+}
+
+.draw-card-user-menu {
+  width: min(340px, 100%);
+}
+
+.draw-card-user-menu-actions {
+  justify-content: stretch;
+}
+
+.draw-card-user-menu-actions > button {
+  flex: 1 1 0;
+  min-height: 44px;
 }
 
 .user-clip-admin-actions > button {
