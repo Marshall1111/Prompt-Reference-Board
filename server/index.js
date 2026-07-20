@@ -5927,6 +5927,7 @@ async function sendEmailVerificationCode({ email, code, purpose }) {
     await client.SendEmail({
       FromEmailAddress: fromEmail,
       Destination: [email],
+      Subject: "AI小画家邮箱验证码",
       Template: { TemplateID: templateId, TemplateData: JSON.stringify({ code, minutes: "10" }) }
     });
   } catch (error) {
