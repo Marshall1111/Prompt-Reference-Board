@@ -34,6 +34,8 @@ function mapAccount(row) {
     channel: String(row.channel || "web_wechat"),
     openId: String(row.open_id || ""),
     creditBalance: Number(row.credit_balance || 0),
+    coinBalance: Number(row.credit_balance || 0),
+    beanBalance: Number(row.bean_balance || 0),
     originalDownloadsUnlockedAt: row.original_downloads_unlocked_at || null,
     email: String(row.email || ""),
     username: String(row.username || ""),
@@ -96,6 +98,7 @@ export function createCommerceStore({ dbPath }) {
       channel TEXT NOT NULL,
       open_id TEXT NOT NULL,
       credit_balance INTEGER NOT NULL DEFAULT 0,
+      bean_balance INTEGER NOT NULL DEFAULT 0,
       original_downloads_unlocked_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -111,6 +114,20 @@ export function createCommerceStore({ dbPath }) {
     );
 
     CREATE TABLE IF NOT EXISTS commerce_credit_ledger (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      delta INTEGER NOT NULL,
+      balance_after INTEGER NOT NULL,
+      reason TEXT NOT NULL,
+      reference_type TEXT NOT NULL,
+      reference_id TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      UNIQUE(account_id, reference_type, reference_id),
+      FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS commerce_bean_ledger (
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL,
       delta INTEGER NOT NULL,
@@ -192,6 +209,7 @@ export function createCommerceStore({ dbPath }) {
     CREATE INDEX IF NOT EXISTS idx_commerce_payment_intents_account ON commerce_payment_intents(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_payment_intents_transaction ON commerce_payment_intents(transaction_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_credit_ledger_account ON commerce_credit_ledger(account_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_commerce_bean_ledger_account ON commerce_bean_ledger(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_original_image_redemptions_order ON commerce_original_image_redemptions(source_order_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_user_sessions_account ON commerce_user_sessions(account_id, expires_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_email_verifications_lookup ON commerce_email_verifications(email, purpose, created_at DESC);
@@ -201,7 +219,9 @@ export function createCommerceStore({ dbPath }) {
   const ensureAccountColumn = (name, definition) => {
     if (!accountColumns.some((column) => String(column.name || "") === name)) {
       db.exec(`ALTER TABLE commerce_accounts ADD COLUMN ${definition}`);
+      return true;
     }
+    return false;
   };
   ensureAccountColumn("email", "email TEXT NOT NULL DEFAULT ''");
   ensureAccountColumn("username", "username TEXT NOT NULL DEFAULT ''");
@@ -209,12 +229,30 @@ export function createCommerceStore({ dbPath }) {
   ensureAccountColumn("account_status", "account_status TEXT NOT NULL DEFAULT 'active'");
   ensureAccountColumn("registered_at", "registered_at TEXT");
   ensureAccountColumn("last_login_at", "last_login_at TEXT");
+  const addedBeanBalance = ensureAccountColumn("bean_balance", "bean_balance INTEGER NOT NULL DEFAULT 0");
   const ledgerColumns = db.prepare("PRAGMA table_info(commerce_credit_ledger)").all();
   if (!ledgerColumns.some((column) => String(column.name || "") === "note")) {
     db.exec("ALTER TABLE commerce_credit_ledger ADD COLUMN note TEXT NOT NULL DEFAULT ''");
   }
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_commerce_accounts_email_unique ON commerce_accounts(email) WHERE email != ''");
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_commerce_accounts_username_unique ON commerce_accounts(username) WHERE username != ''");
+
+  if (addedBeanBalance) {
+    withTransaction(db, () => {
+      const now = nowIso();
+      const accounts = db.prepare("SELECT id FROM commerce_accounts").all();
+      const update = db.prepare("UPDATE commerce_accounts SET bean_balance = 10, updated_at = ? WHERE id = ?");
+      const insert = db.prepare(`
+        INSERT OR IGNORE INTO commerce_bean_ledger (
+          id, account_id, delta, balance_after, reason, reference_type, reference_id, note, created_at
+        ) VALUES (?, ?, 10, 10, 'legacy_bean_migration', 'account', ?, '历史账户豆豆补发', ?)
+      `);
+      accounts.forEach((account) => {
+        update.run(now, account.id);
+        insert.run(randomUUID(), account.id, account.id, now);
+      });
+    });
+  }
 
   const readAccountByIdStatement = db.prepare("SELECT * FROM commerce_accounts WHERE id = ?");
   const readAccountByOpenIdStatement = db.prepare("SELECT * FROM commerce_accounts WHERE channel = ? AND open_id = ?");
@@ -450,7 +488,39 @@ export function createCommerceStore({ dbPath }) {
     };
   }
 
-  function createOrGetWebAccount({ openId, visitorId, signupCredits = 5 }) {
+  function appendBeanLedger(accountId, delta, { reason, referenceType, referenceId, note = "" } = {}) {
+    const account = readAccount(accountId);
+    if (!account) throw new Error("账户不存在。");
+    const existing = db.prepare(`
+      SELECT * FROM commerce_bean_ledger
+      WHERE account_id = ? AND reference_type = ? AND reference_id = ?
+    `).get(String(accountId), String(referenceType || ""), String(referenceId || ""));
+    if (existing) return { ledger: mapLedgerRow(existing), account };
+
+    const safeDelta = Math.trunc(Number(delta || 0));
+    const nextBalance = account.beanBalance + safeDelta;
+    if (nextBalance < 0) {
+      const error = new Error("豆豆余额不足。");
+      error.code = "INSUFFICIENT_BEANS";
+      throw error;
+    }
+
+    const createdAt = nowIso();
+    db.prepare(`
+      INSERT INTO commerce_bean_ledger (
+        id, account_id, delta, balance_after, reason, reference_type, reference_id, note, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(randomUUID(), account.id, safeDelta, nextBalance, String(reason || ""), String(referenceType || ""), String(referenceId || ""), String(note || ""), createdAt);
+    db.prepare("UPDATE commerce_accounts SET bean_balance = ?, updated_at = ? WHERE id = ?")
+      .run(nextBalance, createdAt, account.id);
+    return {
+      ledger: mapLedgerRow(db.prepare("SELECT * FROM commerce_bean_ledger WHERE account_id = ? AND reference_type = ? AND reference_id = ?")
+        .get(account.id, String(referenceType || ""), String(referenceId || ""))),
+      account: readAccount(account.id)
+    };
+  }
+
+  function createOrGetWebAccount({ openId, visitorId, signupCredits = 5, signupBeans = 10 }) {
     const normalizedOpenId = String(openId || "").trim();
     if (!normalizedOpenId) throw new Error("缺少微信用户标识。");
     return withTransaction(db, () => {
@@ -459,11 +529,16 @@ export function createCommerceStore({ dbPath }) {
         const createdAt = nowIso();
         const id = randomUUID();
         db.prepare(`
-          INSERT INTO commerce_accounts (id, channel, open_id, credit_balance, original_downloads_unlocked_at, created_at, updated_at)
-          VALUES (?, 'web_wechat', ?, 0, NULL, ?, ?)
+          INSERT INTO commerce_accounts (id, channel, open_id, credit_balance, bean_balance, original_downloads_unlocked_at, created_at, updated_at)
+          VALUES (?, 'web_wechat', ?, 0, 0, NULL, ?, ?)
         `).run(id, normalizedOpenId, createdAt, createdAt);
         account = readAccount(id);
         appendLedger(account.id, Math.max(0, Math.trunc(Number(signupCredits || 0))), {
+          reason: "signup_bonus",
+          referenceType: "account",
+          referenceId: account.id
+        });
+        appendBeanLedger(account.id, Math.max(0, Math.trunc(Number(signupBeans || 0))), {
           reason: "signup_bonus",
           referenceType: "account",
           referenceId: account.id
@@ -474,7 +549,7 @@ export function createCommerceStore({ dbPath }) {
     });
   }
 
-  function createOrGetBrowserAccount({ visitorId, signupCredits = 5 }) {
+  function createOrGetBrowserAccount({ visitorId, signupCredits = 5, signupBeans = 10 }) {
     const normalizedVisitorId = String(visitorId || "").trim();
     if (!normalizedVisitorId) throw new Error("缺少访客标识。");
     return withTransaction(db, () => {
@@ -483,11 +558,16 @@ export function createCommerceStore({ dbPath }) {
         const createdAt = nowIso();
         const id = randomUUID();
         db.prepare(`
-          INSERT INTO commerce_accounts (id, channel, open_id, credit_balance, original_downloads_unlocked_at, created_at, updated_at)
-          VALUES (?, 'browser_guest', ?, 0, NULL, ?, ?)
+          INSERT INTO commerce_accounts (id, channel, open_id, credit_balance, bean_balance, original_downloads_unlocked_at, created_at, updated_at)
+          VALUES (?, 'browser_guest', ?, 0, 0, NULL, ?, ?)
         `).run(id, normalizedVisitorId, createdAt, createdAt);
         account = readAccount(id);
         appendLedger(account.id, Math.max(0, Math.trunc(Number(signupCredits || 0))), {
+          reason: "signup_bonus",
+          referenceType: "account",
+          referenceId: account.id
+        });
+        appendBeanLedger(account.id, Math.max(0, Math.trunc(Number(signupBeans || 0))), {
           reason: "signup_bonus",
           referenceType: "account",
           referenceId: account.id
@@ -605,6 +685,14 @@ export function createCommerceStore({ dbPath }) {
     }));
   }
 
+  function debitBeans({ accountId, amount, referenceId, reason = "body_book_generation" }) {
+    return withTransaction(db, () => appendBeanLedger(accountId, -Math.max(0, Math.trunc(Number(amount || 0))), {
+      reason,
+      referenceType: "generation_session",
+      referenceId: String(referenceId || "")
+    }));
+  }
+
   function redeemOriginalImage({ accountId, jobId }) {
     const safeAccountId = String(accountId || "");
     const safeJobId = String(jobId || "");
@@ -688,8 +776,25 @@ export function createCommerceStore({ dbPath }) {
     }));
   }
 
+  function grantBeans({ accountId, amount, referenceType, referenceId, reason = "promotion" }) {
+    return withTransaction(db, () => appendBeanLedger(accountId, Math.max(0, Math.trunc(Number(amount || 0))), {
+      reason,
+      referenceType: String(referenceType || "promotion"),
+      referenceId: String(referenceId || "")
+    }));
+  }
+
   function adjustCredits({ accountId, delta, referenceId, reason, note = "" }) {
     return withTransaction(db, () => appendLedger(accountId, Math.trunc(Number(delta || 0)), {
+      reason: String(reason || "admin_adjustment"),
+      note: String(note || ""),
+      referenceType: "admin_adjustment",
+      referenceId: String(referenceId || randomUUID())
+    }));
+  }
+
+  function adjustBeans({ accountId, delta, referenceId, reason, note = "" }) {
+    return withTransaction(db, () => appendBeanLedger(accountId, Math.trunc(Number(delta || 0)), {
       reason: String(reason || "admin_adjustment"),
       note: String(note || ""),
       referenceType: "admin_adjustment",
@@ -701,6 +806,16 @@ export function createCommerceStore({ dbPath }) {
     const safeLimit = Math.min(Math.max(Math.trunc(Number(limit || 100)), 1), 500);
     return db.prepare(`
       SELECT * FROM commerce_credit_ledger
+      WHERE account_id = ?
+      ORDER BY created_at DESC, id DESC
+      LIMIT ?
+    `).all(String(accountId || ""), safeLimit).map(mapLedgerRow);
+  }
+
+  function listBeanLedger(accountId, limit = 100) {
+    const safeLimit = Math.min(Math.max(Math.trunc(Number(limit || 100)), 1), 500);
+    return db.prepare(`
+      SELECT * FROM commerce_bean_ledger
       WHERE account_id = ?
       ORDER BY created_at DESC, id DESC
       LIMIT ?
@@ -800,6 +915,7 @@ export function createCommerceStore({ dbPath }) {
       orderCount: Number(summary.order_count || 0),
       paidTotalCents: Number(summary.paid_total_cents || 0),
       ledger: listCreditLedger(account.id, 100),
+      beanLedger: listBeanLedger(account.id, 100),
       orders
     };
   }
@@ -812,13 +928,17 @@ export function createCommerceStore({ dbPath }) {
     createPaymentIntent,
     cancelPaymentIntentByOutTradeNo,
     debitCredits,
+    debitBeans,
     adjustCredits,
+    adjustBeans,
     deleteUserSession,
     grantCredits,
+    grantBeans,
     hasPaidPhysicalOrder,
     isOriginalImageRedeemed,
     linkVisitor,
     listCreditLedger,
+    listBeanLedger,
     listAllCreditLedger,
     listAllPaymentIntents,
     listPaymentIntents,

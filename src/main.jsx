@@ -661,6 +661,9 @@ function AdminApp({ navigate, route }) {
               <a className="subtle-entry-link" href="/fridge">
                 冰箱贴页
               </a>
+              <a className="subtle-entry-link" href="/book">
+                认知书页
+              </a>
             </div>
           </div>
           <div className="top-actions">
@@ -1104,7 +1107,7 @@ function BodyBookPage() {
       {!session && !selectedTheme ? (
         <section className="body-book-theme-home">
           <div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>每本认知书包含一张封面和九张主题认知卡。</p></div>
-          <div className="body-book-theme-grid">{themes.map((theme, index) => <button className="body-book-theme-card" key={theme.id} onClick={() => { setSelectedTheme(theme); setError(""); }} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" src={`/body-book-samples/${encodeURIComponent(theme.id)}-cover.png`} /><span className="body-book-theme-index">{String(index + 1).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small></button>)}</div>
+          <div className="body-book-theme-grid">{themes.map((theme, index) => <button className="body-book-theme-card" key={theme.id} onClick={() => { setSelectedTheme(theme); setError(""); }} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={`/body-book-samples/${encodeURIComponent(theme.id)}-cover-thumbnail.webp`} /><span className="body-book-theme-index">{String(index + 1).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small></button>)}</div>
         </section>
       ) : null}
 
@@ -1208,6 +1211,12 @@ function BodyBookPage() {
           </section>
         </div>
       ) : null}
+
+      <footer className="body-book-page-footer">
+        <a className="body-book-admin-entry" href="/admin" aria-label="进入后台管理">
+          后台入口
+        </a>
+      </footer>
     </main>
   );
 }

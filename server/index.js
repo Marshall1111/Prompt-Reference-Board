@@ -59,7 +59,7 @@ const STYLE_GROUP_SIZE_OPTIONS = new Set(["1024x1536", "1536x1024", "1024x1024",
 const DRAW_CARD_WAITING_MESSAGE = "总计需要约 5 分钟，请耐心等待。";
 const DRAW_CARD_SUCCESS_MESSAGE = "结果已准备好。";
 const DRAW_CARD_FAILURE_MESSAGE = "这一轮未能顺利完成，请重新开始。";
-const DRAW_CARD_PARTIAL_MESSAGE = "部分结果已准备好，仅扣除成功生成的点数。";
+const DRAW_CARD_PARTIAL_MESSAGE = "部分结果已准备好，仅扣除成功生成的币。";
 const PUBLIC_PREVIEW_WATERMARK_TEXT = "Preview Only";
 const VISITOR_COOKIE_NAME = "pg_visitor";
 const WEB_ACCOUNT_COOKIE_NAME = "pg_web_account";
@@ -87,6 +87,7 @@ const DEFAULT_ORDER_PAYMENT_MODE = "manual";
 const DEFAULT_MANUAL_PAYMENT_EXPIRE_DAYS = 7;
 const DEFAULT_CONTACT_WECHAT_ID = "PetPaint";
 const WEB_SIGNUP_CREDITS = 5;
+const WEB_SIGNUP_BEANS = 10;
 const MERCHANT_SOURCE_LOCK_MS = 30 * 24 * 60 * 60 * 1000;
 const MERCHANT_SIGNATURE_BYTES = 8;
 const MERCHANT_STATUS_VALUES = new Set(["active", "inactive"]);
@@ -1103,14 +1104,21 @@ app.post("/api/invite-codes/redeem", requireWebAccount, async (req, res) => {
     }
 
     const result = await redeemInviteCode(req, code);
-    const creditResult = commerceStore.grantCredits({
+    const coinResult = commerceStore.grantCredits({
       accountId: req.webAccount.id,
-      amount: result.credits,
+      amount: result.coinBonus,
       referenceType: "invite_code",
       referenceId: code.toUpperCase(),
       reason: "invite_bonus"
     });
-    res.json({ ...toPublicWebAccountState(req, creditResult.account), inviteCredits: result.credits });
+    const beanResult = commerceStore.grantBeans({
+      accountId: req.webAccount.id,
+      amount: result.beanBonus,
+      referenceType: "invite_code",
+      referenceId: code.toUpperCase(),
+      reason: "invite_bonus"
+    });
+    res.json({ ...toPublicWebAccountState(req, beanResult.account || coinResult.account), inviteCoins: result.coinBonus, inviteBeans: result.beanBonus });
   } catch (error) {
     console.error(error);
     res.status(error.status || 400).json({ message: error.publicMessage || "邀请码兑换失败，请稍后再试。" });
@@ -1565,7 +1573,7 @@ app.post("/api/body-book/sessions", requireWebAccount, upload.single("image"), a
   try {
     if (!req.file) throw createHttpError(400, "请先上传一张宝宝照片。");
     if (req.file.mimetype === "image/svg+xml") throw createHttpError(400, "请上传 JPG、PNG 或 WebP 图片。");
-    if (!BODY_BOOK_MOCK_MODE && BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.creditBalance || 0) < 1) throw createHttpError(409, "生成封面需要 1 点，当前点数不足。");
+    if (!BODY_BOOK_MOCK_MODE && BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.beanBalance || 0) < 1) throw createHttpError(409, "生成封面需要 1 个豆豆，当前豆豆不足。");
 
     const visitor = await getVisitorState(req);
     enforcePublicRateLimits(req);
@@ -1673,8 +1681,8 @@ app.post("/api/body-book/sessions/:sessionId/confirm-cover", requireWebAccount, 
     if (current.stage !== "cover_review" || current.cover.status !== "succeeded") {
       throw createHttpError(409, "请等待封面生成完成后再确认。");
     }
-    if (!BODY_BOOK_MOCK_MODE && BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.creditBalance || 0) < current.cards.length) {
-      throw createHttpError(409, `生成 ${current.cards.length} 张认知卡需要 ${current.cards.length} 点，当前点数不足。`);
+    if (!BODY_BOOK_MOCK_MODE && BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.beanBalance || 0) < current.cards.length) {
+      throw createHttpError(409, `生成 ${current.cards.length} 张认知卡需要 ${current.cards.length} 个豆豆，当前豆豆不足。`);
     }
     const next = await startBodyBookCards(current);
     res.status(202).json(toPublicBodyBookSession(next));
@@ -1717,7 +1725,7 @@ app.post("/api/body-book/sessions/:sessionId/cards/:partKey/regenerate", require
       throw createHttpError(409, "该认知卡尚未结束，暂时不能重新生成。");
     }
     if (req.file?.mimetype === "image/svg+xml") throw createHttpError(400, "请上传 JPG、PNG 或 WebP 图片。");
-    if (!BODY_BOOK_MOCK_MODE && BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.creditBalance || 0) < 1) throw createHttpError(409, "重新生成需要 1 点，当前点数不足。");
+    if (!BODY_BOOK_MOCK_MODE && BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.beanBalance || 0) < 1) throw createHttpError(409, "重新生成需要 1 个豆豆，当前豆豆不足。");
     const next = await regenerateBodyBookCard(current, part, {
       prompt: normalizeBodyBookPrompt(req.body?.prompt, card.prompt || buildBodyBookPartPrompt(part, card.order)),
       referenceFile: req.file || null
@@ -2308,9 +2316,10 @@ app.get("/api/admin/invite-codes", requireAdmin, async (_req, res) => {
 app.post("/api/admin/invite-codes", requireAdmin, async (req, res) => {
   try {
     const count = Math.min(Math.max(Number(req.body?.count || 1), 1), 20);
-    const quotaBonus = normalizeInviteQuotaBonus(req.body?.quotaBonus);
+    const coinBonus = normalizeInviteBonus(req.body?.coinBonus, 5);
+    const beanBonus = normalizeInviteBonus(req.body?.beanBonus, 10);
     const prefix = String(req.body?.prefix || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
-    const created = await createInviteCodes(count, prefix, quotaBonus);
+    const created = await createInviteCodes(count, prefix, coinBonus, beanBonus);
     res.status(201).json({ inviteCodes: created.map(toPublicInviteCode) });
   } catch (error) {
     console.error(error);
@@ -2608,23 +2617,25 @@ app.patch("/api/admin/users/:id/status", requireAdmin, (req, res, next) => {
   }
 });
 
-app.post("/api/admin/users/:id/credits", requireAdmin, (req, res, next) => {
+app.post("/api/admin/users/:id/wallet", requireAdmin, (req, res, next) => {
   try {
     const account = commerceStore.readAccount(req.params.id);
     if (!account?.isRegistered) throw createHttpError(404, "用户不存在。");
     const delta = Math.trunc(Number(req.body?.delta || 0));
+    const currency = String(req.body?.currency || "coin");
     const remark = String(req.body?.remark || "").trim().slice(0, 300);
-    if (!delta || !remark) throw createHttpError(400, "请填写非零点数调整和备注。");
-    const updatedAccount = commerceStore.adjustCredits({
+    if (!delta || !remark || !["coin", "bean"].includes(currency)) throw createHttpError(400, "请填写非零余额调整、币种和备注。");
+    const adjust = currency === "bean" ? commerceStore.adjustBeans : commerceStore.adjustCredits;
+    const updatedAccount = adjust({
       accountId: account.id,
       delta,
       reason: "admin_adjustment",
       note: remark,
       referenceId: randomUUID()
     }).account;
-    res.status(201).json({ user: toPublicAdminUser(updatedAccount), ledger: commerceStore.listCreditLedger(account.id, 100).map(toPublicCreditLedger) });
+    res.status(201).json({ user: toPublicAdminUser(updatedAccount), ledger: commerceStore.listCreditLedger(account.id, 100).map(toPublicCreditLedger), beanLedger: commerceStore.listBeanLedger(account.id, 100).map(toPublicCreditLedger) });
   } catch (error) {
-    if (error?.code === "INSUFFICIENT_CREDITS") return next(createHttpError(400, "扣减后的点数不能小于零。"));
+    if (["INSUFFICIENT_CREDITS", "INSUFFICIENT_BEANS"].includes(error?.code)) return next(createHttpError(400, "扣减后的余额不能小于零。"));
     next(error);
   }
 });
@@ -5606,11 +5617,11 @@ function toPublicWebAccountState(req, account) {
     visitorId: req.visitorId,
     tier: "web_account",
     authenticated: true,
-    quotaLimit: publicAccount.creditBalance,
+    quotaLimit: publicAccount.coinBalance,
     quotaUsed: 0,
-    quotaRemaining: publicAccount.creditBalance,
-    canGenerate: publicAccount.accountStatus !== "disabled" && publicAccount.creditBalance > 0,
-    contactMessage: publicAccount.accountStatus === "disabled" ? "该账户已被禁用，请联系管理员。" : "每定制1枚冰箱贴，可获赠10点。",
+    quotaRemaining: publicAccount.coinBalance,
+    canGenerate: publicAccount.accountStatus !== "disabled" && publicAccount.coinBalance > 0,
+    contactMessage: publicAccount.accountStatus === "disabled" ? "该账户已被禁用，请联系管理员。" : "每定制1枚冰箱贴，可获赠10枚币。",
     account: publicAccount,
     authorizationUrl: ""
   };
@@ -5720,7 +5731,8 @@ function toPublicCommerceAccount(account) {
     username: account.username || "",
     email: account.email || "",
     accountStatus: account.accountStatus || "active",
-    creditBalance: Math.max(0, Number(account.creditBalance || 0)),
+    coinBalance: Math.max(0, Number(account.coinBalance ?? account.creditBalance || 0)),
+    beanBalance: Math.max(0, Number(account.beanBalance || 0)),
     canRedeemOriginalDownloads: commerceStore.hasPaidPhysicalOrder(account.id),
     createdAt: account.createdAt || null
   };
@@ -5746,7 +5758,8 @@ function toPublicAdminUser(account) {
     username: account.username || "",
     email: account.email || "",
     status: account.accountStatus || "active",
-    creditBalance: Number(account.creditBalance || 0),
+    coinBalance: Number(account.coinBalance ?? account.creditBalance || 0),
+    beanBalance: Number(account.beanBalance || 0),
     registeredAt: account.registeredAt || null,
     lastLoginAt: account.lastLoginAt || null,
     visitorCount: Number(account.visitorCount || 0),
