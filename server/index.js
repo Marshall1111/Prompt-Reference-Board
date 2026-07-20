@@ -882,6 +882,7 @@ app.post("/api/auth/login", async (req, res, next) => {
   try {
     const email = normalizeEmail(req.body?.email);
     const password = String(req.body?.password || "");
+    const guestAccount = req.webAccount?.isRegistered ? null : req.webAccount;
     const account = commerceStore.readAccountByEmail(email);
     if (!account?.isRegistered || !verifyPassword(password, account.passwordHash)) throw createHttpError(401, "邮箱或密码不正确。");
     if (account.accountStatus === "disabled") throw createHttpError(403, "该账户已被禁用，请联系管理员。");
@@ -892,9 +893,25 @@ app.post("/api/auth/login", async (req, res, next) => {
     req.userSession = { ...session, account: loggedInAccount };
     clearWebAccountCookie(req, res);
     setUserSessionCookie(req, res, session.id);
-    res.json({ authenticated: true, account: toPublicCommerceAccount(loggedInAccount) });
+    const mergeableAssets = await getMergeableGuestAssets({ guestAccount, visitorId: req.visitorId });
+    res.json({ authenticated: true, account: toPublicCommerceAccount(loggedInAccount), mergeableAssets });
   } catch (error) {
     next(await toLoggedAuthHttpError("login", error));
+  }
+});
+
+app.post("/api/auth/guest-assets/merge", requireWebAccount, async (req, res, next) => {
+  try {
+    if (!req.userSession || !req.webAccount?.isRegistered) throw createHttpError(401, "请先登录注册账户。", "请先登录后再合并访客资产。");
+    const result = await mergeGuestAssetsIntoAccount({
+      account: req.webAccount,
+      visitorId: req.visitorId,
+      mergeClip: req.body?.mergeClip === true,
+      mergeBodyBooks: req.body?.mergeBodyBooks === true
+    });
+    res.json({ ok: true, ...result, account: toPublicCommerceAccount(req.webAccount) });
+  } catch (error) {
+    next(error);
   }
 });
 
@@ -8500,6 +8517,51 @@ async function migrateGuestAssetsToRegisteredAccount({ accountId, visitorId }) {
     !String(session.ownerAccountId || "")
   );
   await Promise.all(legacyGuestSessions.map((session) => saveDrawCardSession({ ...session, ownerAccountId: safeAccountId })));
+}
+
+async function getMergeableGuestAssets({ guestAccount, visitorId }) {
+  if (!guestAccount?.id || guestAccount.isRegistered || !visitorId) {
+    return { clipCount: 0, savedBookCount: 0, hasAssets: false };
+  }
+  const guestAccountId = String(guestAccount.id);
+  const safeVisitorId = String(visitorId);
+  const [jobs, books] = await Promise.all([listImageJobs(), listBodyBookSessions()]);
+  const clipCount = jobs.filter((job) =>
+    job.visibility === "public" &&
+    job.isLiked &&
+    (String(job.ownerAccountId || "") === guestAccountId || (!String(job.ownerAccountId || "") && String(job.ownerVisitorId || "") === safeVisitorId))
+  ).length;
+  const savedBookCount = books.filter((book) => String(book.ownerAccountId || "") === guestAccountId && book.savedAt).length;
+  return { clipCount, savedBookCount, hasAssets: clipCount > 0 || savedBookCount > 0 };
+}
+
+async function mergeGuestAssetsIntoAccount({ account, visitorId, mergeClip, mergeBodyBooks }) {
+  const guestAccount = commerceStore.readAccountByOpenId(visitorId, "browser_guest");
+  if (!guestAccount || guestAccount.id === account.id) return { mergedClipCount: 0, mergedSavedBookCount: 0 };
+  const guestAccountId = String(guestAccount.id);
+  const safeVisitorId = String(visitorId || "");
+  let mergedClipCount = 0;
+  let mergedSavedBookCount = 0;
+
+  if (mergeClip) {
+    const jobs = await listImageJobs();
+    const guestClipJobs = jobs.filter((job) =>
+      job.visibility === "public" &&
+      job.isLiked &&
+      (String(job.ownerAccountId || "") === guestAccountId || (!String(job.ownerAccountId || "") && String(job.ownerVisitorId || "") === safeVisitorId))
+    );
+    await Promise.all(guestClipJobs.map((job) => saveImageJob({ ...job, ownerAccountId: account.id })));
+    mergedClipCount = guestClipJobs.length;
+  }
+
+  if (mergeBodyBooks) {
+    const books = await listBodyBookSessions();
+    const guestBooks = books.filter((book) => String(book.ownerAccountId || "") === guestAccountId && book.savedAt);
+    await Promise.all(guestBooks.map((book) => saveBodyBookSession({ ...book, ownerAccountId: account.id })));
+    mergedSavedBookCount = guestBooks.length;
+  }
+
+  return { mergedClipCount, mergedSavedBookCount };
 }
 
 async function queryImageJobs(options = {}) {

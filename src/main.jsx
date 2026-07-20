@@ -345,6 +345,10 @@ function AuthModal({ onAuthenticated, onClose }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [resendSeconds, setResendSeconds] = useState(0);
+  const [mergeableAssets, setMergeableAssets] = useState(null);
+  const [pendingAccount, setPendingAccount] = useState(null);
+  const [mergeClip, setMergeClip] = useState(true);
+  const [mergeBodyBooks, setMergeBodyBooks] = useState(true);
 
   useEffect(() => {
     if (!resendSeconds) return undefined;
@@ -381,7 +385,16 @@ function AuthModal({ onAuthenticated, onClose }) {
     try {
       if (mode === "login") {
         const payload = await loginWithEmail(email, password);
+        if (payload.mergeableAssets?.hasAssets) {
+          setPendingAccount(payload.account);
+          setMergeableAssets(payload.mergeableAssets);
+          setMergeClip(Number(payload.mergeableAssets.clipCount || 0) > 0);
+          setMergeBodyBooks(Number(payload.mergeableAssets.savedBookCount || 0) > 0);
+          setMode("merge");
+          return;
+        }
         onAuthenticated(payload.account);
+        window.location.reload();
         return;
       }
       if (mode === "register") {
@@ -399,14 +412,43 @@ function AuthModal({ onAuthenticated, onClose }) {
     }
   }
 
+  async function finishAssetMerge() {
+    if (!pendingAccount) return;
+    setBusy(true);
+    setError("");
+    try {
+      if (mergeClip || mergeBodyBooks) await mergeGuestAssets({ mergeClip, mergeBodyBooks });
+      onAuthenticated(pendingAccount);
+      window.location.reload();
+    } catch (nextError) {
+      setError(nextError.message || "访客资产合并失败，请稍后重试。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function closeModal() {
+    if (mode === "merge" && pendingAccount) {
+      onAuthenticated(pendingAccount);
+      window.location.reload();
+      return;
+    }
+    onClose();
+  }
+
   return (
-    <div className="modal-backdrop draw-card-confirm" onClick={onClose} role="presentation">
+    <div className="modal-backdrop draw-card-confirm" onClick={closeModal} role="presentation">
       <section className="draw-card-confirm-panel auth-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="账户登录与注册">
-        <button className="icon-button" onClick={onClose} type="button" aria-label="关闭账户弹窗"><X size={18} /></button>
+        <button className="icon-button" onClick={closeModal} type="button" aria-label="关闭账户弹窗"><X size={18} /></button>
         <p className="draw-card-kicker">Account</p>
-        <h2>{mode === "login" ? "登录" : mode === "register" ? "注册账户" : "找回密码"}</h2>
-        <p className="storage-note">访客可继续生图和加入卡夹；提交定制订单前需要完成邮箱注册。</p>
-        <form className="draw-card-order-form" onSubmit={submit}>
+        <h2>{mode === "merge" ? "继承访客内容" : mode === "login" ? "登录" : mode === "register" ? "注册账户" : "找回密码"}</h2>
+        <p className="storage-note">{mode === "merge" ? "请选择要转入当前账户的访客内容。币和豆豆不会合并或重置。" : "访客可继续生图和加入卡夹；提交定制订单前需要完成邮箱注册。"}</p>
+        {mode === "merge" ? <div className="draw-card-order-form auth-asset-merge">
+          {Number(mergeableAssets?.clipCount || 0) > 0 ? <label className="toggle-field"><input checked={mergeClip} onChange={(event) => setMergeClip(event.target.checked)} type="checkbox" /><span>继承卡夹内的 {mergeableAssets.clipCount} 张图片</span></label> : null}
+          {Number(mergeableAssets?.savedBookCount || 0) > 0 ? <label className="toggle-field"><input checked={mergeBodyBooks} onChange={(event) => setMergeBodyBooks(event.target.checked)} type="checkbox" /><span>继承“我的认知书”中的 {mergeableAssets.savedBookCount} 本认知书</span></label> : null}
+          {error ? <p className="error-note">{error}</p> : null}
+          <div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={closeModal} type="button">暂不继承</button><button className="draw-card-primary" disabled={busy} onClick={finishAssetMerge} type="button">{busy ? "转移中" : "确认继承"}</button></div>
+        </div> : <form className="draw-card-order-form" onSubmit={submit}>
           <label className="field-label">邮箱<input autoComplete="email" onChange={(event) => setEmail(event.target.value)} type="email" value={email} /></label>
           {mode === "register" ? <label className="field-label">用户名<input autoComplete="username" maxLength="32" onChange={(event) => setUsername(event.target.value)} type="text" value={username} /></label> : null}
           <label className="field-label">{mode === "reset" ? "新密码" : "密码"}<input autoComplete={mode === "login" ? "current-password" : "new-password"} minLength="8" onChange={(event) => setPassword(event.target.value)} type="password" value={password} /></label>
@@ -426,7 +468,7 @@ function AuthModal({ onAuthenticated, onClose }) {
             ) : <button className="draw-card-secondary" onClick={() => { setMode("login"); setError(""); }} type="button">返回登录</button>}
             <button className="draw-card-primary" disabled={busy} type="submit">{busy ? "处理中" : mode === "login" ? "登录" : mode === "register" ? "注册并继续" : "重设密码"}</button>
           </div>
-        </form>
+        </form>}
       </section>
     </div>
   );
@@ -1255,7 +1297,7 @@ function BodyBookPage() {
         </a>
       </footer>
 
-      {showAuthModal ? <AuthModal onAuthenticated={async () => { setShowAuthModal(false); setVisitorState(await fetchVisitorState()); }} onClose={() => setShowAuthModal(false)} /> : null}
+      {showAuthModal ? <AuthModal onAuthenticated={async () => { setShowAuthModal(false); setVisitorState(await fetchVisitorState()); await loadSavedBooks(); }} onClose={() => setShowAuthModal(false)} /> : null}
       {showContactModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowContactModal(false)} role="presentation"><section className="draw-card-confirm-panel draw-card-contact-panel body-book-contact-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="icon-button" onClick={() => setShowContactModal(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><div className="draw-card-contact-copy"><h3>联系客服</h3><p>请加微信</p><button className="draw-card-contact-id" onClick={() => copyText(getContactWechatId(orderConfig))} type="button"><span>{getContactWechatId(orderConfig)}</span><Clipboard size={16} /></button></div></section></div> : null}
     </main>
   );
@@ -5393,6 +5435,17 @@ async function loginWithEmail(email, password) {
   });
   const data = await readAuthJsonResponse(response, { message: "登录失败。" });
   if (!response.ok) throw new Error(data.message || "登录失败。");
+  return data;
+}
+
+async function mergeGuestAssets({ mergeClip, mergeBodyBooks }) {
+  const response = await fetch("/api/auth/guest-assets/merge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mergeClip, mergeBodyBooks })
+  });
+  const data = await readAuthJsonResponse(response, { message: "访客资产合并失败。" });
+  if (!response.ok) throw new Error(data.message || "访客资产合并失败。");
   return data;
 }
 
