@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>.env 图片供应商测试工具</title>
+  <style>
+    :root { color-scheme: light; font-family: "Microsoft YaHei", system-ui, sans-serif; color: #17211f; background: #f5f3ed; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; }
+    main { width: min(100%, 960px); margin: 0 auto; padding: 28px 18px 48px; }
+    h1, h2, p { margin-top: 0; }
+    h1 { margin-bottom: 8px; font-size: clamp(1.55rem, 3vw, 2.15rem); }
+    h2 { margin-bottom: 14px; font-size: 1.12rem; }
+    .intro, .hint { color: #52615c; line-height: 1.65; }
+    .card { margin-top: 18px; padding: 20px; border: 1px solid #dedbd1; border-radius: 16px; background: #fffdfa; box-shadow: 0 8px 24px rgba(47, 42, 31, .06); }
+    .toolbar, .actions, .status-line { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .toolbar { justify-content: space-between; }
+    .file-name { min-width: 0; color: #52615c; font-size: .9rem; overflow-wrap: anywhere; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .span-2 { grid-column: 1 / -1; }
+    label { display: grid; gap: 7px; color: #33433e; font-size: .92rem; font-weight: 700; }
+    input, select, textarea, button { font: inherit; }
+    input, select, textarea { width: 100%; padding: 10px 11px; border: 1px solid #c9cec7; border-radius: 9px; color: #17211f; background: #fff; }
+    textarea { min-height: 94px; resize: vertical; line-height: 1.55; }
+    input:focus, select:focus, textarea:focus { outline: 3px solid rgba(45, 124, 105, .18); border-color: #2d7c69; }
+    button { padding: 10px 14px; border: 0; border-radius: 9px; cursor: pointer; font-weight: 800; color: #fff; background: #1e6655; }
+    button.secondary { color: #244d43; background: #e5efea; }
+    button.warn { color: #684714; background: #f8e9c8; }
+    button:disabled { cursor: not-allowed; opacity: .5; }
+    .notice { margin-top: 14px; padding: 11px 13px; border-radius: 9px; line-height: 1.55; }
+    .notice.info { color: #245146; background: #e6f1ec; }
+    .notice.error { color: #8d3026; background: #fbe9e7; }
+    .notice.success { color: #216040; background: #e6f4e9; }
+    .test-result { display: none; margin-top: 14px; }
+    .test-result.visible { display: block; }
+    #preview { display: none; width: min(100%, 440px); margin-top: 12px; border: 1px solid #dedbd1; border-radius: 12px; background: #f5f5f5; }
+    #preview.visible { display: block; }
+    code { padding: 1px 4px; border-radius: 4px; background: #efeee9; color: #6a4430; }
+    .tiny { margin: 12px 0 0; color: #69746f; font-size: .83rem; line-height: 1.55; }
+    .required::after { content: " *"; color: #b0372d; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } .span-2 { grid-column: auto; } .toolbar { align-items: flex-start; flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>.env 图片供应商测试工具</h1>
+    <p class="intro">独立本地工具：页面只读取你手动选择的 <code>.env</code>，并通过本机 Node 代理调用供应商接口。密钥只在本机浏览器与代理之间传递，不会发送到项目服务器。</p>
+
+    <section class="card">
+      <div class="toolbar">
+        <div>
+          <h2>1. 选择环境文件</h2>
+          <p class="file-name" id="fileName">尚未选择 .env 文件</p>
+        </div>
+        <div class="actions">
+          <button id="chooseEnv" type="button">选择 .env 文件</button>
+          <button class="secondary" id="newProvider" type="button">新建供应商</button>
+        </div>
+      </div>
+      <input id="fileFallback" type="file" accept=".env,text/plain" hidden>
+      <p class="tiny">先在本目录运行 <code>node env-provider-tester-server.mjs</code>，再打开 <code>http://127.0.0.1:8787</code>。推荐在 Chrome 或 Edge 中使用；浏览器支持文件系统访问时会直接覆写所选文件，否则会下载更新后的 <code>.env</code>。</p>
+    </section>
+
+    <section class="card">
+      <h2>2. 选择或填写供应商</h2>
+      <div class="grid">
+        <label class="span-2">从 .env 已有供应商载入
+          <select id="existingProvider"><option value="">-- 新建供应商 / 手动填写 --</option></select>
+        </label>
+        <label class="required">供应商 ID
+          <input class="provider-field" id="providerId" placeholder="例如 my-provider" maxlength="48" autocomplete="off">
+        </label>
+        <label class="required">显示名称
+          <input class="provider-field" id="providerName" placeholder="例如 My Provider" autocomplete="off">
+        </label>
+        <label class="span-2 required">Base URL
+          <input class="provider-field" id="baseUrl" placeholder="https://example.com/v1" inputmode="url" autocomplete="off">
+        </label>
+        <label class="span-2 required">API Key
+          <input class="provider-field" id="apiKey" placeholder="sk-..." type="password" autocomplete="off">
+        </label>
+        <label class="required">生图模型
+          <input class="provider-field" id="model" value="gpt-image-2" placeholder="gpt-image-2" autocomplete="off">
+        </label>
+        <label>接口路线
+          <select class="provider-field" id="route">
+            <option value="images">Images API（文生图 /images/generations；图生图 /images/edits）</option>
+            <option value="responses">Responses API (/responses)</option>
+            <option value="chat_completions">Chat Completions API (/chat/completions)</option>
+          </select>
+        </label>
+        <label class="span-2">视觉模型（可选）
+          <input class="provider-field" id="visionModel" value="gpt-5.4-mini" placeholder="gpt-5.4-mini" autocomplete="off">
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3. 测试</h2>
+      <div class="grid">
+        <label class="span-2">生图测试提示词
+          <textarea id="prompt">一只可爱的橙色小猫，白色背景，简洁的儿童绘本插画风格。</textarea>
+        </label>
+        <label class="span-2">参考图（可选；选择后会进行图生图测试）
+          <input id="referenceImage" type="file" accept="image/jpeg,image/png,image/webp">
+        </label>
+        <label>测试尺寸
+          <select id="size"><option value="1024x1024">1024 × 1024</option><option value="1024x1536">1024 × 1536</option><option value="1536x1024">1536 × 1024</option><option value="auto">auto</option></select>
+        </label>
+        <div class="status-line"><span class="hint">生图测试会消耗供应商额度。</span></div>
+      </div>
+      <div class="actions" style="margin-top:16px">
+        <button class="secondary" id="connectionTest" type="button">测试连通性</button>
+        <button class="warn" id="generationTest" type="button">生图测试（可能计费）</button>
+        <button id="saveEnv" type="button" disabled>测试通过后写入 .env</button>
+      </div>
+      <div class="test-result" id="testResult"></div>
+      <img id="preview" alt="供应商生图测试结果">
+      <p class="tiny">连通性测试会请求 <code>/models</code>，用于检查网络、地址和鉴权。Images 路线在未选择参考图时调用 <code>/images/generations</code>，选择参考图后调用 <code>/images/edits</code>。部分中转站未开放 <code>/models</code> 时可直接继续进行生图测试；只有成功返回图片后才会允许写入。</p>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const $ = (id) => document.getElementById(id);
+      const fields = ["providerId", "providerName", "baseUrl", "apiKey", "model", "route", "visionModel"];
+      const state = { envText: "", envHandle: null, generationSignature: "", busy: false };
+
+      function readField(id) { return $(id).value.trim(); }
+      function getProvider() {
+        const id = readField("providerId").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 48);
+        return {
+          id,
+          name: readField("providerName") || id,
+          baseUrl: readField("baseUrl").replace(/\/+$/, ""),
+          apiKey: readField("apiKey"),
+          model: readField("model"),
+          route: readField("route"),
+          visionModel: readField("visionModel") || "gpt-5.4-mini"
+        };
+      }
+      function signature() {
+        const p = getProvider();
+        const file = $("referenceImage").files?.[0];
+        const reference = file ? [file.name, file.size, file.lastModified, file.type] : null;
+        return JSON.stringify([p.id, p.name, p.baseUrl, p.apiKey, p.model, p.route, p.visionModel, readField("prompt"), readField("size"), reference]);
+      }
+      function setMessage(message, type = "info") {
+        const result = $("testResult");
+        result.className = `test-result visible notice ${type}`;
+        result.textContent = message;
+      }
+      function resetTestResult() {
+        state.generationSignature = "";
+        $("saveEnv").disabled = true;
+        $("preview").removeAttribute("src");
+        $("preview").classList.remove("visible");
+        $("testResult").className = "test-result";
+        $("testResult").textContent = "";
+      }
+      function validateProvider() {
+        const p = getProvider();
+        if (!p.id) throw new Error("请填写仅包含字母、数字、连字符或下划线的供应商 ID。");
+        if (!p.baseUrl || !/^https?:\/\//i.test(p.baseUrl)) throw new Error("请填写以 http:// 或 https:// 开头的 Base URL。");
+        if (!p.apiKey) throw new Error("请填写 API Key。");
+        if (!p.model) throw new Error("请填写生图模型。");
+        return p;
+      }
+      function setBusy(busy, label = "") {
+        state.busy = busy;
+        ["chooseEnv", "newProvider", "connectionTest", "generationTest", "saveEnv"].forEach((id) => { $(id).disabled = busy || (id === "saveEnv" && state.generationSignature !== signature()); });
+        if (busy) setMessage(label, "info");
+      }
+      function unquote(value) {
+        const raw = String(value || "").trim();
+        if (raw.length >= 2 && ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'")))) {
+          return raw.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+        }
+        return raw;
+      }
+      function parseAssignments(text) {
+        const map = new Map();
+        text.split(/\r?\n/).forEach((line) => {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith("#")) return;
+          const i = trimmed.indexOf("=");
+          if (i < 1) return;
+          const key = trimmed.slice(0, i).trim();
+          if (!map.has(key)) map.set(key, unquote(trimmed.slice(i + 1)));
+        });
+        return map;
+      }
+      function envKey(id) { return id.replace(/[^a-zA-Z0-9]/g, "_").toUpperCase(); }
+      function loadExistingProviders() {
+        const map = parseAssignments(state.envText);
+        const ids = String(map.get("IMAGE_API_PROVIDERS") || "").split(",").map((id) => id.trim()).filter(Boolean);
+        const select = $("existingProvider");
+        select.replaceChildren(new Option("-- 新建供应商 / 手动填写 --", ""));
+        ids.forEach((id) => {
+          const key = envKey(id);
+          const name = map.get(`IMAGE_API_${key}_NAME`) || id;
+          select.add(new Option(`${name}（${id}）`, id));
+        });
+      }
+      function loadProvider(id) {
+        if (!id) { clearProvider(); return; }
+        const map = parseAssignments(state.envText);
+        const key = envKey(id);
+        $("providerId").value = id;
+        $("providerName").value = map.get(`IMAGE_API_${key}_NAME`) || id;
+        $("baseUrl").value = map.get(`IMAGE_API_${key}_BASE_URL`) || "";
+        $("apiKey").value = map.get(`IMAGE_API_${key}_KEY`) || "";
+        $("model").value = map.get(`IMAGE_API_${key}_MODEL`) || "gpt-image-2";
+        $("route").value = map.get(`IMAGE_API_${key}_ROUTE`) || "images";
+        $("visionModel").value = map.get(`IMAGE_API_${key}_VISION_MODEL`) || "gpt-5.4-mini";
+        resetTestResult();
+      }
+      function clearProvider() {
+        $("existingProvider").value = "";
+        $("providerId").value = "";
+        $("providerName").value = "";
+        $("baseUrl").value = "";
+        $("apiKey").value = "";
+        $("model").value = "gpt-image-2";
+        $("route").value = "images";
+        $("visionModel").value = "gpt-5.4-mini";
+        $("referenceImage").value = "";
+        resetTestResult();
+      }
+      async function readEnvFile(file, handle = null) {
+        state.envText = await file.text();
+        state.envHandle = handle;
+        $("fileName").textContent = `${file.name}（已读取，${handle ? "可直接写回" : "写入时将下载新文件"}）`;
+        loadExistingProviders();
+        clearProvider();
+        setMessage("已读取 .env。可从下拉框选择已有供应商，或新建一个供应商。", "success");
+      }
+      function getErrorMessage(error) {
+        if (error instanceof TypeError && /fetch/i.test(error.message || "")) return "无法连接本地代理。请先在 tools 目录运行 node env-provider-tester-server.mjs，并通过 http://127.0.0.1:8787 打开页面。";
+        return error?.message || "请求失败。";
+      }
+      function ensureLocalProxy() {
+        if (window.location.protocol !== "http:" || window.location.hostname !== "127.0.0.1") {
+          throw new Error("请先运行 node env-provider-tester-server.mjs，并通过 http://127.0.0.1:8787 打开本工具。");
+        }
+      }
+      async function proxyRequest(path, payload) {
+        ensureLocalProxy();
+        const response = await fetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.message || `本地代理返回 HTTP ${response.status}`);
+        return result;
+      }
+      async function testConnection() {
+        try {
+          setBusy(true, "正在请求 /models 测试连通性…");
+          await proxyRequest("/api/test/connection", { provider: validateProvider() });
+          setMessage("连通性测试通过：网络、Base URL 与 API Key 均可用。", "success");
+        } catch (error) {
+          setMessage(`连通性测试失败：${getErrorMessage(error)}`, "error");
+        } finally { setBusy(false); }
+      }
+      function fileAsDataUrl(file) {
+        if (!file) return Promise.resolve("");
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("参考图读取失败。"));
+          reader.readAsDataURL(file);
+        });
+      }
+      async function testGeneration() {
+        try {
+          const p = validateProvider();
+          const prompt = readField("prompt");
+          const reference = $("referenceImage").files?.[0] || null;
+          if (!prompt) throw new Error("请输入生图测试提示词。");
+          setBusy(true, reference ? "正在使用参考图进行图生图测试，请等待供应商返回结果…" : "正在请求文生图测试，请等待供应商返回结果…");
+          const referenceDataUrl = await fileAsDataUrl(reference);
+          const result = await proxyRequest("/api/test/generation", {
+            provider: p,
+            prompt,
+            size: readField("size"),
+            reference: reference ? { name: reference.name, type: reference.type, dataUrl: referenceDataUrl } : null
+          });
+          $("preview").src = result.image;
+          $("preview").classList.add("visible");
+          state.generationSignature = signature();
+          $("saveEnv").disabled = false;
+          setMessage(`生图测试通过（${result.endpoint}）。当前参数可以写入 .env。`, "success");
+        } catch (error) {
+          resetTestResult();
+          setMessage(`生图测试失败：${getErrorMessage(error)}`, "error");
+        } finally { setBusy(false); }
+      }
+      function formatEnvValue(value) {
+        const text = String(value ?? "");
+        return text && /^[A-Za-z0-9_./:@%+=,-]+$/.test(text) ? text : (text ? `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"` : "");
+      }
+      function assignment(line) {
+        const trimmed = String(line || "").trim();
+        if (!trimmed || trimmed.startsWith("#")) return null;
+        const index = trimmed.indexOf("=");
+        return index > 0 ? { key: trimmed.slice(0, index).trim(), value: trimmed.slice(index + 1) } : null;
+      }
+      function setEnvKey(lines, key, value, insertAt = lines.length) {
+        const rendered = `${key}=${formatEnvValue(value)}`;
+        let first = -1;
+        const output = [];
+        lines.forEach((line) => {
+          if (assignment(line)?.key !== key) { output.push(line); return; }
+          if (first < 0) { first = output.length; output.push(rendered); }
+        });
+        if (first >= 0) return { lines: output, index: first, existed: true };
+        const at = Math.max(0, Math.min(insertAt, output.length));
+        output.splice(at, 0, rendered);
+        return { lines: output, index: at, existed: false };
+      }
+      function findProviderInsertIndex(lines) {
+        const sectionEnd = lines.findIndex((line) => /^\s*#\s*(四|4)[、.]/.test(line));
+        if (sectionEnd >= 0) return sectionEnd;
+        const firstOtherConfig = lines.findIndex((line) => /^(BODY_BOOK_|WECHAT_|EMAIL_CODE_|TENCENTCLOUD_)/.test(assignment(line)?.key || ""));
+        return firstOtherConfig >= 0 ? firstOtherConfig : lines.length;
+      }
+      function updateEnvText() {
+        const p = validateProvider();
+        let lines = state.envText.split(/\r?\n/);
+        const map = parseAssignments(state.envText);
+        const priorities = String(map.get("IMAGE_API_PROVIDERS") || "").split(",").map((item) => item.trim()).filter(Boolean);
+        if (!priorities.includes(p.id)) priorities.push(p.id);
+        const globalIndex = lines.findIndex((line) => assignment(line)?.key === "IMAGE_API_PROVIDERS");
+        lines = setEnvKey(lines, "IMAGE_API_PROVIDERS", priorities.join(","), globalIndex >= 0 ? globalIndex : 0).lines;
+
+        const key = envKey(p.id);
+        const pairs = [
+          [`IMAGE_API_${key}_NAME`, p.name], [`IMAGE_API_${key}_BASE_URL`, p.baseUrl], [`IMAGE_API_${key}_KEY`, p.apiKey],
+          [`IMAGE_API_${key}_MODEL`, p.model], [`IMAGE_API_${key}_ROUTE`, p.route], [`IMAGE_API_${key}_VISION_MODEL`, p.visionModel], [`IMAGE_API_${key}_ENABLED`, "true"]
+        ];
+        const existingIndexes = lines.map((line, index) => pairs.some(([name]) => assignment(line)?.key === name) ? index : -1).filter((index) => index >= 0);
+        if (existingIndexes.length) {
+          let insertAt = Math.max(...existingIndexes) + 1;
+          pairs.forEach(([name, value]) => {
+            const result = setEnvKey(lines, name, value, insertAt);
+            lines = result.lines;
+            if (!result.existed) insertAt += 1;
+          });
+        } else {
+          const block = [`# ${p.name}：由 env-provider-tester.html 生图测试通过后写入。`, ...pairs.map(([name, value]) => `${name}=${formatEnvValue(value)}`), ""];
+          lines.splice(findProviderInsertIndex(lines), 0, ...block);
+        }
+        return `${lines.join("\n").replace(/\n{3,}/g, "\n\n").replace(/\n*$/, "")}\n`;
+      }
+      async function saveEnv() {
+        try {
+          if (state.generationSignature !== signature()) throw new Error("供应商参数、提示词或尺寸已修改，请重新完成生图测试后再写入。");
+          if (!state.envText) throw new Error("请先选择 .env 文件。");
+          const text = updateEnvText();
+          if (state.envHandle) {
+            const writable = await state.envHandle.createWritable();
+            await writable.write(text);
+            await writable.close();
+            state.envText = text;
+            loadExistingProviders();
+            $("existingProvider").value = getProvider().id;
+            setMessage("已写入所选 .env：供应商配置位于图像生成供应商区，且已加入 IMAGE_API_PROVIDERS。", "success");
+          } else {
+            const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+            const link = document.createElement("a");
+            link.href = url; link.download = ".env"; link.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            setMessage("浏览器已下载更新后的 .env。请用该文件替换原 .env。", "success");
+          }
+        } catch (error) { setMessage(`写入失败：${getErrorMessage(error)}`, "error"); }
+      }
+
+      $("chooseEnv").addEventListener("click", async () => {
+        try {
+          if (!window.showOpenFilePicker) { $("fileFallback").click(); return; }
+          const [handle] = await window.showOpenFilePicker({ multiple: false, types: [{ description: "环境文件", accept: { "text/plain": [".env", ".txt"] } }] });
+          await readEnvFile(await handle.getFile(), handle);
+        } catch (error) {
+          if (error?.name !== "AbortError") setMessage(`读取 .env 失败：${getErrorMessage(error)}`, "error");
+        }
+      });
+      $("fileFallback").addEventListener("change", async (event) => { if (event.target.files?.[0]) await readEnvFile(event.target.files[0]); });
+      $("existingProvider").addEventListener("change", (event) => loadProvider(event.target.value));
+      $("newProvider").addEventListener("click", clearProvider);
+      $("connectionTest").addEventListener("click", testConnection);
+      $("generationTest").addEventListener("click", testGeneration);
+      $("saveEnv").addEventListener("click", saveEnv);
+      [...fields.map($), $("prompt"), $("size"), $("referenceImage")].forEach((input) => {
+        const invalidateTest = () => { if (state.generationSignature !== signature()) $("saveEnv").disabled = true; };
+        input.addEventListener("input", invalidateTest);
+        input.addEventListener("change", invalidateTest);
+      });
+    })();
+  </script>
+</body>
+</html>

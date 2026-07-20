@@ -1,11 +1,1 @@
-[
-  {
-    "id": "duckcoding",
-    "name": "DuckCoding",
-    "baseUrl": "https://api.duckcoding.ai/v1",
-    "apiKey": "sk-e4wlFXSHXoVajgwlGGIxCGlzNIbdF3U00yO652G7KQYLHq8p",
-    "model": "gpt-image-2",
-    "visionModel": "gpt-5.4-mini",
-    "enabled": false
-  }
-]
+[]
