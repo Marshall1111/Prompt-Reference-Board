@@ -21,6 +21,7 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "sharp": "^0.34.2",
+    "tencentcloud-sdk-nodejs": "^4.1.271",
     "vite": "^7.2.5"
   }
 }

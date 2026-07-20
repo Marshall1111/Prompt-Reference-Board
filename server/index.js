@@ -866,6 +866,7 @@ app.post("/api/auth/register", requireWebAccount, async (req, res, next) => {
       matchesCodeHash: (stored) => safeCompareString(stored, hashEmailVerificationCode({ email, purpose: "register", code }))
     });
     const account = commerceStore.upgradeGuestAccount({ accountId: req.webAccount.id, email, username, passwordHash: hashPassword(password) });
+    await migrateGuestAssetsToRegisteredAccount({ accountId: account.id, visitorId: req.visitorId });
     const session = commerceStore.createUserSession(account.id, { ttlMs: USER_SESSION_TTL_MS });
     req.webAccount = account;
     req.userSession = { ...session, account };
@@ -1150,7 +1151,7 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
     const jobs = await Promise.all(jobIds.map((jobId) => readImageJob(jobId)));
     const likedJobs = jobs.filter(Boolean).filter((job) =>
       job.visibility === "public" &&
-      accountOwnsVisitor(req.webAccount, job.ownerVisitorId) &&
+      accountOwnsPublicRecord(req.webAccount, job) &&
       job.isLiked &&
       normalizePublicExperienceType(job.experienceType) === experienceType
     );
@@ -1830,7 +1831,7 @@ async function handleGetPublicExperienceSession(req, res, experienceType) {
 async function handleGetLatestPublicExperienceSession(req, res, experienceType) {
   const config = getPublicExperienceConfig(experienceType);
   try {
-    const session = await readLatestVisitorDrawCardSession(req.visitorId, config.experienceType);
+    const session = await readLatestAccountDrawCardSession(req.webAccount, req.visitorId, config.experienceType);
     if (!session) {
       return res.json({});
     }
@@ -2135,12 +2136,11 @@ app.get("/api/public/clip-items", requireWebAccount, async (req, res) => {
   try {
     const experienceType = String(req.query.experience || "").trim();
     const jobs = await listImageJobs();
-    const accountVisitorIds = new Set(commerceStore.listVisitorIds(req.webAccount.id));
     const items = jobs
       .filter(
         (job) =>
           job.visibility === "public" &&
-          accountVisitorIds.has(job.ownerVisitorId) &&
+          accountOwnsPublicRecord(req.webAccount, job) &&
           job.isLiked &&
           (!experienceType || normalizePublicExperienceType(job.experienceType) === normalizePublicExperienceType(experienceType))
       )
@@ -6614,13 +6614,13 @@ function toPublicAdminSession(session) {
 }
 
 function assertVisitorOwnsSession(req, session, config = getPublicExperienceConfig(session?.experienceType)) {
-  if (!accountOwnsVisitor(req.webAccount, session.ownerVisitorId)) {
+  if (!accountOwnsPublicRecord(req.webAccount, session)) {
     throw createHttpError(403, `无权访问该${config?.label || "公开"}记录。`);
   }
 }
 
 function assertCanToggleLike(req, job) {
-  if (job.visibility !== "public" || !accountOwnsVisitor(req.webAccount, job.ownerVisitorId)) {
+  if (job.visibility !== "public" || !accountOwnsPublicRecord(req.webAccount, job)) {
     throw createHttpError(403, "无权操作该结果。");
   }
 }
@@ -6631,7 +6631,7 @@ function assertCanDownloadClipOriginal(req, job) {
   }
   if (
     job.visibility !== "public" ||
-    !accountOwnsVisitor(req.webAccount, job.ownerVisitorId) ||
+    !accountOwnsPublicRecord(req.webAccount, job) ||
     job.status !== "succeeded"
   ) {
     throw createHttpError(403, "无权下载该原图。");
@@ -6675,7 +6675,7 @@ function isAdminUserClipItem(accountId, job, visitorIds = null) {
       job.visibility === "public" &&
       job.status === "succeeded" &&
       job.isLiked &&
-      ownedVisitorIds.has(job.ownerVisitorId)
+      (String(job.ownerAccountId || "") ? String(job.ownerAccountId) === String(accountId) : ownedVisitorIds.has(job.ownerVisitorId))
   );
 }
 
@@ -7195,13 +7195,13 @@ async function listDrawCardSessions() {
   return sessions.filter(Boolean);
 }
 
-async function readLatestVisitorDrawCardSession(visitorId, experienceType = "") {
-  if (!isSafeVisitorId(visitorId)) return null;
+async function readLatestAccountDrawCardSession(account, visitorId, experienceType = "") {
+  if (!account?.id || !isSafeVisitorId(visitorId)) return null;
   const sessions = await listDrawCardSessions();
   const latest = sessions
     .filter(
       (session) =>
-        session.ownerVisitorId === visitorId &&
+        accountOwnsPublicRecord(account, session) &&
         (!experienceType || normalizePublicExperienceType(session.experienceType) === normalizePublicExperienceType(experienceType))
     )
     .sort((left, right) =>
@@ -8478,6 +8478,30 @@ async function listImageJobs() {
   return jobs.filter(Boolean);
 }
 
+// A registration upgrades the current browser-guest row in place, so its
+// wallet and body books already keep the same account ID. Older image-job
+// files did not persist ownerAccountId, however; stamp them during upgrade so
+// the browser visitor ID can no longer expose them after an account switch.
+async function migrateGuestAssetsToRegisteredAccount({ accountId, visitorId }) {
+  const safeAccountId = String(accountId || "");
+  const safeVisitorId = String(visitorId || "");
+  if (!safeAccountId || !safeVisitorId) return;
+  const jobs = await listImageJobs();
+  const legacyGuestJobs = jobs.filter((job) =>
+    job.visibility === "public" &&
+    String(job.ownerVisitorId || "") === safeVisitorId &&
+    !String(job.ownerAccountId || "")
+  );
+  await Promise.all(legacyGuestJobs.map((job) => saveImageJob({ ...job, ownerAccountId: safeAccountId })));
+
+  const sessions = await listDrawCardSessions();
+  const legacyGuestSessions = sessions.filter((session) =>
+    String(session.ownerVisitorId || "") === safeVisitorId &&
+    !String(session.ownerAccountId || "")
+  );
+  await Promise.all(legacyGuestSessions.map((session) => saveDrawCardSession({ ...session, ownerAccountId: safeAccountId })));
+}
+
 async function queryImageJobs(options = {}) {
   const page = normalizeImageJobPage(options.page);
   const limit = normalizeImageJobLimit(options.limit);
@@ -8688,6 +8712,7 @@ function toPublicImageJob(job) {
     mode: job.mode || result?.mode || "",
     isLiked: Boolean(job.isLiked),
     likedAt: job.likedAt || null,
+    ownerAccountId: String(job.ownerAccountId || ""),
     ownerVisitorId: String(job.ownerVisitorId || ""),
     visibility: String(job.visibility || "admin"),
     telemetry: normalizeJobTelemetry(job.telemetry)
@@ -8866,6 +8891,12 @@ function assertWebAccountOwnsOrder(req, order) {
 function accountOwnsVisitor(account, visitorId) {
   if (!account?.id || !visitorId) return false;
   return commerceStore.listVisitorIds(account.id).includes(String(visitorId));
+}
+
+function accountOwnsPublicRecord(account, record) {
+  if (!account?.id || !record) return false;
+  const ownerAccountId = String(record.ownerAccountId || "");
+  return ownerAccountId ? ownerAccountId === String(account.id) : accountOwnsVisitor(account, record.ownerVisitorId);
 }
 
 function isSafeAccountId(accountId) {

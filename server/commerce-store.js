@@ -555,6 +555,11 @@ export function createCommerceStore({ dbPath }) {
     return withTransaction(db, () => {
       let account = readAccountByOpenIdStatement.get("browser_guest", normalizedVisitorId);
       if (!account) {
+        const hasClaimedVisitorBonus = Boolean(db.prepare(`
+          SELECT 1 FROM commerce_account_visitors
+          WHERE visitor_id = ?
+          LIMIT 1
+        `).get(normalizedVisitorId));
         const createdAt = nowIso();
         const id = randomUUID();
         db.prepare(`
@@ -562,12 +567,12 @@ export function createCommerceStore({ dbPath }) {
           VALUES (?, 'browser_guest', ?, 0, 0, NULL, ?, ?)
         `).run(id, normalizedVisitorId, createdAt, createdAt);
         account = readAccount(id);
-        appendLedger(account.id, Math.max(0, Math.trunc(Number(signupCredits || 0))), {
+        appendLedger(account.id, hasClaimedVisitorBonus ? 0 : Math.max(0, Math.trunc(Number(signupCredits || 0))), {
           reason: "signup_bonus",
           referenceType: "account",
           referenceId: account.id
         });
-        appendBeanLedger(account.id, Math.max(0, Math.trunc(Number(signupBeans || 0))), {
+        appendBeanLedger(account.id, hasClaimedVisitorBonus ? 0 : Math.max(0, Math.trunc(Number(signupBeans || 0))), {
           reason: "signup_bonus",
           referenceType: "account",
           referenceId: account.id
