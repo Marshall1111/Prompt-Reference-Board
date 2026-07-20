@@ -5,10 +5,13 @@
     "enabled": true,
     "maxRedemptions": 1,
     "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "8bd73a23-4c4e-4cb5-80fa-dc8d798749e0"
     ],
+    "redeemedByAccountIds": [],
     "createdAt": "2026-06-04T03:28:22.274Z",
     "updatedAt": "2026-06-04T03:50:31.606Z"
   },
@@ -18,10 +21,13 @@
     "enabled": true,
     "maxRedemptions": 1,
     "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "be44feec-476d-4dc7-92e2-3a3d25672ea0"
     ],
+    "redeemedByAccountIds": [],
     "createdAt": "2026-06-04T03:28:22.274Z",
     "updatedAt": "2026-06-05T22:15:57.030Z"
   },
@@ -31,10 +37,13 @@
     "enabled": true,
     "maxRedemptions": 1,
     "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "a4f3f5bf-e11c-4bc3-a90d-3f82290ffedf"
     ],
+    "redeemedByAccountIds": [],
     "createdAt": "2026-06-04T03:28:22.274Z",
     "updatedAt": "2026-06-07T05:59:27.198Z"
   },
@@ -44,10 +53,13 @@
     "enabled": true,
     "maxRedemptions": 1,
     "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "be44feec-476d-4dc7-92e2-3a3d25672ea0"
     ],
+    "redeemedByAccountIds": [],
     "createdAt": "2026-06-04T03:28:22.274Z",
     "updatedAt": "2026-06-08T22:39:10.321Z"
   },
@@ -57,10 +69,13 @@
     "enabled": true,
     "maxRedemptions": 1,
     "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "5f323334-6528-4dfb-94e2-2dd326fd1673"
     ],
+    "redeemedByAccountIds": [],
     "createdAt": "2026-06-04T03:28:22.274Z",
     "updatedAt": "2026-06-15T11:18:55.410Z"
   },
@@ -70,10 +85,13 @@
     "enabled": true,
     "maxRedemptions": 1,
     "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "8bd73a23-4c4e-4cb5-80fa-dc8d798749e0"
     ],
+    "redeemedByAccountIds": [],
     "createdAt": "2026-06-15T11:21:57.795Z",
     "updatedAt": "2026-06-16T12:52:17.953Z"
   },
@@ -83,45 +101,57 @@
     "enabled": true,
     "maxRedemptions": 1,
     "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "8bd73a23-4c4e-4cb5-80fa-dc8d798749e0"
     ],
+    "redeemedByAccountIds": [],
     "createdAt": "2026-06-15T11:21:57.795Z",
     "updatedAt": "2026-06-16T12:52:30.850Z"
   },
   {
     "id": "8775c07c-a7b3-4edb-a7c7-08ad0df7ce09",
     "code": "VIP-FE2282A7",
-    "enabled": true,
+    "enabled": false,
     "maxRedemptions": 1,
     "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
     "redeemedCount": 0,
     "redeemedByVisitorIds": [],
+    "redeemedByAccountIds": [],
     "createdAt": "2026-06-15T11:21:57.795Z",
-    "updatedAt": "2026-06-15T11:21:57.795Z"
+    "updatedAt": "2026-07-20T07:02:34.676Z"
   },
   {
     "id": "e2124e64-7565-4a2d-92d0-c002bb13b0fc",
     "code": "VIP-B67D0DFE",
-    "enabled": true,
+    "enabled": false,
     "maxRedemptions": 1,
     "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
     "redeemedCount": 0,
     "redeemedByVisitorIds": [],
+    "redeemedByAccountIds": [],
     "createdAt": "2026-06-15T11:21:57.795Z",
-    "updatedAt": "2026-06-15T11:21:57.795Z"
+    "updatedAt": "2026-07-20T07:02:33.995Z"
   },
   {
     "id": "2f5bdf50-44ee-4580-8449-a74dd487b953",
     "code": "VIP-E0F58F4E",
-    "enabled": true,
+    "enabled": false,
     "maxRedemptions": 1,
     "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
     "redeemedCount": 0,
     "redeemedByVisitorIds": [],
+    "redeemedByAccountIds": [],
     "createdAt": "2026-06-15T11:21:57.795Z",
-    "updatedAt": "2026-06-15T11:21:57.795Z"
+    "updatedAt": "2026-07-20T07:02:32.336Z"
   },
   {
     "id": "0521113b-24eb-4222-9884-8e43b96cbf9b",
@@ -129,11 +159,160 @@
     "enabled": true,
     "maxRedemptions": 1,
     "quotaBonus": 100,
+    "coinBonus": 100,
+    "beanBonus": 10,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "5f323334-6528-4dfb-94e2-2dd326fd1673"
     ],
+    "redeemedByAccountIds": [],
     "createdAt": "2026-07-12T09:01:41.469Z",
     "updatedAt": "2026-07-12T09:02:17.185Z"
+  },
+  {
+    "id": "b9ba5e90-1ecd-4261-ab0b-44cd3e1b9bfc",
+    "code": "60D3FF00",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "redeemedCount": 1,
+    "redeemedByVisitorIds": [
+      "5f323334-6528-4dfb-94e2-2dd326fd1673"
+    ],
+    "redeemedByAccountIds": [],
+    "createdAt": "2026-07-20T07:25:57.041Z",
+    "updatedAt": "2026-07-20T07:26:33.457Z"
+  },
+  {
+    "id": "cdbd37d7-5ede-4074-8aec-3ced3ada5a63",
+    "code": "44041757",
+    "enabled": false,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "redeemedByAccountIds": [],
+    "createdAt": "2026-07-20T07:25:57.041Z",
+    "updatedAt": "2026-07-20T07:57:05.740Z"
+  },
+  {
+    "id": "103aa9e0-933f-48e8-8587-54206efa2cfc",
+    "code": "24331C5E",
+    "enabled": false,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "redeemedByAccountIds": [],
+    "createdAt": "2026-07-20T07:25:57.041Z",
+    "updatedAt": "2026-07-20T07:57:08.242Z"
+  },
+  {
+    "id": "aaeb653a-b1df-4364-84e3-168e639db68d",
+    "code": "DC98CAE3",
+    "enabled": false,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "redeemedByAccountIds": [],
+    "createdAt": "2026-07-20T07:25:57.041Z",
+    "updatedAt": "2026-07-20T07:57:11.318Z"
+  },
+  {
+    "id": "9e2bb855-65ba-44e5-8017-d1a5823832da",
+    "code": "B48DC5E2",
+    "enabled": false,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "redeemedByAccountIds": [],
+    "createdAt": "2026-07-20T07:25:57.041Z",
+    "updatedAt": "2026-07-20T07:57:13.397Z"
+  },
+  {
+    "id": "db661d29-5e8b-4a9b-ab75-9c31d894946e",
+    "code": "FA914BB3",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "redeemedByAccountIds": [],
+    "createdAt": "2026-07-20T07:57:25.793Z",
+    "updatedAt": "2026-07-20T07:57:25.793Z"
+  },
+  {
+    "id": "1f63aa78-22a0-4d9c-bddc-b50acb5528d0",
+    "code": "F325F570",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "redeemedByAccountIds": [],
+    "createdAt": "2026-07-20T07:57:25.793Z",
+    "updatedAt": "2026-07-20T07:57:25.793Z"
+  },
+  {
+    "id": "25ded864-da55-44b3-a41e-0b512bdf831e",
+    "code": "AEEB3BFA",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "redeemedByAccountIds": [],
+    "createdAt": "2026-07-20T07:57:25.793Z",
+    "updatedAt": "2026-07-20T07:57:25.793Z"
+  },
+  {
+    "id": "b4f3c62e-4a6b-4b43-8acd-a8269c0c9c6c",
+    "code": "78BD9825",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "redeemedByAccountIds": [],
+    "createdAt": "2026-07-20T07:57:25.793Z",
+    "updatedAt": "2026-07-20T07:57:25.793Z"
+  },
+  {
+    "id": "21c1c0ab-1931-4c55-8b1d-bb36686d2150",
+    "code": "D768D168",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "redeemedCount": 1,
+    "redeemedByVisitorIds": [
+      "5f323334-6528-4dfb-94e2-2dd326fd1673"
+    ],
+    "redeemedByAccountIds": [
+      "7076b5d2-3e17-4939-808f-1acfe7e0e252"
+    ],
+    "createdAt": "2026-07-20T07:57:25.793Z",
+    "updatedAt": "2026-07-20T07:57:41.109Z"
   }
 ]

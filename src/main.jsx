@@ -840,6 +840,11 @@ function BodyBookPage() {
   const [referenceFile, setReferenceFile] = useState(null);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState("");
   const [visitorState, setVisitorState] = useState(null);
+  const [inviteCode, setInviteCode] = useState("");
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [orderConfig, setOrderConfig] = useState(null);
   const [session, setSession] = useState(null);
   const [sessionId, setSessionId] = useState(() => {
     try { return window.localStorage.getItem(BODY_BOOK_SESSION_STORAGE_KEY) || ""; } catch { return ""; }
@@ -907,6 +912,7 @@ function BodyBookPage() {
     }).catch(() => {
       if (isActive) setVisitorState(null);
     });
+    fetchOrderConfig().then((payload) => { if (isActive) setOrderConfig(payload); }).catch(() => {});
     loadSavedBooks();
     fetchBodyBookThemes().then((payload) => {
       if (!isActive) return;
@@ -965,6 +971,22 @@ function BodyBookPage() {
       applySession(payload);
     } catch (nextError) {
       setError(nextError.message || "创建认知书失败，请稍后再试。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function redeemBookInvite() {
+    const code = inviteCode.trim();
+    if (!code) return;
+    setIsSubmitting(true);
+    setError("");
+    try {
+      const payload = await redeemInviteCode(code);
+      setVisitorState(payload);
+      setInviteCode("");
+    } catch (nextError) {
+      setError(nextError.message || "邀请码兑换失败，请稍后再试。");
     } finally {
       setIsSubmitting(false);
     }
@@ -1100,14 +1122,29 @@ function BodyBookPage() {
         </div>
         <div className="body-book-header-actions">
           {!session && selectedTheme ? <button className="draw-card-secondary body-book-back-to-themes" disabled={isSubmitting} onClick={() => { setSelectedTheme(null); setReferenceFile(null); setError(""); }} type="button">返回主题选择</button> : null}
-          <div className="body-book-credit">{session?.mockMode ? "开发模拟 · 不扣点" : billingEnabled ? `剩余 ${Number(visitorState?.quotaRemaining || 0)} 点` : "内测免费 · 不扣点"}</div>
+          <div className="body-book-user-area">
+            <button className="draw-card-secondary body-book-account-button" onClick={() => visitorState?.account?.isRegistered ? setShowUserMenu((current) => !current) : setShowAuthModal(true)} type="button">{visitorState?.account?.isRegistered ? (visitorState.account.username || "我的账户") : "登录 / 注册"}</button>
+            {showUserMenu ? <div className="body-book-user-menu"><button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}
+          </div>
         </div>
       </header>
 
       {!session && !selectedTheme ? (
-        <section className="body-book-theme-home">
-          <div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>每本认知书包含一张封面和九张主题认知卡。</p></div>
-          <div className="body-book-theme-grid">{themes.map((theme, index) => <button className="body-book-theme-card" key={theme.id} onClick={() => { setSelectedTheme(theme); setError(""); }} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={`/body-book-samples/${encodeURIComponent(theme.id)}-cover-thumbnail.webp`} /><span className="body-book-theme-index">{String(index + 1).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small></button>)}</div>
+        <section className="body-book-theme-home body-book-theme-layout">
+          <div className="body-book-theme-content">
+            <div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>每本认知书包含一张封面和九张主题认知卡。</p></div>
+            <div className="body-book-theme-grid">{themes.map((theme, index) => <button className="body-book-theme-card" key={theme.id} onClick={() => { setSelectedTheme(theme); setError(""); }} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={`/body-book-samples/${encodeURIComponent(theme.id)}-cover-thumbnail.webp`} /><span className="body-book-theme-index">{String(index + 1).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small></button>)}</div>
+          </div>
+          <aside className="body-book-wallet-panel">
+            <span className="body-book-wallet-label">我的豆豆</span>
+            <strong>{visitorState ? `${visitorState.account?.beanBalance || 0} 个豆豆` : "--"}</strong>
+            <p>{billingEnabled ? "认知书封面、内页和重新生成均消耗豆豆。" : "内测阶段，认知书暂不消耗豆豆。"}</p>
+            <label className="body-book-wallet-field"><span>邀请码</span><input disabled={isSubmitting} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} /></label>
+            <div className="body-book-wallet-actions">
+              <button className="draw-card-primary" disabled={isSubmitting || !inviteCode.trim()} onClick={redeemBookInvite} type="button">兑换邀请码</button>
+              <button className="draw-card-secondary" onClick={() => setShowContactModal(true)} type="button">联系客服</button>
+            </div>
+          </aside>
         </section>
       ) : null}
 
@@ -1123,7 +1160,7 @@ function BodyBookPage() {
             <p>将以这张照片制作《{selectedTheme.name}》封面，确认后再生成九张主题认知卡。</p>
             <button className="draw-card-primary" disabled={!referenceFile || isSubmitting} onClick={startCover} type="button">
               {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
-              <span>{isSubmitting ? "正在提交" : billingEnabled ? "生成封面（1 点）" : "生成封面（内测免费）"}</span>
+              <span>{isSubmitting ? "正在提交" : billingEnabled ? "生成封面（1 豆豆）" : "生成封面（内测免费）"}</span>
             </button>
           </div>
         </section>
@@ -1144,11 +1181,11 @@ function BodyBookPage() {
           {isCoverReview ? (
             <div className="body-book-cover-review">
               <BodyBookItem item={session.cover} onOpen={setActiveItem} />
-              <div className="body-book-confirm-copy"><p>封面满意后，将继续生成九张认知卡。</p><button className="draw-card-primary" disabled={isSubmitting} onClick={confirmCover} type="button">{isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Check size={18} />}<span>{billingEnabled ? "确认并生成 9 页（9 点）" : "确认并生成 9 页（内测免费）"}</span></button></div>
+              <div className="body-book-confirm-copy"><p>封面满意后，将继续生成九张认知卡。</p><button className="draw-card-primary" disabled={isSubmitting} onClick={confirmCover} type="button">{isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Check size={18} />}<span>{billingEnabled ? "确认并生成 9 页（9 豆豆）" : "确认并生成 9 页（内测免费）"}</span></button></div>
             </div>
           ) : (
             <>
-              <p className="body-book-progress">已完成 {Number(cardSummary?.succeeded || 0)} / 9 张认知卡。{session?.mockMode ? "当前为开发模拟，不调用图片 API，也不会扣点。" : billingEnabled ? "封面和每张卡片均可单独下载。" : "内测阶段，图片生成不扣点。"}</p>
+              <p className="body-book-progress">已完成 {Number(cardSummary?.succeeded || 0)} / 9 张认知卡。{session?.mockMode ? (billingEnabled ? "当前为开发模拟，仍按规则扣除豆豆。" : "当前为开发模拟，不调用图片 API，也不会扣豆豆。") : billingEnabled ? "封面和每张卡片均可单独下载。" : "内测阶段，图片生成不扣豆豆。"}</p>
               <div className="body-book-grid">
                 {allItems.map((item) => <BodyBookItem item={item} key={`${item.key}-${item.jobId || "pending"}`} onOpen={setActiveItem} onRegenerate={item.key === "cover" ? null : openRegenerationDialog} regenerating={regeneratingKey === item.key} />)}
               </div>
@@ -1207,7 +1244,7 @@ function BodyBookPage() {
               </label>
               <label className="body-book-prompt-editor">提示词<textarea maxLength={6000} onChange={(event) => setRegenerationPrompt(event.target.value)} value={regenerationPrompt} /></label>
             </div>
-            <div className="body-book-regenerate-actions"><button className="draw-card-secondary" disabled={Boolean(regeneratingKey)} onClick={closeRegenerationDialog} type="button">取消</button><button className="draw-card-primary" disabled={Boolean(regeneratingKey)} onClick={regenerateCard} type="button">{regeneratingKey ? <LoaderCircle className="spin" size={18} /> : <RefreshCw size={18} />}<span>{session?.mockMode ? "继续生成（模拟）" : billingEnabled ? "继续生成（1 点）" : "继续生成（内测免费）"}</span></button></div>
+            <div className="body-book-regenerate-actions"><button className="draw-card-secondary" disabled={Boolean(regeneratingKey)} onClick={closeRegenerationDialog} type="button">取消</button><button className="draw-card-primary" disabled={Boolean(regeneratingKey)} onClick={regenerateCard} type="button">{regeneratingKey ? <LoaderCircle className="spin" size={18} /> : <RefreshCw size={18} />}<span>{billingEnabled ? "继续生成（1 豆豆）" : session?.mockMode ? "继续生成（模拟）" : "继续生成（内测免费）"}</span></button></div>
           </section>
         </div>
       ) : null}
@@ -1217,6 +1254,9 @@ function BodyBookPage() {
           后台入口
         </a>
       </footer>
+
+      {showAuthModal ? <AuthModal onAuthenticated={async () => { setShowAuthModal(false); setVisitorState(await fetchVisitorState()); }} onClose={() => setShowAuthModal(false)} /> : null}
+      {showContactModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowContactModal(false)} role="presentation"><section className="draw-card-confirm-panel draw-card-contact-panel body-book-contact-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="icon-button" onClick={() => setShowContactModal(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><div className="draw-card-contact-copy"><h3>联系客服</h3><p>请加微信</p><button className="draw-card-contact-id" onClick={() => copyText(getContactWechatId(orderConfig))} type="button"><span>{getContactWechatId(orderConfig)}</span><Clipboard size={16} /></button></div></section></div> : null}
     </main>
   );
 }
@@ -1500,7 +1540,7 @@ function DrawCardCheckoutPage() {
                 <p>单价 {formatCurrencyCents(amountPreview.unitPriceCents)} / 枚</p>
                 <p>邮费 {amountPreview.shippingFeeCents > 0 ? formatCurrencyCents(amountPreview.shippingFeeCents) : "包邮"}</p>
                 <strong>合计 {formatCurrencyCents(amountPreview.totalCents)}</strong>
-                <span className="storage-note">购买 {totalItemCount} 枚冰箱贴，可赠送 {totalItemCount * 10} 点。</span>
+                <span className="storage-note">购买 {totalItemCount} 枚冰箱贴，可赠送 {totalItemCount * 10} 币。</span>
               </div>
               <div className="draw-card-order-form">
                 <label className="field-label">收件人<input onChange={(event) => setOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={orderForm.receiverName} /></label>
@@ -2201,7 +2241,7 @@ function PublicExperiencePage({ config }) {
   const resultsHeading = currentSessionStatus === "running" || currentSessionStatus === "queued"
     ? `已生成 ${succeededCount} / ${totalCount || "--"} 张结果`
     : currentSessionStatus === "partial"
-      ? `部分结果已抵达，已扣 ${Number(session?.quotaChargedCount || succeededCount || 0)} 点。`
+      ? `部分结果已抵达，已扣 ${Number(session?.quotaChargedCount || succeededCount || 0)} 币。`
     : currentSessionStatus === "failed"
         ? "这一轮没有成功结果，本轮未扣次数。"
         : resultsTitle;
@@ -2209,7 +2249,7 @@ function PublicExperiencePage({ config }) {
   const resultsBodyCopy = currentSessionStatus === "running" || currentSessionStatus === "queued"
     ? (session?.message || waitingFallback)
     : currentSessionStatus === "partial"
-      ? (session?.message || "成功结果可以正常保留，仅扣除成功生成的点数。")
+      ? (session?.message || "成功结果可以正常保留，仅扣除成功生成的币。")
       : currentSessionStatus === "failed"
         ? (session?.message || "所有卡位都已结束，本轮没有可保留的成功结果。")
         : resultsSubtitle;
@@ -2388,7 +2428,7 @@ function PublicExperiencePage({ config }) {
         return;
       }
       if (Number(latestVisitorState?.quotaRemaining || 0) < estimatedCost) {
-        const message = `本次最多需要 ${estimatedCost} 点，当前剩余 ${Number(latestVisitorState?.quotaRemaining || 0)} 点。`;
+        const message = `本次最多需要 ${estimatedCost} 币，当前剩余 ${Number(latestVisitorState?.account?.coinBalance || 0)} 币。`;
         setError(message);
         if (requestedStyleIds.length) setStylePickerError(message);
         return;
@@ -2572,11 +2612,11 @@ function PublicExperiencePage({ config }) {
 
     const clipItem = clipItems.find((clip) => clip.jobId === item.jobId);
     const isAlreadyRedeemed = Boolean(clipItem?.originalRedeemed);
-    if (!isAlreadyRedeemed && Number(latestVisitorState.account.creditBalance || 0) < 1) {
-      setError("兑换原图需要 1 点，当前点数不足。");
+    if (!isAlreadyRedeemed && Number(latestVisitorState.account.coinBalance || 0) < 1) {
+      setError("兑换原图需要 1 币，当前币不足。");
       return;
     }
-    if (!isAlreadyRedeemed && !window.confirm("本次兑换将消耗 1 个点数。是否继续？")) return;
+    if (!isAlreadyRedeemed && !window.confirm("本次兑换将消耗 1 枚币。是否继续？")) return;
 
     try {
       setOriginalPreviewLoadingJobId(item.jobId);
@@ -2732,7 +2772,7 @@ function PublicExperiencePage({ config }) {
                           {pocketRemoveLabel}
                         </button>
                         <button className="draw-card-clip-download" disabled={originalPreviewLoadingJobId === item.jobId} onClick={() => handleDownloadClipOriginal(item)} type="button">
-                          {originalPreviewLoadingJobId === item.jobId ? "加载中" : item.originalRedeemed ? "下载原图" : visitorState?.account?.canRedeemOriginalDownloads ? "1点兑换原图" : "下单后兑换"}
+                          {originalPreviewLoadingJobId === item.jobId ? "加载中" : item.originalRedeemed ? "下载原图" : visitorState?.account?.canRedeemOriginalDownloads ? "1币兑换原图" : "下单后兑换"}
                         </button>
                       </div>
                     </div>
@@ -2762,10 +2802,10 @@ function PublicExperiencePage({ config }) {
 
         {showAccount ? <div className="draw-card-clip-empty draw-card-account-card">
           <div className="draw-card-account-summary">
-            <span>账户点数</span>
-            <strong>{visitorState ? `${visitorState.quotaRemaining}` : "--"}</strong>
-            <p>{visitorState?.account?.canRedeemOriginalDownloads ? "已获得原图兑换资格，每张兑换消耗 1 点" : "定制订单支付成功后即可兑换原图"}</p>
-            <p>每定制1枚冰箱贴，可获赠10点。</p>
+            <span>账户币</span>
+            <strong>{visitorState ? `${visitorState.account?.coinBalance || 0} 币` : "--"}</strong>
+            <p>{visitorState?.account?.canRedeemOriginalDownloads ? "已获得原图兑换资格，每张兑换消耗 1 币" : "定制订单支付成功后即可兑换原图"}</p>
+            <p>每定制1枚冰箱贴，可获赠10币。</p>
           </div>
           {visitorState?.sourceMerchantName ? <p>来源商户：{visitorState.sourceMerchantName}</p> : null}
           <input className="field-inline-input" onChange={(event) => setInviteCode(event.target.value)} placeholder={clipInvitePlaceholder} value={inviteCode} />
@@ -2954,7 +2994,7 @@ function PublicExperiencePage({ config }) {
 
                 <div className="draw-card-style-picker-summary">
                   <div className="draw-card-style-picker-count">已选 {selectedStyleIds.length} / {MAX_PUBLIC_STYLE_SELECTION}</div>
-                  <p className="draw-card-meta-note">每次最多选择 {MAX_PUBLIC_STYLE_SELECTION} 种风格。成功几张扣几点，失败结果不扣点。</p>
+                  <p className="draw-card-meta-note">每次最多选择 {MAX_PUBLIC_STYLE_SELECTION} 种风格。成功几张扣几币，失败结果不扣币。</p>
                   {selectedDrawCardStyles.length ? (
                     <div className="draw-card-style-picker-selected">
                       {selectedDrawCardStyles.map((style, index) => (
@@ -3062,7 +3102,7 @@ function PublicExperiencePage({ config }) {
                             </button>
                             <button className="draw-card-save-button" onClick={() => handleDownloadClipOriginal(result)} type="button">
                               <Download size={16} />
-                              <span>{visitorState?.account?.canRedeemOriginalDownloads ? "1点兑换原图" : "下单后兑换"}</span>
+                              <span>{visitorState?.account?.canRedeemOriginalDownloads ? "1币兑换原图" : "下单后兑换"}</span>
                             </button>
                           </>
                         ) : (
@@ -3222,7 +3262,7 @@ function PublicExperiencePage({ config }) {
                   ))}
                 </div>
               </div>
-              <p className="draw-card-meta-note">本次最多消耗 {estimatedRandomDrawCost} 点，失败结果不扣点。</p>
+              <p className="draw-card-meta-note">本次最多消耗 {estimatedRandomDrawCost} 币，失败结果不扣币。</p>
             </div>
             {error ? <p className="error-note">{error}</p> : null}
             <div className="draw-card-confirm-actions">
@@ -3295,7 +3335,7 @@ function PublicExperiencePage({ config }) {
           <section className="draw-card-confirm-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="解锁原图">
             <p className="draw-card-kicker">Original images</p>
             <h2>下载原图</h2>
-            <p className="storage-note">任意定制订单支付成功后可兑换原图，每张需消耗 1 点。已下单制作冰箱贴的图片会自动兑换，不额外消耗点数。</p>
+            <p className="storage-note">任意定制订单支付成功后可兑换原图，每张需消耗 1 币。已下单制作冰箱贴的图片会自动兑换，不额外消耗币。</p>
             <div className="draw-card-confirm-actions">
               <button className="draw-card-secondary" onClick={() => setShowOriginalUnlockPrompt(false)} type="button">暂不定制</button>
               <button className="draw-card-primary" onClick={() => window.location.assign("/draw/order")} type="button">选图定制</button>
@@ -5507,7 +5547,7 @@ async function fetchAdminCommercePayments() {
 async function fetchAdminCreditLedger() {
   const response = await fetch("/api/admin/commerce/credits?limit=100");
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message || "读取点数流水失败。");
+  if (!response.ok) throw new Error(payload.message || "读取币流水失败。");
   return payload;
 }
 
@@ -5551,14 +5591,14 @@ async function updateAdminUserStatus(userId, status) {
   return payload;
 }
 
-async function adjustAdminUserCredits(userId, delta, remark) {
-  const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/credits`, {
+async function adjustAdminUserWallet(userId, delta, currency, remark) {
+  const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/wallet`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ delta, remark })
+    body: JSON.stringify({ delta, currency, remark })
   });
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message || "调整点数失败。");
+  if (!response.ok) throw new Error(payload.message || "调整余额失败。");
   return payload;
 }
 
@@ -5724,6 +5764,14 @@ async function updateAdminOrder(orderId, payload) {
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || "更新订单失败。");
   return data.order;
+}
+
+async function deleteInviteCodeRequest(id) {
+  const response = await fetch(`/api/admin/invite-codes/${id}`, { method: "DELETE" });
+  if (!response.ok && response.status !== 204) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || "删除邀请码失败。");
+  }
 }
 
 async function confirmAdminManualPayment(orderId) {
@@ -5965,29 +6013,27 @@ function AdminLoginPage({ onLogin }) {
 function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInviteCodes, onRefreshVisitorRecords, onRefreshSettings }) {
   const [count, setCount] = useState(5);
   const [prefix, setPrefix] = useState("");
-  const [quotaBonus, setQuotaBonus] = useState(5);
-  const [anonymousQuotaLimit, setAnonymousQuotaLimit] = useState(settings?.anonymousQuotaLimit || 5);
+  const [coinBonus, setCoinBonus] = useState(5);
+  const [beanBonus, setBeanBonus] = useState(10);
+  const [defaultCoinBonus, setDefaultCoinBonus] = useState(settings?.defaultCoinBonus ?? 5);
+  const [defaultBeanBonus, setDefaultBeanBonus] = useState(settings?.defaultBeanBonus ?? 10);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showUsedInviteCodes, setShowUsedInviteCodes] = useState(false);
   const availableInviteCodes = useMemo(
-    () => inviteCodes.filter((inviteCode) => Number(inviteCode.remainingRedemptions || 0) > 0),
-    [inviteCodes]
-  );
-  const usedInviteCodes = useMemo(
-    () => inviteCodes.filter((inviteCode) => Number(inviteCode.remainingRedemptions || 0) <= 0),
+    () => inviteCodes.filter((inviteCode) => inviteCode.enabled !== false && Number(inviteCode.remainingRedemptions || 0) > 0),
     [inviteCodes]
   );
 
   useEffect(() => {
-    setAnonymousQuotaLimit(settings?.anonymousQuotaLimit || 5);
+    setDefaultCoinBonus(settings?.defaultCoinBonus ?? 5);
+    setDefaultBeanBonus(settings?.defaultBeanBonus ?? 10);
   }, [settings]);
 
   async function createCodes() {
     setIsSubmitting(true);
     setError("");
     try {
-      await createInviteCodesRequest({ count, prefix, quotaBonus });
+      await createInviteCodesRequest({ count, prefix, coinBonus, beanBonus });
       await onRefreshInviteCodes();
       setPrefix("");
     } catch (nextError) {
@@ -6001,7 +6047,7 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
     setIsSubmitting(true);
     setError("");
     try {
-      await updateAdminSettings({ anonymousQuotaLimit });
+      await updateAdminSettings({ defaultCoinBonus, defaultBeanBonus });
       await onRefreshSettings();
     } catch (nextError) {
       setError(nextError.message || "更新系统设置失败。");
@@ -6010,13 +6056,14 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
     }
   }
 
-  async function toggleInvite(inviteCode) {
+  async function deleteInvite(inviteCode) {
+    if (!window.confirm(`确定删除邀请码 ${inviteCode.code} 吗？删除后将无法兑换。`)) return;
     setError("");
     try {
-      await updateInviteCodeRequest(inviteCode.id, { enabled: !inviteCode.enabled });
+      await deleteInviteCodeRequest(inviteCode.id);
       await onRefreshInviteCodes();
     } catch (nextError) {
-      setError(nextError.message || "更新邀请码失败。");
+      setError(nextError.message || "删除邀请码失败。");
     }
   }
 
@@ -6026,7 +6073,7 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
         <div>
           <p className="eyebrow">Invites</p>
           <h2>邀请码与访问记录</h2>
-          <p className="storage-note">创建邀请码、设置匿名免费次数，并查看最近访客的来源、停留、生成与下单情况。</p>
+          <p className="storage-note">配置新访客默认奖励、创建邀请码，并查看最近访客的来源、停留、生成与下单情况。</p>
         </div>
         <button className="secondary-button" onClick={() => Promise.all([onRefreshInviteCodes(), onRefreshVisitorRecords(), onRefreshSettings()])} type="button">
           <RefreshCw size={18} />
@@ -6036,13 +6083,17 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
 
       <div className="draw-card-upload-panel">
         <label className="field-label">
-          匿名访客默认免费次数
-          <input max="50" min="1" onChange={(event) => setAnonymousQuotaLimit(Number(event.target.value) || 1)} type="number" value={anonymousQuotaLimit} />
+          新访客默认币数
+          <input max="999" min="0" onChange={(event) => setDefaultCoinBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={defaultCoinBonus} />
+        </label>
+        <label className="field-label">
+          新访客默认豆豆数
+          <input max="999" min="0" onChange={(event) => setDefaultBeanBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={defaultBeanBonus} />
         </label>
         <div className="card-actions generator-actions">
           <button className="secondary-button" disabled={isSubmitting} onClick={saveSettings} type="button">
             <Save size={18} />
-            <span>保存免费次数设置</span>
+            <span>保存默认奖励</span>
           </button>
         </div>
         <label className="field-label">
@@ -6054,8 +6105,12 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
           <input onChange={(event) => setPrefix(event.target.value.toUpperCase())} placeholder="例如 VIP" type="text" value={prefix} />
         </label>
         <label className="field-label">
-          每个邀请码点数
-          <input max="999" min="1" onChange={(event) => setQuotaBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={quotaBonus} />
+          每个邀请码币数
+          <input max="999" min="0" onChange={(event) => setCoinBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={coinBonus} />
+        </label>
+        <label className="field-label">
+          每个邀请码豆豆数
+          <input max="999" min="0" onChange={(event) => setBeanBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={beanBonus} />
         </label>
         <div className="card-actions generator-actions">
           <button className="copy-button" disabled={isSubmitting} onClick={createCodes} type="button">
@@ -6073,15 +6128,17 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
             <div className="task-detail">
               <div className="task-meta-row">
                 <strong>{inviteCode.code}</strong>
-                <span>{Number(inviteCode.quotaBonus || 5)} 点</span>
+                <span>{Number(inviteCode.coinBonus ?? inviteCode.quotaBonus ?? 5)} 币</span>
+                <span>{Number(inviteCode.beanBonus ?? 10)} 豆豆</span>
                 <span>已兑换 {inviteCode.redeemedCount}</span>
                 <span>剩余 {inviteCode.remainingRedemptions}</span>
               </div>
               <p className="storage-note">创建于 {formatDateTime(inviteCode.createdAt)}</p>
             </div>
             <div className="task-actions">
-              <button className="secondary-button" onClick={() => toggleInvite(inviteCode)} type="button">
-                <span>{inviteCode.enabled ? "停用" : "启用"}</span>
+              <button className="danger-button" onClick={() => deleteInvite(inviteCode)} type="button">
+                <Trash2 size={18} />
+                <span>删除</span>
               </button>
             </div>
           </article>
@@ -6089,32 +6146,6 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
         {!availableInviteCodes.length ? <p className="empty-note">当前没有可继续兑换的邀请码。</p> : null}
       </div>
 
-      <div className="card-actions generator-actions">
-        <button className="secondary-button" onClick={() => setShowUsedInviteCodes((current) => !current)} type="button">
-          <Eye size={18} />
-          <span>{showUsedInviteCodes ? "隐藏历史已用邀请码" : `查看历史已用邀请码 (${usedInviteCodes.length})`}</span>
-        </button>
-      </div>
-
-      {showUsedInviteCodes ? (
-        <div className="task-list">
-          {usedInviteCodes.map((inviteCode) => (
-            <article className="task-card" key={`used-${inviteCode.id}`}>
-              <div className="task-status failed">已用完</div>
-              <div className="task-detail">
-                <div className="task-meta-row">
-                  <strong>{inviteCode.code}</strong>
-                  <span>{Number(inviteCode.quotaBonus || 5)} 点</span>
-                  <span>已兑换 {inviteCode.redeemedCount}</span>
-                  <span>剩余 {inviteCode.remainingRedemptions}</span>
-                </div>
-                <p className="storage-note">更新于 {formatDateTime(inviteCode.updatedAt)}</p>
-              </div>
-            </article>
-          ))}
-          {!usedInviteCodes.length ? <p className="empty-note">还没有历史已用邀请码。</p> : null}
-        </div>
-      ) : null}
 
       <section className="task-page" aria-label="访问记录列表">
         <div className="task-toolbar">
@@ -6538,6 +6569,7 @@ function UserAdminPage({ onOpenClip }) {
   const [busy, setBusy] = useState(false);
   const [delta, setDelta] = useState("");
   const [remark, setRemark] = useState("");
+  const [currency, setCurrency] = useState("coin");
   const limit = 20;
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
@@ -6563,6 +6595,7 @@ function UserAdminPage({ onOpenClip }) {
     setDetail(null);
     setDelta("");
     setRemark("");
+    setCurrency("coin");
     try {
       setDetail(await fetchAdminUser(user.id));
     } catch (nextError) {
@@ -6582,24 +6615,24 @@ function UserAdminPage({ onOpenClip }) {
     }
   }
 
-  async function adjustCredits() {
+  async function adjustWallet() {
     if (!selected) return;
     try {
-      const payload = await adjustAdminUserCredits(selected.id, Number(delta), remark);
+      const payload = await adjustAdminUserWallet(selected.id, Number(delta), currency, remark);
       setSelected(payload.user);
-      setDetail((current) => current ? { ...current, user: payload.user, ledger: payload.ledger } : current);
+      setDetail((current) => current ? { ...current, user: payload.user, ledger: payload.ledger, beanLedger: payload.beanLedger } : current);
       setDelta("");
       setRemark("");
       await load();
     } catch (nextError) {
-      setError(nextError.message || "调整点数失败。");
+      setError(nextError.message || "调整余额失败。");
     }
   }
 
   return (
     <section className="task-page user-admin-page" aria-label="用户管理">
       <div className="task-toolbar">
-        <div><p className="eyebrow">Users</p><h2>用户管理</h2><p className="storage-note">管理邮箱注册用户、账户状态与点数余额。</p></div>
+        <div><p className="eyebrow">Users</p><h2>用户管理</h2><p className="storage-note">管理邮箱注册用户、账户状态、币与豆豆余额。</p></div>
         <button className="secondary-button" disabled={busy} onClick={() => load()} type="button"><RefreshCw size={18} /><span>刷新</span></button>
       </div>
       <div className="task-filters">
@@ -6625,7 +6658,7 @@ function UserAdminPage({ onOpenClip }) {
               <tr>
                 <th scope="col">状态</th>
                 <th scope="col">用户</th>
-                <th scope="col">点数</th>
+                <th scope="col">币 / 豆豆</th>
                 <th scope="col">注册时间</th>
                 <th scope="col">最近登录</th>
                 <th scope="col">订单</th>
@@ -6643,7 +6676,7 @@ function UserAdminPage({ onOpenClip }) {
                       <span title={user.email}>{user.email}</span>
                     </div>
                   </td>
-                  <td className="user-admin-number">{user.creditBalance} 点</td>
+                  <td className="user-admin-number">{user.coinBalance} 币 / {user.beanBalance} 豆豆</td>
                   <td className="user-admin-date">{formatDateTime(user.registeredAt)}</td>
                   <td className="user-admin-date">{formatDateTime(user.lastLoginAt)}</td>
                   <td><div className="user-admin-orders"><strong>{user.orderCount} 笔</strong><span>{formatCurrencyCents(user.paidTotalCents)}</span></div></td>
@@ -6660,10 +6693,11 @@ function UserAdminPage({ onOpenClip }) {
         <div className="modal-backdrop" onClick={() => setSelected(null)} role="presentation">
           <section className="prompt-modal order-admin-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="用户详情">
             <div className="modal-head"><div><p className="eyebrow">User detail</p><h2>{detail?.user?.username || selected.username}</h2></div><button className="icon-button" onClick={() => setSelected(null)} type="button"><X size={18} /></button></div>
-            <p className="storage-note">{detail?.user?.email || selected.email} · {detail?.user?.creditBalance ?? selected.creditBalance} 点 · 关联访客 {detail?.user?.visitorCount ?? selected.visitorCount}</p>
+            <p className="storage-note">{detail?.user?.email || selected.email} · {detail?.user?.coinBalance ?? selected.coinBalance} 币 / {detail?.user?.beanBalance ?? selected.beanBalance} 豆豆 · 关联访客 {detail?.user?.visitorCount ?? selected.visitorCount}</p>
             <div className="task-actions"><button className={detail?.user?.status === "disabled" ? "secondary-button" : "danger-button"} onClick={() => updateStatus(detail?.user?.status === "disabled" ? "active" : "disabled")} type="button">{detail?.user?.status === "disabled" ? "恢复用户" : "禁用用户"}</button></div>
-            <div className="draw-card-order-form"><label className="field-label">调整点数（正数增加、负数扣减）<input onChange={(event) => setDelta(event.target.value)} type="number" value={delta} /></label><label className="field-label">调整备注<textarea onChange={(event) => setRemark(event.target.value)} rows="2" value={remark} /></label><button className="secondary-button" disabled={!Number(delta) || !remark.trim()} onClick={adjustCredits} type="button">保存点数调整</button></div>
-            <h3>点数流水</h3><div className="task-list">{(detail?.ledger || []).slice(0, 20).map((item) => <div className="task-meta-row" key={item.id}><strong>{item.delta > 0 ? "+" : ""}{item.delta} 点</strong><span>{item.reason}{item.note ? `：${item.note}` : ""}</span><span>{formatDateTime(item.createdAt)}</span></div>)}</div>
+            <div className="draw-card-order-form"><label className="field-label">币种<select onChange={(event) => setCurrency(event.target.value)} value={currency}><option value="coin">币</option><option value="bean">豆豆</option></select></label><label className="field-label">调整余额（正数增加、负数扣减）<input onChange={(event) => setDelta(event.target.value)} type="number" value={delta} /></label><label className="field-label">调整备注<textarea onChange={(event) => setRemark(event.target.value)} rows="2" value={remark} /></label><button className="secondary-button" disabled={!Number(delta) || !remark.trim()} onClick={adjustWallet} type="button">保存余额调整</button></div>
+            <h3>币流水</h3><div className="task-list">{(detail?.ledger || []).slice(0, 20).map((item) => <div className="task-meta-row" key={item.id}><strong>{item.delta > 0 ? "+" : ""}{item.delta} 币</strong><span>{item.reason}{item.note ? `：${item.note}` : ""}</span><span>{formatDateTime(item.createdAt)}</span></div>)}</div>
+            <h3>豆豆流水</h3><div className="task-list">{(detail?.beanLedger || []).slice(0, 20).map((item) => <div className="task-meta-row" key={item.id}><strong>{item.delta > 0 ? "+" : ""}{item.delta} 豆豆</strong><span>{item.reason}{item.note ? `：${item.note}` : ""}</span><span>{formatDateTime(item.createdAt)}</span></div>)}</div>
             <h3>订单摘要</h3><div className="task-list">{(detail?.orders || []).slice(0, 20).map((order) => <div className="task-meta-row" key={order.id}><strong>{order.orderNo}</strong><span>{order.paymentStatus === "paid" ? "已支付" : "未支付"}</span><span>{formatCurrencyCents(order.totalCents)}</span></div>)}</div>
           </section>
         </div>
@@ -6909,7 +6943,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
 
   async function confirmManualPayment() {
     if (!selectedOrder?.id || selectedOrder.paymentStatus === "paid") return;
-    if (!window.confirm(`确认订单 ${selectedOrder.orderNo} 已收到 ${formatCurrencyCents(selectedOrder.totalCents)} 吗？确认后将赠送点数、解锁原图并转为待发货。`)) return;
+    if (!window.confirm(`确认订单 ${selectedOrder.orderNo} 已收到 ${formatCurrencyCents(selectedOrder.totalCents)} 吗？确认后将赠送币、解锁原图并转为待发货。`)) return;
     setIsBusy(true);
     setError("");
     setStatusMessage("");
@@ -6981,7 +7015,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
       </div>
 
       <div className="draw-observability-card">
-        <h3>最近冰箱贴订单与点数流水</h3>
+        <h3>最近冰箱贴订单与币流水</h3>
         <div className="task-list">
           {commercePayments.filter((payment) => payment.kind === "physical_order").slice(0, 8).map((payment) => (
             <div className="task-meta-row" key={payment.id}>
@@ -6992,7 +7026,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
           ))}
           {!commercePayments.length ? <p className="storage-note">暂无收款记录。</p> : null}
         </div>
-        {creditLedger.length ? <p className="storage-note">最近点数变动：{creditLedger.slice(0, 5).map((item) => `${item.delta > 0 ? "+" : ""}${item.delta}`).join("、")}</p> : null}
+        {creditLedger.length ? <p className="storage-note">最近币变动：{creditLedger.slice(0, 5).map((item) => `${item.delta > 0 ? "+" : ""}${item.delta}`).join("、")}</p> : null}
       </div>
 
       <div className="draw-card-upload-panel">
@@ -8267,8 +8301,8 @@ function clampOrderItemQuantity(value) {
 
 function clampInviteQuotaBonus(value) {
   const quotaBonus = Number(value);
-  if (!Number.isFinite(quotaBonus)) return 5;
-  return Math.min(999, Math.max(1, Math.round(quotaBonus)));
+  if (!Number.isFinite(quotaBonus)) return 0;
+  return Math.min(999, Math.max(0, Math.round(quotaBonus)));
 }
 
 function getOrderItemQuantity(quantities, jobId) {

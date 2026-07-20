@@ -116,7 +116,7 @@ const DRAW_CARD_DEFAULT_STYLE_COUNT = 2;
 const BODY_BOOK_SIZE = "1024x1024";
 const BODY_BOOK_GENERATION_MODE = String(process.env.BODY_BOOK_GENERATION_MODE || "mock").trim().toLowerCase();
 const BODY_BOOK_MOCK_MODE = BODY_BOOK_GENERATION_MODE !== "live";
-const BODY_BOOK_BILLING_ENABLED = ["1", "true", "yes", "on"].includes(String(process.env.BODY_BOOK_BILLING_ENABLED || "false").trim().toLowerCase());
+const BODY_BOOK_BILLING_ENABLED = !["0", "false", "no", "off"].includes(String(process.env.BODY_BOOK_BILLING_ENABLED || "true").trim().toLowerCase());
 const BODY_BOOK_MOCK_PROVIDER = { id: "body-book-mock", name: "开发模拟", model: "mock" };
 const BODY_BOOK_PARTS = [
   { key: "head", chinese: "头部", english: "Head", copy: "This is my head. 这是我的头部。" },
@@ -1452,6 +1452,11 @@ app.get("/api/admin/commerce/credits", requireAdmin, (req, res) => {
   res.json({ ledger: commerceStore.listAllCreditLedger(limit) });
 });
 
+app.get("/api/admin/commerce/beans", requireAdmin, (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query?.limit || 200), 1), 500);
+  res.json({ ledger: commerceStore.listAllBeanLedger(limit) });
+});
+
 app.get("/api/styles", requireAdmin, async (_req, res) => {
   res.json(await readStyles());
 });
@@ -1573,7 +1578,7 @@ app.post("/api/body-book/sessions", requireWebAccount, upload.single("image"), a
   try {
     if (!req.file) throw createHttpError(400, "请先上传一张宝宝照片。");
     if (req.file.mimetype === "image/svg+xml") throw createHttpError(400, "请上传 JPG、PNG 或 WebP 图片。");
-    if (!BODY_BOOK_MOCK_MODE && BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.beanBalance || 0) < 1) throw createHttpError(409, "生成封面需要 1 个豆豆，当前豆豆不足。");
+    if (BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.beanBalance || 0) < 1) throw createHttpError(409, "生成封面需要 1 个豆豆，当前豆豆不足。");
 
     const visitor = await getVisitorState(req);
     enforcePublicRateLimits(req);
@@ -1681,7 +1686,7 @@ app.post("/api/body-book/sessions/:sessionId/confirm-cover", requireWebAccount, 
     if (current.stage !== "cover_review" || current.cover.status !== "succeeded") {
       throw createHttpError(409, "请等待封面生成完成后再确认。");
     }
-    if (!BODY_BOOK_MOCK_MODE && BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.beanBalance || 0) < current.cards.length) {
+    if (BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.beanBalance || 0) < current.cards.length) {
       throw createHttpError(409, `生成 ${current.cards.length} 张认知卡需要 ${current.cards.length} 个豆豆，当前豆豆不足。`);
     }
     const next = await startBodyBookCards(current);
@@ -1725,7 +1730,7 @@ app.post("/api/body-book/sessions/:sessionId/cards/:partKey/regenerate", require
       throw createHttpError(409, "该认知卡尚未结束，暂时不能重新生成。");
     }
     if (req.file?.mimetype === "image/svg+xml") throw createHttpError(400, "请上传 JPG、PNG 或 WebP 图片。");
-    if (!BODY_BOOK_MOCK_MODE && BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.beanBalance || 0) < 1) throw createHttpError(409, "重新生成需要 1 个豆豆，当前豆豆不足。");
+    if (BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.beanBalance || 0) < 1) throw createHttpError(409, "重新生成需要 1 个豆豆，当前豆豆不足。");
     const next = await regenerateBodyBookCard(current, part, {
       prompt: normalizeBodyBookPrompt(req.body?.prompt, card.prompt || buildBodyBookPartPrompt(part, card.order)),
       referenceFile: req.file || null
@@ -1781,7 +1786,7 @@ async function handleCreatePublicExperienceSession(req, res, experienceType) {
     });
     enforcePublicRateLimits(req);
     if (Number(req.webAccount.creditBalance || 0) < estimatedCost) {
-      throw createHttpError(409, `本次最多需要 ${estimatedCost} 点，当前剩余 ${Number(req.webAccount.creditBalance || 0)} 点。`, "点数不足，可定制冰箱贴获得更多点数。");
+      throw createHttpError(409, `本次最多需要 ${estimatedCost} 枚币，当前剩余 ${Number(req.webAccount.coinBalance || req.webAccount.creditBalance || 0)} 枚币。`, "币不足，可定制冰箱贴获得更多币。");
     }
     await enforceVisitorRunningJobLimit(visitor.visitorId, config);
 
@@ -2304,6 +2309,7 @@ app.get("/api/admin/invite-codes", requireAdmin, async (_req, res) => {
     const inviteCodes = await readInviteCodes();
     res.json({
       inviteCodes: inviteCodes
+        .filter((invite) => invite.enabled !== false)
         .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
         .map(toPublicInviteCode)
     });
@@ -2553,6 +2559,17 @@ app.get("/api/admin/merchant-commissions", requireAdmin, async (req, res) => {
   }
 });
 
+app.delete("/api/admin/invite-codes/:id", requireAdmin, async (req, res) => {
+  try {
+    const deleted = await disableInviteCode(req.params.id);
+    if (!deleted) return res.status(404).json({ message: "邀请码不存在。" });
+    res.status(204).end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "删除邀请码失败。" });
+  }
+});
+
 app.get("/api/admin/users", requireAdmin, (req, res, next) => {
   try {
     const payload = commerceStore.listRegisteredUsers({
@@ -2574,6 +2591,7 @@ app.get("/api/admin/users/:id", requireAdmin, (req, res, next) => {
     res.json({
       user: toPublicAdminUser({ ...detail.account, visitorCount: detail.visitorCount, orderCount: detail.orderCount, paidTotalCents: detail.paidTotalCents }),
       ledger: detail.ledger.map(toPublicCreditLedger),
+      beanLedger: detail.beanLedger.map(toPublicCreditLedger),
       orders: detail.orders
     });
   } catch (error) {
@@ -2869,6 +2887,12 @@ app.patch("/api/admin/settings", requireAdmin, async (req, res) => {
       anonymousQuotaLimit: req.body?.anonymousQuotaLimit !== undefined
         ? normalizeAnonymousQuotaLimit(req.body?.anonymousQuotaLimit)
         : current.anonymousQuotaLimit,
+      defaultCoinBonus: req.body?.defaultCoinBonus !== undefined
+        ? normalizeWalletBonus(req.body?.defaultCoinBonus, WEB_SIGNUP_CREDITS)
+        : current.defaultCoinBonus,
+      defaultBeanBonus: req.body?.defaultBeanBonus !== undefined
+        ? normalizeWalletBonus(req.body?.defaultBeanBonus, WEB_SIGNUP_BEANS)
+        : current.defaultBeanBonus,
       defaultImageProviderId: req.body?.defaultImageProviderId !== undefined
         ? normalizeImageProviderId(req.body?.defaultImageProviderId)
         : current.defaultImageProviderId,
@@ -3388,9 +3412,11 @@ async function webAccountSessionMiddleware(req, res, next) {
     const accountId = cookies[WEB_ACCOUNT_COOKIE_NAME];
     req.webAccount = isSafeAccountId(accountId) ? commerceStore.readAccount(accountId) : null;
     if (!req.webAccount) {
+      const settings = await readAppSettings();
       req.webAccount = commerceStore.createOrGetBrowserAccount({
         visitorId: req.visitorId,
-        signupCredits: WEB_SIGNUP_CREDITS
+        signupCredits: settings.defaultCoinBonus,
+        signupBeans: settings.defaultBeanBonus
       });
       setWebAccountCookie(req, res, req.webAccount.id);
     } else {
@@ -3894,6 +3920,8 @@ async function saveStoredApiProviders(providers) {
 function normalizeAppSettings(settings) {
   return {
     anonymousQuotaLimit: normalizeAnonymousQuotaLimit(settings?.anonymousQuotaLimit),
+    defaultCoinBonus: normalizeWalletBonus(settings?.defaultCoinBonus, WEB_SIGNUP_CREDITS),
+    defaultBeanBonus: normalizeWalletBonus(settings?.defaultBeanBonus, WEB_SIGNUP_BEANS),
     defaultImageProviderId: normalizeImageProviderId(settings?.defaultImageProviderId),
     fridgeMagnetOrderingEnabled: settings?.fridgeMagnetOrderingEnabled === true,
     fridgeMagnetUnitPriceCents: normalizeMoneyCents(settings?.fridgeMagnetUnitPriceCents, DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS),
@@ -3910,10 +3938,20 @@ function normalizeAnonymousQuotaLimit(value) {
   return Math.min(Math.max(Math.round(next), 1), 50);
 }
 
-function normalizeInviteQuotaBonus(value) {
+function normalizeInviteBonus(value, fallback = 5) {
   const next = Number(value);
-  if (!Number.isFinite(next)) return VISITOR_INVITE_BONUS;
-  return Math.min(Math.max(Math.round(next), 1), 999);
+  if (!Number.isFinite(next)) return fallback;
+  return Math.min(Math.max(Math.round(next), 0), 999);
+}
+
+function normalizeWalletBonus(value, fallback) {
+  const next = Number(value);
+  if (!Number.isFinite(next)) return fallback;
+  return Math.min(Math.max(Math.round(next), 0), 999);
+}
+
+function normalizeInviteQuotaBonus(value) {
+  return normalizeInviteBonus(value, VISITOR_INVITE_BONUS);
 }
 
 function normalizeApiProviderId(value) {
@@ -5731,7 +5769,7 @@ function toPublicCommerceAccount(account) {
     username: account.username || "",
     email: account.email || "",
     accountStatus: account.accountStatus || "active",
-    coinBalance: Math.max(0, Number(account.coinBalance ?? account.creditBalance || 0)),
+    coinBalance: Math.max(0, Number(account.coinBalance ?? account.creditBalance ?? 0)),
     beanBalance: Math.max(0, Number(account.beanBalance || 0)),
     canRedeemOriginalDownloads: commerceStore.hasPaidPhysicalOrder(account.id),
     createdAt: account.createdAt || null
@@ -5758,7 +5796,7 @@ function toPublicAdminUser(account) {
     username: account.username || "",
     email: account.email || "",
     status: account.accountStatus || "active",
-    coinBalance: Number(account.coinBalance ?? account.creditBalance || 0),
+    coinBalance: Number(account.coinBalance ?? account.creditBalance ?? 0),
     beanBalance: Number(account.beanBalance || 0),
     registeredAt: account.registeredAt || null,
     lastLoginAt: account.lastLoginAt || null,
@@ -6356,14 +6394,20 @@ async function saveInviteCodes(inviteCodes) {
 }
 
 function normalizeInviteCode(inviteCode) {
+  const legacyCoinBonus = inviteCode?.quotaBonus;
   return {
     id: String(inviteCode?.id || randomUUID()),
     code: String(inviteCode?.code || "").trim().toUpperCase(),
     enabled: inviteCode?.enabled !== false,
     maxRedemptions: 1,
-    quotaBonus: normalizeInviteQuotaBonus(inviteCode?.quotaBonus),
+    // `quotaBonus` was the old, single-wallet field. Keep it only so old
+    // visitor records can still be read; each new redemption uses both wallets.
+    quotaBonus: normalizeInviteQuotaBonus(legacyCoinBonus),
+    coinBonus: normalizeInviteBonus(inviteCode?.coinBonus ?? legacyCoinBonus, 5),
+    beanBonus: normalizeInviteBonus(inviteCode?.beanBonus, 10),
     redeemedCount: Math.max(0, Number(inviteCode?.redeemedCount || 0)),
     redeemedByVisitorIds: Array.isArray(inviteCode?.redeemedByVisitorIds) ? inviteCode.redeemedByVisitorIds.map(String) : [],
+    redeemedByAccountIds: Array.isArray(inviteCode?.redeemedByAccountIds) ? inviteCode.redeemedByAccountIds.map(String) : [],
     createdAt: inviteCode?.createdAt || new Date().toISOString(),
     updatedAt: inviteCode?.updatedAt || new Date().toISOString()
   };
@@ -6376,7 +6420,8 @@ function toPublicInviteCode(inviteCode) {
     code: safeInvite.code,
     enabled: safeInvite.enabled,
     maxRedemptions: safeInvite.maxRedemptions,
-    quotaBonus: safeInvite.quotaBonus,
+    coinBonus: safeInvite.coinBonus,
+    beanBonus: safeInvite.beanBonus,
     redeemedCount: safeInvite.redeemedCount,
     remainingRedemptions: Math.max(0, safeInvite.maxRedemptions - safeInvite.redeemedCount),
     createdAt: safeInvite.createdAt,
@@ -6384,7 +6429,7 @@ function toPublicInviteCode(inviteCode) {
   };
 }
 
-async function createInviteCodes(count, prefix = "", quotaBonus = VISITOR_INVITE_BONUS) {
+async function createInviteCodes(count, prefix = "", coinBonus = 5, beanBonus = 10) {
   const inviteCodes = await readInviteCodes();
   const now = new Date().toISOString();
   const created = Array.from({ length: count }, () => normalizeInviteCode({
@@ -6392,9 +6437,11 @@ async function createInviteCodes(count, prefix = "", quotaBonus = VISITOR_INVITE
     code: generateInviteCode(prefix),
     enabled: true,
     maxRedemptions: INVITE_DEFAULT_MAX_REDEMPTIONS,
-    quotaBonus,
+    coinBonus,
+    beanBonus,
     redeemedCount: 0,
     redeemedByVisitorIds: [],
+    redeemedByAccountIds: [],
     createdAt: now,
     updatedAt: now
   }));
@@ -6430,14 +6477,20 @@ async function redeemInviteCode(req, code) {
   if (invite.redeemedCount >= invite.maxRedemptions) {
     throw createHttpError(400, "邀请码已被使用。");
   }
+  if (invite.redeemedByAccountIds.includes(String(req.webAccount?.id || ""))) {
+    throw createHttpError(400, "你已兑换过这个邀请码。");
+  }
 
   invite.redeemedCount += 1;
   invite.redeemedByVisitorIds = invite.redeemedByVisitorIds.concat(req.visitorId);
+  invite.redeemedByAccountIds = invite.redeemedByAccountIds.concat(String(req.webAccount.id));
   invite.updatedAt = new Date().toISOString();
   await saveInviteCodes(inviteCodes);
-  const credits = normalizeInviteQuotaBonus(invite.quotaBonus);
-  await upgradeVisitorByInvite(req, credits);
-  return { credits };
+  return { coinBonus: invite.coinBonus, beanBonus: invite.beanBonus };
+}
+
+async function disableInviteCode(id) {
+  return updateInviteCode(id, { enabled: false });
 }
 
 async function upgradeVisitorByInvite(req, quotaBonus = VISITOR_INVITE_BONUS) {
@@ -7760,7 +7813,7 @@ async function createBodyBookMockResult(jobId, slot) {
   <path d="M250 700c90-70 150-80 204-74" fill="none" stroke="#8ea88d" stroke-width="8" stroke-dasharray="12 14"/>
   <circle cx="240" cy="708" r="42" fill="#f4c36d"/><text x="221" y="725" fill="#fff" font-family="Arial, sans-serif" font-size="34" font-weight="700">${marker}</text>
   <rect x="110" y="850" width="804" height="54" rx="12" fill="#edf3eb"/>
-  <text x="140" y="886" fill="#416455" font-family="Arial, sans-serif" font-size="22">Development placeholder · No image API request · No credits deducted</text>
+  <text x="140" y="886" fill="#416455" font-family="Arial, sans-serif" font-size="22">Development placeholder · No image API request</text>
 </svg>`;
   await mkdir(generatedImageRoot, { recursive: true });
   await writeFile(path.join(generatedImageRoot, filename), svg, "utf-8");
@@ -7796,9 +7849,9 @@ async function synchronizeBodyBookSession(session) {
     let billingError = "";
     for (const item of [cover, ...cards]) {
       if (item.status !== "succeeded" || !item.jobId || chargedJobIds.has(item.jobId)) continue;
-      if (BODY_BOOK_MOCK_MODE || !BODY_BOOK_BILLING_ENABLED) continue;
+      if (!BODY_BOOK_BILLING_ENABLED) continue;
       try {
-        commerceStore.debitCredits({
+        commerceStore.debitBeans({
           accountId: current.ownerAccountId,
           amount: 1,
           referenceId: `body-book:${current.sessionId}:${item.jobId}`,
@@ -7806,7 +7859,7 @@ async function synchronizeBodyBookSession(session) {
         });
         chargedJobIds.add(item.jobId);
       } catch (error) {
-        billingError = error.publicMessage || error.message || "点数结算失败，请联系客服。";
+        billingError = error.publicMessage || error.message || "豆豆结算失败，请联系客服。";
       }
     }
     const cardSummary = summarizeBodyBookItems(cards);
@@ -8792,7 +8845,7 @@ function isSafeVisitorId(visitorId) {
 function chargeCommerceSessionCredits(session, successCount) {
   const accountId = String(session?.ownerAccountId || "");
   if (!accountId) {
-    throw createHttpError(409, "生成会话缺少账户归属。", "本次生成无法完成点数结算，请联系客服。");
+    throw createHttpError(409, "生成会话缺少账户归属。", "本次生成无法完成币结算，请联系客服。");
   }
   commerceStore.debitCredits({
     accountId,

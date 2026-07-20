@@ -126,6 +126,42 @@ body {
   gap: 10px;
 }
 
+.body-book-user-area {
+  position: relative;
+}
+
+.body-book-account-button {
+  min-width: 110px;
+}
+
+.body-book-user-menu {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 118px;
+  padding: 6px;
+  border: 1px solid #b7c8bc;
+  border-radius: 8px;
+  background: #fffdf8;
+  box-shadow: 0 12px 28px rgba(34, 58, 49, 0.15);
+}
+
+.body-book-user-menu button {
+  width: 100%;
+  border: 0;
+  border-radius: 5px;
+  padding: 8px 10px;
+  background: transparent;
+  color: #31564c;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.body-book-user-menu button:hover {
+  background: #edf5ed;
+}
+
 .body-book-kicker,
 .body-book-step {
   margin: 0 0 8px;
@@ -177,6 +213,74 @@ body {
   width: min(1120px, 100%);
   margin: 0 auto;
   padding: 42px 0 54px;
+}
+
+.body-book-theme-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 290px);
+  align-items: start;
+  gap: 28px;
+}
+
+.body-book-theme-content {
+  min-width: 0;
+}
+
+.body-book-wallet-panel {
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+  border: 1px solid #c7d4c9;
+  border-radius: 14px;
+  background: #fffdf8;
+  box-shadow: 0 12px 28px rgba(41, 72, 62, 0.08);
+}
+
+.body-book-wallet-label {
+  color: #496d62;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.body-book-wallet-panel > strong {
+  color: #244c40;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.body-book-wallet-panel > p {
+  margin: 0;
+  color: #64756f;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.body-book-wallet-field {
+  display: grid;
+  gap: 6px;
+  color: #496d62;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.body-book-wallet-field input {
+  width: 100%;
+  border: 1px solid #b7c8bc;
+  border-radius: 7px;
+  padding: 10px 11px;
+  color: #25483e;
+  font: inherit;
+}
+
+.body-book-wallet-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.body-book-wallet-actions button {
+  justify-content: center;
 }
 
 .body-book-theme-head {
@@ -826,6 +930,8 @@ body {
   .body-book-cover-review { grid-template-columns: minmax(0, 1fr); gap: 26px; padding: 34px 0; }
   .body-book-upload { width: min(460px, 100%); }
   .body-book-theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .body-book-theme-layout { grid-template-columns: minmax(0, 1fr); }
+  .body-book-wallet-panel { order: 2; width: min(460px, 100%); }
   .body-book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .body-book-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .body-book-library-panel { padding: 22px; }
@@ -4889,4 +4995,25 @@ textarea {
   background: #edf0ed;
   color: #4c5a54;
   opacity: 1;
+}
+
+.body-book-page .body-book-contact-panel {
+  border-color: #b7c8bc;
+  background: #fffdf8;
+  color: #172a26;
+  box-shadow: 0 20px 56px rgba(25, 49, 41, 0.24);
+}
+
+.body-book-page .body-book-contact-panel .draw-card-contact-copy h3 {
+  color: #173c31;
+}
+
+.body-book-page .body-book-contact-panel .draw-card-contact-copy p {
+  color: #546360;
+}
+
+.body-book-page .body-book-contact-panel .draw-card-contact-id {
+  border-color: #6f9484;
+  background: #edf5ed;
+  color: #173c31;
 }

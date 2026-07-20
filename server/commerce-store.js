@@ -468,7 +468,7 @@ export function createCommerceStore({ dbPath }) {
     const safeDelta = Math.trunc(Number(delta || 0));
     const nextBalance = account.creditBalance + safeDelta;
     if (nextBalance < 0) {
-      const error = new Error("点数余额不足。");
+      const error = new Error("币余额不足。");
       error.code = "INSUFFICIENT_CREDITS";
       throw error;
     }
@@ -736,7 +736,7 @@ export function createCommerceStore({ dbPath }) {
         });
       } catch (error) {
         if (error.code === "INSUFFICIENT_CREDITS") {
-          error.publicMessage = "兑换原图需要 1 点，当前点数不足。";
+          error.publicMessage = "兑换原图需要 1 枚币，当前币不足。";
         }
         throw error;
       }
@@ -846,6 +846,13 @@ export function createCommerceStore({ dbPath }) {
       .map(mapLedgerRow);
   }
 
+  function listAllBeanLedger(limit = 200) {
+    const safeLimit = Math.min(Math.max(Math.trunc(Number(limit || 200)), 1), 500);
+    return db.prepare("SELECT * FROM commerce_bean_ledger ORDER BY created_at DESC, id DESC LIMIT ?")
+      .all(safeLimit)
+      .map(mapLedgerRow);
+  }
+
   function listRegisteredUsers({ page = 1, limit = 20, search = "", status = "" } = {}) {
     const conditions = ["a.registered_at IS NOT NULL"];
     const params = {};
@@ -940,6 +947,7 @@ export function createCommerceStore({ dbPath }) {
     listCreditLedger,
     listBeanLedger,
     listAllCreditLedger,
+    listAllBeanLedger,
     listAllPaymentIntents,
     listPaymentIntents,
     listRegisteredUsers,
