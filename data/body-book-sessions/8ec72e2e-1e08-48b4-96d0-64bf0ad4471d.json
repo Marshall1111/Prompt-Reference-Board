@@ -9,7 +9,7 @@
   "status": "partial",
   "message": "部分图片生成失败，可单张或批量重试。",
   "createdAt": "2026-07-19T08:49:37.507Z",
-  "updatedAt": "2026-07-21T02:23:20.067Z",
+  "updatedAt": "2026-07-21T03:09:31.917Z",
   "completedAt": null,
   "savedAt": null,
   "reference": {
@@ -39,7 +39,8 @@
         "mimeType": "image/png",
         "size": 1607638,
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
-      }
+      },
+      "hasCustomPrompt": false
     },
     {
       "key": "head",
@@ -60,7 +61,8 @@
         "mimeType": "image/png",
         "size": 1607638,
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
-      }
+      },
+      "hasCustomPrompt": false
     },
     {
       "key": "eyes",
@@ -81,7 +83,8 @@
         "mimeType": "image/png",
         "size": 1607638,
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
-      }
+      },
+      "hasCustomPrompt": false
     },
     {
       "key": "ears",
@@ -102,7 +105,8 @@
         "mimeType": "image/png",
         "size": 1607638,
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
-      }
+      },
+      "hasCustomPrompt": false
     },
     {
       "key": "nose",
@@ -123,7 +127,8 @@
         "mimeType": "image/png",
         "size": 1607638,
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
-      }
+      },
+      "hasCustomPrompt": false
     },
     {
       "key": "mouth",
@@ -144,7 +149,8 @@
         "mimeType": "image/png",
         "size": 1607638,
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
-      }
+      },
+      "hasCustomPrompt": false
     },
     {
       "key": "hands",
@@ -165,7 +171,8 @@
         "mimeType": "image/png",
         "size": 1607638,
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
-      }
+      },
+      "hasCustomPrompt": false
     },
     {
       "key": "feet",
@@ -186,7 +193,8 @@
         "mimeType": "image/png",
         "size": 1607638,
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
-      }
+      },
+      "hasCustomPrompt": false
     },
     {
       "key": "tummy",
@@ -207,7 +215,8 @@
         "mimeType": "image/png",
         "size": 1607638,
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
-      }
+      },
+      "hasCustomPrompt": false
     },
     {
       "key": "knees",
@@ -228,7 +237,8 @@
         "mimeType": "image/png",
         "size": 1607638,
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
-      }
+      },
+      "hasCustomPrompt": false
     }
   ]
 }

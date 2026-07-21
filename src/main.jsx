@@ -1347,6 +1347,7 @@ function BodyBookPage() {
   const [draftPageReferences, setDraftPageReferences] = useState({});
   const [draftPageReferencePreviews, setDraftPageReferencePreviews] = useState({});
   const [pagePrompts, setPagePrompts] = useState({});
+  const [dirtyPromptKeys, setDirtyPromptKeys] = useState([]);
   const [error, setError] = useState("");
   const [activeItem, setActiveItem] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -1381,6 +1382,7 @@ function BodyBookPage() {
     setDraftKeys(nextProject.pages?.map((page) => page.key) || []);
     setDraftPageReferences({});
     setPagePrompts(Object.fromEntries((nextProject.pages || []).map((page) => [page.key, page.prompt || ""])));
+    setDirtyPromptKeys([]);
     setError("");
   }
 
@@ -1446,6 +1448,7 @@ function BodyBookPage() {
     setDraftReference(null);
     setDraftPageReferences({});
     setPagePrompts({});
+    setDirtyPromptKeys([]);
     setHistoryTheme(null);
     setHistoryProjects([]);
     setError("");
@@ -1490,6 +1493,7 @@ function BodyBookPage() {
     setDraftPageReferences({});
     setDraftKeys([]);
     setPagePrompts({});
+    setDirtyPromptKeys([]);
     setError("");
     loadSavedBooks().catch(() => {});
   }
@@ -1560,6 +1564,7 @@ function BodyBookPage() {
       setDraftKeys(normalized);
       setDraftPageReferences((current) => Object.fromEntries(Object.entries(current).filter(([key]) => normalized.includes(key))));
       setPagePrompts((current) => Object.fromEntries(Object.entries(current).filter(([key]) => normalized.includes(key))));
+      setDirtyPromptKeys((current) => current.filter((key) => normalized.includes(key)));
       return;
     }
     setBusy(true);
@@ -1594,7 +1599,7 @@ function BodyBookPage() {
     try {
       let next;
       if (project) {
-        next = await generateBodyBookProjectPages(project.sessionId, keys, selectBodyBookPagePrompts(pagePrompts, keys));
+        next = await generateBodyBookProjectPages(project.sessionId, keys, selectBodyBookPagePrompts(pagePrompts, keys, dirtyPromptKeys));
       } else {
         const prepared = await prepareReferenceForUpload({ id: "body-book-project-reference", file: draftReference });
         const data = new FormData();
@@ -1602,7 +1607,7 @@ function BodyBookPage() {
         data.append("themeId", activeTheme.id);
         data.append("contentKeys", JSON.stringify(draftKeys));
         data.append("generationKeys", JSON.stringify(keys));
-        data.append("pagePrompts", JSON.stringify(selectBodyBookPagePrompts(pagePrompts, draftKeys)));
+        data.append("pagePrompts", JSON.stringify(selectBodyBookPagePrompts(pagePrompts, draftKeys, dirtyPromptKeys)));
         Object.entries(draftPageReferences).forEach(([key, file]) => {
           if (draftKeys.includes(key) && file) data.append(`pageReference-${key}`, file);
         });
@@ -1673,7 +1678,7 @@ function BodyBookPage() {
         <section className="body-book-project-reference"><div><span className="body-book-step">REFERENCE</span><h3>全局参考图</h3><p>替换后会同步更新所有已选页面的参考图，不会自动重新生成。</p></div><label className={`body-book-upload body-book-project-upload ${topReferenceUrl ? "has-image" : ""}`}>{topReferenceUrl ? <img alt="认知书全局参考图" src={topReferenceUrl} /> : <><ImageUp size={28} /><strong>上传参考图</strong><span>JPG、PNG、WebP</span></>}<input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label></section>
         <section className="body-book-content-panel">
           <div className="body-book-project-pages-head"><div><span className="body-book-step">03</span><h3>内容选择</h3><p>每张卡片可单独替换参考图、修改提示词并生成。</p></div></div>
-          <div className="body-book-grid body-book-project-grid">{pages.map((page) => <BodyBookProjectItem busy={busy} busyPageKey={busyPageKey} key={`${page.key}-${page.jobId || "new"}`} onDelete={() => savePageSelection(selectedKeys.filter((key) => key !== page.key))} onGenerate={() => submitGeneration([page.key], page.key)} onOpen={setActiveItem} onPromptChange={(prompt) => setPagePrompts((current) => ({ ...current, [page.key]: prompt }))} onReplaceReference={(file) => updatePageReference(page, file)} page={page} prompt={pagePrompts[page.key] ?? page.prompt ?? ""} referenceUrl={page.usesProjectReference ? topReferenceUrl : bodyBookCacheUrl(page.referenceUrl || topReferenceUrl, project?.updatedAt)} />)}<button className="body-book-add-page-card" disabled={busy} onClick={openContentPicker} type="button" aria-label="添加或编辑内容"><Plus size={36} /><span>添加内容</span></button>{!pages.length ? <p className="body-book-library-empty">点击“添加内容”选择要制作的页面。</p> : null}</div>
+          <div className="body-book-grid body-book-project-grid">{pages.map((page) => <BodyBookProjectItem busy={busy} busyPageKey={busyPageKey} key={`${page.key}-${page.jobId || "new"}`} onDelete={() => savePageSelection(selectedKeys.filter((key) => key !== page.key))} onGenerate={() => submitGeneration([page.key], page.key)} onOpen={setActiveItem} onPromptChange={(prompt) => { setPagePrompts((current) => ({ ...current, [page.key]: prompt })); setDirtyPromptKeys((keys) => keys.includes(page.key) ? keys : [...keys, page.key]); }} onReplaceReference={(file) => updatePageReference(page, file)} page={page} prompt={pagePrompts[page.key] ?? page.prompt ?? ""} referenceUrl={page.usesProjectReference ? topReferenceUrl : bodyBookCacheUrl(page.referenceUrl || topReferenceUrl, project?.updatedAt)} />)}<button className="body-book-add-page-card" disabled={busy} onClick={openContentPicker} type="button" aria-label="添加或编辑内容"><Plus size={36} /><span>添加内容</span></button>{!pages.length ? <p className="body-book-library-empty">点击“添加内容”选择要制作的页面。</p> : null}</div>
           <div className="body-book-content-panel-actions"><div><strong>批量生成</strong><span>{pages.length ? `已选 ${pages.length} 页${pendingCount ? `，${pendingCount} 页正在生成` : ""}` : "请先添加至少一个页面"}</span></div><button className="draw-card-primary" disabled={busy || !pages.length || (!project && !draftReference)} onClick={() => setShowBatchDialog(true)} type="button">{busy && !busyPageKey ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}<span>批量生成</span></button></div>
         </section>
       </section>}
@@ -1728,8 +1733,9 @@ function formatBodyBookUpdatedAt(value) {
   return Number.isNaN(date.getTime()) ? "已保存" : `更新于 ${date.toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}`;
 }
 
-function selectBodyBookPagePrompts(prompts, keys) {
-  return Object.fromEntries((keys || []).map((key) => [key, String(prompts?.[key] || "")]).filter(([, prompt]) => prompt.trim()));
+function selectBodyBookPagePrompts(prompts, keys, dirtyKeys = []) {
+  const dirty = new Set(dirtyKeys || []);
+  return Object.fromEntries((keys || []).filter((key) => dirty.has(key)).map((key) => [key, String(prompts?.[key] || "")]).filter(([, prompt]) => prompt.trim()));
 }
 
 function FridgeMagnetOrdersPage() {

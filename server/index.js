@@ -164,10 +164,10 @@ const BODY_BOOK_PROMPT_PROFILES = {
     icons: "small career tools and symbols"
   },
   color: {
-    coverScene: "the baby surrounded by six clearly separated, floating everyday objects in different natural rainbow colors, each with generous white space",
-    cardScene: "the baby interacting with one clearly recognizable object in the requested color; the color must be dominant, natural, and easy to identify",
-    accents: "the requested color with warm cream and a complementary pastel accent",
-    icons: "simple color swatches and matching everyday objects"
+    coverScene: "the baby in a playful but refined rainbow color-block outfit, surrounded by six clearly separated, friendly everyday objects in different natural rainbow colors; each object is a crisp white-outline cutout on a pure white page",
+    cardScene: "the baby wearing the requested color as the clear outfit color and naturally interacting with several matching-color learning objects; the requested color must be unmistakable",
+    accents: "the requested color only, plus restrained warm-cream paper texture; keep the page background pure white",
+    icons: "matching-color everyday objects, fruits, animals, plants, toys, and simple color swatches"
   },
   emotion: {
     coverScene: "a warm, expressive baby portrait with a small, calm ring of simple emotion symbols around the baby",
@@ -7605,12 +7605,42 @@ function getBodyBookPart(partKey, themeId = "body") {
 
 function buildBodyBookCoverPrompt(theme = getBookTheme("body")) {
   const profile = getBodyBookPromptProfile(theme);
-  return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Create one square 1:1 cover for a bilingual 0-3 year-old ${theme.name}. The main title should read exactly: "${theme.englishName}". The Chinese subtitle should read exactly: "${theme.title}". Beneath it, add the small English line: "A Bilingual Book for Babies" and the small Chinese line: "中英双语 · 0-3岁宝宝启蒙". Use rounded, highly legible sans-serif typography; make the English title playful with a refined natural rainbow palette, while keeping Chinese text dark and clear. Add a small pink circular badge in the upper-right that reads "0-3岁适用". Compose the baby as the clear central subject in a realistic, detailed professional baby portrait with soft warm daylight and natural skin texture. Theme scene: ${profile.coverScene}. Use a clean white or warm-cream studio page, ${profile.accents} accents, ample breathing room, subtle paper texture, and a few neat cutout-style elements with fine white outlines. DK children's encyclopedia style: premium early-learning editorial layout, white-background cutout-object collage composition, realistic baby photography blended with restrained children's illustration, bright but gentle, clean and modern. Do not create a busy room, scenic background, deep depth, extra people, watermark, border, illegible decorative text, collage panels, or 3D animation look.`;
+  const pageBackground = theme?.id === "color" ? "a pure white (#FFFFFF) studio-paper page only" : "a clean white or warm-cream studio page";
+  return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Create one square 1:1 cover for a bilingual 0-3 year-old ${theme.name}. The main title should read exactly: "${theme.englishName}". The Chinese subtitle should read exactly: "${theme.title}". Beneath it, add the small English line: "A Bilingual Book for Babies" and the small Chinese line: "中英双语 · 0-3岁宝宝启蒙". Use rounded, highly legible sans-serif typography; make the English title playful with a refined natural rainbow palette, while keeping Chinese text dark and clear. Add a small pink circular badge in the upper-right that reads "0-3岁适用". Compose the baby as the clear central subject in a realistic, detailed professional baby portrait with soft warm daylight and natural skin texture. Theme scene: ${profile.coverScene}. Use ${pageBackground}, ${profile.accents} accents, ample breathing room, subtle paper texture, and a few neat cutout-style elements with fine white outlines. DK children's encyclopedia style: premium early-learning editorial layout, white-background cutout-object collage composition, realistic baby photography blended with restrained children's illustration, bright but gentle, clean and modern. Do not create a busy room, scenic background, deep depth, extra people, watermark, border, illegible decorative text, collage panels, or 3D animation look.`;
 }
 
 function buildBodyBookPartPrompt(part, order, theme = getBookTheme("body")) {
+  if (theme?.id === "color") return buildColorBookPartPrompt(part, order, theme);
   const profile = getBodyBookPromptProfile(theme);
   return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Create one square 1:1 bilingual ${theme.name} learning card for ages 0-3. This is page ${order}; the sole learning concept is "${part.english} / ${part.chinese}". The image must attempt to render this heading exactly: "${part.chinese} ${part.english}". Include this short bilingual sentence exactly: "${part.copy}". Add page number "${order}" in the lower-right. Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: ${profile.cardScene}. Keep the same baby recognizable in a natural, age-appropriate pose. Use a white or warm-cream page, ${profile.accents} accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching ${profile.icons}. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.`;
+}
+
+function buildColorBookPartPrompt(part, order, theme = getBookTheme("color")) {
+  const details = getColorBookVisualDetails(part?.key);
+  return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, natural hair, and Asian baby appearance. Create one premium square 1:1 bilingual color-learning picture-book card for ages 0-3. This is page ${order}; the single learning concept is "${part.english} / ${part.chinese}".
+
+The baby is the central half-body subject. Dress the baby in a clearly ${details.colorName} ${details.outfit} with a coordinated ${details.headwear}; the outfit color must be the strongest color on the baby and immediately communicate ${part.english}. Keep the baby in a natural, age-appropriate pose, gently touching, holding, or looking at one of the learning objects.
+
+Use a PURE WHITE (#FFFFFF) studio-paper background only: no colored full-page background, no room, no landscape, no scenic setting. Arrange exactly 5 or 6 clearly separated, easy-to-recognize ${details.colorName} objects around the baby as small sticker-like cutouts with clean white outlines and generous breathing room. Use this object family: ${details.objects}. Objects should vary across fruit, animal, plant, toy, and simple everyday-object categories where natural; do not introduce competing color concepts. Add a few tiny ${details.colorName} swatches, dots, or hand-drawn line flourishes, but keep the layout uncluttered.
+
+The image must attempt to render the large, rounded, highly legible heading exactly: "${part.chinese} ${part.english}". Include this short bilingual sentence exactly: "${part.copy}". Place the learning word large and prominent, with ${details.colorName} lettering for the color word and dark charcoal supporting text. Add page number "${order}" in the lower-right. A small playful speech bubble may say "Let’s learn ${part.english}!" only if it remains legible and does not replace the required heading.
+
+Style: bright but gentle children's encyclopedia and picture-book editorial design; realistic detailed baby photography blended with restrained friendly illustration, subtle warm paper texture, clean cutout collage, soft warm light, natural skin texture, high color clarity, low contrast shadows. No extra people, no busy composition, no deep background, no watermark, no border, no collage panels, no unrelated colors as visual focal points, no unreadable decorative text, and no 3D animation look.`;
+}
+
+function getColorBookVisualDetails(colorKey) {
+  const details = {
+    red: { colorName: "red", outfit: "soft cotton romper or hoodie", headwear: "matching red fruit- or ladybug-inspired knit hat", objects: "a red apple, strawberry, cherry, ladybug, red balloon, and red toy car" },
+    orange: { colorName: "orange", outfit: "soft orange romper or hoodie", headwear: "matching orange fox- or citrus-inspired knit hat", objects: "an orange, tangerine, carrot, pumpkin, orange fox toy, and orange ball" },
+    yellow: { colorName: "yellow", outfit: "soft yellow romper or hoodie", headwear: "matching yellow bee- or chick-inspired knit hat", objects: "a yellow duck, sun, banana, lemon, star, and little chick" },
+    green: { colorName: "green", outfit: "soft green romper or hoodie", headwear: "matching green frog- or leaf-inspired knit hat", objects: "a green apple, pear, broccoli, leaf, friendly frog toy, and small cactus" },
+    blue: { colorName: "blue", outfit: "soft blue romper or hoodie", headwear: "matching blue whale- or cloud-inspired knit hat", objects: "a blue whale toy, blue fish, blue balloon, blue car, blue rain cloud, and blue building block" },
+    purple: { colorName: "purple", outfit: "soft purple romper or hoodie", headwear: "matching purple grape- or butterfly-inspired knit hat", objects: "a bunch of grapes, plum, eggplant, purple butterfly, purple flower, and purple toy block" },
+    pink: { colorName: "pink", outfit: "soft pink romper or hoodie", headwear: "matching pink bunny- or flower-inspired knit hat", objects: "a pink flower, strawberry, flamingo toy, pink balloon, pink bunny toy, and pink heart" },
+    black: { colorName: "black", outfit: "soft black romper or hoodie with subtle white piping", headwear: "matching black bear- or cat-inspired knit hat", objects: "a black cat toy, panda detail, black toy car, black hat, black star, and black building block" },
+    white: { colorName: "white", outfit: "soft white textured romper with light warm-gray piping", headwear: "matching white bunny- or cloud-inspired knit hat", objects: "a white rabbit toy, sheep, cloud, moon, daisy, and white building block, each edged so it remains visible on white" }
+  };
+  return details[String(colorKey || "").toLowerCase()] || { colorName: "requested", outfit: "soft cotton romper", headwear: "matching playful knit hat", objects: "five or six clear, everyday learning objects in the requested color" };
 }
 
 function getBodyBookPromptProfile(theme) {
@@ -8182,6 +8212,7 @@ function createBodyBookPage(definition, theme, reference, current = {}) {
     jobId: String(current?.jobId || ""),
     status: String(current?.status || (current?.jobId ? "queued" : "not_started")),
     prompt: normalizeBodyBookPrompt(current?.prompt, prompt),
+    hasCustomPrompt: Boolean(current?.hasCustomPrompt),
     reference: current?.reference && typeof current.reference === "object" ? current.reference : reference || null,
     result: current?.result ? normalizeJobResult(current.result) : null,
     errorMessage: String(current?.errorMessage || ""),
@@ -8220,7 +8251,7 @@ async function createBodyBookProject({ file, pageReferenceFiles = new Map(), pag
       getBodyBookPageDefinition(theme, key),
       theme,
       pageReferences.get(key) || reference,
-      { prompt: pagePrompts[key] }
+      { prompt: pagePrompts[key], hasCustomPrompt: Boolean(String(pagePrompts[key] || "").trim()) }
     ))
   });
   return generateBodyBookPages(session, generationKeys);
@@ -8280,7 +8311,12 @@ async function generateBodyBookPages(session, pageKeys, pagePrompts = {}) {
       ? buildBodyBookCoverPrompt(theme)
       : buildBodyBookPartPrompt(page, page.order, theme);
     const requestedPrompt = pagePrompts && typeof pagePrompts === "object" ? pagePrompts[page.key] : "";
-    const prompt = normalizeBodyBookPrompt(requestedPrompt, page.prompt || fallbackPrompt);
+    const hasRequestedPrompt = Boolean(String(requestedPrompt || "").trim());
+    const prompt = hasRequestedPrompt
+      ? normalizeBodyBookPrompt(requestedPrompt, fallbackPrompt)
+      : page.hasCustomPrompt
+        ? normalizeBodyBookPrompt(page.prompt, fallbackPrompt)
+        : fallbackPrompt;
     const slot = {
       key: page.key,
       title: page.title,
@@ -8291,7 +8327,7 @@ async function generateBodyBookPages(session, pageKeys, pagePrompts = {}) {
       bookSubtitle: page.key === "cover" ? theme.title : theme.name
     };
     const entry = await createBodyBookImageJob(current, slot, provider, providers, page.reference || current.reference);
-    return { key: page.key, version, prompt, jobId: entry.job.jobId, run: entry.run };
+    return { key: page.key, version, prompt, hasCustomPrompt: hasRequestedPrompt || page.hasCustomPrompt, jobId: entry.job.jobId, run: entry.run };
   }));
   const byKey = new Map(queued.map((entry) => [entry.key, entry]));
   const next = await saveBodyBookSession({
@@ -8306,6 +8342,7 @@ async function generateBodyBookPages(session, pageKeys, pagePrompts = {}) {
         result: null,
         errorMessage: "",
         prompt: entry.prompt,
+        hasCustomPrompt: entry.hasCustomPrompt,
         historyJobIds: [...(page.historyJobIds || []), page.jobId].filter(Boolean)
       };
     }),
