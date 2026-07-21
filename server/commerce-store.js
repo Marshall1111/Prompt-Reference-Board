@@ -205,6 +205,27 @@ export function createCommerceStore({ dbPath }) {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS commerce_referral_links (
+      token TEXT PRIMARY KEY,
+      referrer_account_id TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (referrer_account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS commerce_referrals (
+      invitee_account_id TEXT PRIMARY KEY,
+      referrer_account_id TEXT NOT NULL,
+      referral_token TEXT NOT NULL,
+      captured_at TEXT NOT NULL,
+      registered_at TEXT,
+      rewarded_payment_intent_id TEXT UNIQUE,
+      rewarded_at TEXT,
+      FOREIGN KEY (invitee_account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE,
+      FOREIGN KEY (referrer_account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE,
+      FOREIGN KEY (referral_token) REFERENCES commerce_referral_links(token) ON DELETE RESTRICT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_commerce_account_visitors_visitor ON commerce_account_visitors(visitor_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_payment_intents_account ON commerce_payment_intents(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_payment_intents_transaction ON commerce_payment_intents(transaction_id);
@@ -213,6 +234,8 @@ export function createCommerceStore({ dbPath }) {
     CREATE INDEX IF NOT EXISTS idx_commerce_original_image_redemptions_order ON commerce_original_image_redemptions(source_order_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_user_sessions_account ON commerce_user_sessions(account_id, expires_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_email_verifications_lookup ON commerce_email_verifications(email, purpose, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_commerce_referrals_referrer ON commerce_referrals(referrer_account_id, captured_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_commerce_referrals_reward ON commerce_referrals(rewarded_payment_intent_id);
   `);
 
   const accountColumns = db.prepare("PRAGMA table_info(commerce_accounts)").all();
@@ -260,6 +283,9 @@ export function createCommerceStore({ dbPath }) {
   const readAccountByUsernameStatement = db.prepare("SELECT * FROM commerce_accounts WHERE username = ?");
   const readIntentByIdStatement = db.prepare("SELECT * FROM commerce_payment_intents WHERE id = ?");
   const readIntentByTradeNoStatement = db.prepare("SELECT * FROM commerce_payment_intents WHERE out_trade_no = ?");
+  const readReferralLinkByAccountStatement = db.prepare("SELECT * FROM commerce_referral_links WHERE referrer_account_id = ?");
+  const readReferralLinkByTokenStatement = db.prepare("SELECT * FROM commerce_referral_links WHERE token = ?");
+  const readReferralByInviteeStatement = db.prepare("SELECT * FROM commerce_referrals WHERE invitee_account_id = ?");
   const readOriginalImageRedemptionStatement = db.prepare(`
     SELECT * FROM commerce_original_image_redemptions
     WHERE account_id = ? AND job_id = ?
@@ -288,6 +314,60 @@ export function createCommerceStore({ dbPath }) {
 
   function hasPaidPhysicalOrder(accountId) {
     return Boolean(readPaidPhysicalOrderStatement.get(String(accountId || "")));
+  }
+
+  function getOrCreateReferralLink(accountId) {
+    return withTransaction(db, () => {
+      const account = readAccount(accountId);
+      if (!account?.isRegistered) {
+        const error = new Error("请先完成登录注册后再邀请新用户。");
+        error.code = "REFERRAL_REQUIRES_REGISTERED_ACCOUNT";
+        throw error;
+      }
+      const existing = readReferralLinkByAccountStatement.get(account.id);
+      if (existing) return { token: String(existing.token), referrerAccountId: account.id };
+      const token = randomUUID().replace(/-/g, "");
+      const now = nowIso();
+      db.prepare(`
+        INSERT INTO commerce_referral_links (token, referrer_account_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?)
+      `).run(token, account.id, now, now);
+      return { token, referrerAccountId: account.id };
+    });
+  }
+
+  function captureReferral({ token, inviteeAccountId }) {
+    const safeToken = String(token || "").trim();
+    return withTransaction(db, () => {
+      const invitee = readAccount(inviteeAccountId);
+      if (!safeToken || !invitee || invitee.isRegistered) return { captured: false, reason: "ineligible" };
+      const existing = readReferralByInviteeStatement.get(invitee.id);
+      if (existing) return { captured: false, reason: "already_bound" };
+      const link = readReferralLinkByTokenStatement.get(safeToken);
+      if (!link || String(link.referrer_account_id || "") === invitee.id) return { captured: false, reason: "invalid" };
+      const referrer = readAccount(String(link.referrer_account_id || ""));
+      if (!referrer?.isRegistered) return { captured: false, reason: "invalid" };
+      const now = nowIso();
+      db.prepare(`
+        INSERT INTO commerce_referrals (
+          invitee_account_id, referrer_account_id, referral_token, captured_at, registered_at, rewarded_payment_intent_id, rewarded_at
+        ) VALUES (?, ?, ?, ?, NULL, NULL, NULL)
+      `).run(invitee.id, referrer.id, safeToken, now);
+      return { captured: true, reason: "captured" };
+    });
+  }
+
+  function markReferralRegistered(accountId) {
+    return withTransaction(db, () => {
+      const account = readAccount(accountId);
+      if (!account?.isRegistered) return null;
+      const referral = readReferralByInviteeStatement.get(account.id);
+      if (!referral) return null;
+      const registeredAt = String(referral.registered_at || nowIso());
+      db.prepare("UPDATE commerce_referrals SET registered_at = ? WHERE invitee_account_id = ?")
+        .run(registeredAt, account.id);
+      return { referrerAccountId: String(referral.referrer_account_id || ""), registeredAt };
+    });
   }
 
   function isOriginalImageRedeemed(accountId, jobId) {
@@ -677,6 +757,26 @@ export function createCommerceStore({ dbPath }) {
         }
         redeemPhysicalOrderOriginals(intent.accountId, intent.targetOrderId, now);
       }
+      if (intent.kind === "body_book_order") {
+        const referral = readReferralByInviteeStatement.get(intent.accountId);
+        if (referral?.registered_at && !referral.rewarded_payment_intent_id) {
+          const updated = db.prepare(`
+            UPDATE commerce_referrals
+            SET rewarded_payment_intent_id = ?, rewarded_at = ?
+            WHERE invitee_account_id = ?
+              AND registered_at IS NOT NULL
+              AND (rewarded_payment_intent_id IS NULL OR rewarded_payment_intent_id = '')
+          `).run(intent.id, now, intent.accountId);
+          if (Number(updated.changes || 0) > 0) {
+            appendBeanLedger(String(referral.referrer_account_id || ""), 10, {
+              reason: "referral_first_body_book_order",
+              referenceType: "referral_payment_reward",
+              referenceId: intent.id,
+              note: "邀请新用户完成首笔认知书实体书支付"
+            });
+          }
+        }
+      }
       recordPaymentEvent({ paymentIntentId: intent.id, eventType: "payment_notify", eventId, success: true, payload, headers });
       return { intent: readPaymentIntent(intent.id), settledNow: true, account: readAccount(intent.accountId) };
     });
@@ -935,6 +1035,7 @@ export function createCommerceStore({ dbPath }) {
   return {
     createOrGetBrowserAccount,
     createOrGetWebAccount,
+    captureReferral,
     createEmailVerification,
     createUserSession,
     createPaymentIntent,
@@ -946,6 +1047,7 @@ export function createCommerceStore({ dbPath }) {
     deleteUserSession,
     grantCredits,
     grantBeans,
+    getOrCreateReferralLink,
     hasPaidPhysicalOrder,
     isOriginalImageRedeemed,
     linkVisitor,
@@ -958,6 +1060,7 @@ export function createCommerceStore({ dbPath }) {
     listRegisteredUsers,
     listVisitorIds,
     markPaymentPrepared,
+    markReferralRegistered,
     readAccount,
     readAccountByEmail,
     readAccountByOpenId,

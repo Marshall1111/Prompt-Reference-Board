@@ -5,11 +5,11 @@
   "themeId": "body",
   "ownerAccountId": "7076b5d2-3e17-4939-808f-1acfe7e0e252",
   "ownerVisitorId": "5f323334-6528-4dfb-94e2-2dd326fd1673",
-  "stage": "partial",
-  "status": "partial",
-  "message": "部分图片生成失败，可单张或批量重试。",
+  "stage": "ready",
+  "status": "succeeded",
+  "message": "图片已保存，可继续编辑或生成更多页面。",
   "createdAt": "2026-07-19T08:06:30.656Z",
-  "updatedAt": "2026-07-21T07:49:54.139Z",
+  "updatedAt": "2026-07-21T10:45:09.521Z",
   "completedAt": "2026-07-19T08:14:13.520Z",
   "savedAt": "2026-07-21T02:21:46.895Z",
   "reference": {
@@ -396,28 +396,6 @@
       "hasCustomPrompt": false
     },
     {
-      "key": "feet",
-      "chinese": "脚",
-      "english": "Feet",
-      "copy": "My feet help me walk. 我用小脚走路。",
-      "title": "脚 Feet",
-      "order": 11,
-      "version": 1,
-      "jobId": "853c4dbf-d9b0-4896-a85e-88e51fab503e",
-      "status": "failed",
-      "result": null,
-      "errorMessage": "生成失败，请重试。",
-      "historyJobIds": [],
-      "prompt": "Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Create one square 1:1 bilingual 身体认知书 learning card for ages 0-3. This is page 7; the sole learning concept is \"Feet / 脚\". The image must attempt to render this heading exactly: \"脚 Feet\". Include this short bilingual sentence exactly: \"My feet help me walk. 我用小脚走路。\". Add page number \"7\" in the lower-right. Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: a close, natural baby pose in which the requested body part is unmistakably visible; use one restrained dotted arrow to that body part. Keep the same baby recognizable in a natural, age-appropriate pose. Use a white or warm-cream page, warm cream, sage green, and soft apricot accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching simple body-part learning symbols. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.",
-      "reference": {
-        "filename": "reference-1784600564345.png",
-        "mimeType": "image/png",
-        "size": 2835676,
-        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
-      },
-      "hasCustomPrompt": false
-    },
-    {
       "key": "tummy",
       "chinese": "肚子",
       "english": "Tummy",
@@ -461,28 +439,6 @@
       "errorMessage": "",
       "historyJobIds": [],
       "prompt": "Use the uploaded baby photo as the only identity reference. Create one square 1:1 bilingual body-parts learning card for ages 0-3. This card is number 8 and its only learning theme is Tummy / 肚子. Make the specified body part clearly visible and the visual focus, while keeping the baby's identity, age impression and natural pose recognizable. Use a realistic commercial baby portrait, warm creamy-white palette with muted moss-green accents, soft natural lighting, shallow depth of field, and a minimal clean background. Include the exact readable heading: Tummy 肚子. Include this short bilingual copy: This is my tummy. 这是我的小肚子。. Add a colorful number 8, one simple organ icon, and one elegant dotted arrow pointing exactly to the tummy. Children's encyclopedia editorial layout, gentle premium picture-book design. No extra people, no watermark, no border, no unrelated body-part theme.",
-      "reference": {
-        "filename": "reference-1784600564345.png",
-        "mimeType": "image/png",
-        "size": 2835676,
-        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
-      },
-      "hasCustomPrompt": false
-    },
-    {
-      "key": "knees",
-      "chinese": "膝盖",
-      "english": "Knees",
-      "copy": "My knees can bend. 我的小膝盖会弯曲。",
-      "title": "膝盖 Knees",
-      "order": 14,
-      "version": 1,
-      "jobId": "472217fe-6056-48ec-a1a5-a42ea0f9ed44",
-      "status": "failed",
-      "result": null,
-      "errorMessage": "生成失败，请重试。",
-      "historyJobIds": [],
-      "prompt": "Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Create one square 1:1 bilingual 身体认知书 learning card for ages 0-3. This is page 9; the sole learning concept is \"Knees / 膝盖\". The image must attempt to render this heading exactly: \"膝盖 Knees\". Include this short bilingual sentence exactly: \"My knees can bend. 我的小膝盖会弯曲。\". Add page number \"9\" in the lower-right. Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: a close, natural baby pose in which the requested body part is unmistakably visible; use one restrained dotted arrow to that body part. Keep the same baby recognizable in a natural, age-appropriate pose. Use a white or warm-cream page, warm cream, sage green, and soft apricot accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching simple body-part learning symbols. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.",
       "reference": {
         "filename": "reference-1784600564345.png",
         "mimeType": "image/png",

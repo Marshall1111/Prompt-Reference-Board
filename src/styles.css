@@ -5108,6 +5108,54 @@ textarea {
   gap: 3px;
 }
 
+.body-book-content-panel-order-actions {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+}
+
+.body-book-referral-modal,
+.body-book-checkout-modal {
+  max-width: 520px;
+}
+
+.body-book-referral-modal {
+  border-color: rgba(30, 51, 50, 0.16);
+  background: #ffffff;
+  color: #25413c;
+  box-shadow: 0 28px 90px rgba(18, 35, 34, 0.24);
+}
+
+.body-book-referral-modal .draw-card-kicker {
+  color: #8a6a3f;
+}
+
+.body-book-referral-modal h2 {
+  color: #173c31;
+}
+
+.body-book-referral-modal .icon-button {
+  color: #25413c;
+}
+
+.body-book-referral-modal .success-note {
+  color: #2f7656;
+}
+
+.body-book-referral-modal > p:not(.draw-card-kicker) {
+  color: #566861;
+  line-height: 1.7;
+}
+
+.body-book-referral-modal .draw-card-primary {
+  width: 100%;
+  justify-content: center;
+}
+
+.body-book-checkout-modal .draw-card-order-summary {
+  margin: 16px 0;
+}
+
 .body-book-content-panel-actions span {
   color: #66766e;
   font-size: 13px;
@@ -5439,6 +5487,8 @@ textarea {
   .body-book-project-card-controls .draw-card-secondary { min-height: 34px; padding: 0 7px; font-size: 11px; }
   .body-book-batch-row .draw-card-primary { width: 100%; justify-content: center; }
   .body-book-content-panel-actions { align-items: flex-start; flex-direction: column; }
+  .body-book-content-panel-order-actions { width: 100%; flex-direction: column; align-items: stretch; }
+  .body-book-content-panel-order-actions .draw-card-secondary { width: 100%; justify-content: center; }
   .body-book-content-panel-actions .draw-card-primary { width: 100%; justify-content: center; }
   .body-book-content-options { grid-template-columns: minmax(0, 1fr); }
 }

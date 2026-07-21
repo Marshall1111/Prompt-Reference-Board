@@ -82,6 +82,9 @@ const MAX_STORAGE_CLEANUP_DAYS = 3650;
 const DEFAULT_FRIDGE_ORDERING_ENABLED = false;
 const DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS = 2000;
 const DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS = 800;
+const DEFAULT_BODY_BOOK_ORDERING_ENABLED = false;
+const DEFAULT_BODY_BOOK_PRICE_CENTS = 0;
+const DEFAULT_BODY_BOOK_SHIPPING_FEE_CENTS = 0;
 const DEFAULT_FREE_SHIPPING_ITEM_COUNT = 2;
 const DEFAULT_ORDER_PAYMENT_MODE = "manual";
 const DEFAULT_MANUAL_PAYMENT_EXPIRE_DAYS = 7;
@@ -846,6 +849,30 @@ app.get("/api/auth/me", requireWebAccount, (req, res) => {
   res.json({ authenticated: Boolean(req.userSession), account: toPublicCommerceAccount(req.webAccount) });
 });
 
+app.post("/api/referrals/link", requireWebAccount, (req, res, next) => {
+  try {
+    assertRegisteredAccount(req);
+    const referral = commerceStore.getOrCreateReferralLink(req.webAccount.id);
+    const inviteUrl = new URL("/book", getRequestOrigin(req));
+    inviteUrl.searchParams.set("invite", referral.token);
+    res.json({ inviteUrl: inviteUrl.toString() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/referrals/capture", requireWebAccount, (req, res, next) => {
+  try {
+    const result = commerceStore.captureReferral({
+      token: String(req.body?.token || ""),
+      inviteeAccountId: req.webAccount.id
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/auth/email-code", async (req, res, next) => {
   try {
     const email = normalizeEmail(req.body?.email);
@@ -884,6 +911,7 @@ app.post("/api/auth/register", requireWebAccount, async (req, res, next) => {
       matchesCodeHash: (stored) => safeCompareString(stored, hashEmailVerificationCode({ email, purpose: "register", code }))
     });
     const account = commerceStore.upgradeGuestAccount({ accountId: req.webAccount.id, email, username, passwordHash: hashPassword(password) });
+    commerceStore.markReferralRegistered(account.id);
     await migrateGuestAssetsToRegisteredAccount({ accountId: account.id, visitorId: req.visitorId });
     const session = commerceStore.createUserSession(account.id, { ttlMs: USER_SESSION_TTL_MS });
     req.webAccount = account;
@@ -1169,9 +1197,16 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
 
     const settings = await readAppSettings();
     const pricing = getOrderPricingSnapshot(settings);
+
+    const requestedExperienceType = String(req.body?.experienceType || "fridge-magnet").trim().toLowerCase();
+    if (requestedExperienceType === "body-book") {
+      const created = await createBodyBookPhysicalOrder({ req, pricing });
+      return res.status(201).json(created);
+    }
+
     if (!pricing.enabled) throw createHttpError(403, "冰箱贴下单暂未开放。");
 
-    const experienceType = normalizePublicExperienceType(req.body?.experienceType || "fridge-magnet");
+    const experienceType = normalizePublicExperienceType(requestedExperienceType);
     if (!new Set(["draw-card", "fridge-magnet"]).has(experienceType)) {
       throw createHttpError(400, "当前仅支持卡夹图片定制。");
     }
@@ -1420,7 +1455,7 @@ app.post("/api/payments/wechat/notify", express.text({ type: "*/*" }), async (re
       payload: notifyData,
       headers
     });
-    if (intent.kind === "physical_order") {
+    if (["physical_order", "body_book_order"].includes(intent.kind)) {
       const order = orderStore.readOrderWithRelations(intent.targetOrderId);
       if (!order || order.accountId !== intent.accountId || order.totalCents !== intent.amountCents) {
         throw createHttpError(400, "实物订单与支付单不匹配。");
@@ -2936,6 +2971,15 @@ app.patch("/api/admin/settings", requireAdmin, async (req, res) => {
       singleItemShippingFeeCents: req.body?.singleItemShippingFeeCents !== undefined
         ? normalizeMoneyCents(req.body?.singleItemShippingFeeCents, DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS)
         : current.singleItemShippingFeeCents,
+      bodyBookOrderingEnabled: req.body?.bodyBookOrderingEnabled !== undefined
+        ? req.body?.bodyBookOrderingEnabled === true
+        : current.bodyBookOrderingEnabled,
+      bodyBookPriceCents: req.body?.bodyBookPriceCents !== undefined
+        ? normalizeMoneyCents(req.body?.bodyBookPriceCents, DEFAULT_BODY_BOOK_PRICE_CENTS)
+        : current.bodyBookPriceCents,
+      bodyBookShippingFeeCents: req.body?.bodyBookShippingFeeCents !== undefined
+        ? normalizeMoneyCents(req.body?.bodyBookShippingFeeCents, DEFAULT_BODY_BOOK_SHIPPING_FEE_CENTS)
+        : current.bodyBookShippingFeeCents,
       paymentMode: req.body?.paymentMode !== undefined
         ? normalizeOrderPaymentMode(req.body?.paymentMode)
         : current.paymentMode,
@@ -3957,6 +4001,9 @@ function normalizeAppSettings(settings) {
     fridgeMagnetOrderingEnabled: settings?.fridgeMagnetOrderingEnabled === true,
     fridgeMagnetUnitPriceCents: normalizeMoneyCents(settings?.fridgeMagnetUnitPriceCents, DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS),
     singleItemShippingFeeCents: normalizeMoneyCents(settings?.singleItemShippingFeeCents, DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS),
+    bodyBookOrderingEnabled: settings?.bodyBookOrderingEnabled === true,
+    bodyBookPriceCents: normalizeMoneyCents(settings?.bodyBookPriceCents, DEFAULT_BODY_BOOK_PRICE_CENTS),
+    bodyBookShippingFeeCents: normalizeMoneyCents(settings?.bodyBookShippingFeeCents, DEFAULT_BODY_BOOK_SHIPPING_FEE_CENTS),
     paymentMode: normalizeOrderPaymentMode(settings?.paymentMode),
     manualPaymentExpireDays: normalizeManualPaymentExpireDays(settings?.manualPaymentExpireDays),
     contactWechatId: normalizeContactWechatId(settings?.contactWechatId)
@@ -4760,6 +4807,115 @@ async function buildStoredOrderItems({ orderId, requestedItems, likedJobById }) 
   return storedItems;
 }
 
+async function createBodyBookPhysicalOrder({ req, pricing }) {
+  const bodyBookPricing = pricing?.bodyBook || {};
+  if (!bodyBookPricing.enabled) throw createHttpError(403, "认知书实体书下单暂未开放。");
+  const projectId = String(req.body?.bodyBookProjectId || req.body?.projectId || "").trim();
+  const project = await readBodyBookSession(projectId);
+  if (!project) throw createHttpError(404, "这本认知书工程不存在或已删除。");
+  assertWebAccountOwnsBodyBookSession(req, project);
+  const current = await synchronizeBodyBookSession(project);
+  const cover = current.pages.find((page) => page.key === "cover") || null;
+  const pages = Array.isArray(current.pages) ? current.pages : [];
+  if (!cover || !pages.length || pages.some((page) => page.status !== "succeeded" || !page.jobId || !page.result?.imageUrl)) {
+    throw createHttpError(409, "请先完成封面和全部已选内页的生成后再下单。");
+  }
+
+  const address = normalizeOrderAddress(req.body || {});
+  assertValidOrderAddress(address);
+  const requestedItems = pages.map((page) => ({ jobId: page.jobId, quantity: 1 }));
+  const sourceJobs = await Promise.all(requestedItems.map((item) => readImageJob(item.jobId)));
+  if (sourceJobs.some((job) => !job || job.status !== "succeeded" || !job.result?.imageUrl)) {
+    throw createHttpError(409, "认知书图片尚未准备完成，请稍后重试。");
+  }
+  const pageByJobId = new Map(pages.map((page) => [page.jobId, page]));
+  const jobsById = new Map(sourceJobs.map((job) => {
+    const page = pageByJobId.get(String(job?.jobId || ""));
+    return [String(job?.jobId || ""), {
+      ...job,
+      styleId: "body-book",
+      styleName: String(page?.title || job?.styleName || "认知书页面")
+    }];
+  }));
+  const amount = calculateBodyBookOrderAmounts(bodyBookPricing);
+  const merchantSource = await resolveOrderMerchantSource(req);
+  const now = new Date();
+  const createdAt = now.toISOString();
+  const orderId = randomUUID();
+  const expiresAt = new Date(now.getTime() + getOrderExpireMs(pricing)).toISOString();
+  const storedOrderItems = await buildStoredOrderItems({
+    orderId,
+    requestedItems,
+    likedJobById: jobsById
+  });
+  const created = orderStore.createOrder({
+    order: {
+      id: orderId,
+      orderNo: generateOrderNo(),
+      visitorId: req.visitorId,
+      accountId: req.webAccount.id,
+      publicToken: randomUUID(),
+      experienceType: "body-book",
+      paymentStatus: "unpaid",
+      fulfillmentStatus: "new",
+      itemCount: amount.itemCount,
+      unitPriceCents: amount.unitPriceCents,
+      shippingFeeCents: amount.shippingFeeCents,
+      subtotalCents: amount.subtotalCents,
+      totalCents: amount.totalCents,
+      remark: address.remark,
+      receiverName: address.receiverName,
+      receiverPhone: address.receiverPhone,
+      province: address.province,
+      city: address.city,
+      district: address.district,
+      addressDetail: address.addressDetail,
+      sourceMerchantId: merchantSource.sourceMerchantId,
+      sourceMerchantName: merchantSource.sourceMerchantName,
+      commissionRateBps: merchantSource.commissionRateBps,
+      sourceClaimedAt: merchantSource.sourceClaimedAt,
+      wechatOpenId: "",
+      wechatTransactionId: "",
+      outTradeNo: `BB${randomUUID().replace(/-/g, "")}`,
+      lastPaymentChannel: "manual_collection",
+      lastPaymentError: "",
+      expiresAt,
+      createdAt,
+      updatedAt: createdAt
+    },
+    items: storedOrderItems,
+    initialPaymentEvent: {
+      eventType: "order_created",
+      eventId: `${orderId}:order_created`,
+      success: true,
+      payload: { projectId: current.sessionId, pageCount: pages.length, totalCents: amount.totalCents, paymentMode: pricing.paymentMode }
+    }
+  });
+  const paymentIntent = commerceStore.createPaymentIntent({
+    accountId: req.webAccount.id,
+    outTradeNo: created.outTradeNo,
+    kind: "body_book_order",
+    amountCents: created.totalCents,
+    targetOrderId: created.id,
+    expiresAt: created.expiresAt,
+    metadata: { orderNo: created.orderNo, projectId: current.sessionId, pageCount: pages.length }
+  });
+  commerceStore.markPaymentPrepared(paymentIntent.id, {
+    channel: "manual_collection",
+    eventId: `${created.id}:manual_collection`,
+    payload: { mode: "manual", orderNo: created.orderNo }
+  });
+  return {
+    order: toPublicOrder(created, { includeToken: true }),
+    payment: {
+      status: "manual_payment_required",
+      mode: "manual",
+      channel: "manual_collection",
+      expiresAt: created.expiresAt
+    }
+  };
+}
+
 async function archiveOrderItemAssets({ orderId, orderAssetDir, orderOriginalDir, job, itemIndex }) {
   const previewFallback = String(job?.result?.previewUrl || job?.result?.thumbnailUrl || "");
   const thumbnailFallback = String(job?.result?.thumbnailUrl || job?.result?.previewUrl || "");
@@ -5556,7 +5712,24 @@ function getOrderPricingSnapshot(settings) {
     freeShippingItemCount: DEFAULT_FREE_SHIPPING_ITEM_COUNT,
     paymentMode: safeSettings.paymentMode,
     manualPaymentExpireDays: safeSettings.manualPaymentExpireDays,
-    contactWechatId: safeSettings.contactWechatId
+    contactWechatId: safeSettings.contactWechatId,
+    bodyBook: {
+      enabled: safeSettings.bodyBookOrderingEnabled === true && safeSettings.bodyBookPriceCents > 0,
+      priceCents: safeSettings.bodyBookPriceCents,
+      shippingFeeCents: safeSettings.bodyBookShippingFeeCents
+    }
+  };
+}
+
+function calculateBodyBookOrderAmounts(pricing) {
+  const priceCents = normalizeMoneyCents(pricing?.priceCents, DEFAULT_BODY_BOOK_PRICE_CENTS);
+  const shippingFeeCents = normalizeMoneyCents(pricing?.shippingFeeCents, DEFAULT_BODY_BOOK_SHIPPING_FEE_CENTS);
+  return {
+    itemCount: 1,
+    unitPriceCents: priceCents,
+    shippingFeeCents,
+    subtotalCents: priceCents,
+    totalCents: priceCents + shippingFeeCents
   };
 }
 
@@ -5654,7 +5827,8 @@ function generateOrderNo() {
 
 function buildOrderReturnUrl(req, order) {
   const origin = getRequestOrigin(req);
-  return `${origin}/fridge/orders/${encodeURIComponent(order.id)}?token=${encodeURIComponent(order.publicToken)}`;
+  const prefix = order?.experienceType === "body-book" ? "/book/orders" : "/fridge/orders";
+  return `${origin}${prefix}/${encodeURIComponent(order.id)}?token=${encodeURIComponent(order.publicToken)}`;
 }
 
 function getRequestOrigin(req) {
@@ -6315,7 +6489,7 @@ function confirmManualOrderPayment(order) {
   }
 
   const intent = commerceStore.readPaymentIntentByOutTradeNo(order.outTradeNo);
-  if (!intent || intent.kind !== "physical_order" || intent.targetOrderId !== order.id || intent.accountId !== order.accountId) {
+  if (!intent || !["physical_order", "body_book_order"].includes(intent.kind) || intent.targetOrderId !== order.id || intent.accountId !== order.accountId) {
     throw createHttpError(409, "订单支付记录不存在，无法确认收款。");
   }
   if (intent.status === "cancelled") throw createHttpError(409, "订单支付记录已取消，无法确认收款。");
