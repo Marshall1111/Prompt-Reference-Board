@@ -474,6 +474,25 @@ function AuthModal({ onAuthenticated, onClose }) {
   );
 }
 
+function isInsufficientBalanceMessage(message) {
+  return /(?:币|豆豆).{0,8}不足|不足.{0,8}(?:币|豆豆)/.test(String(message || ""));
+}
+
+function BalanceInsufficientModal({ message, onClose, useBodyBookTheme = false }) {
+  const isBeanBalance = String(message || "").includes("豆豆");
+  return (
+    <div className="modal-backdrop draw-card-confirm" onClick={onClose} role="presentation">
+      <section className={`draw-card-confirm-panel balance-insufficient-panel${useBodyBookTheme ? " body-book-balance-insufficient-panel" : ""}`} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={isBeanBalance ? "豆豆不足" : "币不足"}>
+        <button className="icon-button" onClick={onClose} type="button" aria-label="关闭提示"><X size={18} /></button>
+        <p className="draw-card-kicker">Balance</p>
+        <h2>{isBeanBalance ? "豆豆不足" : "币不足"}</h2>
+        <p className="storage-note">{message}</p>
+        <div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={onClose} type="button">我知道了</button></div>
+      </section>
+    </div>
+  );
+}
+
 function AdminApp({ navigate, route }) {
   const [styles, setStyles] = useState([]);
   const [styleGroups, setStyleGroups] = useState([]);
@@ -1363,6 +1382,8 @@ function BodyBookPage() {
   const [showBatchDialog, setShowBatchDialog] = useState(false);
   const [historyTheme, setHistoryTheme] = useState(null);
   const [historyProjects, setHistoryProjects] = useState([]);
+  const [balanceAlert, setBalanceAlert] = useState("");
+  const lastBillingAlertRef = useRef("");
 
   const activeTheme = project?.theme || selectedTheme;
   const contents = getBodyBookThemeContents(activeTheme);
@@ -1440,6 +1461,15 @@ function BodyBookPage() {
     if (!project?.savedAt) return;
     loadSavedBooks().catch(() => {});
   }, [project?.savedAt, project?.updatedAt]);
+
+  useEffect(() => {
+    const message = String(project?.billingError || "").trim();
+    if (!isInsufficientBalanceMessage(message)) return;
+    const alertKey = `${project?.sessionId || ""}:${project?.updatedAt || ""}:${message}`;
+    if (lastBillingAlertRef.current === alertKey) return;
+    lastBillingAlertRef.current = alertKey;
+    setBalanceAlert(message);
+  }, [project?.billingError, project?.sessionId, project?.updatedAt]);
 
   function startNewDraft(theme) {
     const themeContents = getBodyBookThemeContents(theme);
@@ -1618,7 +1648,9 @@ function BodyBookPage() {
       setShowBatchDialog(false);
       fetchVisitorState().then(setVisitorState).catch(() => {});
     } catch (nextError) {
-      setError(nextError.message || "提交图片生成失败，请稍后再试。");
+      const message = nextError.message || "提交图片生成失败，请稍后再试。";
+      if (isInsufficientBalanceMessage(message)) setBalanceAlert(message);
+      else setError(message);
     } finally {
       setBusy(false);
       setBusyPageKey("");
@@ -1675,7 +1707,6 @@ function BodyBookPage() {
       </> : <section className="body-book-workspace body-book-project-workspace">
         <div className="body-book-status-row"><div><span className="body-book-step">02</span><h2>{project?.message || "配置你的认知书页面"}</h2></div><span className="body-book-project-state">{project?.savedAt ? "已自动保存" : "首次生成成功后自动保存"}</span></div>
         {error ? <p className="error-note">{error}</p> : null}
-        {project?.billingError ? <p className="error-note">{project.billingError}</p> : null}
         <section className="body-book-project-reference"><div><span className="body-book-step">REFERENCE</span><h3>全局参考图</h3><p>替换后会同步更新所有已选页面的参考图，不会自动重新生成。</p></div><label className={`body-book-upload body-book-project-upload ${topReferenceUrl ? "has-image" : ""}`}>{topReferenceUrl ? <img alt="认知书全局参考图" src={topReferenceUrl} /> : <><ImageUp size={28} /><strong>上传参考图</strong><span>JPG、PNG、WebP</span></>}<input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label></section>
         <section className="body-book-content-panel">
           <div className="body-book-project-pages-head"><div><span className="body-book-step">03</span><h3>内容选择</h3><p>每张卡片可单独替换参考图、修改提示词并生成。</p></div></div>
@@ -1689,6 +1720,8 @@ function BodyBookPage() {
       {showContentPicker ? <div className="modal-backdrop" onClick={() => !busy && setShowContentPicker(false)} role="presentation"><section className="body-book-project-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择认知书内容"><button className="icon-button" disabled={busy} onClick={() => setShowContentPicker(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Contents</p><h2>选择认知书内容</h2><p>已添加的内容保持选中状态。</p><div className="body-book-content-options">{contents.map((content) => <label key={content.key}><input checked={pickerKeys.includes(content.key)} onChange={(event) => setPickerKeys((keys) => event.target.checked ? [...keys, content.key] : keys.filter((key) => key !== content.key))} type="checkbox" /><span>{content.chinese} <small>{content.english}</small></span></label>)}</div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={() => setShowContentPicker(false)} type="button">取消</button><button className="draw-card-primary" disabled={busy} onClick={async () => { await savePageSelection(pickerKeys); setShowContentPicker(false); }} type="button">确认内容</button></div></section></div> : null}
 
       {showBatchDialog ? <div className="modal-backdrop" onClick={() => !busy && setShowBatchDialog(false)} role="presentation"><section className="body-book-project-modal body-book-batch-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择批量生成方式"><button className="icon-button" disabled={busy} onClick={() => setShowBatchDialog(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Batch generate</p><h2>选择生成方式</h2><p>{pendingCount ? `${pendingCount} 张正在生成，将自动跳过。` : "选择本次要提交的页面。"}</p><button className="body-book-batch-choice" disabled={busy || !incompleteKeys.length} onClick={() => submitGeneration(incompleteKeys)} type="button"><strong>仅生成未完成页</strong><span>提交 {incompleteKeys.length} 张未生成或失败页面，成功图片不变。</span></button><button className="body-book-batch-choice" disabled={busy || !allAvailableKeys.length} onClick={() => submitGeneration(allAvailableKeys)} type="button"><strong>全部重新生成</strong><span>提交 {allAvailableKeys.length} 张非生成中页面，成功图片会被覆盖。</span></button></section></div> : null}
+
+      {balanceAlert ? <BalanceInsufficientModal message={balanceAlert} onClose={() => setBalanceAlert("")} useBodyBookTheme /> : null}
 
       {historyTheme ? <div className="modal-backdrop" onClick={() => !busy && setHistoryTheme(null)} role="presentation"><section className="body-book-project-modal body-book-history-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择历史认知书工程"><button className="icon-button" disabled={busy} onClick={() => setHistoryTheme(null)} type="button"><X size={18} /></button><p className="body-book-kicker">Existing projects</p><h2>{historyTheme.name}已有历史工程</h2><p>请选择继续历史任务，或新建一本独立工程。</p><div className="body-book-history-list">{historyProjects.map((book) => <button key={book.sessionId} onClick={() => openProject(book.sessionId)} type="button">{book.thumbnail ? <img alt="工程缩略图" src={book.thumbnail} /> : <span className="body-book-history-placeholder">{book.theme?.name}</span>}<span><strong>{book.title}</strong><small>{formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></span></button>)}</div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={() => startNewDraft(historyTheme)} type="button">创建新的工程</button></div></section></div> : null}
 
@@ -2259,6 +2292,7 @@ function PublicExperiencePage({ config }) {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isSwitchingAccount, setIsSwitchingAccount] = useState(false);
+  const [balanceAlert, setBalanceAlert] = useState("");
   const [contactCopied, setContactCopied] = useState(false);
   const [orderConfig, setOrderConfig] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -3061,7 +3095,7 @@ function PublicExperiencePage({ config }) {
     const clipItem = clipItems.find((clip) => clip.jobId === item.jobId);
     const isAlreadyRedeemed = Boolean(clipItem?.originalRedeemed);
     if (!isAlreadyRedeemed && Number(latestVisitorState.account.coinBalance || 0) < 1) {
-      setError("兑换原图需要 1 币，当前币不足。");
+      setBalanceAlert("兑换原图需要 1 币，当前币不足。");
       return;
     }
     if (!isAlreadyRedeemed && !window.confirm("本次兑换将消耗 1 枚币。是否继续？")) return;
@@ -3082,7 +3116,9 @@ function PublicExperiencePage({ config }) {
       setClipItems(nextClipPayload.items || []);
       setError("");
     } catch (nextError) {
-      setError(nextError.message || "下载原图失败，请稍后再试。");
+      const message = nextError.message || "下载原图失败，请稍后再试。";
+      if (isInsufficientBalanceMessage(message)) setBalanceAlert(message);
+      else setError(message);
     } finally {
       setOriginalPreviewLoadingJobId("");
     }
@@ -3791,6 +3827,8 @@ function PublicExperiencePage({ config }) {
           </section>
         </div>
       ) : null}
+
+      {balanceAlert ? <BalanceInsufficientModal message={balanceAlert} onClose={() => setBalanceAlert("")} /> : null}
 
       {showAuthModal ? (
         <AuthModal

@@ -2785,6 +2785,22 @@ button.draw-card-utility-link {
   background: rgba(43, 70, 67, 0.06);
 }
 
+.body-book-page .body-book-balance-insufficient-panel {
+  width: min(420px, 100%);
+  border-color: rgba(30, 51, 50, 0.14);
+  background: #ffffff;
+  color: #25413c;
+  box-shadow: 0 28px 90px rgba(18, 35, 34, 0.24);
+}
+
+.body-book-balance-insufficient-panel .draw-card-kicker {
+  color: #8a6a3f;
+}
+
+.body-book-balance-insufficient-panel .storage-note {
+  color: #60706d;
+}
+
 .auth-code-row {
   display: flex;
   gap: 8px;
@@ -5397,6 +5413,16 @@ textarea {
 
   .body-book-project-upload { align-self: stretch; width: 100%; min-height: 180px; }
   .body-book-project-upload img { max-height: 230px; }
+  .body-book-project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .body-book-add-page-card { min-height: 220px; border-radius: 10px; }
+  .body-book-project-delete { top: 6px; right: 6px; }
+  .body-book-project-delete.icon-button { width: 30px; min-width: 30px; height: 30px; }
+  .body-book-item-meta { gap: 5px; padding: 7px 8px; }
+  .body-book-project-card-controls { gap: 6px; padding: 0 8px 8px; }
+  .body-book-page-reference { gap: 4px; padding: 4px 5px; font-size: 11px; }
+  .body-book-page-reference img { width: 22px; height: 22px; flex-basis: 22px; }
+  .body-book-edit-prompt { gap: 3px; padding: 0 7px; font-size: 11px; }
+  .body-book-project-card-controls .draw-card-secondary { min-height: 34px; padding: 0 7px; font-size: 11px; }
   .body-book-batch-row .draw-card-primary { width: 100%; justify-content: center; }
   .body-book-content-panel-actions { align-items: flex-start; flex-direction: column; }
   .body-book-content-panel-actions .draw-card-primary { width: 100%; justify-content: center; }
