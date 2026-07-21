@@ -1146,9 +1146,10 @@ function LegacyBodyBookPage() {
 
   const allItems = session ? [session.cover, ...(session.cards || [])] : [];
   const cardSummary = session?.summary?.cards;
+  const cardCount = Number(session?.theme?.pageCount || session?.cards?.length || selectedTheme?.pageCount || 0);
   const isCoverReview = session?.stage === "cover_review";
   const isGenerating = ["cover_generating", "cards_generating"].includes(session?.stage);
-  const canDownloadAll = allItems.length === 10 && allItems.every((item) => item?.status === "succeeded" && item?.result?.imageUrl);
+  const canDownloadAll = allItems.length === cardCount + 1 && allItems.every((item) => item?.status === "succeeded" && item?.result?.imageUrl);
   const billingEnabled = session?.billingEnabled ?? bodyBookBillingEnabled;
   const regenerationReferenceUrl = regenerationDraft
     ? regenerationDraft.referenceUrl || session?.referenceUrl || `/api/body-book/sessions/${encodeURIComponent(sessionId)}/cards/${encodeURIComponent(regenerationDraft.key)}/reference`
@@ -1174,7 +1175,7 @@ function LegacyBodyBookPage() {
       {!session && !selectedTheme ? (
         <section className="body-book-theme-home body-book-theme-layout">
           <div className="body-book-theme-content">
-            <div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>每本认知书包含一张封面和九张主题认知卡。</p></div>
+            <div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>每本认知书包含一张封面和按主题扩展的认知卡。</p></div>
             <div className="body-book-theme-grid">{themes.map((theme, index) => <button className="body-book-theme-card" key={theme.id} onClick={() => { setSelectedTheme(theme); setError(""); }} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={`/body-book-samples/${encodeURIComponent(theme.id)}-cover-thumbnail.webp`} /><span className="body-book-theme-index">{String(index + 1).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small></button>)}</div>
           </div>
           <aside className="body-book-wallet-panel">
@@ -1199,7 +1200,7 @@ function LegacyBodyBookPage() {
           <div className="body-book-upload-copy">
             <span className="body-book-step">02</span>
             <h2>上传宝宝照片</h2>
-            <p>将以这张照片制作《{selectedTheme.name}》封面，确认后再生成九张主题认知卡。</p>
+            <p>将以这张照片制作《{selectedTheme.name}》封面，确认后再生成该主题的全部认知卡。</p>
             <button className="draw-card-primary" disabled={!referenceFile || isSubmitting} onClick={startCover} type="button">
               {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
               <span>{isSubmitting ? "正在提交" : billingEnabled ? "生成封面（1 豆豆）" : "生成封面（内测免费）"}</span>
@@ -1223,11 +1224,11 @@ function LegacyBodyBookPage() {
           {isCoverReview ? (
             <div className="body-book-cover-review">
               <BodyBookItem item={session.cover} onOpen={setActiveItem} />
-              <div className="body-book-confirm-copy"><p>封面满意后，将继续生成九张认知卡。</p><button className="draw-card-primary" disabled={isSubmitting} onClick={confirmCover} type="button">{isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Check size={18} />}<span>{billingEnabled ? "确认并生成 9 页（9 豆豆）" : "确认并生成 9 页（内测免费）"}</span></button></div>
+              <div className="body-book-confirm-copy"><p>封面满意后，将继续生成 {cardCount} 张认知卡。</p><button className="draw-card-primary" disabled={isSubmitting} onClick={confirmCover} type="button">{isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Check size={18} />}<span>{billingEnabled ? `确认并生成 ${cardCount} 页（${cardCount} 豆豆）` : `确认并生成 ${cardCount} 页（内测免费）`}</span></button></div>
             </div>
           ) : (
             <>
-              <p className="body-book-progress">已完成 {Number(cardSummary?.succeeded || 0)} / 9 张认知卡。{session?.mockMode ? (billingEnabled ? "当前为开发模拟，仍按规则扣除豆豆。" : "当前为开发模拟，不调用图片 API，也不会扣豆豆。") : billingEnabled ? "封面和每张卡片均可单独下载。" : "内测阶段，图片生成不扣豆豆。"}</p>
+              <p className="body-book-progress">已完成 {Number(cardSummary?.succeeded || 0)} / {cardCount} 张认知卡。{session?.mockMode ? (billingEnabled ? "当前为开发模拟，仍按规则扣除豆豆。" : "当前为开发模拟，不调用图片 API，也不会扣豆豆。") : billingEnabled ? "封面和每张卡片均可单独下载。" : "内测阶段，图片生成不扣豆豆。"}</p>
               <div className="body-book-grid">
                 {allItems.map((item) => <BodyBookItem item={item} key={`${item.key}-${item.jobId || "pending"}`} onOpen={setActiveItem} onRegenerate={item.key === "cover" ? null : openRegenerationDialog} regenerating={regeneratingKey === item.key} />)}
               </div>

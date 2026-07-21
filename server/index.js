@@ -124,31 +124,49 @@ const BODY_BOOK_PARTS = [
   { key: "ears", chinese: "耳朵", english: "Ears", copy: "I hear with my ears. 我用耳朵听声音。" },
   { key: "nose", chinese: "鼻子", english: "Nose", copy: "I smell with my nose. 我用鼻子闻一闻。" },
   { key: "mouth", chinese: "嘴巴", english: "Mouth", copy: "I smile with my mouth. 我用嘴巴笑一笑。" },
+  { key: "hair", chinese: "头发", english: "Hair", copy: "This is my hair. 这是我的头发。" },
+  { key: "teeth", chinese: "牙齿", english: "Teeth", copy: "I brush my teeth. 我会刷牙。" },
+  { key: "arms", chinese: "手臂", english: "Arms", copy: "These are my arms. 这是我的手臂。" },
   { key: "hands", chinese: "手", english: "Hands", copy: "My hands can touch. 我的小手会触摸。" },
+  { key: "fingers", chinese: "手指", english: "Fingers", copy: "These are my fingers. 这是我的手指。" },
   { key: "feet", chinese: "脚", english: "Feet", copy: "My feet help me walk. 我用小脚走路。" },
+  { key: "toes", chinese: "脚趾", english: "Toes", copy: "These are my toes. 这是我的脚趾。" },
   { key: "tummy", chinese: "肚子", english: "Tummy", copy: "This is my tummy. 这是我的小肚子。" },
   { key: "knees", chinese: "膝盖", english: "Knees", copy: "My knees can bend. 我的小膝盖会弯曲。" }
 ];
 const BOOK_THEME_DEFINITIONS = [
   { id: "body", name: "身体认知书", englishName: "My First Body", title: "我的第一本身体认知书", parts: BODY_BOOK_PARTS },
   { id: "career", name: "职业认知书", englishName: "My First Jobs", title: "我的第一本职业认知书", parts: [
-    ["doctor", "医生", "Doctor"], ["teacher", "老师", "Teacher"], ["firefighter", "消防员", "Firefighter"], ["chef", "厨师", "Chef"], ["police", "警察", "Police Officer"], ["farmer", "农夫", "Farmer"], ["builder", "建筑师", "Builder"], ["scientist", "科学家", "Scientist"], ["artist", "艺术家", "Artist"]
+    ["doctor", "医生", "Doctor"], ["teacher", "老师", "Teacher"], ["firefighter", "消防员", "Firefighter"], ["chef", "厨师", "Chef"], ["police", "警察", "Police Officer"], ["farmer", "农夫", "Farmer"], ["builder", "建筑师", "Builder"], ["scientist", "科学家", "Scientist"], ["artist", "艺术家", "Artist"], ["nurse", "护士", "Nurse"], ["dentist", "牙医", "Dentist"], ["baker", "面包师", "Baker"], ["gardener", "园丁", "Gardener"], ["veterinarian", "兽医", "Veterinarian"], ["dancer", "舞蹈家", "Dancer"], ["writer", "作家", "Writer"], ["singer", "歌手", "Singer"], ["hairdresser", "理发师", "Hairdresser"]
   ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `I can be a ${english}. 我可以成为${chinese}。` })) },
   { id: "color", name: "颜色认知书", englishName: "My First Colors", title: "我的第一本颜色认知书", parts: [
-    ["red", "红色", "Red"], ["orange", "橙色", "Orange"], ["yellow", "黄色", "Yellow"], ["green", "绿色", "Green"], ["blue", "蓝色", "Blue"], ["purple", "紫色", "Purple"], ["pink", "粉色", "Pink"], ["black", "黑色", "Black"], ["white", "白色", "White"]
+    ["red", "红色", "Red"], ["orange", "橙色", "Orange"], ["yellow", "黄色", "Yellow"], ["green", "绿色", "Green"], ["blue", "蓝色", "Blue"], ["purple", "紫色", "Purple"], ["pink", "粉色", "Pink"], ["brown", "棕色", "Brown"], ["gray", "灰色", "Gray"], ["black", "黑色", "Black"], ["white", "白色", "White"]
   ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `This is ${english}. 这是${chinese}。` })) },
   { id: "emotion", name: "情绪认知书", englishName: "My First Feelings", title: "我的第一本情绪认知书", parts: [
     ["happy", "开心", "Happy"], ["sad", "难过", "Sad"], ["angry", "生气", "Angry"], ["surprised", "惊讶", "Surprised"], ["scared", "害怕", "Scared"], ["shy", "害羞", "Shy"], ["excited", "兴奋", "Excited"], ["calm", "平静", "Calm"], ["proud", "自豪", "Proud"]
   ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `I feel ${english}. 我感到${chinese}。` })) },
   { id: "transport", name: "交通工具认知书", englishName: "My First Vehicles", title: "我的第一本交通工具认知书", parts: [
-    ["car", "汽车", "Car"], ["bus", "公交车", "Bus"], ["train", "火车", "Train"], ["airplane", "飞机", "Airplane"], ["boat", "小船", "Boat"], ["bicycle", "自行车", "Bicycle"], ["truck", "卡车", "Truck"], ["taxi", "出租车", "Taxi"], ["ambulance", "救护车", "Ambulance"]
+    ["car", "汽车", "Car"], ["bus", "公交车", "Bus"], ["train", "火车", "Train"], ["airplane", "飞机", "Airplane"], ["boat", "小船", "Boat"], ["bicycle", "自行车", "Bicycle"], ["truck", "卡车", "Truck"], ["taxi", "出租车", "Taxi"], ["ambulance", "救护车", "Ambulance"], ["metro", "地铁", "Metro"], ["ship", "轮船", "Ship"], ["helicopter", "直升机", "Helicopter"], ["fire-truck", "消防车", "Fire Truck"], ["school-bus", "校车", "School Bus"], ["tractor", "拖拉机", "Tractor"]
   ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `This is a ${english}. 这是一辆${chinese}。` })) },
   { id: "animal", name: "动物认知书", englishName: "My First Animals", title: "我的第一本动物认知书", parts: [
-    ["cat", "小猫", "Cat"], ["dog", "小狗", "Dog"], ["rabbit", "兔子", "Rabbit"], ["bear", "小熊", "Bear"], ["lion", "狮子", "Lion"], ["elephant", "大象", "Elephant"], ["giraffe", "长颈鹿", "Giraffe"], ["penguin", "企鹅", "Penguin"], ["butterfly", "蝴蝶", "Butterfly"]
+    ["cat", "小猫", "Cat"], ["dog", "小狗", "Dog"], ["rabbit", "兔子", "Rabbit"], ["horse", "马", "Horse"], ["cow", "奶牛", "Cow"], ["duck", "小鸭", "Duck"], ["goldfish", "金鱼", "Goldfish"], ["turtle", "乌龟", "Turtle"], ["monkey", "猴子", "Monkey"], ["bear", "小熊", "Bear"], ["lion", "狮子", "Lion"], ["elephant", "大象", "Elephant"], ["giraffe", "长颈鹿", "Giraffe"], ["penguin", "企鹅", "Penguin"], ["butterfly", "蝴蝶", "Butterfly"]
   ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `Hello, ${english}! 你好，${chinese}！` })) },
   { id: "daily", name: "日常行为认知书", englishName: "My First Daily Routines", title: "我的第一本日常行为认知书", parts: [
-    ["wake-up", "起床", "Wake Up"], ["brush-teeth", "刷牙", "Brush Teeth"], ["eat", "吃饭", "Eat"], ["wash-hands", "洗手", "Wash Hands"], ["play", "玩耍", "Play"], ["read", "阅读", "Read"], ["tidy-up", "收拾玩具", "Tidy Up"], ["bath", "洗澡", "Bath Time"], ["sleep", "睡觉", "Sleep"]
-  ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `I can ${english.toLowerCase()}. 我会${chinese}。` })) }
+    { key: "wake-up", chinese: "起床", english: "Wake Up", copy: "I can wake up. 我会起床。" },
+    { key: "wash-face", chinese: "洗脸", english: "Wash Face", copy: "I can wash my face. 我会洗脸。" },
+    { key: "brush-teeth", chinese: "刷牙", english: "Brush Teeth", copy: "I can brush my teeth. 我会刷牙。" },
+    { key: "get-dressed", chinese: "穿衣", english: "Get Dressed", copy: "I can get dressed. 我会穿衣。" },
+    { key: "put-on-shoes", chinese: "穿鞋", english: "Put On Shoes", copy: "I can put on my shoes. 我会穿鞋。" },
+    { key: "eat", chinese: "吃饭", english: "Eat", copy: "I can eat. 我会吃饭。" },
+    { key: "drink-water", chinese: "喝水", english: "Drink Water", copy: "I can drink water. 我会喝水。" },
+    { key: "wash-hands", chinese: "洗手", english: "Wash Hands", copy: "I can wash my hands. 我会洗手。" },
+    { key: "play", chinese: "玩耍", english: "Play", copy: "I can play. 我会玩耍。" },
+    { key: "read", chinese: "阅读", english: "Read", copy: "I can read. 我会阅读。" },
+    { key: "tidy-up", chinese: "收拾玩具", english: "Tidy Up", copy: "I can tidy up. 我会收拾玩具。" },
+    { key: "say-hello", chinese: "打招呼", english: "Say Hello", copy: "I can say hello. 我会打招呼。" },
+    { key: "bath", chinese: "洗澡", english: "Bath Time", copy: "I can take a bath. 我会洗澡。" },
+    { key: "sleep", chinese: "睡觉", english: "Sleep", copy: "I can sleep. 我会睡觉。" }
+  ] }
 ];
 const BODY_BOOK_PROMPT_PROFILES = {
   body: {
@@ -171,25 +189,25 @@ const BODY_BOOK_PROMPT_PROFILES = {
   },
   emotion: {
     coverScene: "a warm, expressive baby portrait with a small, calm ring of simple emotion symbols around the baby",
-    cardScene: "a close baby portrait showing the requested emotion clearly and gently through facial expression and natural pose; no exaggerated or distressing expression",
+    cardScene: "a close baby portrait showing the requested emotion clearly and gently through facial expression, clothing, and an active natural pose; no exaggerated or distressing expression",
     accents: "soft peach, butter yellow, pale blue, and warm cream",
     icons: "small, friendly emotion symbols such as stars, clouds, hearts, or smile marks"
   },
   transport: {
-    coverScene: "the baby with six clearly separated toy-like vehicles floating on a white page, with no road scene or cluttered environment",
-    cardScene: "the baby naturally engaging with one clearly recognizable requested vehicle, presented as a simple toy-like cutout object on a white page",
+    coverScene: "the baby with six clearly separated photographs of real, full-size vehicles floating as clean cutouts on a white page; never use toy, miniature, ride-on, cartoon, illustrated, or CGI vehicles; no road scene or cluttered environment",
+    cardScene: "the baby shown safely with one clearly recognizable real, full-size requested vehicle; use a real-vehicle photograph as the main cutout, never a toy, miniature, ride-on, cartoon vehicle, or illustration",
     accents: "soft primary colors, pale blue, and warm cream",
     icons: "small transport symbols and movement marks"
   },
   animal: {
-    coverScene: "the baby surrounded by six friendly, clearly separated animal illustrations or toy-like animal cutouts with generous white space",
-    cardScene: "the baby gently engaging with one friendly, child-safe requested animal illustration or toy-like animal cutout; keep the animal easy to recognize",
+    coverScene: "the baby surrounded by six friendly, clearly separated photographs of real living animals with natural fur, feathers, or skin texture, presented as clean cutouts with generous white space; never use plush, toy, cartoon, illustrated, or CGI animals",
+    cardScene: "the baby wearing a soft, child-safe costume inspired by the requested animal and making one gentle animal-like action beside a large, clearly recognizable real living animal photograph; never use a plush, toy, cartoon, illustrated, or CGI animal",
     accents: "leaf green, sunshine yellow, pale blue, and warm cream",
     icons: "small animal footprints, leaves, and matching nature symbols"
   },
   daily: {
     coverScene: "the baby in a cheerful everyday moment, surrounded by six clearly separated daily-routine objects floating on a white page",
-    cardScene: "the baby doing the requested daily routine in a simple, safe, natural action; show only a few clearly separated matching objects and no realistic room scene",
+    cardScene: "the baby doing the requested daily routine in its own specific, safe, natural action and suitable clothing; show only a few clearly separated matching objects and no realistic room scene",
     accents: "soft pastel blue, peach, butter yellow, and warm cream",
     icons: "small daily-routine objects and gentle action marks"
   }
@@ -7606,18 +7624,104 @@ function getBodyBookPart(partKey, themeId = "body") {
 function buildBodyBookCoverPrompt(theme = getBookTheme("body")) {
   const profile = getBodyBookPromptProfile(theme);
   const pageBackground = theme?.id === "color" ? "a pure white (#FFFFFF) studio-paper page only" : "a clean white or warm-cream studio page";
-  return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Create one square 1:1 cover for a bilingual 0-3 year-old ${theme.name}. The main title should read exactly: "${theme.englishName}". The Chinese subtitle should read exactly: "${theme.title}". Beneath it, add the small English line: "A Bilingual Book for Babies" and the small Chinese line: "中英双语 · 0-3岁宝宝启蒙". Use rounded, highly legible sans-serif typography; make the English title playful with a refined natural rainbow palette, while keeping Chinese text dark and clear. Add a small pink circular badge in the upper-right that reads "0-3岁适用". Compose the baby as the clear central subject in a realistic, detailed professional baby portrait with soft warm daylight and natural skin texture. Theme scene: ${profile.coverScene}. Use ${pageBackground}, ${profile.accents} accents, ample breathing room, subtle paper texture, and a few neat cutout-style elements with fine white outlines. DK children's encyclopedia style: premium early-learning editorial layout, white-background cutout-object collage composition, realistic baby photography blended with restrained children's illustration, bright but gentle, clean and modern. Do not create a busy room, scenic background, deep depth, extra people, watermark, border, illegible decorative text, collage panels, or 3D animation look.`;
+  return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 cover for a bilingual 0-3 year-old ${theme.name}. The main title should read exactly: "${theme.englishName}". The Chinese subtitle should read exactly: "${theme.title}". Beneath it, add the small English line: "A Bilingual Book for Babies" and the small Chinese line: "中英双语 · 0-3岁宝宝启蒙". Use rounded, highly legible sans-serif typography; make the English title playful with a refined natural rainbow palette, while keeping Chinese text dark and clear. Add a small pink circular badge in the upper-right that reads "0-3岁适用". Compose the baby as the clear central subject in a realistic, detailed professional baby portrait with soft warm daylight and natural skin texture. Theme scene: ${profile.coverScene}. Use ${pageBackground}, ${profile.accents} accents, ample breathing room, subtle paper texture, and a few neat cutout-style elements with fine white outlines. DK children's encyclopedia style: premium early-learning editorial layout, white-background cutout-object collage composition, realistic baby photography blended with restrained children's illustration, bright but gentle, clean and modern. Do not create a busy room, scenic background, deep depth, extra people, watermark, border, illegible decorative text, collage panels, or 3D animation look.`;
 }
 
 function buildBodyBookPartPrompt(part, order, theme = getBookTheme("body")) {
   if (theme?.id === "color") return buildColorBookPartPrompt(part, order, theme);
   const profile = getBodyBookPromptProfile(theme);
-  return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Create one square 1:1 bilingual ${theme.name} learning card for ages 0-3. This is page ${order}; the sole learning concept is "${part.english} / ${part.chinese}". The image must attempt to render this heading exactly: "${part.chinese} ${part.english}". Include this short bilingual sentence exactly: "${part.copy}". Add page number "${order}" in the lower-right. Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: ${profile.cardScene}. Keep the same baby recognizable in a natural, age-appropriate pose. Use a white or warm-cream page, ${profile.accents} accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching ${profile.icons}. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.`;
+  const visualDirection = getBodyBookPartVisualDirection(theme?.id, part?.key);
+  return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual ${theme.name} learning card for ages 0-3. This is page ${order}; the sole learning concept is "${part.english} / ${part.chinese}". The image must attempt to render this heading exactly: "${part.chinese} ${part.english}". Include this short bilingual sentence exactly: "${part.copy}". Add page number "${order}" in the lower-right. Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: ${profile.cardScene}. Mandatory page-specific art direction: ${visualDirection} Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, ${profile.accents} accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching ${profile.icons}. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.`;
+}
+
+function getBodyBookPartVisualDirection(themeId, partKey) {
+  const directions = {
+    body: {
+      head: "Dress the baby in a soft sage-green short-sleeve bodysuit; show a three-quarter seated pose with both hands gently patting the top of their head.",
+      eyes: "Dress the baby in a pale-yellow knit romper; show the baby holding soft toy binoculars at chest level and looking toward a tiny star, with eyes fully visible.",
+      ears: "Dress the baby in a light-blue overall set; show the baby leaning their head slightly and cupping one ear as if listening to a tiny illustrated bell.",
+      nose: "Dress the baby in a soft apricot romper; show the baby gently smelling one small flower held near the nose, with the nose unobstructed.",
+      mouth: "Dress the baby in a warm-cream bib romper; show a close smiling pose blowing a tiny illustrated bubble, with the mouth clearly visible.",
+      hair: "Dress the baby in a soft lavender cardigan over a cream romper; show a close seated pose gently touching a small lock of hair with one hand, with the hair fully visible.",
+      teeth: "Dress the baby in a clean mint-green cotton romper and a small towel bib; show a happy open smile while safely holding a toddler toothbrush beside the teeth.",
+      arms: "Dress the baby in a short-sleeve coral romper; show both bare arms stretched wide toward two small friendly stars.",
+      hands: "Dress the baby in a simple sky-blue short-sleeve top and soft shorts; show both open hands touching a textured fabric square.",
+      fingers: "Dress the baby in a soft yellow romper; show one hand close to the camera with fingers gently spread around a large soft fabric flower.",
+      feet: "Dress the baby in a short-sleeve cotton bodysuit and contrasting soft socks; show a safe seated pose with both feet lifted toward a small ball.",
+      toes: "Dress the baby in a pale aqua romper; show a safe seated pose with bare toes lightly touching a tiny soft ball, with toes clearly visible.",
+      tummy: "Dress the baby in a two-piece cotton outfit with a softly lifted shirt edge; show a gentle seated giggle with one hand resting on the tummy, always modest and age-appropriate.",
+      knees: "Dress the baby in soft mustard overalls with bare knees visible; show a stable crawling or kneeling play pose beside one small block."
+    },
+    emotion: {
+      happy: "Dress the baby in a sunshine-yellow romper with a tiny smiling-sun patch; show a bright open smile while clapping both hands.",
+      sad: "Dress the baby in a soft powder-blue knit romper; show a mild, non-distressing pout while gently cuddling one small cloud-shaped plush.",
+      angry: "Dress the baby in a coral-red cotton overall set; show a gentle scrunched-brow expression with tiny relaxed fists, never shouting, crying, or looking distressed.",
+      surprised: "Dress the baby in a lavender romper with a star patch; show wide eyes, a softly open mouth, and both hands raised near the cheeks beside one tiny pop-up star.",
+      scared: "Dress the baby in a cozy mint-green hooded romper; show a mild uncertain expression while peeking from behind one friendly moon-shaped plush, never horror-themed.",
+      shy: "Dress the baby in a blush-pink cardigan over a cream romper; show a small smile with the chin lowered and one hand partly covering the cheek.",
+      excited: "Dress the baby in a bright teal-and-yellow sporty romper; show an energetic seated bounce with both arms lifted beside two small confetti marks.",
+      calm: "Dress the baby in a soft aqua cotton sleep suit; show a relaxed cross-legged seated pose holding one small leaf, with a peaceful closed-mouth smile.",
+      proud: "Dress the baby in a warm-orange overall set with a small gold-star badge; show a confident upright seated pose holding up one finished block tower."
+    },
+    transport: {
+      car: "Dress the baby in a soft red driving jacket and navy shorts; show the baby safely buckled into a rear child safety seat inside a real, full-size red parked car, with the real car body and steering wheel clearly visible. Never generate a toy, miniature, ride-on, or cartoon car.",
+      bus: "Dress the baby in a sunny-yellow travel romper and a tiny soft cap; show the baby safely seated in a real bus child seat by a window, with the real full-size bus exterior and window line clearly visible. Never generate a toy, miniature, or cartoon bus.",
+      train: "Dress the baby in blue-and-white conductor-inspired overalls and a soft conductor cap; show the baby safely seated beside a real train window, with a real full-size train carriage and wheels clearly visible as the main cutout. Never generate a toy or ride-on train.",
+      airplane: "Dress the baby in a sky-blue pilot-inspired romper and a soft aviator cap; show the baby safely seated in an airport stroller near a real full-size passenger airplane, with the aircraft fuselage, wing, and cockpit clearly visible. Never generate a toy or cartoon airplane.",
+      boat: "Dress the baby in a navy-and-white sailor romper and a soft sailor hat; show the baby safely seated with a life jacket in a real full-size boat, with the real hull and mast or cabin clearly visible. Never generate a toy boat.",
+      bicycle: "Dress the baby in a mint-green helmet and a sporty romper; show the baby securely seated in a child bicycle seat attached to a real adult bicycle, with the full-size bicycle frame and wheels clearly visible. Never generate a toy tricycle.",
+      truck: "Dress the baby in an orange utility vest over a cream romper and a soft cap; show the baby safely in a child safety seat beside a real full-size dump truck, with the cab and truck bed clearly visible. Never generate a toy truck.",
+      taxi: "Dress the baby in a bright-yellow city-travel jacket and a small matching cap; show the baby safely buckled into a rear child seat inside a real full-size yellow taxi, with the taxi body clearly visible. Never generate a toy or ride-on taxi.",
+      ambulance: "Dress the baby in a white-and-red helper romper with a tiny heart badge; show the baby safely seated in a child safety seat beside a real full-size ambulance, with the real vehicle body and emergency markings clearly visible. Never generate a toy ambulance.",
+      metro: "Dress the baby in a bright blue travel jacket and a soft cap; show the baby safely seated beside a real metro train window, with the full-size metro carriage, doors, and wheels clearly visible. Never generate a toy or illustrated metro.",
+      ship: "Dress the baby in a navy sailor romper and a soft sailor hat; show the baby safely seated with a life jacket on a real full-size passenger ship deck, with the real hull and cabin clearly visible. Never generate a toy ship.",
+      helicopter: "Dress the baby in a sky-blue pilot-inspired romper and a soft aviator cap; show the baby safely seated in an airport stroller near a real full-size helicopter, with real rotor blades, cockpit, and landing skids clearly visible. Never generate a toy or cartoon helicopter.",
+      "fire-truck": "Dress the baby in a red helper jacket and a soft firefighter hat; show the baby safely seated in a child safety seat beside a real full-size red fire truck, with the cab, ladder, and wheels clearly visible. Never generate a toy fire truck.",
+      "school-bus": "Dress the baby in a yellow travel jacket and a small backpack; show the baby safely seated in a real full-size school bus child seat by a window, with the real yellow bus body clearly visible. Never generate a toy or cartoon school bus.",
+      tractor: "Dress the baby in soft green overalls and a sun hat; show the baby safely seated in a child stroller beside a real full-size tractor, with the large rear wheel and front loader clearly visible. Never generate a toy tractor."
+    },
+    animal: {
+      cat: "Dress the baby in a soft gray-and-white kitten romper with plush cat ears and a tiny tail; show a playful seated pawing pose beside a calm, real domestic shorthaired cat photographed in full detail. The cat must have natural fur, eyes, paws, and whiskers; never use a plush, toy, cartoon, illustrated, or CGI cat.",
+      dog: "Dress the baby in a warm-brown puppy romper with floppy plush ears; show the baby holding a soft toy bone at a safe distance from a calm, real small dog photographed in full detail. The dog must have natural fur and anatomy; never use a plush, toy, cartoon, illustrated, or CGI dog.",
+      rabbit: "Dress the baby in a cream bunny romper with long plush ears and a small pom-pom tail; show a gentle crouching hop pose beside a calm, real rabbit photographed in full detail, with natural fur and long ears. Never use a toy or illustrated rabbit.",
+      horse: "Dress the baby in a chestnut-brown riding-inspired romper and a soft helmet; show a seated pose beside a separate full-bodied photograph cutout of a calm, real horse at a safe visual distance. The horse must have natural coat, mane, hooves, and anatomy; never use a toy or illustration.",
+      cow: "Dress the baby in a black-and-white spotted romper with soft cow ears; show a gentle seated pose beside a separate full-bodied photograph cutout of a calm, real dairy cow at a safe visual distance. The cow must have natural coat texture and anatomy; never use a plush, toy, cartoon, illustrated, or CGI cow.",
+      duck: "Dress the baby in a sunny-yellow duck romper with a small orange beak hood; show a gentle arms-out waddling pose beside a real duck photographed in full detail, with natural feathers, beak, and webbed feet. Never use a toy or illustrated duck.",
+      goldfish: "Dress the baby in a soft orange fish-inspired romper; show a seated pose looking toward a clear glass bowl containing one real goldfish with natural scales and fins. Never use a toy, cartoon, illustrated, or CGI fish.",
+      turtle: "Dress the baby in a leaf-green turtle romper with a soft shell detail; show a seated reaching pose beside a real turtle photographed in full detail, with natural shell plates, eyes, and legs. Never use a toy or illustrated turtle.",
+      monkey: "Dress the baby in a warm-brown monkey romper with round soft ears; show a playful seated pose beside a separate full-bodied photograph cutout of a real monkey at a safe visual distance. The monkey must have natural fur and anatomy; never use a plush, toy, cartoon, illustrated, or CGI monkey.",
+      bear: "Dress the baby in a honey-brown bear romper with round plush ears; show a seated cuddle pose beside a separate, full-bodied photograph cutout of a real bear at a safe visual distance. The bear must have natural fur and anatomy; never use a plush, toy, cartoon, illustrated, or CGI bear.",
+      lion: "Dress the baby in a golden-yellow lion romper with a soft felt mane hood; show a cheerful little roar pose beside a separate, full-bodied photograph cutout of a real lion at a safe visual distance. The lion must have natural fur, mane, and anatomy; never use a toy or illustration.",
+      elephant: "Dress the baby in a pale-gray elephant romper with floppy ears and a soft fabric trunk hood; show the baby reaching toward a separate, full-bodied photograph cutout of a real elephant at a safe visual distance. The elephant must have natural skin texture, trunk, and anatomy; never use a toy or illustration.",
+      giraffe: "Dress the baby in a yellow-and-brown spotted giraffe romper with small plush ossicones; show the baby stretching both arms high toward a separate, full-bodied photograph cutout of a real giraffe at a safe visual distance. The giraffe must have natural coat pattern and anatomy; never use a toy or illustration.",
+      penguin: "Dress the baby in a black-and-white penguin romper with a tiny orange beak hood; show a balanced waddling pose beside a real penguin photographed in full detail. The penguin must have natural feathers, flippers, and anatomy; never use a plush, toy, cartoon, illustrated, or CGI penguin.",
+      butterfly: "Dress the baby in a pastel butterfly romper with soft colorful wings; show a gentle arms-open fluttering pose while looking at a real butterfly macro photograph with natural wing detail. Never use a toy, cartoon, or illustrated butterfly."
+    },
+    daily: {
+      "wake-up": "Dress the baby in soft striped pajamas; show the baby sitting up and stretching both arms beside one tiny illustrated sun and a folded blanket.",
+      "brush-teeth": "Dress the baby in a clean mint-green cotton romper with a small towel bib; show the baby safely holding a toddler toothbrush near the mouth, with a tiny cup beside it.",
+      eat: "Dress the baby in a warm-cream romper and a colorful bib; show the baby seated in a simple high chair, holding a toddler spoon toward one small bowl.",
+      "wash-hands": "Dress the baby in a rolled-sleeve sky-blue top and soft shorts; show both hands under a small illustrated faucet with soap bubbles, no realistic bathroom scene.",
+      play: "Dress the baby in a bright primary-color play romper; show a floor-seated pose stacking two or three chunky blocks.",
+      read: "Dress the baby in a cozy rust-orange cardigan over a cream romper; show a cross-legged seated pose turning the page of one large picture book.",
+      "tidy-up": "Dress the baby in denim-look overalls and a soft yellow T-shirt; show the baby placing one block into a small toy basket.",
+      "wash-face": "Dress the baby in a soft peach cotton romper and a small towel bib; show the baby gently patting one cheek with a warm washcloth beside a tiny bowl of water, with no realistic bathroom scene.",
+      "get-dressed": "Dress the baby in a simple cream bodysuit; show a seated pose lifting one arm into a bright cardigan, with one folded shirt as the only extra clothing item.",
+      "put-on-shoes": "Dress the baby in a soft blue top and shorts; show a safe seated pose holding one small toddler shoe near a bare foot.",
+      "drink-water": "Dress the baby in a light aqua romper and a small bib; show the baby safely holding a small handled cup of water with both hands.",
+      "say-hello": "Dress the baby in a cheerful yellow cardigan over a cream romper; show a friendly standing-supported or seated wave beside one tiny speech bubble that says Hello.",
+      bath: "Dress the baby in a hooded towel wrap with a duck-shaped towel hood; show a safe seated splash pose in a simplified illustrated baby tub with only a rubber duck.",
+      sleep: "Dress the baby in a soft moon-and-star sleep suit; show a curled, peaceful side-lying pose hugging one small moon plush, with no realistic bedroom."
+    }
+  };
+
+  const fallback = "Dress the baby in a theme-appropriate soft outfit and show one clearly different, safe, age-appropriate action that directly teaches the requested concept.";
+  return directions[String(themeId || "").toLowerCase()]?.[String(partKey || "").toLowerCase()] || fallback;
 }
 
 function buildColorBookPartPrompt(part, order, theme = getBookTheme("color")) {
   const details = getColorBookVisualDetails(part?.key);
-  return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, natural hair, and Asian baby appearance. Create one premium square 1:1 bilingual color-learning picture-book card for ages 0-3. This is page ${order}; the single learning concept is "${part.english} / ${part.chinese}".
+  return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, natural hair, and Asian baby appearance. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's color art direction instead. Create one premium square 1:1 bilingual color-learning picture-book card for ages 0-3. This is page ${order}; the single learning concept is "${part.english} / ${part.chinese}".
 
 The baby is the central half-body subject. Dress the baby in a clearly ${details.colorName} ${details.outfit} with a coordinated ${details.headwear}; the outfit color must be the strongest color on the baby and immediately communicate ${part.english}. Keep the baby in a natural, age-appropriate pose, gently touching, holding, or looking at one of the learning objects.
 
@@ -7637,6 +7741,8 @@ function getColorBookVisualDetails(colorKey) {
     blue: { colorName: "blue", outfit: "soft blue romper or hoodie", headwear: "matching blue whale- or cloud-inspired knit hat", objects: "a blue whale toy, blue fish, blue balloon, blue car, blue rain cloud, and blue building block" },
     purple: { colorName: "purple", outfit: "soft purple romper or hoodie", headwear: "matching purple grape- or butterfly-inspired knit hat", objects: "a bunch of grapes, plum, eggplant, purple butterfly, purple flower, and purple toy block" },
     pink: { colorName: "pink", outfit: "soft pink romper or hoodie", headwear: "matching pink bunny- or flower-inspired knit hat", objects: "a pink flower, strawberry, flamingo toy, pink balloon, pink bunny toy, and pink heart" },
+    brown: { colorName: "brown", outfit: "soft warm-brown corduroy romper", headwear: "matching brown bear- or acorn-inspired knit hat", objects: "a brown teddy bear, acorn, chocolate biscuit, brown puppy toy, wooden block, and brown leaf" },
+    gray: { colorName: "gray", outfit: "soft dove-gray cotton romper", headwear: "matching gray elephant- or cloud-inspired knit hat", objects: "a gray elephant toy, gray cloud, pebble, gray mouse toy, gray building block, and gray rain boot" },
     black: { colorName: "black", outfit: "soft black romper or hoodie with subtle white piping", headwear: "matching black bear- or cat-inspired knit hat", objects: "a black cat toy, panda detail, black toy car, black hat, black star, and black building block" },
     white: { colorName: "white", outfit: "soft white textured romper with light warm-gray piping", headwear: "matching white bunny- or cloud-inspired knit hat", objects: "a white rabbit toy, sheep, cloud, moon, daisy, and white building block, each edged so it remains visible on white" }
   };
@@ -7706,7 +7812,7 @@ async function startBodyBookCards(session) {
     ...session,
     stage: "cards_generating",
     status: "queued",
-    message: "正在生成 9 张身体认知卡。",
+    message: `正在生成 ${session.cards.length} 张${theme.name}认知卡。`,
     coverConfirmedAt: session.coverConfirmedAt || now,
     updatedAt: now
   };
@@ -7931,7 +8037,7 @@ async function legacySynchronizeBodyBookSession(session) {
     } else if (!current.coverConfirmedAt) {
       stage = "cover_review";
       status = "succeeded";
-      message = "封面已生成，请确认后继续制作 9 张认知卡。";
+      message = `封面已生成，请确认后继续制作 ${current.cards.length} 张认知卡。`;
     } else if (cardSummary.pending > 0 || cardSummary.notStarted > 0) {
       stage = "cards_generating";
       status = cardSummary.running > 0 ? "running" : "queued";
