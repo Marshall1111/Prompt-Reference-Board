@@ -631,7 +631,7 @@ body {
   background: #edf1ed;
 }
 
-.body-book-lightbox-panel > div:last-child {
+.body-book-lightbox-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -641,6 +641,20 @@ body {
 .body-book-lightbox-panel .draw-card-primary {
   display: inline-flex;
   margin: 0;
+}
+
+.body-book-lightbox-prompt {
+  display: grid;
+  gap: 10px;
+}
+
+.body-book-lightbox-prompt .body-book-edit-prompt {
+  justify-self: start;
+  min-height: 36px;
+}
+
+.body-book-lightbox-prompt .body-book-page-prompt {
+  padding: 12px 0 0;
 }
 
 .body-book-regenerate-modal {
@@ -5183,7 +5197,7 @@ textarea {
 
 .body-book-project-card-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 9px;
   padding: 0 14px 14px;
 }
