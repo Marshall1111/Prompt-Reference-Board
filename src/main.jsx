@@ -389,7 +389,7 @@ function AuthModal({ onAuthenticated, onClose }) {
           setPendingAccount(payload.account);
           setMergeableAssets(payload.mergeableAssets);
           setMergeClip(Number(payload.mergeableAssets.clipCount || 0) > 0);
-          setMergeBodyBooks(Number(payload.mergeableAssets.savedBookCount || 0) > 0);
+          setMergeBodyBooks(Number(payload.mergeableAssets.projectCount ?? payload.mergeableAssets.savedBookCount ?? 0) > 0);
           setMode("merge");
           return;
         }
@@ -445,7 +445,7 @@ function AuthModal({ onAuthenticated, onClose }) {
         <p className="storage-note">{mode === "merge" ? "请选择要转入当前账户的访客内容。币和豆豆不会合并或重置。" : "访客可继续生图和加入卡夹；提交定制订单前需要完成邮箱注册。"}</p>
         {mode === "merge" ? <div className="draw-card-order-form auth-asset-merge">
           {Number(mergeableAssets?.clipCount || 0) > 0 ? <label className="toggle-field"><input checked={mergeClip} onChange={(event) => setMergeClip(event.target.checked)} type="checkbox" /><span>继承卡夹内的 {mergeableAssets.clipCount} 张图片</span></label> : null}
-          {Number(mergeableAssets?.savedBookCount || 0) > 0 ? <label className="toggle-field"><input checked={mergeBodyBooks} onChange={(event) => setMergeBodyBooks(event.target.checked)} type="checkbox" /><span>继承“我的认知书”中的 {mergeableAssets.savedBookCount} 本认知书</span></label> : null}
+          {Number(mergeableAssets?.projectCount ?? mergeableAssets?.savedBookCount ?? 0) > 0 ? <label className="toggle-field"><input checked={mergeBodyBooks} onChange={(event) => setMergeBodyBooks(event.target.checked)} type="checkbox" /><span>继承“我的认知书”中的 {mergeableAssets.projectCount ?? mergeableAssets.savedBookCount} 个工程</span></label> : null}
           {error ? <p className="error-note">{error}</p> : null}
           <div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={closeModal} type="button">暂不继承</button><button className="draw-card-primary" disabled={busy} onClick={finishAssetMerge} type="button">{busy ? "转移中" : "确认继承"}</button></div>
         </div> : <form className="draw-card-order-form" onSubmit={submit}>
@@ -875,7 +875,7 @@ function FridgeMagnetPage() {
   return <PublicExperiencePage config={FRIDGE_MAGNET_EXPERIENCE_CONFIG} />;
 }
 
-function BodyBookPage() {
+function LegacyBodyBookPage() {
   const [themes, setThemes] = useState(BODY_BOOK_THEME_FALLBACKS);
   const [bodyBookBillingEnabled, setBodyBookBillingEnabled] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState(null);
@@ -1331,6 +1331,405 @@ function downloadBodyBook(book) {
       link.remove();
     }, index * 180);
   });
+}
+
+function BodyBookPage() {
+  const [themes, setThemes] = useState(BODY_BOOK_THEME_FALLBACKS);
+  const [billingEnabled, setBillingEnabled] = useState(false);
+  const [visitorState, setVisitorState] = useState(null);
+  const [orderConfig, setOrderConfig] = useState(null);
+  const [savedBooks, setSavedBooks] = useState([]);
+  const [selectedTheme, setSelectedTheme] = useState(null);
+  const [project, setProject] = useState(null);
+  const [draftKeys, setDraftKeys] = useState([]);
+  const [draftReference, setDraftReference] = useState(null);
+  const [draftReferencePreview, setDraftReferencePreview] = useState("");
+  const [draftPageReferences, setDraftPageReferences] = useState({});
+  const [draftPageReferencePreviews, setDraftPageReferencePreviews] = useState({});
+  const [pagePrompts, setPagePrompts] = useState({});
+  const [error, setError] = useState("");
+  const [activeItem, setActiveItem] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [busyPageKey, setBusyPageKey] = useState("");
+  const [deletingProjectId, setDeletingProjectId] = useState("");
+  const [showContentPicker, setShowContentPicker] = useState(false);
+  const [pickerKeys, setPickerKeys] = useState([]);
+  const [showBatchDialog, setShowBatchDialog] = useState(false);
+  const [historyTheme, setHistoryTheme] = useState(null);
+  const [historyProjects, setHistoryProjects] = useState([]);
+
+  const activeTheme = project?.theme || selectedTheme;
+  const contents = getBodyBookThemeContents(activeTheme);
+  const selectedKeys = project?.pages?.map((page) => page.key) || draftKeys;
+  const draftPages = useMemo(() => contents
+    .filter((content) => draftKeys.includes(content.key))
+    .map((content) => ({ ...content, status: "not_started", result: null, errorMessage: "", referenceUrl: draftPageReferencePreviews[content.key] || draftReferencePreview })), [contents, draftKeys, draftReferencePreview, draftPageReferencePreviews]);
+  const pages = project?.pages || draftPages;
+  const topReferenceUrl = project?.referenceUrl ? bodyBookCacheUrl(project.referenceUrl, project.updatedAt) : draftReferencePreview;
+  const pendingCount = pages.filter((page) => ["queued", "running"].includes(page.status)).length;
+  const incompleteKeys = pages.filter((page) => !["succeeded", "queued", "running"].includes(page.status)).map((page) => page.key);
+  const allAvailableKeys = pages.filter((page) => !["queued", "running"].includes(page.status)).map((page) => page.key);
+
+  function applyProject(nextProject) {
+    if (!nextProject?.sessionId) return;
+    setProject(nextProject);
+    setSelectedTheme(nextProject.theme || selectedTheme);
+    setDraftKeys(nextProject.pages?.map((page) => page.key) || []);
+    setDraftPageReferences({});
+    setPagePrompts(Object.fromEntries((nextProject.pages || []).map((page) => [page.key, page.prompt || ""])));
+    setError("");
+  }
+
+  async function loadSavedBooks(themeId = "") {
+    const payload = await fetchBodyBookProjects(themeId);
+    if (!themeId) setSavedBooks(payload.projects || []);
+    return payload.projects || [];
+  }
+
+  useEffect(() => {
+    let active = true;
+    Promise.allSettled([fetchVisitorState(), fetchOrderConfig(), fetchBodyBookThemes(), loadSavedBooks()]).then((results) => {
+      if (!active) return;
+      const [visitor, config, themePayload] = results;
+      if (visitor.status === "fulfilled") setVisitorState(visitor.value);
+      if (config.status === "fulfilled") setOrderConfig(config.value);
+      if (themePayload.status === "fulfilled") {
+        if (themePayload.value?.themes?.length) setThemes(themePayload.value.themes);
+        setBillingEnabled(Boolean(themePayload.value?.billingEnabled));
+      }
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!draftReference) {
+      setDraftReferencePreview("");
+      return undefined;
+    }
+    const url = URL.createObjectURL(draftReference);
+    setDraftReferencePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [draftReference]);
+
+  useEffect(() => {
+    const entries = Object.entries(draftPageReferences).filter(([, file]) => Boolean(file));
+    const previews = Object.fromEntries(entries.map(([key, file]) => [key, URL.createObjectURL(file)]));
+    setDraftPageReferencePreviews(previews);
+    return () => Object.values(previews).forEach((url) => URL.revokeObjectURL(url));
+  }, [draftPageReferences]);
+
+  useEffect(() => {
+    if (!project?.sessionId || project.stage !== "generating") return undefined;
+    let active = true;
+    const refresh = () => fetchBodyBookProject(project.sessionId)
+      .then((payload) => { if (active) applyProject(payload); })
+      .catch((nextError) => { if (active) setError(nextError.message || "读取认知书工程失败，请稍后再试。"); });
+    refresh();
+    const timer = window.setInterval(refresh, 2200);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [project?.sessionId, project?.stage]);
+
+  useEffect(() => {
+    if (!project?.savedAt) return;
+    loadSavedBooks().catch(() => {});
+  }, [project?.savedAt, project?.updatedAt]);
+
+  function startNewDraft(theme) {
+    const themeContents = getBodyBookThemeContents(theme);
+    setProject(null);
+    setSelectedTheme(theme);
+    setDraftKeys(themeContents.slice(0, 2).map((item) => item.key));
+    setDraftReference(null);
+    setDraftPageReferences({});
+    setPagePrompts({});
+    setHistoryTheme(null);
+    setHistoryProjects([]);
+    setError("");
+  }
+
+  async function selectTheme(theme) {
+    setBusy(true);
+    setError("");
+    try {
+      const projects = await loadSavedBooks(theme.id);
+      if (projects.length) {
+        setHistoryTheme(theme);
+        setHistoryProjects(projects);
+      } else {
+        startNewDraft(theme);
+      }
+    } catch (nextError) {
+      setError(nextError.message || "读取历史工程失败，请稍后再试。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function openProject(projectId) {
+    setBusy(true);
+    setError("");
+    try {
+      applyProject(await fetchBodyBookProject(projectId));
+      setHistoryTheme(null);
+      setHistoryProjects([]);
+    } catch (nextError) {
+      setError(nextError.message || "打开认知书工程失败，请稍后再试。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function backToHome() {
+    setProject(null);
+    setSelectedTheme(null);
+    setDraftReference(null);
+    setDraftPageReferences({});
+    setDraftKeys([]);
+    setPagePrompts({});
+    setError("");
+    loadSavedBooks().catch(() => {});
+  }
+
+  async function ensureBookAccount() {
+    const account = await fetchVisitorState();
+    setVisitorState(account);
+    if (account?.authenticated) return true;
+    if (account?.authorizationUrl) window.location.assign(account.authorizationUrl);
+    else setShowAuthModal(true);
+    return false;
+  }
+
+  async function updateTopReference(file) {
+    if (!file) return;
+    if (!isValidBodyBookReference(file)) {
+      setError("请上传 JPG、PNG 或 WebP 图片。");
+      return;
+    }
+    if (!project) {
+      setDraftReference(file);
+      setDraftPageReferences({});
+      setError("");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const prepared = await prepareReferenceForUpload({ id: "body-book-project-reference", file });
+      const data = new FormData();
+      data.append("image", prepared.file);
+      applyProject(await replaceBodyBookProjectReference(project.sessionId, data));
+    } catch (nextError) {
+      setError(nextError.message || "替换参考图失败，请稍后再试。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updatePageReference(page, file) {
+    if (!file) return;
+    if (!isValidBodyBookReference(file)) {
+      setError("请上传 JPG、PNG 或 WebP 图片。");
+      return;
+    }
+    if (!project) {
+      setDraftPageReferences((current) => ({ ...current, [page.key]: file }));
+      setError("");
+      return;
+    }
+    setBusyPageKey(page.key);
+    setError("");
+    try {
+      const prepared = await prepareReferenceForUpload({ id: `body-book-page-${page.key}`, file });
+      const data = new FormData();
+      data.append("image", prepared.file);
+      applyProject(await replaceBodyBookProjectPageReference(project.sessionId, page.key, data));
+    } catch (nextError) {
+      setError(nextError.message || "替换页面参考图失败，请稍后再试。");
+    } finally {
+      setBusyPageKey("");
+    }
+  }
+
+  async function savePageSelection(nextKeys) {
+    const normalized = getBodyBookThemeContents(activeTheme).map((item) => item.key).filter((key) => nextKeys.includes(key));
+    if (!project) {
+      setDraftKeys(normalized);
+      setDraftPageReferences((current) => Object.fromEntries(Object.entries(current).filter(([key]) => normalized.includes(key))));
+      setPagePrompts((current) => Object.fromEntries(Object.entries(current).filter(([key]) => normalized.includes(key))));
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      applyProject(await updateBodyBookProjectPages(project.sessionId, normalized));
+    } catch (nextError) {
+      setError(nextError.message || "更新认知书内容失败，请稍后再试。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function openContentPicker() {
+    setPickerKeys(selectedKeys);
+    setShowContentPicker(true);
+  }
+
+  async function submitGeneration(keys, busyKey = "") {
+    if (!keys.length) {
+      setError("没有可提交的页面。");
+      return;
+    }
+    if (!(await ensureBookAccount())) return;
+    if (!project && !draftReference) {
+      setError("请先上传参考图。");
+      return;
+    }
+    setBusy(true);
+    setBusyPageKey(busyKey);
+    setError("");
+    try {
+      let next;
+      if (project) {
+        next = await generateBodyBookProjectPages(project.sessionId, keys, selectBodyBookPagePrompts(pagePrompts, keys));
+      } else {
+        const prepared = await prepareReferenceForUpload({ id: "body-book-project-reference", file: draftReference });
+        const data = new FormData();
+        data.append("image", prepared.file);
+        data.append("themeId", activeTheme.id);
+        data.append("contentKeys", JSON.stringify(draftKeys));
+        data.append("generationKeys", JSON.stringify(keys));
+        data.append("pagePrompts", JSON.stringify(selectBodyBookPagePrompts(pagePrompts, draftKeys)));
+        Object.entries(draftPageReferences).forEach(([key, file]) => {
+          if (draftKeys.includes(key) && file) data.append(`pageReference-${key}`, file);
+        });
+        next = await createBodyBookProject(data);
+      }
+      applyProject(next);
+      setShowBatchDialog(false);
+      fetchVisitorState().then(setVisitorState).catch(() => {});
+    } catch (nextError) {
+      setError(nextError.message || "提交图片生成失败，请稍后再试。");
+    } finally {
+      setBusy(false);
+      setBusyPageKey("");
+    }
+  }
+
+  async function deleteProject(book) {
+    if (!book?.sessionId || deletingProjectId) return;
+    if (!window.confirm(`确定删除《${book.title}》吗？删除后无法恢复。`)) return;
+    setDeletingProjectId(book.sessionId);
+    setError("");
+    try {
+      await deleteBodyBookProject(book.sessionId);
+      setSavedBooks((current) => current.filter((item) => item.sessionId !== book.sessionId));
+      if (project?.sessionId === book.sessionId) backToHome();
+    } catch (nextError) {
+      setError(nextError.message || "删除认知书工程失败，请稍后再试。");
+    } finally {
+      setDeletingProjectId("");
+    }
+  }
+
+  async function redeemBookInvite() {
+    if (!inviteCode.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      setVisitorState(await redeemInviteCode(inviteCode.trim()));
+      setInviteCode("");
+    } catch (nextError) {
+      setError(nextError.message || "邀请码兑换失败，请稍后再试。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const home = !activeTheme;
+  return (
+    <main className="body-book-page">
+      <header className="body-book-header">
+        <div><p className="body-book-kicker">Baby learning book</p><h1>{activeTheme?.englishName || "My First Book"}</h1><p>{activeTheme ? `正在制作：${activeTheme.name}` : "选择主题后，自由组合页面并持续编辑。"}</p></div>
+        <div className="body-book-header-actions">
+          {!home ? <button className="draw-card-secondary body-book-back-to-themes" disabled={busy} onClick={backToHome} type="button"><Home size={17} /><span>返回主页</span></button> : null}
+          <div className="body-book-user-area"><button className="draw-card-secondary body-book-account-button" onClick={() => visitorState?.account?.isRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)} type="button">{visitorState?.account?.isRegistered ? (visitorState.account.username || "我的账户") : "登录 / 注册"}</button>{showUserMenu ? <div className="body-book-user-menu"><button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}</div>
+        </div>
+      </header>
+
+      {home ? <>
+        <section className="body-book-theme-home body-book-theme-layout">
+          <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先组合想制作的页面，再按需批量或单张生成。</p></div><div className="body-book-theme-grid">{themes.map((theme, index) => <button className="body-book-theme-card" disabled={busy} key={theme.id} onClick={() => selectTheme(theme)} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={`/body-book-samples/${encodeURIComponent(theme.id)}-cover-thumbnail.webp`} /><span className="body-book-theme-index">{String(index + 1).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small></button>)}</div></div>
+          <aside className="body-book-wallet-panel"><span className="body-book-wallet-label">我的豆豆</span><strong>{visitorState ? `${visitorState.account?.beanBalance || 0} 个豆豆` : "--"}</strong><p>{billingEnabled ? "每张成功生成的图片消耗 1 个豆豆。" : "内测阶段，认知书暂不消耗豆豆。"}</p><label className="body-book-wallet-field"><span>邀请码</span><input disabled={busy} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={busy || !inviteCode.trim()} onClick={redeemBookInvite} type="button">兑换邀请码</button><button className="draw-card-secondary" onClick={() => setShowContactModal(true)} type="button">联系客服</button></div></aside>
+        </section>
+        <section className="body-book-library"><div className="body-book-library-head"><span className="body-book-step">MY BOOKS</span><h2>我的认知书</h2></div>{error ? <p className="error-note">{error}</p> : null}{savedBooks.length ? <div className="body-book-library-grid">{savedBooks.map((book) => <article className="body-book-library-item" key={book.sessionId}><button className="body-book-library-cover" onClick={() => openProject(book.sessionId)} type="button">{book.thumbnail ? <img alt={`${book.title} 缩略图`} src={book.thumbnail} /> : <div className="body-book-library-placeholder">{book.theme?.name || "认知书"}</div>}<span>{book.title}</span><small>继续制作 · {formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></button><button className="body-book-library-delete" disabled={deletingProjectId === book.sessionId} onClick={() => deleteProject(book)} type="button"><Trash2 size={15} /><span>{deletingProjectId === book.sessionId ? "删除中" : "删除"}</span></button></article>)}</div> : <p className="body-book-library-empty">成功生成第一张图片后，工程会自动保存在这里。</p>}</section>
+      </> : <section className="body-book-workspace body-book-project-workspace">
+        <div className="body-book-status-row"><div><span className="body-book-step">02</span><h2>{project?.message || "配置你的认知书页面"}</h2></div><span className="body-book-project-state">{project?.savedAt ? "已自动保存" : "首次生成成功后自动保存"}</span></div>
+        {error ? <p className="error-note">{error}</p> : null}
+        {project?.billingError ? <p className="error-note">{project.billingError}</p> : null}
+        <section className="body-book-project-reference"><div><span className="body-book-step">REFERENCE</span><h3>全局参考图</h3><p>替换后会同步更新所有已选页面的参考图，不会自动重新生成。</p></div><label className={`body-book-upload body-book-project-upload ${topReferenceUrl ? "has-image" : ""}`}>{topReferenceUrl ? <img alt="认知书全局参考图" src={topReferenceUrl} /> : <><ImageUp size={28} /><strong>上传参考图</strong><span>JPG、PNG、WebP</span></>}<input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label></section>
+        <section className="body-book-content-panel">
+          <div className="body-book-project-pages-head"><div><span className="body-book-step">03</span><h3>内容选择</h3><p>每张卡片可单独替换参考图、修改提示词并生成。</p></div></div>
+          <div className="body-book-grid body-book-project-grid">{pages.map((page) => <BodyBookProjectItem busy={busy} busyPageKey={busyPageKey} key={`${page.key}-${page.jobId || "new"}`} onDelete={() => savePageSelection(selectedKeys.filter((key) => key !== page.key))} onGenerate={() => submitGeneration([page.key], page.key)} onOpen={setActiveItem} onPromptChange={(prompt) => setPagePrompts((current) => ({ ...current, [page.key]: prompt }))} onReplaceReference={(file) => updatePageReference(page, file)} page={page} prompt={pagePrompts[page.key] ?? page.prompt ?? ""} referenceUrl={page.usesProjectReference ? topReferenceUrl : bodyBookCacheUrl(page.referenceUrl || topReferenceUrl, project?.updatedAt)} />)}<button className="body-book-add-page-card" disabled={busy} onClick={openContentPicker} type="button" aria-label="添加或编辑内容"><Plus size={36} /><span>添加内容</span></button>{!pages.length ? <p className="body-book-library-empty">点击“添加内容”选择要制作的页面。</p> : null}</div>
+          <div className="body-book-content-panel-actions"><div><strong>批量生成</strong><span>{pages.length ? `已选 ${pages.length} 页${pendingCount ? `，${pendingCount} 页正在生成` : ""}` : "请先添加至少一个页面"}</span></div><button className="draw-card-primary" disabled={busy || !pages.length || (!project && !draftReference)} onClick={() => setShowBatchDialog(true)} type="button">{busy && !busyPageKey ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}<span>批量生成</span></button></div>
+        </section>
+      </section>}
+
+      {activeItem?.result?.imageUrl ? <div className="modal-backdrop body-book-lightbox" onClick={() => setActiveItem(null)} role="presentation"><section className="body-book-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="icon-button" onClick={() => setActiveItem(null)} type="button" aria-label="关闭预览"><X size={18} /></button><img alt={activeItem.title} src={activeItem.result.imageUrl} /><div><strong>{activeItem.title}</strong><a className="draw-card-primary" download={getBodyBookDownloadName(activeItem)} href={activeItem.result.imageUrl}><Download size={17} /><span>下载图片</span></a></div></section></div> : null}
+
+      {showContentPicker ? <div className="modal-backdrop" onClick={() => !busy && setShowContentPicker(false)} role="presentation"><section className="body-book-project-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择认知书内容"><button className="icon-button" disabled={busy} onClick={() => setShowContentPicker(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Contents</p><h2>选择认知书内容</h2><p>已添加的内容保持选中状态。</p><div className="body-book-content-options">{contents.map((content) => <label key={content.key}><input checked={pickerKeys.includes(content.key)} onChange={(event) => setPickerKeys((keys) => event.target.checked ? [...keys, content.key] : keys.filter((key) => key !== content.key))} type="checkbox" /><span>{content.chinese} <small>{content.english}</small></span></label>)}</div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={() => setShowContentPicker(false)} type="button">取消</button><button className="draw-card-primary" disabled={busy} onClick={async () => { await savePageSelection(pickerKeys); setShowContentPicker(false); }} type="button">确认内容</button></div></section></div> : null}
+
+      {showBatchDialog ? <div className="modal-backdrop" onClick={() => !busy && setShowBatchDialog(false)} role="presentation"><section className="body-book-project-modal body-book-batch-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择批量生成方式"><button className="icon-button" disabled={busy} onClick={() => setShowBatchDialog(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Batch generate</p><h2>选择生成方式</h2><p>{pendingCount ? `${pendingCount} 张正在生成，将自动跳过。` : "选择本次要提交的页面。"}</p><button className="body-book-batch-choice" disabled={busy || !incompleteKeys.length} onClick={() => submitGeneration(incompleteKeys)} type="button"><strong>仅生成未完成页</strong><span>提交 {incompleteKeys.length} 张未生成或失败页面，成功图片不变。</span></button><button className="body-book-batch-choice" disabled={busy || !allAvailableKeys.length} onClick={() => submitGeneration(allAvailableKeys)} type="button"><strong>全部重新生成</strong><span>提交 {allAvailableKeys.length} 张非生成中页面，成功图片会被覆盖。</span></button></section></div> : null}
+
+      {historyTheme ? <div className="modal-backdrop" onClick={() => !busy && setHistoryTheme(null)} role="presentation"><section className="body-book-project-modal body-book-history-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择历史认知书工程"><button className="icon-button" disabled={busy} onClick={() => setHistoryTheme(null)} type="button"><X size={18} /></button><p className="body-book-kicker">Existing projects</p><h2>{historyTheme.name}已有历史工程</h2><p>请选择继续历史任务，或新建一本独立工程。</p><div className="body-book-history-list">{historyProjects.map((book) => <button key={book.sessionId} onClick={() => openProject(book.sessionId)} type="button">{book.thumbnail ? <img alt="工程缩略图" src={book.thumbnail} /> : <span className="body-book-history-placeholder">{book.theme?.name}</span>}<span><strong>{book.title}</strong><small>{formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></span></button>)}</div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={() => startNewDraft(historyTheme)} type="button">创建新的工程</button></div></section></div> : null}
+
+      {showAuthModal ? <AuthModal onAuthenticated={async () => { setShowAuthModal(false); setVisitorState(await fetchVisitorState()); await loadSavedBooks(); }} onClose={() => setShowAuthModal(false)} /> : null}
+      {showContactModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowContactModal(false)} role="presentation"><section className="draw-card-confirm-panel draw-card-contact-panel body-book-contact-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="icon-button" onClick={() => setShowContactModal(false)} type="button"><X size={18} /></button><div className="draw-card-contact-copy"><h3>联系客服</h3><p>请加微信</p><button className="draw-card-contact-id" onClick={() => copyText(getContactWechatId(orderConfig))} type="button"><span>{getContactWechatId(orderConfig)}</span><Clipboard size={16} /></button></div></section></div> : null}
+      <footer className="body-book-page-footer"><a className="body-book-admin-entry" href="/admin" aria-label="进入后台管理">后台入口</a></footer>
+    </main>
+  );
+}
+
+function BodyBookProjectItem({ page, prompt, referenceUrl, onOpen, onReplaceReference, onPromptChange, onGenerate, onDelete, busy, busyPageKey }) {
+  const pending = ["queued", "running"].includes(page.status);
+  const succeeded = page.status === "succeeded" && page.result?.imageUrl;
+  const working = busyPageKey === page.key;
+  const [editingPrompt, setEditingPrompt] = useState(false);
+  return <article className={`body-book-item body-book-project-item ${pending ? "is-pending" : ""} ${page.status === "failed" ? "is-failed" : ""}`}>
+    <button className="body-book-project-delete icon-button" disabled={busy || pending} onClick={onDelete} title="删除页面" type="button"><X size={17} /></button>
+    {succeeded ? <button className="body-book-item-media" onClick={() => onOpen(page)} type="button"><img alt={page.title} src={page.result.previewUrl || page.result.imageUrl} /></button> : <div className="body-book-placeholder">{pending ? <LoaderCircle className="spin" size={24} /> : <AlertTriangle size={24} />}<strong>{pending ? "正在生成" : page.status === "failed" ? "生成失败" : "尚未生成"}</strong><span>{page.errorMessage || (pending ? "图片完成后会自动出现。" : "可单张生成或加入批量生成。")}</span></div>}
+    <div className="body-book-item-meta"><div><strong>{page.title}</strong><span>{page.key === "cover" ? "封面" : `第 ${page.order} 页`}</span></div>{succeeded ? <div className="body-book-item-actions"><button className="icon-button" onClick={() => onOpen(page)} title="查看大图" type="button"><Eye size={17} /></button><a className="icon-button" download={getBodyBookDownloadName(page)} href={page.result.imageUrl} title="下载图片"><Download size={17} /></a></div> : null}</div>
+    <div className="body-book-project-card-controls"><label className="body-book-page-reference">{referenceUrl ? <img alt={`${page.title} 参考图`} onError={(event) => { event.currentTarget.style.display = "none"; }} src={referenceUrl} /> : <ImageUp size={16} />}<span>替换参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || pending} onChange={(event) => { onReplaceReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label><button className="body-book-edit-prompt" disabled={busy || pending} onClick={() => setEditingPrompt((current) => !current)} type="button"><Pencil size={15} /><span>提示词</span></button><button className="draw-card-secondary" disabled={busy || pending} onClick={onGenerate} type="button">{working ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}<span>{succeeded ? "单张重新生成" : "单张生成"}</span></button></div>
+    {editingPrompt ? <label className="body-book-page-prompt"><span>本页提示词</span><textarea maxLength={6000} onChange={(event) => onPromptChange(event.target.value)} placeholder="输入本页生成提示词；留空将使用默认提示词。" value={prompt} /><small>{prompt.length}/6000 · 下次单张或批量生成时生效</small></label> : null}
+  </article>;
+}
+
+function getBodyBookThemeContents(theme) {
+  if (Array.isArray(theme?.contents) && theme.contents.length) return theme.contents;
+  return [{ key: "cover", chinese: "封面", english: "Cover", title: "封面 Cover", order: 0 }];
+}
+
+function isValidBodyBookReference(file) {
+  return ["image/jpeg", "image/png", "image/webp"].includes(String(file?.type || ""));
+}
+
+function bodyBookCacheUrl(url, marker) {
+  if (!url) return "";
+  if (url.startsWith("blob:") || url.startsWith("data:")) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}v=${encodeURIComponent(marker || "current")}`;
+}
+
+function formatBodyBookUpdatedAt(value) {
+  if (!value) return "刚刚保存";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "已保存" : `更新于 ${date.toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}`;
+}
+
+function selectBodyBookPagePrompts(prompts, keys) {
+  return Object.fromEntries((keys || []).map((key) => [key, String(prompts?.[key] || "")]).filter(([, prompt]) => prompt.trim()));
 }
 
 function FridgeMagnetOrdersPage() {
@@ -7906,6 +8305,71 @@ async function regenerateBodyBookCard(sessionId, partKey, formData) {
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "重新生成认知卡失败，请稍后再试。");
   return payload;
+}
+
+async function fetchBodyBookProjects(themeId = "") {
+  const query = themeId ? `?themeId=${encodeURIComponent(themeId)}` : "";
+  const response = await fetch(`/api/body-book/projects${query}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取我的认知书失败，请稍后再试。");
+  return payload;
+}
+
+async function fetchBodyBookProject(projectId) {
+  const response = await fetch(`/api/body-book/projects/${encodeURIComponent(projectId)}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取认知书工程失败，请稍后再试。");
+  return payload;
+}
+
+async function createBodyBookProject(formData) {
+  const response = await fetch("/api/body-book/projects", { method: "POST", body: formData });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "创建认知书工程失败，请稍后再试。");
+  return payload;
+}
+
+async function updateBodyBookProjectPages(projectId, contentKeys) {
+  const response = await fetch(`/api/body-book/projects/${encodeURIComponent(projectId)}/pages`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contentKeys })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "更新认知书内容失败，请稍后再试。");
+  return payload;
+}
+
+async function replaceBodyBookProjectReference(projectId, formData) {
+  const response = await fetch(`/api/body-book/projects/${encodeURIComponent(projectId)}/reference`, { method: "POST", body: formData });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "替换参考图失败，请稍后再试。");
+  return payload;
+}
+
+async function replaceBodyBookProjectPageReference(projectId, pageKey, formData) {
+  const response = await fetch(`/api/body-book/projects/${encodeURIComponent(projectId)}/pages/${encodeURIComponent(pageKey)}/reference`, { method: "POST", body: formData });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "替换页面参考图失败，请稍后再试。");
+  return payload;
+}
+
+async function generateBodyBookProjectPages(projectId, pageKeys, pagePrompts = {}) {
+  const response = await fetch(`/api/body-book/projects/${encodeURIComponent(projectId)}/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pageKeys, pagePrompts })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "提交图片生成失败，请稍后再试。");
+  return payload;
+}
+
+async function deleteBodyBookProject(projectId) {
+  const response = await fetch(`/api/body-book/projects/${encodeURIComponent(projectId)}`, { method: "DELETE" });
+  if (response.status === 204) return;
+  const payload = await response.json().catch(() => ({}));
+  throw new Error(payload.message || "删除认知书工程失败，请稍后再试。");
 }
 
 async function likeImageJob(jobId) {

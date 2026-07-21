@@ -1,20 +1,22 @@
 {
+  "schemaVersion": 2,
   "sessionId": "0e4e14ea-68ad-42b0-82e9-8d1a48c1f446",
   "experienceType": "body-book",
+  "themeId": "body",
   "ownerAccountId": "7076b5d2-3e17-4939-808f-1acfe7e0e252",
   "ownerVisitorId": "5f323334-6528-4dfb-94e2-2dd326fd1673",
-  "stage": "complete",
-  "status": "succeeded",
-  "message": "宝宝身体认知书已制作完成。",
+  "stage": "partial",
+  "status": "partial",
+  "message": "部分图片生成失败，可单张或批量重试。",
   "createdAt": "2026-07-19T08:06:30.656Z",
-  "updatedAt": "2026-07-19T08:34:14.266Z",
+  "updatedAt": "2026-07-21T02:23:20.070Z",
   "completedAt": "2026-07-19T08:14:13.520Z",
-  "coverConfirmedAt": "2026-07-19T08:09:22.449Z",
+  "savedAt": "2026-07-21T02:21:46.895Z",
   "reference": {
-    "filename": "reference.jpg",
-    "mimeType": "image/jpeg",
-    "size": 253239,
-    "originalName": "20260719-154824-compressed.jpg"
+    "filename": "reference-1784600564345.png",
+    "mimeType": "image/png",
+    "size": 2835676,
+    "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
   },
   "chargedJobIds": [
     "33143891-6b06-4df1-8d5f-c284f78001d2",
@@ -29,53 +31,63 @@
     "f3184158-b1fb-4c36-97e5-c31de45ac5f6"
   ],
   "billingError": "",
-  "cover": {
-    "key": "cover",
-    "title": "封面 Cover",
-    "order": 0,
-    "version": 1,
-    "jobId": "33143891-6b06-4df1-8d5f-c284f78001d2",
-    "status": "succeeded",
-    "result": {
-      "imageDataUrl": "",
-      "imageUrl": "/generated-images/33143891-6b06-4df1-8d5f-c284f78001d2.png",
-      "mimeType": "image/png",
-      "usage": {
-        "input_tokens": 1689,
-        "input_tokens_details": {
-          "image_tokens": 1452,
-          "text_tokens": 237
+  "pages": [
+    {
+      "key": "cover",
+      "chinese": "封面",
+      "english": "Cover",
+      "title": "封面 Cover",
+      "order": 0,
+      "version": 1,
+      "jobId": "33143891-6b06-4df1-8d5f-c284f78001d2",
+      "status": "succeeded",
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/33143891-6b06-4df1-8d5f-c284f78001d2.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 1689,
+          "input_tokens_details": {
+            "image_tokens": 1452,
+            "text_tokens": 237
+          },
+          "output_tokens": 2058,
+          "output_tokens_details": {
+            "image_tokens": 2058,
+            "text_tokens": 0
+          },
+          "total_tokens": 3747
         },
-        "output_tokens": 2058,
-        "output_tokens_details": {
-          "image_tokens": 2058,
-          "text_tokens": 0
+        "mode": "edit",
+        "previewUrl": "/generated-previews/33143891-6b06-4df1-8d5f-c284f78001d2.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/33143891-6b06-4df1-8d5f-c284f78001d2.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "llmtoken",
+          "name": "llmtoken",
+          "model": "gpt-image-2"
         },
-        "total_tokens": 3747
+        "originalImageUrl": ""
       },
-      "mode": "edit",
-      "previewUrl": "/generated-previews/33143891-6b06-4df1-8d5f-c284f78001d2.webp",
-      "previewWidth": 1254,
-      "previewHeight": 1254,
-      "thumbnailUrl": "/generated-thumbnails/33143891-6b06-4df1-8d5f-c284f78001d2.webp",
-      "thumbnailWidth": 384,
-      "thumbnailHeight": 384,
-      "provider": {
-        "id": "llmtoken",
-        "name": "llmtoken",
-        "model": "gpt-image-2"
-      },
-      "originalImageUrl": ""
+      "errorMessage": "",
+      "historyJobIds": [],
+      "prompt": "Use the uploaded baby photo as the only identity reference. Create a square 1:1 cover for a bilingual 0-3 year old body-parts picture book. The exact main title must be: My First Body 我的第一本身体认知书. Use a clean, bright, warm and soothing premium parenting-magazine editorial layout. Show the same baby in a realistic professional baby portrait with natural skin texture, soft daylight, white minimal studio background, shallow depth of field. Surround the baby with bilingual labels, small numbered markers and simple line icons. Use dotted arrows pointing to the baby's head, eyes and hands. Include only elegant, readable Chinese and English typography. No extra people, no collage panels, no watermark, no border. High-detail realistic baby photography.",
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      }
     },
-    "errorMessage": "",
-    "historyJobIds": []
-  },
-  "cards": [
     {
       "key": "head",
       "chinese": "头部",
       "english": "Head",
       "copy": "This is my head. 这是我的头部。",
+      "title": "头部 Head",
       "order": 1,
       "version": 1,
       "jobId": "aca09462-93f7-4934-b187-b91a093b1d43",
@@ -113,13 +125,20 @@
       },
       "errorMessage": "",
       "historyJobIds": [],
-      "title": "Head 头部"
+      "prompt": "Use the uploaded baby photo as the only identity reference. Create one square 1:1 bilingual body-parts learning card for ages 0-3. This card is number 1 and its only learning theme is Head / 头部. Make the specified body part clearly visible and the visual focus, while keeping the baby's identity, age impression and natural pose recognizable. Use a realistic commercial baby portrait, warm creamy-white palette with muted moss-green accents, soft natural lighting, shallow depth of field, and a minimal clean background. Include the exact readable heading: Head 头部. Include this short bilingual copy: This is my head. 这是我的头部。. Add a colorful number 1, one simple organ icon, and one elegant dotted arrow pointing exactly to the head. Children's encyclopedia editorial layout, gentle premium picture-book design. No extra people, no watermark, no border, no unrelated body-part theme.",
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      }
     },
     {
       "key": "eyes",
       "chinese": "眼睛",
       "english": "Eyes",
       "copy": "I see with my eyes. 我用眼睛看世界。",
+      "title": "眼睛 Eyes",
       "order": 2,
       "version": 1,
       "jobId": "f3184158-b1fb-4c36-97e5-c31de45ac5f6",
@@ -157,13 +176,20 @@
       },
       "errorMessage": "",
       "historyJobIds": [],
-      "title": "Eyes 眼睛"
+      "prompt": "Use the uploaded baby photo as the only identity reference. Create one square 1:1 bilingual body-parts learning card for ages 0-3. This card is number 2 and its only learning theme is Eyes / 眼睛. Make the specified body part clearly visible and the visual focus, while keeping the baby's identity, age impression and natural pose recognizable. Use a realistic commercial baby portrait, warm creamy-white palette with muted moss-green accents, soft natural lighting, shallow depth of field, and a minimal clean background. Include the exact readable heading: Eyes 眼睛. Include this short bilingual copy: I see with my eyes. 我用眼睛看世界。. Add a colorful number 2, one simple organ icon, and one elegant dotted arrow pointing exactly to the eyes. Children's encyclopedia editorial layout, gentle premium picture-book design. No extra people, no watermark, no border, no unrelated body-part theme.",
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      }
     },
     {
       "key": "ears",
       "chinese": "耳朵",
       "english": "Ears",
       "copy": "I hear with my ears. 我用耳朵听声音。",
+      "title": "耳朵 Ears",
       "order": 3,
       "version": 1,
       "jobId": "50619cd4-2c3a-4d3c-86b6-b78424c1304b",
@@ -201,13 +227,20 @@
       },
       "errorMessage": "",
       "historyJobIds": [],
-      "title": "Ears 耳朵"
+      "prompt": "Use the uploaded baby photo as the only identity reference. Create one square 1:1 bilingual body-parts learning card for ages 0-3. This card is number 3 and its only learning theme is Ears / 耳朵. Make the specified body part clearly visible and the visual focus, while keeping the baby's identity, age impression and natural pose recognizable. Use a realistic commercial baby portrait, warm creamy-white palette with muted moss-green accents, soft natural lighting, shallow depth of field, and a minimal clean background. Include the exact readable heading: Ears 耳朵. Include this short bilingual copy: I hear with my ears. 我用耳朵听声音。. Add a colorful number 3, one simple organ icon, and one elegant dotted arrow pointing exactly to the ears. Children's encyclopedia editorial layout, gentle premium picture-book design. No extra people, no watermark, no border, no unrelated body-part theme.",
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      }
     },
     {
       "key": "nose",
       "chinese": "鼻子",
       "english": "Nose",
       "copy": "I smell with my nose. 我用鼻子闻一闻。",
+      "title": "鼻子 Nose",
       "order": 4,
       "version": 1,
       "jobId": "568c9f14-090e-4278-81d4-8a295f9205aa",
@@ -245,13 +278,20 @@
       },
       "errorMessage": "",
       "historyJobIds": [],
-      "title": "Nose 鼻子"
+      "prompt": "Use the uploaded baby photo as the only identity reference. Create one square 1:1 bilingual body-parts learning card for ages 0-3. This card is number 4 and its only learning theme is Nose / 鼻子. Make the specified body part clearly visible and the visual focus, while keeping the baby's identity, age impression and natural pose recognizable. Use a realistic commercial baby portrait, warm creamy-white palette with muted moss-green accents, soft natural lighting, shallow depth of field, and a minimal clean background. Include the exact readable heading: Nose 鼻子. Include this short bilingual copy: I smell with my nose. 我用鼻子闻一闻。. Add a colorful number 4, one simple organ icon, and one elegant dotted arrow pointing exactly to the nose. Children's encyclopedia editorial layout, gentle premium picture-book design. No extra people, no watermark, no border, no unrelated body-part theme.",
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      }
     },
     {
       "key": "mouth",
       "chinese": "嘴巴",
       "english": "Mouth",
       "copy": "I smile with my mouth. 我用嘴巴笑一笑。",
+      "title": "嘴巴 Mouth",
       "order": 5,
       "version": 1,
       "jobId": "58827a5b-30e1-41af-89d4-ab18bdf2a819",
@@ -289,13 +329,20 @@
       },
       "errorMessage": "",
       "historyJobIds": [],
-      "title": "Mouth 嘴巴"
+      "prompt": "Use the uploaded baby photo as the only identity reference. Create one square 1:1 bilingual body-parts learning card for ages 0-3. This card is number 5 and its only learning theme is Mouth / 嘴巴. Make the specified body part clearly visible and the visual focus, while keeping the baby's identity, age impression and natural pose recognizable. Use a realistic commercial baby portrait, warm creamy-white palette with muted moss-green accents, soft natural lighting, shallow depth of field, and a minimal clean background. Include the exact readable heading: Mouth 嘴巴. Include this short bilingual copy: I smile with my mouth. 我用嘴巴笑一笑。. Add a colorful number 5, one simple organ icon, and one elegant dotted arrow pointing exactly to the mouth. Children's encyclopedia editorial layout, gentle premium picture-book design. No extra people, no watermark, no border, no unrelated body-part theme.",
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      }
     },
     {
       "key": "hands",
       "chinese": "手",
       "english": "Hands",
       "copy": "My hands can touch. 我的小手会触摸。",
+      "title": "手 Hands",
       "order": 6,
       "version": 1,
       "jobId": "c7742dd1-b6e6-49f2-ba3b-113e68f15855",
@@ -333,57 +380,41 @@
       },
       "errorMessage": "",
       "historyJobIds": [],
-      "title": "Hands 手"
+      "prompt": "Use the uploaded baby photo as the only identity reference. Create one square 1:1 bilingual body-parts learning card for ages 0-3. This card is number 6 and its only learning theme is Hands / 手. Make the specified body part clearly visible and the visual focus, while keeping the baby's identity, age impression and natural pose recognizable. Use a realistic commercial baby portrait, warm creamy-white palette with muted moss-green accents, soft natural lighting, shallow depth of field, and a minimal clean background. Include the exact readable heading: Hands 手. Include this short bilingual copy: My hands can touch. 我的小手会触摸。. Add a colorful number 6, one simple organ icon, and one elegant dotted arrow pointing exactly to the hands. Children's encyclopedia editorial layout, gentle premium picture-book design. No extra people, no watermark, no border, no unrelated body-part theme.",
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      }
     },
     {
       "key": "feet",
       "chinese": "脚",
       "english": "Feet",
       "copy": "My feet help me walk. 我用小脚走路。",
+      "title": "脚 Feet",
       "order": 7,
       "version": 1,
       "jobId": "853c4dbf-d9b0-4896-a85e-88e51fab503e",
-      "status": "succeeded",
-      "result": {
-        "imageDataUrl": "",
-        "imageUrl": "/generated-images/853c4dbf-d9b0-4896-a85e-88e51fab503e.png",
-        "mimeType": "image/png",
-        "usage": {
-          "input_tokens": 1722,
-          "input_tokens_details": {
-            "image_tokens": 1452,
-            "text_tokens": 270
-          },
-          "output_tokens": 2058,
-          "output_tokens_details": {
-            "image_tokens": 2058,
-            "text_tokens": 0
-          },
-          "total_tokens": 3780
-        },
-        "mode": "edit",
-        "previewUrl": "/generated-previews/853c4dbf-d9b0-4896-a85e-88e51fab503e.webp",
-        "previewWidth": 1254,
-        "previewHeight": 1254,
-        "thumbnailUrl": "/generated-thumbnails/853c4dbf-d9b0-4896-a85e-88e51fab503e.webp",
-        "thumbnailWidth": 384,
-        "thumbnailHeight": 384,
-        "provider": {
-          "id": "llmtoken",
-          "name": "llmtoken",
-          "model": "gpt-image-2"
-        },
-        "originalImageUrl": ""
-      },
-      "errorMessage": "",
+      "status": "failed",
+      "result": null,
+      "errorMessage": "生成失败，请重试。",
       "historyJobIds": [],
-      "title": "Feet 脚"
+      "prompt": "Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Create one square 1:1 bilingual 身体认知书 learning card for ages 0-3. This is page 7; the sole learning concept is \"Feet / 脚\". The image must attempt to render this heading exactly: \"脚 Feet\". Include this short bilingual sentence exactly: \"My feet help me walk. 我用小脚走路。\". Add page number \"7\" in the lower-right. Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: a close, natural baby pose in which the requested body part is unmistakably visible; use one restrained dotted arrow to that body part. Keep the same baby recognizable in a natural, age-appropriate pose. Use a white or warm-cream page, warm cream, sage green, and soft apricot accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching simple body-part learning symbols. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.",
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      }
     },
     {
       "key": "tummy",
       "chinese": "肚子",
       "english": "Tummy",
       "copy": "This is my tummy. 这是我的小肚子。",
+      "title": "肚子 Tummy",
       "order": 8,
       "version": 1,
       "jobId": "44fbdc52-8636-4647-807f-ddd686c2a2de",
@@ -421,51 +452,34 @@
       },
       "errorMessage": "",
       "historyJobIds": [],
-      "title": "Tummy 肚子"
+      "prompt": "Use the uploaded baby photo as the only identity reference. Create one square 1:1 bilingual body-parts learning card for ages 0-3. This card is number 8 and its only learning theme is Tummy / 肚子. Make the specified body part clearly visible and the visual focus, while keeping the baby's identity, age impression and natural pose recognizable. Use a realistic commercial baby portrait, warm creamy-white palette with muted moss-green accents, soft natural lighting, shallow depth of field, and a minimal clean background. Include the exact readable heading: Tummy 肚子. Include this short bilingual copy: This is my tummy. 这是我的小肚子。. Add a colorful number 8, one simple organ icon, and one elegant dotted arrow pointing exactly to the tummy. Children's encyclopedia editorial layout, gentle premium picture-book design. No extra people, no watermark, no border, no unrelated body-part theme.",
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      }
     },
     {
       "key": "knees",
       "chinese": "膝盖",
       "english": "Knees",
       "copy": "My knees can bend. 我的小膝盖会弯曲。",
+      "title": "膝盖 Knees",
       "order": 9,
       "version": 1,
       "jobId": "472217fe-6056-48ec-a1a5-a42ea0f9ed44",
-      "status": "succeeded",
-      "result": {
-        "imageDataUrl": "",
-        "imageUrl": "/generated-images/472217fe-6056-48ec-a1a5-a42ea0f9ed44.png",
-        "mimeType": "image/png",
-        "usage": {
-          "input_tokens": 1736,
-          "input_tokens_details": {
-            "image_tokens": 1452,
-            "text_tokens": 284
-          },
-          "output_tokens": 2058,
-          "output_tokens_details": {
-            "image_tokens": 2058,
-            "text_tokens": 0
-          },
-          "total_tokens": 3794
-        },
-        "mode": "edit",
-        "previewUrl": "/generated-previews/472217fe-6056-48ec-a1a5-a42ea0f9ed44.webp",
-        "previewWidth": 1254,
-        "previewHeight": 1254,
-        "thumbnailUrl": "/generated-thumbnails/472217fe-6056-48ec-a1a5-a42ea0f9ed44.webp",
-        "thumbnailWidth": 384,
-        "thumbnailHeight": 384,
-        "provider": {
-          "id": "llmtoken",
-          "name": "llmtoken",
-          "model": "gpt-image-2"
-        },
-        "originalImageUrl": ""
-      },
-      "errorMessage": "",
+      "status": "failed",
+      "result": null,
+      "errorMessage": "生成失败，请重试。",
       "historyJobIds": [],
-      "title": "Knees 膝盖"
+      "prompt": "Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Create one square 1:1 bilingual 身体认知书 learning card for ages 0-3. This is page 9; the sole learning concept is \"Knees / 膝盖\". The image must attempt to render this heading exactly: \"膝盖 Knees\". Include this short bilingual sentence exactly: \"My knees can bend. 我的小膝盖会弯曲。\". Add page number \"9\" in the lower-right. Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: a close, natural baby pose in which the requested body part is unmistakably visible; use one restrained dotted arrow to that body part. Keep the same baby recognizable in a natural, age-appropriate pose. Use a white or warm-cream page, warm cream, sage green, and soft apricot accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching simple body-part learning symbols. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.",
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      }
     }
   ]
 }
