@@ -136,7 +136,7 @@ body {
 
 .body-book-header-balance {
   align-items: baseline;
-  gap: 7px;
+  gap: 5px;
   min-width: 112px;
   cursor: pointer;
 }
@@ -234,9 +234,8 @@ body {
 
 .body-book-theme-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(250px, 290px);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: 28px;
 }
 
 .body-book-theme-content {
@@ -374,6 +373,14 @@ body {
 .body-book-theme-card small {
   color: #6b7b75;
   font-size: 12px;
+}
+
+.body-book-theme-card em {
+  margin-top: 2px;
+  color: #2d7654;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
 }
 
 .body-book-theme-preview {
@@ -5176,6 +5183,13 @@ textarea {
 .body-book-bean-balance strong {
   color: #1d6849;
   font-size: 24px;
+}
+
+.body-book-bean-cost-note {
+  margin: 0;
+  color: #536660;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .body-book-checkout-modal {
