@@ -5250,6 +5250,15 @@ textarea {
   padding: 0 14px 14px;
 }
 
+.body-book-built-in-note {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  color: #2f7656;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .body-book-project-card-controls .draw-card-secondary {
   grid-column: 1 / -1;
   display: inline-flex;

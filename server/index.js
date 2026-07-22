@@ -127,11 +127,14 @@ const BODY_BOOK_PARTS = [
   { key: "ears", chinese: "耳朵", english: "Ears", copy: "I hear with my ears. 我用耳朵听声音。" },
   { key: "nose", chinese: "鼻子", english: "Nose", copy: "I smell with my nose. 我用鼻子闻一闻。" },
   { key: "mouth", chinese: "嘴巴", english: "Mouth", copy: "I smile with my mouth. 我用嘴巴笑一笑。" },
+  { key: "cheeks", chinese: "脸颊", english: "Cheeks", copy: "These are my cheeks. 这是我的脸颊。" },
+  { key: "chin", chinese: "下巴", english: "Chin", copy: "This is my chin. 这是我的下巴。" },
   { key: "hair", chinese: "头发", english: "Hair", copy: "This is my hair. 这是我的头发。" },
   { key: "teeth", chinese: "牙齿", english: "Teeth", copy: "I brush my teeth. 我会刷牙。" },
   { key: "arms", chinese: "手臂", english: "Arms", copy: "These are my arms. 这是我的手臂。" },
   { key: "hands", chinese: "手", english: "Hands", copy: "My hands can touch. 我的小手会触摸。" },
   { key: "fingers", chinese: "手指", english: "Fingers", copy: "These are my fingers. 这是我的手指。" },
+  { key: "legs", chinese: "腿", english: "Legs", copy: "These are my legs. 这是我的腿。" },
   { key: "feet", chinese: "脚", english: "Feet", copy: "My feet help me walk. 我用小脚走路。" },
   { key: "toes", chinese: "脚趾", english: "Toes", copy: "These are my toes. 这是我的脚趾。" },
   { key: "tummy", chinese: "肚子", english: "Tummy", copy: "This is my tummy. 这是我的小肚子。" },
@@ -143,16 +146,16 @@ const BOOK_THEME_DEFINITIONS = [
     ["doctor", "医生", "Doctor"], ["teacher", "老师", "Teacher"], ["firefighter", "消防员", "Firefighter"], ["chef", "厨师", "Chef"], ["police", "警察", "Police Officer"], ["farmer", "农夫", "Farmer"], ["builder", "建筑师", "Builder"], ["scientist", "科学家", "Scientist"], ["artist", "艺术家", "Artist"], ["nurse", "护士", "Nurse"], ["dentist", "牙医", "Dentist"], ["baker", "面包师", "Baker"], ["gardener", "园丁", "Gardener"], ["veterinarian", "兽医", "Veterinarian"], ["dancer", "舞蹈家", "Dancer"], ["writer", "作家", "Writer"], ["singer", "歌手", "Singer"], ["hairdresser", "理发师", "Hairdresser"]
   ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `I can be a ${english}. 我可以成为${chinese}。` })) },
   { id: "color", name: "颜色认知书", englishName: "My First Colors", title: "我的第一本颜色认知书", parts: [
-    ["red", "红色", "Red"], ["orange", "橙色", "Orange"], ["yellow", "黄色", "Yellow"], ["green", "绿色", "Green"], ["blue", "蓝色", "Blue"], ["purple", "紫色", "Purple"], ["pink", "粉色", "Pink"], ["brown", "棕色", "Brown"], ["gray", "灰色", "Gray"], ["black", "黑色", "Black"], ["white", "白色", "White"]
+    ["red", "红色", "Red"], ["orange", "橙色", "Orange"], ["yellow", "黄色", "Yellow"], ["green", "绿色", "Green"], ["blue", "蓝色", "Blue"], ["purple", "紫色", "Purple"], ["pink", "粉色", "Pink"], ["black", "黑色", "Black"]
   ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `This is ${english}. 这是${chinese}。` })) },
   { id: "emotion", name: "情绪认知书", englishName: "My First Feelings", title: "我的第一本情绪认知书", parts: [
-    ["happy", "开心", "Happy"], ["sad", "难过", "Sad"], ["angry", "生气", "Angry"], ["surprised", "惊讶", "Surprised"], ["scared", "害怕", "Scared"], ["shy", "害羞", "Shy"], ["excited", "兴奋", "Excited"], ["calm", "平静", "Calm"], ["proud", "自豪", "Proud"]
+    ["happy", "开心", "Happy"], ["sad", "难过", "Sad"], ["angry", "生气", "Angry"], ["surprised", "惊讶", "Surprised"], ["scared", "害怕", "Scared"], ["shy", "害羞", "Shy"], ["excited", "兴奋", "Excited"], ["calm", "平静", "Calm"], ["proud", "自豪", "Proud"], ["sleepy", "困倦", "Sleepy"], ["curious", "好奇", "Curious"], ["upset", "委屈", "Upset"], ["expectant", "期待", "Expectant"], ["bored", "无聊", "Bored"], ["confused", "困惑", "Confused"], ["loving", "友爱", "Loving"]
   ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `I feel ${english}. 我感到${chinese}。` })) },
   { id: "transport", name: "交通工具认知书", englishName: "My First Vehicles", title: "我的第一本交通工具认知书", parts: [
-    ["car", "汽车", "Car"], ["bus", "公交车", "Bus"], ["train", "火车", "Train"], ["airplane", "飞机", "Airplane"], ["boat", "小船", "Boat"], ["bicycle", "自行车", "Bicycle"], ["truck", "卡车", "Truck"], ["taxi", "出租车", "Taxi"], ["ambulance", "救护车", "Ambulance"], ["metro", "地铁", "Metro"], ["ship", "轮船", "Ship"], ["helicopter", "直升机", "Helicopter"], ["fire-truck", "消防车", "Fire Truck"], ["school-bus", "校车", "School Bus"], ["tractor", "拖拉机", "Tractor"]
+    ["car", "汽车", "Car"], ["bus", "公交车", "Bus"], ["train", "火车", "Train"], ["airplane", "飞机", "Airplane"], ["boat", "小船", "Boat"], ["bicycle", "自行车", "Bicycle"], ["truck", "卡车", "Truck"], ["taxi", "出租车", "Taxi"], ["ambulance", "救护车", "Ambulance"], ["metro", "地铁", "Metro"], ["ship", "轮船", "Ship"], ["helicopter", "直升机", "Helicopter"], ["fire-truck", "消防车", "Fire Truck"], ["school-bus", "校车", "School Bus"], ["tractor", "拖拉机", "Tractor"], ["cable-car", "缆车", "Cable Car"]
   ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `This is a ${english}. 这是一辆${chinese}。` })) },
   { id: "animal", name: "动物认知书", englishName: "My First Animals", title: "我的第一本动物认知书", parts: [
-    ["cat", "小猫", "Cat"], ["dog", "小狗", "Dog"], ["rabbit", "兔子", "Rabbit"], ["horse", "马", "Horse"], ["cow", "奶牛", "Cow"], ["duck", "小鸭", "Duck"], ["goldfish", "金鱼", "Goldfish"], ["turtle", "乌龟", "Turtle"], ["monkey", "猴子", "Monkey"], ["bear", "小熊", "Bear"], ["lion", "狮子", "Lion"], ["elephant", "大象", "Elephant"], ["giraffe", "长颈鹿", "Giraffe"], ["penguin", "企鹅", "Penguin"], ["butterfly", "蝴蝶", "Butterfly"]
+    ["cat", "小猫", "Cat"], ["dog", "小狗", "Dog"], ["rabbit", "兔子", "Rabbit"], ["horse", "马", "Horse"], ["cow", "奶牛", "Cow"], ["duck", "小鸭", "Duck"], ["goldfish", "金鱼", "Goldfish"], ["turtle", "乌龟", "Turtle"], ["monkey", "猴子", "Monkey"], ["bear", "小熊", "Bear"], ["lion", "狮子", "Lion"], ["elephant", "大象", "Elephant"], ["giraffe", "长颈鹿", "Giraffe"], ["penguin", "企鹅", "Penguin"], ["butterfly", "蝴蝶", "Butterfly"], ["sheep", "小羊", "Sheep"]
   ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `Hello, ${english}! 你好，${chinese}！` })) },
   { id: "daily", name: "日常行为认知书", englishName: "My First Daily Routines", title: "我的第一本日常行为认知书", parts: [
     { key: "wake-up", chinese: "起床", english: "Wake Up", copy: "I can wake up. 我会起床。" },
@@ -168,7 +171,9 @@ const BOOK_THEME_DEFINITIONS = [
     { key: "tidy-up", chinese: "收拾玩具", english: "Tidy Up", copy: "I can tidy up. 我会收拾玩具。" },
     { key: "say-hello", chinese: "打招呼", english: "Say Hello", copy: "I can say hello. 我会打招呼。" },
     { key: "bath", chinese: "洗澡", english: "Bath Time", copy: "I can take a bath. 我会洗澡。" },
-    { key: "sleep", chinese: "睡觉", english: "Sleep", copy: "I can sleep. 我会睡觉。" }
+    { key: "sleep", chinese: "睡觉", english: "Sleep", copy: "I can sleep. 我会睡觉。" },
+    { key: "comb-hair", chinese: "梳头", english: "Comb Hair", copy: "I can comb my hair. 我会梳头。" },
+    { key: "go-for-a-walk", chinese: "散步", english: "Go for a Walk", copy: "I can go for a walk. 我会散步。" }
   ] }
 ];
 const BODY_BOOK_PROMPT_PROFILES = {
@@ -1676,8 +1681,9 @@ app.post("/api/body-book/projects", requireWebAccount, upload.any(), async (req,
     const pagePrompts = parseBodyBookPagePrompts(req.body?.pagePrompts, theme);
     if (!contentKeys.length) throw createHttpError(400, "请至少选择一个认知书内容。");
     if (!generationKeys.length) throw createHttpError(400, "请选择至少一页进行生成。");
-    if (BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.beanBalance || 0) < generationKeys.length) {
-      throw createHttpError(409, `生成 ${generationKeys.length} 张图片需要 ${generationKeys.length} 个豆豆，当前豆豆不足。`);
+    const generatedPageCount = generationKeys.filter((key) => !getBodyBookPageDefinition(theme, key)?.isBuiltIn).length;
+    if (BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.beanBalance || 0) < generatedPageCount) {
+      throw createHttpError(409, `生成 ${generatedPageCount} 张图片需要 ${generatedPageCount} 个豆豆，当前豆豆不足。`);
     }
     const visitor = await getVisitorState(req);
     enforcePublicRateLimits(req);
@@ -1754,7 +1760,7 @@ app.post("/api/body-book/projects/:sessionId/generate", requireWebAccount, async
     const current = await synchronizeBodyBookSession(session);
     const requestedKeys = parseBodyBookPageKeys(req.body?.pageKeys, getBookTheme(current.themeId));
     const eligibleKeys = current.pages
-      .filter((page) => requestedKeys.includes(page.key) && !["queued", "running"].includes(page.status))
+      .filter((page) => requestedKeys.includes(page.key) && !page.isBuiltIn && !["queued", "running"].includes(page.status))
       .map((page) => page.key);
     if (!eligibleKeys.length) throw createHttpError(409, "所选页面正在生成，暂时不能重复提交。");
     if (BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.beanBalance || 0) < eligibleKeys.length) {
@@ -4817,14 +4823,14 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
   const current = await synchronizeBodyBookSession(project);
   const cover = current.pages.find((page) => page.key === "cover") || null;
   const pages = Array.isArray(current.pages) ? current.pages : [];
-  if (!cover || !pages.length || pages.some((page) => page.status !== "succeeded" || !page.jobId || !page.result?.imageUrl)) {
+  if (!cover || !pages.length || pages.some((page) => page.status !== "succeeded" || !page.result?.imageUrl || (!page.isBuiltIn && !page.jobId))) {
     throw createHttpError(409, "请先完成封面和全部已选内页的生成后再下单。");
   }
 
   const address = normalizeOrderAddress(req.body || {});
   assertValidOrderAddress(address);
-  const requestedItems = pages.map((page) => ({ jobId: page.jobId, quantity: 1 }));
-  const sourceJobs = await Promise.all(requestedItems.map((item) => readImageJob(item.jobId)));
+  const requestedItems = pages.map((page) => ({ jobId: page.isBuiltIn ? `built-in:${page.key}` : page.jobId, quantity: 1 }));
+  const sourceJobs = await Promise.all(pages.filter((page) => !page.isBuiltIn).map((page) => readImageJob(page.jobId)));
   if (sourceJobs.some((job) => !job || job.status !== "succeeded" || !job.result?.imageUrl)) {
     throw createHttpError(409, "认知书图片尚未准备完成，请稍后重试。");
   }
@@ -4837,6 +4843,15 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
       styleName: String(page?.title || job?.styleName || "认知书页面")
     }];
   }));
+  pages.filter((page) => page.isBuiltIn).forEach((page) => {
+    jobsById.set(`built-in:${page.key}`, {
+      jobId: `built-in:${page.key}`,
+      status: "succeeded",
+      result: page.result,
+      styleId: "body-book",
+      styleName: String(page.title || "认知书页面")
+    });
+  });
   const amount = calculateBodyBookOrderAmounts(bodyBookPricing);
   const merchantSource = await resolveOrderMerchantSource(req);
   const now = new Date();
@@ -4987,6 +5002,9 @@ function resolvePublicAssetFilePath(assetUrl) {
   if (value.startsWith("/order-assets/")) {
     const relativePath = value.replace(/^\/order-assets\//, "").split("/").join(path.sep);
     return path.join(orderAssetPublicRoot, relativePath);
+  }
+  if (value.startsWith("/body-book-color-pages/")) {
+    return path.join(rootDir, "public", "body-book-color-pages", path.basename(value));
   }
   return "";
 }
@@ -7777,16 +7795,14 @@ function getBookTheme(themeId) {
 }
 
 function toPublicBookTheme(theme) {
+  const pages = getBodyBookPageDefinitions(theme);
   return {
     id: theme.id,
     name: theme.name,
     englishName: theme.englishName,
     title: theme.title,
-    pageCount: theme.parts.length,
-    contents: [
-      { key: "cover", chinese: "封面", english: "Cover", title: "封面 Cover", order: 0 },
-      ...theme.parts.map((part, index) => ({ ...part, title: `${part.chinese} ${part.english}`, order: index + 1 }))
-    ]
+    pageCount: pages.length,
+    contents: pages
   };
 }
 
@@ -7816,11 +7832,14 @@ function getBodyBookPartVisualDirection(themeId, partKey) {
       ears: "Dress the baby in a light-blue overall set; show the baby leaning their head slightly and cupping one ear as if listening to a tiny illustrated bell.",
       nose: "Dress the baby in a soft apricot romper; show the baby gently smelling one small flower held near the nose, with the nose unobstructed.",
       mouth: "Dress the baby in a warm-cream bib romper; show a close smiling pose blowing a tiny illustrated bubble, with the mouth clearly visible.",
+      cheeks: "Dress the baby in a blush-pink knit cardigan over a cream romper; show a close seated smile with both open palms gently resting on the cheeks, keeping both cheeks fully visible.",
+      chin: "Dress the baby in a soft sky-blue bib romper; show a relaxed close seated pose with one finger gently touching below the lower lip, keeping the chin fully visible and unobstructed.",
       hair: "Dress the baby in a soft lavender cardigan over a cream romper; show a close seated pose gently touching a small lock of hair with one hand, with the hair fully visible.",
       teeth: "Dress the baby in a clean mint-green cotton romper and a small towel bib; show a happy open smile while safely holding a toddler toothbrush beside the teeth.",
       arms: "Dress the baby in a short-sleeve coral romper; show both bare arms stretched wide toward two small friendly stars.",
       hands: "Dress the baby in a simple sky-blue short-sleeve top and soft shorts; show both open hands touching a textured fabric square.",
       fingers: "Dress the baby in a soft yellow romper; show one hand close to the camera with fingers gently spread around a large soft fabric flower.",
+      legs: "Dress the baby in a soft coral T-shirt and short cotton bloomers; show a safe floor-seated pose with both bare legs stretched forward and gently kicking toward one small soft ball, with legs fully visible.",
       feet: "Dress the baby in a short-sleeve cotton bodysuit and contrasting soft socks; show a safe seated pose with both feet lifted toward a small ball.",
       toes: "Dress the baby in a pale aqua romper; show a safe seated pose with bare toes lightly touching a tiny soft ball, with toes clearly visible.",
       tummy: "Dress the baby in a two-piece cotton outfit with a softly lifted shirt edge; show a gentle seated giggle with one hand resting on the tummy, always modest and age-appropriate.",
@@ -7835,7 +7854,14 @@ function getBodyBookPartVisualDirection(themeId, partKey) {
       shy: "Dress the baby in a blush-pink cardigan over a cream romper; show a small smile with the chin lowered and one hand partly covering the cheek.",
       excited: "Dress the baby in a bright teal-and-yellow sporty romper; show an energetic seated bounce with both arms lifted beside two small confetti marks.",
       calm: "Dress the baby in a soft aqua cotton sleep suit; show a relaxed cross-legged seated pose holding one small leaf, with a peaceful closed-mouth smile.",
-      proud: "Dress the baby in a warm-orange overall set with a small gold-star badge; show a confident upright seated pose holding up one finished block tower."
+      proud: "Dress the baby in a warm-orange overall set with a small gold-star badge; show a confident upright seated pose holding up one finished block tower.",
+      sleepy: "Dress the baby in a soft lilac sleep suit; show a gentle yawn with one hand near the mouth while hugging one small cloud-shaped cushion, with a calm sleepy expression.",
+      curious: "Dress the baby in a mint-green overall set; show a forward-leaning seated pose with wide attentive eyes looking through a large safe cardboard magnifying-glass prop at one small leaf.",
+      upset: "Dress the baby in a soft powder-pink romper; show a mild, non-distressing lower-lip pout while gently holding one small heart-shaped cushion, never crying or showing tears.",
+      expectant: "Dress the baby in a sunny-yellow cardigan over a cream romper; show an eager forward-leaning seated pose with hands lightly clasped and bright attentive eyes looking at one small wrapped surprise box.",
+      bored: "Dress the baby in a pale-gray cotton romper; show a gentle resting-cheek-on-hand seated pose beside one closed picture book, with a mild neutral expression and no distress.",
+      confused: "Dress the baby in a soft lavender overall set; show a gentle tilted-head seated pose with one hand slightly raised beside two small floating question-mark doodles, never distressed.",
+      loving: "Dress the baby in a warm peach romper with a tiny heart patch; show a soft affectionate smile while hugging one small heart-shaped cushion, with two restrained heart doodles nearby."
     },
     transport: {
       car: "Dress the baby in a soft red driving jacket and navy shorts; show the baby safely buckled into a rear child safety seat inside a real, full-size red parked car, with the real car body and steering wheel clearly visible. Never generate a toy, miniature, ride-on, or cartoon car.",
@@ -7852,7 +7878,8 @@ function getBodyBookPartVisualDirection(themeId, partKey) {
       helicopter: "Dress the baby in a sky-blue pilot-inspired romper and a soft aviator cap; show the baby safely seated in an airport stroller near a real full-size helicopter, with real rotor blades, cockpit, and landing skids clearly visible. Never generate a toy or cartoon helicopter.",
       "fire-truck": "Dress the baby in a red helper jacket and a soft firefighter hat; show the baby safely seated in a child safety seat beside a real full-size red fire truck, with the cab, ladder, and wheels clearly visible. Never generate a toy fire truck.",
       "school-bus": "Dress the baby in a yellow travel jacket and a small backpack; show the baby safely seated in a real full-size school bus child seat by a window, with the real yellow bus body clearly visible. Never generate a toy or cartoon school bus.",
-      tractor: "Dress the baby in soft green overalls and a sun hat; show the baby safely seated in a child stroller beside a real full-size tractor, with the large rear wheel and front loader clearly visible. Never generate a toy tractor."
+      tractor: "Dress the baby in soft green overalls and a sun hat; show the baby safely seated in a child stroller beside a real full-size tractor, with the large rear wheel and front loader clearly visible. Never generate a toy tractor.",
+      "cable-car": "Dress the baby in a warm red travel jacket and a soft knit beanie; show the baby safely secured in a stroller inside a real full-size cable-car cabin, with the real cabin windows, suspension arm, and cable clearly visible. Never generate a toy, miniature, or cartoon cable car."
     },
     animal: {
       cat: "Dress the baby in a soft gray-and-white kitten romper with plush cat ears and a tiny tail; show a playful seated pawing pose beside a calm, real domestic shorthaired cat photographed in full detail. The cat must have natural fur, eyes, paws, and whiskers; never use a plush, toy, cartoon, illustrated, or CGI cat.",
@@ -7869,7 +7896,8 @@ function getBodyBookPartVisualDirection(themeId, partKey) {
       elephant: "Dress the baby in a pale-gray elephant romper with floppy ears and a soft fabric trunk hood; show the baby reaching toward a separate, full-bodied photograph cutout of a real elephant at a safe visual distance. The elephant must have natural skin texture, trunk, and anatomy; never use a toy or illustration.",
       giraffe: "Dress the baby in a yellow-and-brown spotted giraffe romper with small plush ossicones; show the baby stretching both arms high toward a separate, full-bodied photograph cutout of a real giraffe at a safe visual distance. The giraffe must have natural coat pattern and anatomy; never use a toy or illustration.",
       penguin: "Dress the baby in a black-and-white penguin romper with a tiny orange beak hood; show a balanced waddling pose beside a real penguin photographed in full detail. The penguin must have natural feathers, flippers, and anatomy; never use a plush, toy, cartoon, illustrated, or CGI penguin.",
-      butterfly: "Dress the baby in a pastel butterfly romper with soft colorful wings; show a gentle arms-open fluttering pose while looking at a real butterfly macro photograph with natural wing detail. Never use a toy, cartoon, or illustrated butterfly."
+      butterfly: "Dress the baby in a pastel butterfly romper with soft colorful wings; show a gentle arms-open fluttering pose while looking at a real butterfly macro photograph with natural wing detail. Never use a toy, cartoon, or illustrated butterfly.",
+      sheep: "Dress the baby in a warm-cream lamb-inspired romper with soft floppy ears; show a gentle seated pose beside a separate full-bodied photograph cutout of one calm real sheep at a safe visual distance. The sheep must have natural wool, face, hooves, and anatomy; never use a plush, toy, cartoon, illustrated, or CGI sheep."
     },
     daily: {
       "wake-up": "Dress the baby in soft striped pajamas; show the baby sitting up and stretching both arms beside one tiny illustrated sun and a folded blanket.",
@@ -7885,7 +7913,9 @@ function getBodyBookPartVisualDirection(themeId, partKey) {
       "drink-water": "Dress the baby in a light aqua romper and a small bib; show the baby safely holding a small handled cup of water with both hands.",
       "say-hello": "Dress the baby in a cheerful yellow cardigan over a cream romper; show a friendly standing-supported or seated wave beside one tiny speech bubble that says Hello.",
       bath: "Dress the baby in a hooded towel wrap with a duck-shaped towel hood; show a safe seated splash pose in a simplified illustrated baby tub with only a rubber duck.",
-      sleep: "Dress the baby in a soft moon-and-star sleep suit; show a curled, peaceful side-lying pose hugging one small moon plush, with no realistic bedroom."
+      sleep: "Dress the baby in a soft moon-and-star sleep suit; show a curled, peaceful side-lying pose hugging one small moon plush, with no realistic bedroom.",
+      "comb-hair": "Dress the baby in a pale-yellow cotton romper with a small bib; show a safe seated pose gently brushing their own hair with one soft toddler hairbrush, keeping the hair clearly visible and using no realistic bathroom scene.",
+      "go-for-a-walk": "Dress the baby in a light denim jacket, soft leggings, and toddler sneakers; show a safe standing-supported or early-walking pose taking a few small steps along one simple dotted path, carrying one tiny fabric backpack and with no realistic street scene."
     }
   };
 
@@ -7894,16 +7924,19 @@ function getBodyBookPartVisualDirection(themeId, partKey) {
 }
 
 function buildColorBookPartPrompt(part, order, theme = getBookTheme("color")) {
-  const details = getColorBookVisualDetails(part?.key);
-  return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, natural hair, and Asian baby appearance. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's color art direction instead. Create one premium square 1:1 bilingual color-learning picture-book card for ages 0-3. The single learning concept is "${part.english} / ${part.chinese}".
+  const details = getColorBookVisualDetails(part?.colorKey || part?.key);
+  return `Use the uploaded baby photo as the only identity reference. Strictly preserve the baby's facial features, age impression, skin tone, natural hair, and Asian baby appearance. Do not copy the reference clothing, pose, props, or background. Create one square 1:1 INNER PAGE (not a cover) for a 0-3-year-old bilingual color-learning picture book. The only learning concept is "${part.english} / ${part.chinese}".
 
-The baby is the central half-body subject. Dress the baby in a clearly ${details.colorName} ${details.outfit} with a coordinated ${details.headwear}; the outfit color must be the strongest color on the baby and immediately communicate ${part.english}. Keep the baby in a natural, age-appropriate pose, gently touching, holding, or looking at one of the learning objects.
+Composition: make the baby the central half-body subject, recognizably the same child from the reference. Dress the baby in a clearly ${details.colorName} ${details.outfit} and a coordinated ${details.headwear}. The baby should naturally hold, touch, or look at one clear ${details.colorName} learning object. The requested color must be visually dominant and unmistakable.
 
-Use a PURE WHITE (#FFFFFF) studio-paper background only: no colored full-page background, no room, no landscape, no scenic setting. Arrange exactly 5 or 6 clearly separated, easy-to-recognize ${details.colorName} objects around the baby as small sticker-like cutouts with clean white outlines and generous breathing room. Use this object family: ${details.objects}. Objects should vary across fruit, animal, plant, toy, and simple everyday-object categories where natural; do not introduce competing color concepts. Add a few tiny ${details.colorName} swatches, dots, or hand-drawn line flourishes, but keep the layout uncluttered.
+Use a bright, clean full-page ${details.colorName} background. Give the baby a neat thick white cutout outline. At the top, include one large hand-drawn speech bubble with the exact Chinese text: "我们一起来认识${part.chinese}！" The two Chinese characters "${part.chinese}" must use ${details.colorName} lettering or a contrasting shade of the same color family; the remaining text is dark brown. Use large rounded, highly legible Chinese type. Add only three to five small matching doodles or sticker-like objects from this family: ${details.objects}. Keep them far from the baby's face and leave generous breathing room.
 
-The image must attempt to render the large, rounded, highly legible heading exactly: "${part.chinese} ${part.english}". Include this short bilingual sentence exactly: "${part.copy}". Place the learning word large and prominent, with ${details.colorName} lettering for the color word and dark charcoal supporting text. A small playful speech bubble may say "Let’s learn ${part.english}!" only if it remains legible and does not replace the required heading.
+Style: warm, high-saturation but gentle early-learning picture-book cover-style illustration; realistic detailed baby photography blended with restrained children's doodle illustration, subtle paper texture, soft warm daylight, natural skin texture, clean layout. No page number, no English title, no extra people, no room, no landscape, no deep background, no watermark, no border, no collage panels, no unrelated color as a focal point, no unreadable decorative text, and no 3D animation look.`;
+}
 
-Style: bright but gentle children's encyclopedia and picture-book editorial design; realistic detailed baby photography blended with restrained friendly illustration, subtle warm paper texture, clean cutout collage, soft warm light, natural skin texture, high color clarity, low contrast shadows. No extra people, no busy composition, no deep background, no watermark, no border, no collage panels, no unrelated colors as visual focal points, no unreadable decorative text, and no 3D animation look.`;
+function buildColorObjectPagePrompt(part) {
+  const details = getColorBookVisualDetails(part?.colorKey || part?.key);
+  return `Create one square 1:1 static bilingual object-recognition page for a 0-3-year-old color book. Theme: ${part.chinese} / ${part.english}. Use a ${details.colorName} paper-texture outer background and a warm-cream rounded rectangle card with a hand-stitched ${details.colorName} dashed border. At the top render exactly: "这是${part.chinese}！" and "${part.english}!" in large rounded, highly legible ${details.colorName} lettering. Show six simple, separated, easy-to-recognize ${details.colorName} objects in a tidy 3 by 2 grid: ${details.objects}. Each object must have a white sticker outline and a Chinese-and-English name label beneath it. Bright, soft, handmade cut-paper learning-card style; low contrast shadows; no baby, no people, no page number, no watermark, no border outside the card, and no unrelated colors as focal points.`;
 }
 
 function getColorBookVisualDetails(colorKey) {
@@ -7917,7 +7950,7 @@ function getColorBookVisualDetails(colorKey) {
     pink: { colorName: "pink", outfit: "soft pink romper or hoodie", headwear: "matching pink bunny- or flower-inspired knit hat", objects: "a pink flower, strawberry, flamingo toy, pink balloon, pink bunny toy, and pink heart" },
     brown: { colorName: "brown", outfit: "soft warm-brown corduroy romper", headwear: "matching brown bear- or acorn-inspired knit hat", objects: "a brown teddy bear, acorn, chocolate biscuit, brown puppy toy, wooden block, and brown leaf" },
     gray: { colorName: "gray", outfit: "soft dove-gray cotton romper", headwear: "matching gray elephant- or cloud-inspired knit hat", objects: "a gray elephant toy, gray cloud, pebble, gray mouse toy, gray building block, and gray rain boot" },
-    black: { colorName: "black", outfit: "soft black romper or hoodie with subtle white piping", headwear: "matching black bear- or cat-inspired knit hat", objects: "a black cat toy, panda detail, black toy car, black hat, black star, and black building block" },
+    black: { colorName: "black", outfit: "soft black romper or hoodie with subtle white piping", headwear: "matching black cat-inspired knit hat", objects: "a little black cat, black hat, black toy car, black shoe, black umbrella, and black crayon" },
     white: { colorName: "white", outfit: "soft white textured romper with light warm-gray piping", headwear: "matching white bunny- or cloud-inspired knit hat", objects: "a white rabbit toy, sheep, cloud, moon, daisy, and white building block, each edged so it remains visible on white" }
   };
   return details[String(colorKey || "").toLowerCase()] || { colorName: "requested", outfit: "soft cotton romper", headwear: "matching playful knit hat", objects: "five or six clear, everyday learning objects in the requested color" };
@@ -8445,6 +8478,41 @@ async function legacySynchronizeBodyBookSessionByJobId(jobId) {
 // keeping existing JSON files readable during the rollout.
 function getBodyBookPageDefinitions(theme = getBookTheme("body")) {
   const resolved = theme || getBookTheme("body");
+  if (resolved?.id === "color") {
+    const innerPages = (resolved.parts || []).flatMap((part, index) => {
+      const babyOrder = index * 2 + 1;
+      return [
+        {
+          ...part,
+          key: `${part.key}-baby`,
+          colorKey: part.key,
+          pageType: "baby",
+          isRequired: true,
+          chinese: `${part.chinese}宝宝页`,
+          english: `${part.english} Baby`,
+          title: `${part.chinese}宝宝页 ${part.english} Baby`,
+          order: babyOrder
+        },
+        {
+          ...part,
+          key: `${part.key}-objects`,
+          colorKey: part.key,
+          pageType: "objects",
+          isBuiltIn: true,
+          isRequired: true,
+          chinese: `${part.chinese}物品页`,
+          english: `${part.english} Objects`,
+          title: `${part.chinese}物品页 ${part.english} Objects`,
+          order: babyOrder + 1
+        }
+      ];
+    });
+    return [
+      { key: "cover", chinese: "封面", english: "Cover", title: "封面 Cover", order: 0, pageType: "cover", isRequired: true },
+      ...innerPages,
+      { key: "back-cover", chinese: "封底", english: "Back Cover", title: "封底 Back Cover", order: 17, pageType: "back-cover", isBuiltIn: true, isRequired: true }
+    ];
+  }
   return [
     { key: "cover", chinese: "封面", english: "Cover", title: "封面 Cover", order: 0 },
     ...(resolved?.parts || []).map((part, index) => ({ ...part, title: `${part.chinese} ${part.english}`, order: index + 1 }))
@@ -8480,7 +8548,26 @@ function parseBodyBookPagePrompts(value, theme) {
 function createBodyBookPage(definition, theme, reference, current = {}) {
   const prompt = definition.key === "cover"
     ? buildBodyBookCoverPrompt(theme)
-    : buildBodyBookPartPrompt(definition, definition.order, theme);
+    : definition.pageType === "objects"
+      ? buildColorObjectPagePrompt(definition)
+      : buildBodyBookPartPrompt(definition, definition.order, theme);
+  if (definition.isBuiltIn) {
+    return {
+      ...definition,
+      key: definition.key,
+      title: definition.title,
+      order: definition.order,
+      version: 1,
+      jobId: "",
+      status: "succeeded",
+      prompt,
+      hasCustomPrompt: false,
+      reference: null,
+      result: getBuiltInColorBookPageResult(definition),
+      errorMessage: "",
+      historyJobIds: []
+    };
+  }
   return {
     ...definition,
     ...current,
@@ -8496,6 +8583,22 @@ function createBodyBookPage(definition, theme, reference, current = {}) {
     result: current?.result ? normalizeJobResult(current.result) : null,
     errorMessage: String(current?.errorMessage || ""),
     historyJobIds: Array.isArray(current?.historyJobIds) ? current.historyJobIds.map(String).filter(Boolean) : []
+  };
+}
+
+function getBuiltInColorBookPageResult(definition) {
+  const isBackCover = definition?.pageType === "back-cover";
+  const filename = isBackCover ? "back-cover.svg" : `${definition?.colorKey || "red"}-objects.png`;
+  const imageUrl = `/body-book-color-pages/${filename}`;
+  return {
+    imageDataUrl: "",
+    imageUrl,
+    previewUrl: imageUrl,
+    thumbnailUrl: imageUrl,
+    originalImageUrl: imageUrl,
+    mimeType: isBackCover ? "image/svg+xml" : "image/png",
+    provider: "built-in-color-pages",
+    mode: "built-in"
   };
 }
 
@@ -8558,7 +8661,7 @@ async function replaceBodyBookProjectReference(session, file) {
   return saveBodyBookSession({
     ...current,
     reference,
-    pages: current.pages.map((page) => ({ ...page, reference })),
+    pages: current.pages.map((page) => page.isBuiltIn ? page : { ...page, reference }),
     updatedAt: new Date().toISOString(),
     message: "已更新所有页面的参考图。"
   });
@@ -8568,6 +8671,7 @@ async function replaceBodyBookPageReference(session, pageKey, file) {
   const current = normalizeBodyBookSession(session);
   const page = current.pages.find((item) => item.key === String(pageKey || "").toLowerCase());
   if (!page) throw createHttpError(404, "找不到该认知书页面。");
+  if (page.isBuiltIn) throw createHttpError(409, "项目内置物品页不需要替换参考图。");
   const reference = await persistBodyBookReference(current.sessionId, file, `page-${page.key}-${Date.now()}`);
   return saveBodyBookSession({
     ...current,
@@ -8581,7 +8685,7 @@ async function generateBodyBookPages(session, pageKeys, pagePrompts = {}) {
   const current = normalizeBodyBookSession(session);
   const theme = getBookTheme(current.themeId) || getBookTheme("body");
   const requested = new Set(parseBodyBookPageKeys(pageKeys, theme));
-  const pages = current.pages.filter((page) => requested.has(page.key) && !["queued", "running"].includes(page.status));
+  const pages = current.pages.filter((page) => requested.has(page.key) && !page.isBuiltIn && !["queued", "running"].includes(page.status));
   if (!pages.length) return current;
   const { provider, providers } = await getBodyBookGenerationConfig();
   const queued = await Promise.all(pages.map(async (page) => {
@@ -8665,7 +8769,7 @@ async function synchronizeBodyBookSession(session) {
       }
     }
     const summary = summarizeBodyBookItems(pages);
-    const hasSucceededPage = summary.succeeded > 0;
+    const hasSucceededPage = pages.some((page) => page.status === "succeeded" && !page.isBuiltIn);
     let stage = "ready";
     let status = "idle";
     let message = "请选择页面并开始生成。";
@@ -8707,8 +8811,15 @@ function normalizeBodyBookSession(session) {
   const hasProjectPages = Array.isArray(session?.pages);
   const legacyItems = hasProjectPages ? session.pages : [session?.cover, ...(Array.isArray(session?.cards) ? session.cards : [])].filter(Boolean);
   const byKey = new Map(legacyItems.map((item) => [String(item?.key || "").toLowerCase(), item]));
-  const selectedKeys = hasProjectPages
-    ? definitions.map((page) => page.key).filter((key) => byKey.has(key))
+  if (theme.id === "color") {
+    for (const part of theme.parts) {
+      const legacyPage = byKey.get(part.key);
+      const babyKey = `${part.key}-baby`;
+      if (legacyPage && !byKey.has(babyKey)) byKey.set(babyKey, { ...legacyPage, key: babyKey, colorKey: part.key, pageType: "baby" });
+    }
+  }
+  const selectedKeys = theme.id === "color"
+    ? definitions.map((page) => page.key)
     : definitions.map((page) => page.key).filter((key) => byKey.has(key));
   const reference = session?.reference && typeof session.reference === "object" ? session.reference : {};
   return {
@@ -8763,7 +8874,10 @@ function toPublicBodyBookSession(session) {
 function toPublicBodyBookLibraryItem(session) {
   const current = normalizeBodyBookSession(session);
   const theme = getBookTheme(current.themeId) || getBookTheme("body");
-  const thumbnailPage = current.pages.find((page) => page.status === "succeeded" && page.result?.imageUrl) || null;
+  const thumbnailPage = current.pages.find((page) => page.key === "cover" && page.status === "succeeded" && page.result?.imageUrl)
+    || current.pages.find((page) => page.status === "succeeded" && !page.isBuiltIn && page.result?.imageUrl)
+    || current.pages.find((page) => page.status === "succeeded" && page.result?.imageUrl)
+    || null;
   return {
     projectId: current.sessionId,
     sessionId: current.sessionId,

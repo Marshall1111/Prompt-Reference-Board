@@ -1403,12 +1403,14 @@ function BodyBookPage() {
   const selectedKeys = project?.pages?.map((page) => page.key) || draftKeys;
   const draftPages = useMemo(() => contents
     .filter((content) => draftKeys.includes(content.key))
-    .map((content) => ({ ...content, status: "not_started", result: null, errorMessage: "", referenceUrl: draftPageReferencePreviews[content.key] || draftReferencePreview })), [contents, draftKeys, draftReferencePreview, draftPageReferencePreviews]);
+    .map((content) => content.isBuiltIn
+      ? { ...content, status: "succeeded", result: getBuiltInColorPageResult(content), errorMessage: "", referenceUrl: "" }
+      : { ...content, status: "not_started", result: null, errorMessage: "", referenceUrl: draftPageReferencePreviews[content.key] || draftReferencePreview }), [contents, draftKeys, draftReferencePreview, draftPageReferencePreviews]);
   const pages = project?.pages || draftPages;
   const topReferenceUrl = project?.referenceUrl ? bodyBookCacheUrl(project.referenceUrl, project.updatedAt) : draftReferencePreview;
   const pendingCount = pages.filter((page) => ["queued", "running"].includes(page.status)).length;
   const incompleteKeys = pages.filter((page) => !["succeeded", "queued", "running"].includes(page.status)).map((page) => page.key);
-  const allAvailableKeys = pages.filter((page) => !["queued", "running"].includes(page.status)).map((page) => page.key);
+  const allAvailableKeys = pages.filter((page) => !page.isBuiltIn && !["queued", "running"].includes(page.status)).map((page) => page.key);
   const bodyBookPricing = orderConfig?.bodyBook || {};
   const canOrderBodyBook = Boolean(project?.sessionId && project?.pages?.length && project.pages.some((page) => page.key === "cover") && project.pages.every((page) => page.status === "succeeded" && page.result?.imageUrl));
 
@@ -1502,7 +1504,7 @@ function BodyBookPage() {
     const themeContents = getBodyBookThemeContents(theme);
     setProject(null);
     setSelectedTheme(theme);
-    setDraftKeys(themeContents.slice(0, 2).map((item) => item.key));
+    setDraftKeys(theme.id === "color" ? themeContents.map((item) => item.key) : themeContents.slice(0, 2).map((item) => item.key));
     setDraftReference(null);
     setDraftPageReferences({});
     setPagePrompts({});
@@ -1674,7 +1676,10 @@ function BodyBookPage() {
   }
 
   async function savePageSelection(nextKeys) {
-    const normalized = getBodyBookThemeContents(activeTheme).map((item) => item.key).filter((key) => nextKeys.includes(key));
+    const themeContents = getBodyBookThemeContents(activeTheme);
+    const normalized = activeTheme?.id === "color"
+      ? themeContents.map((item) => item.key)
+      : themeContents.map((item) => item.key).filter((key) => nextKeys.includes(key));
     if (!project) {
       setDraftKeys(normalized);
       setDraftPageReferences((current) => Object.fromEntries(Object.entries(current).filter(([key]) => normalized.includes(key))));
@@ -1808,15 +1813,15 @@ function BodyBookPage() {
       </> : <section className="body-book-workspace body-book-project-workspace">
         <div className="body-book-status-row"><div><span className="body-book-step">02</span><h2>{project?.message || "配置你的认知书页面"}</h2></div><span className="body-book-project-state">{project?.savedAt ? "已自动保存" : "首次生成成功后自动保存"}</span></div>
         {error ? <p className="error-note">{error}</p> : null}
-        <section className="body-book-project-reference"><div><span className="body-book-step">REFERENCE</span><h3>全局参考图</h3><p>替换后会同步更新所有已选页面的参考图，不会自动重新生成。</p></div><label className={`body-book-upload body-book-project-upload ${topReferenceUrl ? "has-image" : ""}`}>{topReferenceUrl ? <img alt="认知书全局参考图" src={topReferenceUrl} /> : <><ImageUp size={28} /><strong>上传参考图</strong><span>JPG、PNG、WebP</span></>}<input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label></section>
+        <section className="body-book-project-reference"><div><span className="body-book-step">REFERENCE</span><h3>全局参考图</h3><p>替换后会同步更新封面与所有需要生成的宝宝页；预置物品页不使用参考图。</p></div><label className={`body-book-upload body-book-project-upload ${topReferenceUrl ? "has-image" : ""}`}>{topReferenceUrl ? <img alt="认知书全局参考图" src={topReferenceUrl} /> : <><ImageUp size={28} /><strong>上传参考图</strong><span>JPG、PNG、WebP</span></>}<input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label></section>
         <section className="body-book-content-panel">
-          <div className="body-book-project-pages-head"><div><span className="body-book-step">03</span><h3>内容选择</h3><p>每张卡片可单独替换参考图、修改提示词并生成。</p></div></div>
-          <div className="body-book-grid body-book-project-grid">{pages.map((page) => <BodyBookProjectItem busy={busy} busyPageKey={busyPageKey} key={`${page.key}-${page.jobId || "new"}`} onDelete={() => savePageSelection(selectedKeys.filter((key) => key !== page.key))} onGenerate={() => submitGeneration([page.key], page.key)} onOpen={openActiveItem} onReplaceReference={(file) => updatePageReference(page, file)} page={page} referenceUrl={page.usesProjectReference ? topReferenceUrl : bodyBookCacheUrl(page.referenceUrl || topReferenceUrl, project?.updatedAt)} />)}<button className="body-book-add-page-card" disabled={busy} onClick={openContentPicker} type="button" aria-label="添加或编辑内容"><Plus size={36} /><span>添加内容</span></button>{!pages.length ? <p className="body-book-library-empty">点击“添加内容”选择要制作的页面。</p> : null}</div>
+          <div className="body-book-project-pages-head"><div><span className="body-book-step">03</span><h3>内容选择</h3><p>{activeTheme?.id === "color" ? "颜色书固定为封面、16 张内页与封底：每种颜色一张宝宝页和一张预置物品页。" : "每张卡片可单独替换参考图、修改提示词并生成。"}</p></div></div>
+          <div className="body-book-grid body-book-project-grid">{pages.map((page) => <BodyBookProjectItem busy={busy} busyPageKey={busyPageKey} key={`${page.key}-${page.jobId || "new"}`} onDelete={() => savePageSelection(selectedKeys.filter((key) => key !== page.key))} onGenerate={() => submitGeneration([page.key], page.key)} onOpen={openActiveItem} onReplaceReference={(file) => updatePageReference(page, file)} page={page} referenceUrl={page.usesProjectReference ? topReferenceUrl : bodyBookCacheUrl(page.referenceUrl || topReferenceUrl, project?.updatedAt)} />)}{activeTheme?.id !== "color" ? <button className="body-book-add-page-card" disabled={busy} onClick={openContentPicker} type="button" aria-label="添加或编辑内容"><Plus size={36} /><span>添加内容</span></button> : null}{!pages.length ? <p className="body-book-library-empty">点击“添加内容”选择要制作的页面。</p> : null}</div>
           <div className="body-book-content-panel-actions"><div><strong>批量生成</strong><span>{pages.length ? `已选 ${pages.length} 页${pendingCount ? `，${pendingCount} 页正在生成` : ""}` : "请先添加至少一个页面"}</span></div><div className="body-book-content-panel-order-actions"><button className="draw-card-secondary" disabled={!bodyBookPricing.enabled || !canOrderBodyBook} onClick={openBookCheckout} title={!bodyBookPricing.enabled ? "实体书下单暂未开放" : !canOrderBodyBook ? "请先完成封面和全部已选内页" : "下单实体书"} type="button">下单实体书{bodyBookPricing.enabled ? ` · ${formatCurrencyCents(Number(bodyBookPricing.priceCents || 0) + Number(bodyBookPricing.shippingFeeCents || 0))}` : ""}</button><button className="draw-card-primary" disabled={busy || !pages.length || (!project && !draftReference)} onClick={() => setShowBatchDialog(true)} type="button">{busy && !busyPageKey ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}<span>批量生成</span></button></div></div>
         </section>
       </section>}
 
-      {activeItem?.result?.imageUrl ? <div className="modal-backdrop body-book-lightbox" onClick={closeActiveItem} role="presentation"><section className="body-book-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="icon-button" onClick={closeActiveItem} type="button" aria-label="关闭预览"><X size={18} /></button><img alt={activeItem.title} src={activeItem.result.imageUrl} /><div className="body-book-lightbox-meta"><strong>{activeItem.title}</strong><a className="draw-card-primary" download={getBodyBookDownloadName(activeItem)} href={activeItem.result.imageUrl}><Download size={17} /><span>下载图片</span></a></div><div className="body-book-lightbox-prompt"><button className="body-book-edit-prompt" disabled={busy} onClick={() => setShowActivePromptEditor((current) => !current)} type="button"><Pencil size={15} /><span>修改提示词</span></button>{showActivePromptEditor ? <label className="body-book-page-prompt"><span>本页提示词</span><textarea disabled={busy} maxLength={6000} onChange={(event) => updateActiveItemPrompt(event.target.value)} placeholder="输入本页生成提示词；留空将使用默认提示词。" value={pagePrompts[activeItem.key] ?? activeItem.prompt ?? ""} /><small>{(pagePrompts[activeItem.key] ?? activeItem.prompt ?? "").length}/6000 · 下次单张或批量生成时生效</small></label> : null}</div></section></div> : null}
+      {activeItem?.result?.imageUrl ? <div className="modal-backdrop body-book-lightbox" onClick={closeActiveItem} role="presentation"><section className="body-book-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="icon-button" onClick={closeActiveItem} type="button" aria-label="关闭预览"><X size={18} /></button><img alt={activeItem.title} src={activeItem.result.imageUrl} /><div className="body-book-lightbox-meta"><strong>{activeItem.title}</strong><a className="draw-card-primary" download={getBodyBookDownloadName(activeItem)} href={activeItem.result.imageUrl}><Download size={17} /><span>下载图片</span></a></div>{!activeItem.isBuiltIn ? <div className="body-book-lightbox-prompt"><button className="body-book-edit-prompt" disabled={busy} onClick={() => setShowActivePromptEditor((current) => !current)} type="button"><Pencil size={15} /><span>修改提示词</span></button>{showActivePromptEditor ? <label className="body-book-page-prompt"><span>本页提示词</span><textarea disabled={busy} maxLength={6000} onChange={(event) => updateActiveItemPrompt(event.target.value)} placeholder="输入本页生成提示词；留空将使用默认提示词。" value={pagePrompts[activeItem.key] ?? activeItem.prompt ?? ""} /><small>{(pagePrompts[activeItem.key] ?? activeItem.prompt ?? "").length}/6000 · 下次单张或批量生成时生效</small></label> : null}</div> : null}</section></div> : null}
 
       {showContentPicker ? <div className="modal-backdrop" onClick={() => !busy && setShowContentPicker(false)} role="presentation"><section className="body-book-project-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择认知书内容"><button className="icon-button" disabled={busy} onClick={() => setShowContentPicker(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Contents</p><h2>选择认知书内容</h2><p>已添加的内容保持选中状态。</p><div className="body-book-content-options">{contents.map((content) => <label key={content.key}><input checked={pickerKeys.includes(content.key)} onChange={(event) => setPickerKeys((keys) => event.target.checked ? [...keys, content.key] : keys.filter((key) => key !== content.key))} type="checkbox" /><span>{content.chinese} <small>{content.english}</small></span></label>)}</div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={() => setShowContentPicker(false)} type="button">取消</button><button className="draw-card-primary" disabled={busy} onClick={async () => { await savePageSelection(pickerKeys); setShowContentPicker(false); }} type="button">确认内容</button></div></section></div> : null}
 
@@ -1840,16 +1845,23 @@ function BodyBookProjectItem({ page, referenceUrl, onOpen, onReplaceReference, o
   const succeeded = page.status === "succeeded" && page.result?.imageUrl;
   const working = busyPageKey === page.key;
   return <article className={`body-book-item body-book-project-item ${pending ? "is-pending" : ""} ${page.status === "failed" ? "is-failed" : ""}`}>
-    <button className="body-book-project-delete icon-button" disabled={busy || pending} onClick={onDelete} title="删除页面" type="button"><X size={17} /></button>
+    {!page.isBuiltIn && !page.isRequired ? <button className="body-book-project-delete icon-button" disabled={busy || pending} onClick={onDelete} title="删除页面" type="button"><X size={17} /></button> : null}
     {succeeded ? <button className="body-book-item-media" onClick={() => onOpen(page)} type="button"><img alt={page.title} src={page.result.previewUrl || page.result.imageUrl} /></button> : <div className="body-book-placeholder">{pending ? <LoaderCircle className="spin" size={24} /> : <AlertTriangle size={24} />}<strong>{pending ? "正在生成" : page.status === "failed" ? "生成失败" : "尚未生成"}</strong><span>{page.errorMessage || (pending ? "图片完成后会自动出现。" : "可单张生成或加入批量生成。")}</span></div>}
     <div className="body-book-item-meta"><div><strong>{page.title}</strong></div></div>
-    <div className="body-book-project-card-controls"><label className="body-book-page-reference">{referenceUrl ? <img alt={`${page.title} 参考图`} onError={(event) => { event.currentTarget.style.display = "none"; }} src={referenceUrl} /> : <ImageUp size={16} />}<span>替换参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || pending} onChange={(event) => { onReplaceReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label><button className="draw-card-secondary" disabled={busy || pending} onClick={onGenerate} type="button">{working ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}<span>{succeeded ? "单张重新生成" : "单张生成"}</span></button></div>
+    {page.isBuiltIn ? <div className="body-book-project-card-controls"><span className="body-book-built-in-note">项目内置物品页 · 无需生成</span></div> : <div className="body-book-project-card-controls"><label className="body-book-page-reference">{referenceUrl ? <img alt={`${page.title} 参考图`} onError={(event) => { event.currentTarget.style.display = "none"; }} src={referenceUrl} /> : <ImageUp size={16} />}<span>替换参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || pending} onChange={(event) => { onReplaceReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label><button className="draw-card-secondary" disabled={busy || pending} onClick={onGenerate} type="button">{working ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}<span>{succeeded ? "单张重新生成" : "单张生成"}</span></button></div>}
   </article>;
 }
 
 function getBodyBookThemeContents(theme) {
   if (Array.isArray(theme?.contents) && theme.contents.length) return theme.contents;
   return [{ key: "cover", chinese: "封面", english: "Cover", title: "封面 Cover", order: 0 }];
+}
+
+function getBuiltInColorPageResult(page) {
+  const isBackCover = page?.pageType === "back-cover";
+  const filename = isBackCover ? "back-cover.svg" : `${page?.colorKey || "red"}-objects.png`;
+  const imageUrl = `/body-book-color-pages/${filename}`;
+  return { imageUrl, previewUrl: imageUrl, thumbnailUrl: imageUrl, originalImageUrl: imageUrl, mimeType: isBackCover ? "image/svg+xml" : "image/png", provider: "built-in-color-pages", mode: "built-in" };
 }
 
 function isValidBodyBookReference(file) {
