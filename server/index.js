@@ -3829,6 +3829,10 @@ async function readVisitSession(sessionId) {
     return normalizeVisitSession(JSON.parse(await readFile(getVisitSessionPath(sessionId), "utf-8")));
   } catch (error) {
     if (error.code === "ENOENT") return null;
+    if (error instanceof SyntaxError) {
+      console.warn(`Ignoring malformed visit-session file: ${sessionId}`);
+      return null;
+    }
     throw error;
   }
 }
@@ -4821,10 +4825,12 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
   if (!project) throw createHttpError(404, "这本认知书工程不存在或已删除。");
   assertWebAccountOwnsBodyBookSession(req, project);
   const current = await synchronizeBodyBookSession(project);
-  const cover = current.pages.find((page) => page.key === "cover") || null;
-  const pages = Array.isArray(current.pages) ? current.pages : [];
-  if (!cover || !pages.length || pages.some((page) => page.status !== "succeeded" || !page.result?.imageUrl || (!page.isBuiltIn && !page.jobId))) {
-    throw createHttpError(409, "请先完成封面和全部已选内页的生成后再下单。");
+  const theme = getBookTheme(current.themeId) || getBookTheme("body");
+  const hasRequiredPageCount = current.pages.length === getBodyBookSelectionPageCount(theme);
+  const pages = getBodyBookPrintPages(current);
+  const cover = pages.find((page) => page.key === "cover") || null;
+  if (!hasRequiredPageCount || !cover || !pages.length || pages.some((page) => page.status !== "succeeded" || !page.result?.imageUrl || (!page.isBuiltIn && !page.jobId))) {
+    throw createHttpError(409, "实体认知书固定为 1 张封面页和 16 张内页，请先调整为正确页数并完成生成后再下单。");
   }
 
   const address = normalizeOrderAddress(req.body || {});
@@ -7801,7 +7807,7 @@ function toPublicBookTheme(theme) {
     name: theme.name,
     englishName: theme.englishName,
     title: theme.title,
-    pageCount: pages.length,
+    pageCount: getBodyBookPrintPageCount(theme),
     contents: pages
   };
 }
@@ -8487,7 +8493,6 @@ function getBodyBookPageDefinitions(theme = getBookTheme("body")) {
           key: `${part.key}-baby`,
           colorKey: part.key,
           pageType: "baby",
-          isRequired: true,
           chinese: `${part.chinese}宝宝页`,
           english: `${part.english} Baby`,
           title: `${part.chinese}宝宝页 ${part.english} Baby`,
@@ -8514,7 +8519,7 @@ function getBodyBookPageDefinitions(theme = getBookTheme("body")) {
     ];
   }
   return [
-    { key: "cover", chinese: "封面", english: "Cover", title: "封面 Cover", order: 0 },
+    { key: "cover", chinese: "封面", english: "Cover", title: "封面 Cover", order: 0, pageType: "cover", isRequired: true },
     ...(resolved?.parts || []).map((part, index) => ({ ...part, title: `${part.chinese} ${part.english}`, order: index + 1 }))
   ];
 }
@@ -8524,13 +8529,32 @@ function getBodyBookPageDefinition(theme, key) {
   return getBodyBookPageDefinitions(theme).find((page) => page.key === normalizedKey) || null;
 }
 
+function getBodyBookSelectablePageDefinitions(theme) {
+  return getBodyBookPageDefinitions(theme)
+    .filter((page) => !page.isBuiltIn && page.pageType !== "back-cover");
+}
+
+function getBodyBookPrintPageCount(_theme) {
+  return 17;
+}
+
+function getBodyBookSelectionPageCount(theme) {
+  return getBookTheme(theme?.id || theme)?.id === "color" ? 9 : 17;
+}
+
+function ensureBodyBookCoverKey(keys, theme) {
+  const selected = new Set(keys || []);
+  selected.add("cover");
+  return getBodyBookSelectablePageDefinitions(theme).map((page) => page.key).filter((key) => selected.has(key));
+}
+
 function parseBodyBookPageKeys(value, theme) {
   let keys = value;
   if (typeof value === "string") {
     try { keys = JSON.parse(value); } catch { keys = []; }
   }
   const requested = new Set(Array.isArray(keys) ? keys.map((key) => String(key || "").trim().toLowerCase()).filter(Boolean) : []);
-  return getBodyBookPageDefinitions(theme).map((page) => page.key).filter((key) => requested.has(key));
+  return getBodyBookSelectablePageDefinitions(theme).map((page) => page.key).filter((key) => requested.has(key));
 }
 
 function parseBodyBookPagePrompts(value, theme) {
@@ -8539,7 +8563,7 @@ function parseBodyBookPagePrompts(value, theme) {
     try { prompts = JSON.parse(value); } catch { prompts = {}; }
   }
   if (!prompts || typeof prompts !== "object" || Array.isArray(prompts)) return {};
-  const validKeys = new Set(getBodyBookPageDefinitions(theme).map((page) => page.key));
+  const validKeys = new Set(getBodyBookSelectablePageDefinitions(theme).map((page) => page.key));
   return Object.fromEntries(Object.entries(prompts)
     .filter(([key, prompt]) => validKeys.has(String(key).toLowerCase()) && typeof prompt === "string")
     .map(([key, prompt]) => [String(key).toLowerCase(), String(prompt).slice(0, 6000)]));
@@ -8574,6 +8598,7 @@ function createBodyBookPage(definition, theme, reference, current = {}) {
     key: definition.key,
     title: definition.title,
     order: definition.order,
+    isRequired: Boolean(definition.isRequired),
     version: Math.max(0, Number(current?.version || 0)),
     jobId: String(current?.jobId || ""),
     status: String(current?.status || (current?.jobId ? "queued" : "not_started")),
@@ -8602,11 +8627,37 @@ function getBuiltInColorBookPageResult(definition) {
   };
 }
 
+// Editable project pages deliberately exclude the colour-object artwork.  The
+// artwork is supplied by the product and is inserted only in the print order.
+function getBodyBookPrintPages(session) {
+  const theme = getBookTheme(session?.themeId) || getBookTheme("body");
+  const projectPages = Array.isArray(session?.pages) ? session.pages : [];
+  const byKey = new Map(projectPages.map((page) => [String(page?.key || "").toLowerCase(), page]));
+  const reference = session?.reference && typeof session.reference === "object" ? session.reference : {};
+
+  if (theme.id !== "color") {
+    return projectPages
+      .filter((page) => page.pageType !== "back-cover")
+      .sort((left, right) => Number(left.order || 0) - Number(right.order || 0));
+  }
+
+  return getBodyBookPageDefinitions(theme)
+    .filter((definition) => definition.pageType !== "back-cover")
+    .flatMap((definition) => {
+      if (definition.pageType === "objects") {
+        const babyKey = `${definition.colorKey}-baby`;
+        return byKey.has(babyKey) ? [createBodyBookPage(definition, theme, reference)] : [];
+      }
+      const existing = byKey.get(definition.key);
+      return existing ? [createBodyBookPage(definition, theme, reference, existing)] : [];
+    });
+}
+
 async function createBodyBookProject({ file, pageReferenceFiles = new Map(), pagePrompts = {}, visitor, accountId, theme, contentKeys, generationKeys }) {
   const sessionId = randomUUID();
   const now = new Date().toISOString();
   const reference = await persistBodyBookReference(sessionId, file);
-  const selectedKeys = parseBodyBookPageKeys(contentKeys, theme);
+  const selectedKeys = ensureBodyBookCoverKey(parseBodyBookPageKeys(contentKeys, theme), theme);
   const pageReferences = new Map(await Promise.all(selectedKeys.map(async (key) => {
     const pageFile = pageReferenceFiles.get(key);
     const pageReference = pageFile ? await persistBodyBookReference(sessionId, pageFile, `page-${key}-${Date.now()}`) : reference;
@@ -8642,7 +8693,7 @@ async function createBodyBookProject({ file, pageReferenceFiles = new Map(), pag
 async function updateBodyBookProjectPages(session, contentKeys) {
   const current = normalizeBodyBookSession(session);
   const theme = getBookTheme(current.themeId) || getBookTheme("body");
-  const selectedKeys = parseBodyBookPageKeys(contentKeys, theme);
+  const selectedKeys = ensureBodyBookCoverKey(parseBodyBookPageKeys(contentKeys, theme), theme);
   const selected = new Set(selectedKeys);
   const removed = current.pages.filter((page) => !selected.has(page.key));
   await discardBodyBookPages(removed);
@@ -8807,7 +8858,6 @@ async function synchronizeBodyBookSession(session) {
 
 function normalizeBodyBookSession(session) {
   const theme = getBookTheme(session?.themeId) || getBookTheme("body");
-  const definitions = getBodyBookPageDefinitions(theme);
   const hasProjectPages = Array.isArray(session?.pages);
   const legacyItems = hasProjectPages ? session.pages : [session?.cover, ...(Array.isArray(session?.cards) ? session.cards : [])].filter(Boolean);
   const byKey = new Map(legacyItems.map((item) => [String(item?.key || "").toLowerCase(), item]));
@@ -8818,9 +8868,9 @@ function normalizeBodyBookSession(session) {
       if (legacyPage && !byKey.has(babyKey)) byKey.set(babyKey, { ...legacyPage, key: babyKey, colorKey: part.key, pageType: "baby" });
     }
   }
-  const selectedKeys = theme.id === "color"
-    ? definitions.map((page) => page.key)
-    : definitions.map((page) => page.key).filter((key) => byKey.has(key));
+  const selectedKeys = getBodyBookSelectablePageDefinitions(theme)
+    .map((page) => page.key)
+    .filter((key) => byKey.has(key));
   const reference = session?.reference && typeof session.reference === "object" ? session.reference : {};
   return {
     schemaVersion: 2,
@@ -8867,6 +8917,7 @@ function toPublicBodyBookSession(session) {
       usesProjectReference: String(page.reference?.filename || "") === String(current.reference?.filename || ""),
       referenceUrl: `/api/body-book/projects/${encodeURIComponent(current.sessionId)}/pages/${encodeURIComponent(page.key)}/reference`
     })),
+    printPreviewPages: getBodyBookPrintPages(current),
     summary: summarizeBodyBookItems(current.pages)
   };
 }

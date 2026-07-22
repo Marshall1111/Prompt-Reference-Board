@@ -9,7 +9,7 @@
   "status": "succeeded",
   "message": "图片已保存，可继续编辑或生成更多页面。",
   "createdAt": "2026-07-19T14:26:17.568Z",
-  "updatedAt": "2026-07-22T08:05:22.736Z",
+  "updatedAt": "2026-07-22T09:46:28.955Z",
   "completedAt": "2026-07-21T02:21:46.897Z",
   "savedAt": "2026-07-21T02:21:46.897Z",
   "reference": {
@@ -29,6 +29,8 @@
       "english": "Cover",
       "title": "封面 Cover",
       "order": 0,
+      "pageType": "cover",
+      "isRequired": true,
       "version": 1,
       "jobId": "45360217-6948-4491-a7f0-a1a8c3034de9",
       "status": "succeeded",

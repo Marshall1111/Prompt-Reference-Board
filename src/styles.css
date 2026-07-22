@@ -134,6 +134,23 @@ body {
   min-width: 110px;
 }
 
+.body-book-header-balance {
+  align-items: baseline;
+  gap: 7px;
+  min-width: 112px;
+  cursor: pointer;
+}
+
+.body-book-header-balance span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.body-book-header-balance strong {
+  font-size: 18px;
+  line-height: 1;
+}
+
 .body-book-user-menu {
   position: absolute;
   z-index: 8;
@@ -254,6 +271,16 @@ body {
   color: #64756f;
   font-size: 13px;
   line-height: 1.6;
+}
+
+.body-book-bean-benefits {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 19px;
+  color: #536660;
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .body-book-wallet-field {
@@ -5119,6 +5146,45 @@ textarea {
   max-width: 520px;
 }
 
+.body-book-bean-modal {
+  width: min(480px, calc(100vw - 28px));
+  border-color: rgba(30, 51, 50, 0.16);
+  background: #ffffff;
+  color: #25413c;
+  box-shadow: 0 28px 90px rgba(18, 35, 34, 0.24);
+}
+
+.body-book-bean-modal .icon-button {
+  justify-self: end;
+  color: #25413c;
+}
+
+.body-book-bean-modal .draw-card-kicker {
+  color: #8a6a3f;
+}
+
+.body-book-bean-modal h2 {
+  color: #173c31;
+}
+
+.body-book-bean-balance {
+  margin: 0;
+  color: #536660;
+  font-size: 16px;
+}
+
+.body-book-bean-balance strong {
+  color: #1d6849;
+  font-size: 24px;
+}
+
+.body-book-checkout-modal {
+  width: min(860px, calc(100vw - 28px));
+  max-width: 860px;
+  max-height: min(88vh, 920px);
+  overflow: auto;
+}
+
 .body-book-referral-modal {
   border-color: rgba(30, 51, 50, 0.16);
   background: #ffffff;
@@ -5154,6 +5220,71 @@ textarea {
 
 .body-book-checkout-modal .draw-card-order-summary {
   margin: 16px 0;
+}
+
+.body-book-checkout-blocked {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin: 20px 0;
+  border: 1px solid #e5c99d;
+  border-radius: 12px;
+  background: #fff8eb;
+  padding: 16px;
+  color: #8c5a1f;
+}
+
+.body-book-checkout-blocked p {
+  margin: 1px 0 0;
+  line-height: 1.6;
+}
+
+.body-book-selection-progress {
+  margin-top: 10px !important;
+  color: #2f7656 !important;
+  font-weight: 700;
+}
+
+.body-book-checkout-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.body-book-checkout-preview-item {
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid #d6e1d8;
+  border-radius: 12px;
+  background: #f8fbf8;
+}
+
+.body-book-checkout-preview-item img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: #eef4ef;
+}
+
+.body-book-checkout-preview-item figcaption {
+  display: grid;
+  gap: 2px;
+  padding: 8px 9px;
+}
+
+.body-book-checkout-preview-item span {
+  color: #76867e;
+  font-size: 11px;
+}
+
+.body-book-checkout-preview-item strong {
+  overflow: hidden;
+  color: #25413c;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .body-book-content-panel-actions span {

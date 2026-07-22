@@ -1,0 +1,15 @@
+{
+  "sessionId": "11be92ff-cb48-40a6-8e92-96833cd20706",
+  "visitorId": "a952433a-7013-49b5-83d3-3180d8f14a44",
+  "experienceType": "body-book",
+  "route": "/body-book",
+  "sourceMerchantId": "",
+  "sourceMerchantName": "",
+  "startedAt": "2026-07-22T08:53:14.207Z",
+  "lastHeartbeatAt": "2026-07-22T08:53:14.207Z",
+  "endedAt": "2026-07-22T08:53:14.207Z",
+  "durationSeconds": 0,
+  "status": "timed_out",
+  "createdAt": "2026-07-22T08:53:14.207Z",
+  "updatedAt": "2026-07-22T08:55:13.548Z"
+}

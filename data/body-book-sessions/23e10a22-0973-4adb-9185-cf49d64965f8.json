@@ -9,7 +9,7 @@
   "status": "partial",
   "message": "部分图片生成失败，可单张或批量重试。",
   "createdAt": "2026-07-19T08:34:14.267Z",
-  "updatedAt": "2026-07-22T08:05:22.731Z",
+  "updatedAt": "2026-07-22T09:46:28.948Z",
   "completedAt": null,
   "savedAt": null,
   "reference": {
@@ -27,6 +27,8 @@
       "english": "Cover",
       "title": "封面 Cover",
       "order": 0,
+      "pageType": "cover",
+      "isRequired": true,
       "version": 1,
       "jobId": "2f9fcdc1-66dc-4bb4-97e4-668aaf515f9f",
       "status": "failed",
@@ -62,7 +64,8 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "eyes",
@@ -84,7 +87,8 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "ears",
@@ -106,7 +110,8 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "nose",
@@ -130,7 +135,8 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "mouth",
@@ -152,7 +158,8 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "hands",
@@ -174,7 +181,8 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "feet",
@@ -196,7 +204,8 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "tummy",
@@ -218,7 +227,8 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "knees",
@@ -240,7 +250,8 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     }
   ]
 }

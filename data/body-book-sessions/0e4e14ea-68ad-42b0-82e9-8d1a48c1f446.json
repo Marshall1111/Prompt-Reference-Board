@@ -9,7 +9,7 @@
   "status": "succeeded",
   "message": "图片已保存，可继续编辑或生成更多页面。",
   "createdAt": "2026-07-19T08:06:30.656Z",
-  "updatedAt": "2026-07-22T08:05:22.736Z",
+  "updatedAt": "2026-07-22T09:46:28.953Z",
   "completedAt": "2026-07-19T08:14:13.520Z",
   "savedAt": "2026-07-21T02:21:46.895Z",
   "reference": {
@@ -38,6 +38,8 @@
       "english": "Cover",
       "title": "封面 Cover",
       "order": 0,
+      "pageType": "cover",
+      "isRequired": true,
       "version": 1,
       "jobId": "33143891-6b06-4df1-8d5f-c284f78001d2",
       "status": "succeeded",
@@ -133,7 +135,8 @@
         "size": 2835676,
         "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "eyes",
@@ -185,7 +188,8 @@
         "size": 2835676,
         "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "ears",
@@ -237,7 +241,8 @@
         "size": 2835676,
         "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "nose",
@@ -289,7 +294,8 @@
         "size": 2835676,
         "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "mouth",
@@ -341,7 +347,8 @@
         "size": 2835676,
         "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "hands",
@@ -393,7 +400,8 @@
         "size": 2835676,
         "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "tummy",
@@ -445,7 +453,8 @@
         "size": 2835676,
         "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     }
   ]
 }

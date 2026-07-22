@@ -9,7 +9,7 @@
   "status": "partial",
   "message": "部分图片生成失败，可单张或批量重试。",
   "createdAt": "2026-07-19T14:21:27.774Z",
-  "updatedAt": "2026-07-22T08:05:22.732Z",
+  "updatedAt": "2026-07-22T09:46:28.949Z",
   "completedAt": null,
   "savedAt": null,
   "reference": {
@@ -27,6 +27,8 @@
       "english": "Cover",
       "title": "封面 Cover",
       "order": 0,
+      "pageType": "cover",
+      "isRequired": true,
       "version": 1,
       "jobId": "84d43879-939c-47fa-a6aa-4e8a42a9b103",
       "status": "failed",
@@ -62,7 +64,8 @@
         "size": 214392,
         "originalName": "20260615-164756-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "teacher",
@@ -84,7 +87,8 @@
         "size": 214392,
         "originalName": "20260615-164756-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "firefighter",
@@ -106,7 +110,8 @@
         "size": 214392,
         "originalName": "20260615-164756-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "chef",
@@ -128,7 +133,8 @@
         "size": 214392,
         "originalName": "20260615-164756-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "police",
@@ -150,7 +156,8 @@
         "size": 214392,
         "originalName": "20260615-164756-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "farmer",
@@ -172,7 +179,8 @@
         "size": 214392,
         "originalName": "20260615-164756-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "builder",
@@ -194,7 +202,8 @@
         "size": 214392,
         "originalName": "20260615-164756-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "scientist",
@@ -216,7 +225,8 @@
         "size": 214392,
         "originalName": "20260615-164756-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     },
     {
       "key": "artist",
@@ -238,7 +248,8 @@
         "size": 214392,
         "originalName": "20260615-164756-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "isRequired": false
     }
   ]
 }
