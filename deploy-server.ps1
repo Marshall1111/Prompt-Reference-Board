@@ -57,6 +57,7 @@ $tarArgs = @(
   "--exclude=data/orders.sqlite",
   "--exclude=data/orders.sqlite-shm",
   "--exclude=data/orders.sqlite-wal",
+  "--exclude=data/invite-codes.json",
   "--exclude=*.log",
   "-C", $repoRoot,
   "."
