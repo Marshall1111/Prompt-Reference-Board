@@ -1435,8 +1435,10 @@ function BodyBookPage() {
   const pendingReferralRef = useRef(false);
   const pendingBookCheckoutRef = useRef(false);
   const pendingBeanPurchaseRef = useRef(false);
+  const bodyBookEditorRef = useRef(false);
 
   const activeTheme = project?.theme || selectedTheme;
+  bodyBookEditorRef.current = Boolean(activeTheme);
   const contents = getBodyBookThemeContents(activeTheme);
   const selectableContents = useMemo(() => contents.filter((content) => !content.isBuiltIn && content.pageType !== "back-cover"), [contents]);
   const selectedKeys = (project?.pages?.map((page) => page.key) || draftKeys).filter((key) => selectableContents.some((content) => content.key === key));
@@ -1546,6 +1548,18 @@ function BodyBookPage() {
   }, []);
 
   useEffect(() => {
+    const currentState = window.history.state || {};
+    if (currentState.bodyBookHistoryView !== "home") {
+      window.history.replaceState({ ...currentState, bodyBookHistoryView: "home" }, "", window.location.href);
+    }
+    const handleBrowserBack = () => {
+      if (bodyBookEditorRef.current) backToHome();
+    };
+    window.addEventListener("popstate", handleBrowserBack);
+    return () => window.removeEventListener("popstate", handleBrowserBack);
+  }, []);
+
+  useEffect(() => {
     if (!showBeanPurchase || !beanPurchase?.id || beanPurchase.status === "paid") return undefined;
     let active = true;
     const refresh = async () => {
@@ -1614,6 +1628,7 @@ function BodyBookPage() {
 
   function startNewDraft(theme) {
     const themeContents = getBodyBookThemeContents(theme).filter((item) => !item.isBuiltIn && item.pageType !== "back-cover");
+    bodyBookEditorRef.current = true;
     setProject(null);
     setSelectedTheme(theme);
     setDraftKeys(themeContents.slice(0, 2).map((item) => item.key));
@@ -1624,6 +1639,7 @@ function BodyBookPage() {
     setHistoryTheme(null);
     setHistoryProjects([]);
     setError("");
+    pushBodyBookEditorHistory();
   }
 
   async function selectTheme(theme) {
@@ -1649,8 +1665,10 @@ function BodyBookPage() {
     setError("");
     try {
       applyProject(await fetchBodyBookProject(projectId));
+      bodyBookEditorRef.current = true;
       setHistoryTheme(null);
       setHistoryProjects([]);
+      pushBodyBookEditorHistory();
     } catch (nextError) {
       setError(nextError.message || "打开认知书工程失败，请稍后再试。");
     } finally {
@@ -1659,6 +1677,7 @@ function BodyBookPage() {
   }
 
   function backToHome() {
+    bodyBookEditorRef.current = false;
     setProject(null);
     setSelectedTheme(null);
     setDraftReference(null);
@@ -1668,6 +1687,21 @@ function BodyBookPage() {
     setDirtyPromptKeys([]);
     setError("");
     loadSavedBooks().catch(() => {});
+  }
+
+  function pushBodyBookEditorHistory() {
+    const currentState = window.history.state || {};
+    if (currentState.bodyBookHistoryView === "editor") return;
+    window.history.replaceState({ ...currentState, bodyBookHistoryView: "home" }, "", window.location.href);
+    window.history.pushState({ ...currentState, bodyBookHistoryView: "editor" }, "", window.location.href);
+  }
+
+  function returnToBookHome() {
+    if (window.history.state?.bodyBookHistoryView === "editor") {
+      window.history.back();
+      return;
+    }
+    backToHome();
   }
 
   async function ensureBookAccount() {
@@ -1942,7 +1976,7 @@ function BodyBookPage() {
     try {
       await deleteBodyBookProject(book.sessionId);
       setSavedBooks((current) => current.filter((item) => item.sessionId !== book.sessionId));
-      if (project?.sessionId === book.sessionId) backToHome();
+      if (project?.sessionId === book.sessionId) returnToBookHome();
     } catch (nextError) {
       setError(nextError.message || "删除认知书工程失败，请稍后再试。");
     } finally {
@@ -1987,7 +2021,7 @@ function BodyBookPage() {
   return (
     <main className="body-book-page">
       <header className="body-book-header">
-        <div className="body-book-header-copy">{!home ? <button className="body-book-home-link" disabled={busy} onClick={backToHome} type="button"><ArrowLeft size={17} /><span>主页</span></button> : null}<p className="body-book-kicker">Baby learning book</p><h1>{activeTheme?.englishName || "我的第一本认知书"}</h1><p>{activeTheme ? `正在制作：${activeTheme.name}` : "选择主题后，自由组合页面并持续编辑。"}</p></div>
+        <div className="body-book-header-copy">{!home ? <button className="body-book-home-link" disabled={busy} onClick={returnToBookHome} type="button"><ArrowLeft size={17} /><span>主页</span></button> : null}<p className="body-book-kicker">Baby learning book</p><h1>{activeTheme?.englishName || "我的第一本认知书"}</h1><p>{activeTheme ? `正在制作：${activeTheme.name}` : "选择主题后，自由组合页面并持续编辑。"}</p></div>
         <div className="body-book-header-actions">
           <button className="draw-card-secondary body-book-header-orders" onClick={() => window.location.assign("/book/orders")} type="button"><ListTodo size={16} /><span>我的订单</span></button>
           <button className="draw-card-secondary body-book-header-balance" onClick={() => setShowBeanInfo(true)} type="button"><span>余额</span><strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong><span>豆</span></button>
