@@ -2539,18 +2539,20 @@ function FridgeMagnetOrderPage() {
   const [paymentError, setPaymentError] = useState("");
   const [isPreparingPayment, setIsPreparingPayment] = useState(false);
   const [orderCopied, setOrderCopied] = useState(false);
+  const [shipmentCopied, setShipmentCopied] = useState(false);
   const [contactCopied, setContactCopied] = useState(false);
   const orderCopiedTimeoutRef = useRef(null);
+  const shipmentCopiedTimeoutRef = useRef(null);
   const contactCopiedTimeoutRef = useRef(null);
   const paymentRequestRef = useRef("");
   const paymentRefreshTimeoutRef = useRef(null);
   const payableCents = Number(order?.payableCents ?? order?.totalCents ?? 0);
   const orderItems = Array.isArray(order?.items) ? order.items : [];
-  const shipmentTrackingUrl = buildShipmentTrackingUrl(order?.shippingCarrier, order?.shippingTrackingNo);
 
   useEffect(() => {
     return () => {
       if (orderCopiedTimeoutRef.current) window.clearTimeout(orderCopiedTimeoutRef.current);
+      if (shipmentCopiedTimeoutRef.current) window.clearTimeout(shipmentCopiedTimeoutRef.current);
       if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
       if (paymentRefreshTimeoutRef.current) window.clearTimeout(paymentRefreshTimeoutRef.current);
     };
@@ -2652,12 +2654,18 @@ function FridgeMagnetOrderPage() {
     contactCopiedTimeoutRef.current = window.setTimeout(() => setContactCopied(false), 1600);
   }
 
-  function handleQueryShipment() {
-    if (!shipmentTrackingUrl) {
-      setError("该订单的快递公司或单号不完整，请联系客服。");
-      return;
+  async function handleCopyShipmentNo() {
+    const trackingNo = String(order?.shippingTrackingNo || "").trim();
+    if (!trackingNo) return;
+    try {
+      await copyText(trackingNo);
+      setShipmentCopied(true);
+      if (shipmentCopiedTimeoutRef.current) window.clearTimeout(shipmentCopiedTimeoutRef.current);
+      shipmentCopiedTimeoutRef.current = window.setTimeout(() => setShipmentCopied(false), 2400);
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "复制快递号失败，请手动复制。");
     }
-    window.location.assign(shipmentTrackingUrl);
   }
 
   return (
@@ -2764,10 +2772,11 @@ function FridgeMagnetOrderPage() {
               <article className="draw-observability-card">
                 <h3>物流信息</h3>
                 <p className="storage-note">{order.shippingCarrierName || "快递"} · {order.shippingTrackingNo}</p>
+                <p className="storage-note">复制快递号后，请打开支付宝，在“我的快递”中查询物流信息。</p>
                 <div className="task-actions">
-                  <button className="secondary-button" disabled={!shipmentTrackingUrl} onClick={handleQueryShipment} type="button">
-                    <Search size={18} />
-                    <span>查询物流</span>
+                  <button className="secondary-button" onClick={handleCopyShipmentNo} type="button">
+                    <Clipboard size={18} />
+                    <span>{shipmentCopied ? "快递号已复制" : "复制快递号"}</span>
                   </button>
                 </div>
               </article>
@@ -9731,16 +9740,6 @@ async function deleteImageJob(jobId) {
 function openImageSource(source) {
   if (!source) return;
   window.open(source, "_blank", "noopener,noreferrer");
-}
-
-function buildShipmentTrackingUrl(carrierCode, trackingNo) {
-  const safeCarrierCode = String(carrierCode || "").trim();
-  const safeTrackingNo = String(trackingNo || "").trim();
-  if (!safeCarrierCode || !safeTrackingNo) return "";
-  const url = new URL("https://www.kuaidi100.com/query");
-  url.searchParams.set("com", safeCarrierCode);
-  url.searchParams.set("nu", safeTrackingNo);
-  return url.toString();
 }
 
 function openAdminJobResult(jobId) {
