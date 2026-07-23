@@ -38,6 +38,7 @@ const API_FAILOVER_MODE_OPTIONS = [
   { value: "stop", label: "高优先级失败后，直接报错退出" }
 ];
 const MAX_ORDER_ITEM_QUANTITY = 99;
+const MAX_BEAN_PURCHASE_COUNT = 1000;
 const ORDER_STATUS_LABELS = {
   pending_payment: "待付款",
   pending_shipment: "待发货",
@@ -497,6 +498,26 @@ function BalanceInsufficientModal({ message, onClose, useBodyBookTheme = false }
         <h2>{isBeanBalance ? "豆豆不足" : "币不足"}</h2>
         <p className="storage-note">{message}</p>
         <div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={onClose} type="button">我知道了</button></div>
+      </section>
+    </div>
+  );
+}
+
+function BeanPurchaseModal({ beanCount, busy, error, payment, purchase, onClose, onCountChange, onRestart, onRetry, onSubmit }) {
+  const safeCount = Math.min(Math.max(Math.trunc(Number(beanCount || 0)), 0), MAX_BEAN_PURCHASE_COUNT);
+  const isPaid = purchase?.status === "paid";
+  const isExpired = purchase?.status === "cancelled" || (purchase?.expiresAt && Date.parse(purchase.expiresAt) <= Date.now());
+  const isManual = payment?.channel === "manual_collection";
+  const isNative = payment?.channel === "wechat_native" && payment?.codeUrl;
+  return (
+    <div className="modal-backdrop draw-card-confirm" onClick={() => !busy && onClose()} role="presentation">
+      <section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="购买豆豆">
+        <button className="icon-button" disabled={busy} onClick={onClose} type="button" aria-label="关闭购买豆豆"><X size={18} /></button>
+        <p className="draw-card-kicker">Buy beans</p>
+        <h2>购买豆豆</h2>
+        <p className="storage-note">1 元 = 1 个豆豆。成功购买的金额可抵扣认知书订单，每单最多抵扣 40 元。</p>
+        {isPaid ? <><p className="success-note">购买成功，{purchase.beanCount} 个豆豆已到账。</p><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={onClose} type="button">完成</button></div></> : isExpired ? <><p className="error-note">该购买单已过期，未产生扣款。请重新创建购买单后再支付。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" onClick={onClose} type="button">关闭</button><button className="draw-card-primary" disabled={busy} onClick={onRestart} type="button">重新购买</button></div></> : isManual ? <><article className="manual-payment-guide"><strong>请扫描商户收款码付款</strong><img alt="微信商户收款码" className="manual-payment-qr" src="/payment/wechat-merchant-collection.png" /><p>应付金额 {formatCurrencyCents(purchase?.amountCents || safeCount * 100)}</p><p>购买单号：{purchase?.purchaseNo || "--"}</p><small>付款后管理员确认到账，豆豆将自动发放。</small></article></> : isNative ? <><article className="native-payment-panel"><h3>请使用微信扫码付款</h3><p className="storage-note">应付金额 {formatCurrencyCents(purchase?.amountCents || safeCount * 100)}，扫码后无需手动输入金额。</p><img alt="购买豆豆微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(payment.codeUrl, { margin: 1 })} /><p className="storage-note">支付成功后豆豆会自动到账。</p></article></> : <><div className="body-book-wallet-actions"><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(10)} type="button">10 豆</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(20)} type="button">20 豆</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(40)} type="button">40 豆</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(100)} type="button">100 豆</button></div><label className="body-book-wallet-field"><span>购买数量（1–1000 个）</span><input disabled={busy || Boolean(purchase)} min="1" max={MAX_BEAN_PURCHASE_COUNT} onChange={(event) => onCountChange(event.target.value)} type="number" value={beanCount} /></label><p className="body-book-bean-balance">应付 <strong>{formatCurrencyCents(safeCount * 100)}</strong></p><p className="storage-note">赠送豆豆、邀请豆豆及下单赠豆不参与认知书优惠抵扣。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={onClose} type="button">取消</button><button className="draw-card-primary" disabled={busy || safeCount < 1} onClick={purchase ? onRetry : onSubmit} type="button">{busy ? "处理中" : purchase ? "重新发起支付" : `支付 ${formatCurrencyCents(safeCount * 100)}`}</button></div></>}
+        {error ? <p className="error-note">{error}</p> : null}
       </section>
     </div>
   );
@@ -1384,6 +1405,12 @@ function BodyBookPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [showBeanInfo, setShowBeanInfo] = useState(false);
+  const [showBeanPurchase, setShowBeanPurchase] = useState(false);
+  const [beanPurchaseCount, setBeanPurchaseCount] = useState(40);
+  const [beanPurchase, setBeanPurchase] = useState(null);
+  const [beanPurchasePayment, setBeanPurchasePayment] = useState(null);
+  const [beanPurchaseBusy, setBeanPurchaseBusy] = useState(false);
+  const [beanPurchaseError, setBeanPurchaseError] = useState("");
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [referralUrl, setReferralUrl] = useState("");
   const [referralNotice, setReferralNotice] = useState("");
@@ -1406,6 +1433,7 @@ function BodyBookPage() {
   const lastBillingAlertRef = useRef("");
   const pendingReferralRef = useRef(false);
   const pendingBookCheckoutRef = useRef(false);
+  const pendingBeanPurchaseRef = useRef(false);
 
   const activeTheme = project?.theme || selectedTheme;
   const contents = getBodyBookThemeContents(activeTheme);
@@ -1420,6 +1448,10 @@ function BodyBookPage() {
   const incompleteKeys = pages.filter((page) => !["succeeded", "queued", "running"].includes(page.status)).map((page) => page.key);
   const allAvailableKeys = pages.filter((page) => !page.isBuiltIn && !["queued", "running"].includes(page.status)).map((page) => page.key);
   const bodyBookPricing = orderConfig?.bodyBook || {};
+  const beanPurchaseDiscount = visitorState?.beanPurchaseDiscount || { availableCents: 0 };
+  const bookOrderGrossCents = Number(bodyBookPricing.priceCents || 0) + Number(bodyBookPricing.shippingFeeCents || 0);
+  const bookOrderDiscountPreviewCents = Math.min(4000, bookOrderGrossCents, Math.max(0, Number(beanPurchaseDiscount.availableCents || 0)));
+  const bookOrderPayablePreviewCents = Math.max(0, bookOrderGrossCents - bookOrderDiscountPreviewCents);
   const selectionTargetCount = activeTheme?.id === "color" ? 9 : 17;
   const selectionRemaining = selectionTargetCount - selectedKeys.length;
   const selectionActionText = selectionRemaining >= 0 ? `还需要选择 ${selectionRemaining} 张` : `需要去除 ${Math.abs(selectionRemaining)} 张`;
@@ -1495,6 +1527,35 @@ function BodyBookPage() {
         window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
       });
   }, []);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const purchaseId = String(url.searchParams.get("beanPurchaseId") || "");
+    const payCode = String(url.searchParams.get("beanPayCode") || "");
+    if (!purchaseId || !payCode) return;
+    setShowBeanPurchase(true);
+    setBeanPurchaseError("");
+    url.searchParams.delete("beanPurchaseId");
+    url.searchParams.delete("beanPayCode");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    void prepareBeanPurchase(purchaseId, payCode);
+  }, []);
+
+  useEffect(() => {
+    if (!showBeanPurchase || !beanPurchase?.id || beanPurchase.status === "paid") return undefined;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const payload = await fetchBeanPurchase(beanPurchase.id);
+        if (!active) return;
+        setBeanPurchase(payload.purchase);
+        if (payload.purchase?.status === "paid") setVisitorState(await fetchVisitorState());
+      } catch {}
+    };
+    const timer = window.setInterval(refresh, 2200);
+    void refresh();
+    return () => { active = false; window.clearInterval(timer); };
+  }, [beanPurchase?.id, beanPurchase?.status, showBeanPurchase]);
 
   useEffect(() => {
     if (!showUserMenu) return undefined;
@@ -1641,6 +1702,78 @@ function BodyBookPage() {
       return;
     }
     void showReferralDialog();
+  }
+
+  function openBeanPurchase() {
+    if (!visitorState?.account?.isRegistered) {
+      pendingBeanPurchaseRef.current = true;
+      setShowAuthModal(true);
+      return;
+    }
+    setBeanPurchase(null);
+    setBeanPurchasePayment(null);
+    setBeanPurchaseError("");
+    setShowBeanInfo(false);
+    setShowBeanPurchase(true);
+  }
+
+  function restartBeanPurchase() {
+    setBeanPurchase(null);
+    setBeanPurchasePayment(null);
+    setBeanPurchaseError("");
+  }
+
+  async function applyBeanPurchasePayment(payload) {
+    const nextPurchase = payload?.purchase || null;
+    const nextPayment = payload?.payment || null;
+    if (nextPurchase) setBeanPurchase(nextPurchase);
+    setBeanPurchasePayment(nextPayment);
+    if (nextPayment?.status === "requires_authorization" && nextPayment.authorizationUrl) {
+      window.location.assign(nextPayment.authorizationUrl);
+      return;
+    }
+    if (nextPayment?.channel === "wechat_jsapi" && nextPayment.jsapi) {
+      await invokeWechatJsapiPayment(nextPayment.jsapi);
+      const refreshed = await fetchBeanPurchase(nextPurchase?.id || beanPurchase?.id);
+      setBeanPurchase(refreshed.purchase);
+      setVisitorState(await fetchVisitorState());
+    }
+  }
+
+  async function prepareBeanPurchase(purchaseId, code = "") {
+    if (!purchaseId) return;
+    setBeanPurchaseBusy(true);
+    setBeanPurchaseError("");
+    try {
+      await applyBeanPurchasePayment(await payBeanPurchase(purchaseId, code ? { code } : {}));
+    } catch (nextError) {
+      setBeanPurchaseError(nextError.message || "发起豆豆购买支付失败，请稍后重试。");
+    } finally {
+      setBeanPurchaseBusy(false);
+    }
+  }
+
+  async function submitBeanPurchase() {
+    const count = Math.trunc(Number(beanPurchaseCount || 0));
+    if (beanPurchaseBusy) return;
+    if (!Number.isFinite(count) || count < 1 || count > MAX_BEAN_PURCHASE_COUNT) {
+      setBeanPurchaseError(`请输入 1 到 ${MAX_BEAN_PURCHASE_COUNT} 之间的整数。`);
+      return;
+    }
+    setBeanPurchaseBusy(true);
+    setBeanPurchaseError("");
+    try {
+      const created = await createBeanPurchase({ beanCount: count });
+      setBeanPurchase(created.purchase);
+      setBeanPurchasePayment(created.payment || null);
+      if (created.payment?.channel !== "manual_collection") {
+        await applyBeanPurchasePayment(await payBeanPurchase(created.purchase.id, {}));
+      }
+    } catch (nextError) {
+      setBeanPurchaseError(nextError.message || "创建豆豆购买单失败，请稍后重试。");
+    } finally {
+      setBeanPurchaseBusy(false);
+    }
   }
 
   function openBookCheckout() {
@@ -1883,9 +2016,10 @@ function BodyBookPage() {
       {historyTheme ? <div className="modal-backdrop" onClick={() => !busy && setHistoryTheme(null)} role="presentation"><section className="body-book-project-modal body-book-history-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择历史认知书工程"><button className="icon-button" disabled={busy} onClick={() => setHistoryTheme(null)} type="button"><X size={18} /></button><p className="body-book-kicker">Existing projects</p><h2>{historyTheme.name}已有历史工程</h2><p>请选择继续历史任务，或新建一本独立工程。</p><div className="body-book-history-list">{historyProjects.map((book) => <button key={book.sessionId} onClick={() => openProject(book.sessionId)} type="button">{book.thumbnail ? <img alt="工程缩略图" src={book.thumbnail} /> : <span className="body-book-history-placeholder">{book.theme?.name}</span>}<span><strong>{book.title}</strong><small>{formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></span></button>)}</div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={() => startNewDraft(historyTheme)} type="button">创建新的工程</button></div></section></div> : null}
 
       {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀新获豆"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀新获豆</h2><p>邀请新用户注册，并完成首笔认知书实体书支付，即可获得 <strong>10 颗豆豆</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
-      {showBeanInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowBeanInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的豆豆"><button className="icon-button" onClick={() => setShowBeanInfo(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">My beans</p><h2>我的豆豆</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong> 豆</p><p className="body-book-bean-cost-note">{billingEnabled ? "每张成功生成的图片消耗 1 个豆豆。" : "内测阶段，认知书暂不消耗豆豆。"}</p><ul className="body-book-bean-benefits"><li>下单制作认知书，可获得 40 豆。</li><li>邀请新用户下单，可获得 10 豆。</li><li>联系客服购买豆豆，可抵扣同等金额的实体认知书优惠。</li></ul><label className="body-book-wallet-field"><span>邀请码</span><input disabled={busy} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={busy || !inviteCode.trim()} onClick={redeemBookInvite} type="button">兑换邀请码</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); openReferral(); }} type="button">邀新获豆</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); setShowContactModal(true); }} type="button">联系客服</button></div></section></div> : null}
-      {showBookCheckout ? <div className="modal-backdrop" onClick={() => !bookOrderBusy && setShowBookCheckout(false)} role="presentation"><section className="body-book-project-modal body-book-checkout-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="下单认知书实体书"><button className="icon-button" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Print your book</p><h2>{bookOrderBlockReason ? "暂时无法下单" : "下单认知书实体书"}</h2>{bookOrderBlockReason ? <><div className="body-book-checkout-blocked"><AlertTriangle size={24} /><p>{bookOrderBlockReason}</p></div><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={() => setShowBookCheckout(false)} type="button">知道了</button></div></> : <><p>以下为将要印刷的全部页面，共 {bookPreviewPages.length} 页；颜色书会在这里自动包含颜色物品页，不含封底。</p><div className="body-book-checkout-preview" aria-label="成书预览">{bookPreviewPages.map((page, index) => <figure className="body-book-checkout-preview-item" key={`${page.key}-${index}`}><img alt={`${page.title} 成书预览`} src={page.result?.previewUrl || page.result?.imageUrl} /><figcaption><span>第 {index + 1} 页</span><strong>{page.title}</strong></figcaption></figure>)}</div><div className="draw-card-order-summary"><p>实体书 {formatCurrencyCents(bodyBookPricing.priceCents)}</p><p>邮费 {Number(bodyBookPricing.shippingFeeCents || 0) > 0 ? formatCurrencyCents(bodyBookPricing.shippingFeeCents) : "包邮"}</p><strong>合计 {formatCurrencyCents(Number(bodyBookPricing.priceCents || 0) + Number(bodyBookPricing.shippingFeeCents || 0))}</strong></div><div className="draw-card-order-form"><label className="field-label">收件人<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={bookOrderForm.receiverName} /></label><label className="field-label">手机号<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverPhone: event.target.value }))} type="tel" value={bookOrderForm.receiverPhone} /></label><label className="field-label">收货地址<input onChange={(event) => setBookOrderForm((current) => ({ ...current, address: event.target.value, addressDetail: event.target.value }))} type="text" value={bookOrderForm.address || bookOrderForm.addressDetail || ""} /></label><label className="field-label">备注<textarea onChange={(event) => setBookOrderForm((current) => ({ ...current, remark: event.target.value }))} rows="2" value={bookOrderForm.remark} /></label></div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button">取消</button><button className="draw-card-primary" disabled={bookOrderBusy} onClick={submitBookOrder} type="button">{bookOrderBusy ? "创建订单中" : "提交订单并查看收款码"}</button></div></>}</section></div> : null}
-      {showAuthModal ? <AuthModal onAuthenticated={async () => { setShowAuthModal(false); setVisitorState(await fetchVisitorState()); await loadSavedBooks(); if (pendingReferralRef.current) { pendingReferralRef.current = false; await showReferralDialog(); } if (pendingBookCheckoutRef.current) { pendingBookCheckoutRef.current = false; setShowBookCheckout(true); } }} onClose={() => { pendingReferralRef.current = false; pendingBookCheckoutRef.current = false; setShowAuthModal(false); }} reloadOnLogin={false} /> : null}
+      {showBeanInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowBeanInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的豆豆"><button className="icon-button" onClick={() => setShowBeanInfo(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">My beans</p><h2>我的豆豆</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong> 豆</p><p className="body-book-bean-cost-note">已购豆豆剩余可抵扣额度：<strong>{formatCurrencyCents(Math.max(0, Number(beanPurchaseDiscount.availableCents || 0)))}</strong></p><p className="body-book-bean-cost-note">{billingEnabled ? "每张成功生成的图片消耗 1 个豆豆。" : "内测阶段，认知书暂不消耗豆豆。"}</p><ul className="body-book-bean-benefits"><li>成功购买 1 元豆豆，可获得 1 元认知书优惠额度。</li><li>认知书每单最多抵扣 40 元；赠送豆豆不参与抵扣。</li><li>认知书按实付金额赠豆，每实付满 1 元赠 1 豆。</li><li>邀请新用户完成首笔认知书订单，可获得 10 豆。</li></ul><label className="body-book-wallet-field"><span>邀请码</span><input disabled={busy} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openBeanPurchase} type="button">购买豆豆</button><button className="draw-card-primary" disabled={busy || !inviteCode.trim()} onClick={redeemBookInvite} type="button">兑换邀请码</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); openReferral(); }} type="button">邀新获豆</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); setShowContactModal(true); }} type="button">联系客服</button></div></section></div> : null}
+      {showBeanPurchase ? <BeanPurchaseModal beanCount={beanPurchaseCount} busy={beanPurchaseBusy} error={beanPurchaseError} onClose={() => !beanPurchaseBusy && setShowBeanPurchase(false)} onCountChange={setBeanPurchaseCount} onRestart={restartBeanPurchase} onRetry={() => prepareBeanPurchase(beanPurchase?.id)} onSubmit={submitBeanPurchase} payment={beanPurchasePayment} purchase={beanPurchase} /> : null}
+      {showBookCheckout ? <div className="modal-backdrop" onClick={() => !bookOrderBusy && setShowBookCheckout(false)} role="presentation"><section className="body-book-project-modal body-book-checkout-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="下单认知书实体书"><button className="icon-button" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Print your book</p><h2>{bookOrderBlockReason ? "暂时无法下单" : "下单认知书实体书"}</h2>{bookOrderBlockReason ? <><div className="body-book-checkout-blocked"><AlertTriangle size={24} /><p>{bookOrderBlockReason}</p></div><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={() => setShowBookCheckout(false)} type="button">知道了</button></div></> : <><p>以下为将要印刷的全部页面，共 {bookPreviewPages.length} 页；颜色书会在这里自动包含颜色物品页，不含封底。</p><div className="body-book-checkout-preview" aria-label="成书预览">{bookPreviewPages.map((page, index) => <figure className="body-book-checkout-preview-item" key={`${page.key}-${index}`}><img alt={`${page.title} 成书预览`} src={page.isBuiltIn ? (page.result?.thumbnailUrl || page.result?.previewUrl || page.result?.imageUrl) : (page.result?.previewUrl || page.result?.imageUrl)} /><figcaption><span>第 {index + 1} 页</span><strong>{page.title}</strong></figcaption></figure>)}</div><div className="draw-card-order-summary"><p>实体书 {formatCurrencyCents(bodyBookPricing.priceCents)}</p><p>邮费 {Number(bodyBookPricing.shippingFeeCents || 0) > 0 ? formatCurrencyCents(bodyBookPricing.shippingFeeCents) : "包邮"}</p><p>豆豆优惠 -{formatCurrencyCents(bookOrderDiscountPreviewCents)}（每单最多抵扣 40 元）</p><strong>实付 {formatCurrencyCents(bookOrderPayablePreviewCents)}</strong></div><div className="draw-card-order-form"><label className="field-label">收件人<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={bookOrderForm.receiverName} /></label><label className="field-label">手机号<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverPhone: event.target.value }))} type="tel" value={bookOrderForm.receiverPhone} /></label><label className="field-label">收货地址<input onChange={(event) => setBookOrderForm((current) => ({ ...current, address: event.target.value, addressDetail: event.target.value }))} type="text" value={bookOrderForm.address || bookOrderForm.addressDetail || ""} /></label><label className="field-label">备注<textarea onChange={(event) => setBookOrderForm((current) => ({ ...current, remark: event.target.value }))} rows="2" value={bookOrderForm.remark} /></label></div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button">取消</button><button className="draw-card-primary" disabled={bookOrderBusy} onClick={submitBookOrder} type="button">{bookOrderBusy ? "创建订单中" : bookOrderPayablePreviewCents === 0 ? "提交订单并完成优惠" : "提交订单并查看收款码"}</button></div></>}</section></div> : null}
+      {showAuthModal ? <AuthModal onAuthenticated={async () => { setShowAuthModal(false); setVisitorState(await fetchVisitorState()); await loadSavedBooks(); if (pendingReferralRef.current) { pendingReferralRef.current = false; await showReferralDialog(); } if (pendingBookCheckoutRef.current) { pendingBookCheckoutRef.current = false; setShowBookCheckout(true); } if (pendingBeanPurchaseRef.current) { pendingBeanPurchaseRef.current = false; openBeanPurchase(); } }} onClose={() => { pendingReferralRef.current = false; pendingBookCheckoutRef.current = false; pendingBeanPurchaseRef.current = false; setShowAuthModal(false); }} reloadOnLogin={false} /> : null}
       {showContactModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowContactModal(false)} role="presentation"><section className="draw-card-confirm-panel draw-card-contact-panel body-book-contact-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="icon-button" onClick={() => setShowContactModal(false)} type="button"><X size={18} /></button><div className="draw-card-contact-copy"><h3>联系客服</h3><p>请加微信</p><button className="draw-card-contact-id" onClick={() => copyText(getContactWechatId(orderConfig))} type="button"><span>{getContactWechatId(orderConfig)}</span><Clipboard size={16} /></button></div></section></div> : null}
       <footer className="body-book-page-footer"><a className="body-book-admin-entry" href="/admin" aria-label="进入后台管理">后台入口</a></footer>
     </main>
@@ -2093,7 +2227,7 @@ function BodyBookOrdersPage() {
                 </span>
                 <span className="body-book-order-summary">
                   <strong>{themeName}</strong>
-                  <span>{formatCurrencyCents(order.totalCents)}</span>
+                  <span>{formatCurrencyCents(Number(order.payableCents ?? order.totalCents ?? 0))}</span>
                 </span>
               </button>
             );
@@ -2299,6 +2433,7 @@ function FridgeMagnetOrderPage() {
   const contactCopiedTimeoutRef = useRef(null);
   const paymentRequestRef = useRef("");
   const paymentRefreshTimeoutRef = useRef(null);
+  const payableCents = Number(order?.payableCents ?? order?.totalCents ?? 0);
 
   useEffect(() => {
     return () => {
@@ -2433,7 +2568,7 @@ function FridgeMagnetOrderPage() {
             {payment?.channel === "wechat_native" && payment.codeUrl ? (
               <article className="draw-observability-card native-payment-panel">
                 <h3>请使用微信扫码付款</h3>
-                <p className="storage-note">应付金额 {formatCurrencyCents(order.totalCents)}，扫码后无需手动输入金额。</p>
+                <p className="storage-note">应付金额 {formatCurrencyCents(payableCents)}，扫码后无需手动输入金额。</p>
                 <img alt="微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(payment.codeUrl, { margin: 1 })} />
                 <p className="storage-note">支付成功后，订单状态会自动更新。</p>
               </article>
@@ -2453,7 +2588,7 @@ function FridgeMagnetOrderPage() {
                 <div className="draw-observability-grid">
                   <div className="draw-observability-metric">
                     <strong>应付金额</strong>
-                    <span>{formatCurrencyCents(order.totalCents)}</span>
+                    <span>{formatCurrencyCents(payableCents)}</span>
                   </div>
                   <div className="draw-observability-metric">
                     <strong>订单号</strong>
@@ -2476,7 +2611,7 @@ function FridgeMagnetOrderPage() {
                     <strong>{order.orderNo}</strong>
                     <span className={`task-status ${orderStatusTone(order.orderStatus)}`}>{getOrderPrimaryStatusLabel(order)}</span>
                   </div>
-                  <p className="storage-note">下单时间 {formatDateTime(order.createdAt)}，合计 {formatCurrencyCents(order.totalCents)}</p>
+                  <p className="storage-note">下单时间 {formatDateTime(order.createdAt)}，实付 {formatCurrencyCents(payableCents)}</p>
                 </div>
               </div>
               <div className="draw-observability-grid">
@@ -2492,6 +2627,8 @@ function FridgeMagnetOrderPage() {
                   <strong>订单总价</strong>
                   <span>{formatCurrencyCents(order.totalCents)}</span>
                 </div>
+                {Number(order.beanDiscountCents || 0) > 0 ? <div className="draw-observability-metric"><strong>豆豆优惠</strong><span>-{formatCurrencyCents(order.beanDiscountCents)}</span></div> : null}
+                <div className="draw-observability-metric"><strong>实付金额</strong><span>{formatCurrencyCents(payableCents)}</span></div>
               </div>
             </article>
 
@@ -6249,6 +6386,35 @@ async function createOrderRequest(payload) {
   return data;
 }
 
+async function createBeanPurchase(payload) {
+  const response = await fetch("/api/bean-purchases", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "创建豆豆购买单失败。");
+  return data;
+}
+
+async function fetchBeanPurchase(purchaseId) {
+  const response = await fetch(`/api/bean-purchases/${encodeURIComponent(purchaseId)}`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "读取豆豆购买单失败。");
+  return data;
+}
+
+async function payBeanPurchase(purchaseId, payload = {}) {
+  const response = await fetch(`/api/bean-purchases/${encodeURIComponent(purchaseId)}/pay`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "发起豆豆购买支付失败。");
+  return data;
+}
+
 async function payOrderRequest(orderId, payload) {
   const response = await fetch(`/api/orders/${orderId}/pay`, {
     method: "POST",
@@ -6606,6 +6772,17 @@ async function confirmAdminManualPayment(orderId) {
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || "确认收款失败。");
   return data.order;
+}
+
+async function confirmAdminManualBeanPurchase(paymentIntentId) {
+  const response = await fetch(`/api/admin/commerce/payments/${encodeURIComponent(paymentIntentId)}/confirm-manual`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({})
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "确认豆豆购买收款失败。");
+  return data.payment;
 }
 
 function parseDownloadFilename(contentDisposition, fallback = "order-originals.zip") {
@@ -7776,7 +7953,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
   async function confirmManualPayment() {
     if (!selectedOrder?.id || selectedOrder.paymentStatus === "paid") return;
     const confirmationNote = selectedOrder.experienceType === "body-book" ? "确认后将触发符合条件的邀新豆豆奖励并转为待发货。" : "确认后将赠送币、解锁原图并转为待发货。";
-    if (!window.confirm(`确认订单 ${selectedOrder.orderNo} 已收到 ${formatCurrencyCents(selectedOrder.totalCents)} 吗？${confirmationNote}`)) return;
+    if (!window.confirm(`确认订单 ${selectedOrder.orderNo} 已收到 ${formatCurrencyCents(Number(selectedOrder.payableCents ?? selectedOrder.totalCents ?? 0))} 吗？${confirmationNote}`)) return;
     setIsBusy(true);
     setError("");
     setStatusMessage("");
@@ -7787,6 +7964,25 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
       setStatusMessage("已确认收款，订单已转为待发货。");
     } catch (nextError) {
       setError(nextError.message || "确认收款失败。");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function confirmManualBeanPurchase(payment) {
+    if (!payment?.id || payment.status === "paid") return;
+    const beanCount = Number(payment.metadata?.beanCount || payment.creditAmount || 0);
+    if (!window.confirm(`确认已收到 ${formatCurrencyCents(payment.amountCents)}，并为用户发放 ${beanCount} 豆吗？`)) return;
+    setIsBusy(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      await confirmAdminManualBeanPurchase(payment.id);
+      const payload = await fetchAdminCommercePayments();
+      setCommercePayments(payload.payments || []);
+      setStatusMessage("已确认购买收款，豆豆已发放。");
+    } catch (nextError) {
+      setError(nextError.message || "确认豆豆购买收款失败。");
     } finally {
       setIsBusy(false);
     }
@@ -7848,7 +8044,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
       </div>
 
       <div className="draw-observability-card">
-          <h3>最近实体订单与币流水</h3>
+          <h3>最近实体订单、豆豆购买与币流水</h3>
           <div className="task-list">
           {commercePayments.filter((payment) => ["physical_order", "body_book_order"].includes(payment.kind)).slice(0, 8).map((payment) => (
             <div className="task-meta-row" key={payment.id}>
@@ -7858,6 +8054,16 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
             </div>
           ))}
           {!commercePayments.length ? <p className="storage-note">暂无收款记录。</p> : null}
+        </div>
+        <div className="task-list">
+          {commercePayments.filter((payment) => payment.kind === "bean_purchase").slice(0, 8).map((payment) => (
+            <div className="task-meta-row" key={payment.id}>
+              <strong>购买 {Number(payment.metadata?.beanCount || payment.creditAmount || 0)} 豆</strong>
+              <span>{formatCurrencyCents(payment.amountCents)}</span>
+              <span>{payment.status === "paid" ? "已支付" : "待确认"}</span>
+              {payment.status !== "paid" && payment.channel === "manual_collection" ? <button className="secondary-button" disabled={isBusy} onClick={() => confirmManualBeanPurchase(payment)} type="button">确认收款</button> : null}
+            </div>
+          ))}
         </div>
         {creditLedger.length ? <p className="storage-note">最近币变动：{creditLedger.slice(0, 5).map((item) => `${item.delta > 0 ? "+" : ""}${item.delta}`).join("、")}</p> : null}
       </div>
@@ -7969,7 +8175,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
               <div className="task-meta-row">
                 <strong>{order.orderNo}</strong>
                 <span>{order.experienceType === "body-book" ? "认知书实体书" : `共 ${order.itemCount} 只`}</span>
-                <span>{formatCurrencyCents(order.totalCents)}</span>
+                <span>{formatCurrencyCents(Number(order.payableCents ?? order.totalCents ?? 0))}</span>
               </div>
               <p className="storage-note">{order.receiverName} · {order.receiverPhone}</p>
               <p className="storage-note">来源商户：{order.sourceMerchantName || "无"}</p>
@@ -8015,7 +8221,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
             </div>
             <div className="task-meta-row">
               <span className={`task-status ${getAdminOrderPrimaryStatusTone(selectedOrder)}`}>{getAdminOrderPrimaryStatusLabel(selectedOrder)}</span>
-              <span>总价 {formatCurrencyCents(selectedOrder.totalCents)}</span>
+              <span>商品小计 {formatCurrencyCents(selectedOrder.subtotalCents)} · 邮费 {selectedOrder.shippingFeeCents > 0 ? formatCurrencyCents(selectedOrder.shippingFeeCents) : "包邮"} · 豆豆优惠 -{formatCurrencyCents(selectedOrder.beanDiscountCents || 0)} · 实付 {formatCurrencyCents(Number(selectedOrder.payableCents ?? selectedOrder.totalCents ?? 0))}</span>
             </div>
             <p className="storage-note">{selectedOrder.receiverName} · {selectedOrder.receiverPhone}</p>
             <p className="storage-note">{selectedOrder.addressDetail}</p>

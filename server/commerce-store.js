@@ -184,6 +184,20 @@ export function createCommerceStore({ dbPath }) {
       FOREIGN KEY (payment_intent_id) REFERENCES commerce_payment_intents(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS commerce_body_book_discount_reservations (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      order_id TEXT NOT NULL UNIQUE,
+      discount_cents INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'reserved',
+      expires_at TEXT,
+      consumed_at TEXT,
+      released_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS commerce_user_sessions (
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL,
@@ -229,6 +243,7 @@ export function createCommerceStore({ dbPath }) {
     CREATE INDEX IF NOT EXISTS idx_commerce_account_visitors_visitor ON commerce_account_visitors(visitor_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_payment_intents_account ON commerce_payment_intents(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_payment_intents_transaction ON commerce_payment_intents(transaction_id);
+    CREATE INDEX IF NOT EXISTS idx_commerce_body_book_discount_reservations_account ON commerce_body_book_discount_reservations(account_id, status, expires_at);
     CREATE INDEX IF NOT EXISTS idx_commerce_credit_ledger_account ON commerce_credit_ledger(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_bean_ledger_account ON commerce_bean_ledger(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_original_image_redemptions_order ON commerce_original_image_redemptions(source_order_id);
@@ -283,6 +298,7 @@ export function createCommerceStore({ dbPath }) {
   const readAccountByUsernameStatement = db.prepare("SELECT * FROM commerce_accounts WHERE username = ?");
   const readIntentByIdStatement = db.prepare("SELECT * FROM commerce_payment_intents WHERE id = ?");
   const readIntentByTradeNoStatement = db.prepare("SELECT * FROM commerce_payment_intents WHERE out_trade_no = ?");
+  const readBodyBookDiscountReservationStatement = db.prepare("SELECT * FROM commerce_body_book_discount_reservations WHERE order_id = ?");
   const readReferralLinkByAccountStatement = db.prepare("SELECT * FROM commerce_referral_links WHERE referrer_account_id = ?");
   const readReferralLinkByTokenStatement = db.prepare("SELECT * FROM commerce_referral_links WHERE token = ?");
   const readReferralByInviteeStatement = db.prepare("SELECT * FROM commerce_referrals WHERE invitee_account_id = ?");
@@ -314,6 +330,103 @@ export function createCommerceStore({ dbPath }) {
 
   function hasPaidPhysicalOrder(accountId) {
     return Boolean(readPaidPhysicalOrderStatement.get(String(accountId || "")));
+  }
+
+  function releaseExpiredBodyBookDiscountReservations(referenceTime = nowIso()) {
+    const now = String(referenceTime || nowIso());
+    db.prepare(`
+      UPDATE commerce_body_book_discount_reservations
+      SET status = 'released', released_at = COALESCE(released_at, ?), updated_at = ?
+      WHERE status = 'reserved' AND expires_at IS NOT NULL AND expires_at <= ?
+    `).run(now, now, now);
+  }
+
+  function getBodyBookDiscountSummary(accountId) {
+    const safeAccountId = String(accountId || "");
+    if (!readAccount(safeAccountId)) {
+      return { purchasedCents: 0, reservedCents: 0, usedCents: 0, availableCents: 0 };
+    }
+    releaseExpiredBodyBookDiscountReservations();
+    const purchasedCents = Number(db.prepare(`
+      SELECT COALESCE(SUM(amount_cents), 0) AS total
+      FROM commerce_payment_intents
+      WHERE account_id = ? AND kind = 'bean_purchase' AND status = 'paid'
+    `).get(safeAccountId)?.total || 0);
+    const reservation = db.prepare(`
+      SELECT
+        COALESCE(SUM(CASE WHEN status = 'reserved' THEN discount_cents ELSE 0 END), 0) AS reserved_cents,
+        COALESCE(SUM(CASE WHEN status = 'consumed' THEN discount_cents ELSE 0 END), 0) AS used_cents
+      FROM commerce_body_book_discount_reservations
+      WHERE account_id = ?
+    `).get(safeAccountId) || {};
+    const reservedCents = Number(reservation.reserved_cents || 0);
+    const usedCents = Number(reservation.used_cents || 0);
+    return {
+      purchasedCents,
+      reservedCents,
+      usedCents,
+      availableCents: Math.max(0, purchasedCents - reservedCents - usedCents)
+    };
+  }
+
+  function reserveBodyBookDiscount({ accountId, orderId, orderTotalCents, expiresAt }) {
+    return withTransaction(db, () => {
+      const safeAccountId = String(accountId || "");
+      const safeOrderId = String(orderId || "");
+      const existing = readBodyBookDiscountReservationStatement.get(safeOrderId);
+      if (existing) {
+        return {
+          discountCents: Math.max(0, Number(existing.discount_cents || 0)),
+          summary: getBodyBookDiscountSummary(safeAccountId)
+        };
+      }
+      const summary = getBodyBookDiscountSummary(safeAccountId);
+      const grossCents = Math.max(0, Math.trunc(Number(orderTotalCents || 0)));
+      const discountCents = Math.min(4000, grossCents, summary.availableCents);
+      const now = nowIso();
+      db.prepare(`
+        INSERT INTO commerce_body_book_discount_reservations (
+          id, account_id, order_id, discount_cents, status, expires_at, consumed_at, released_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, 'reserved', ?, NULL, NULL, ?, ?)
+      `).run(randomUUID(), safeAccountId, safeOrderId, discountCents, expiresAt || null, now, now);
+      return {
+        discountCents,
+        summary: {
+          ...summary,
+          reservedCents: summary.reservedCents + discountCents,
+          availableCents: Math.max(0, summary.availableCents - discountCents)
+        }
+      };
+    });
+  }
+
+  function releaseBodyBookDiscountReservation(orderId) {
+    return withTransaction(db, () => {
+      const reservation = readBodyBookDiscountReservationStatement.get(String(orderId || ""));
+      if (!reservation || String(reservation.status || "") !== "reserved") return false;
+      const now = nowIso();
+      db.prepare(`
+        UPDATE commerce_body_book_discount_reservations
+        SET status = 'released', released_at = ?, updated_at = ?
+        WHERE order_id = ? AND status = 'reserved'
+      `).run(now, now, String(orderId || ""));
+      return true;
+    });
+  }
+
+  function consumeBodyBookDiscountReservation(orderId, consumedAt = nowIso()) {
+    return withTransaction(db, () => {
+      const reservation = readBodyBookDiscountReservationStatement.get(String(orderId || ""));
+      if (!reservation || String(reservation.status || "") === "consumed") return Boolean(reservation);
+      if (String(reservation.status || "") !== "reserved") return false;
+      const now = String(consumedAt || nowIso());
+      db.prepare(`
+        UPDATE commerce_body_book_discount_reservations
+        SET status = 'consumed', consumed_at = ?, updated_at = ?
+        WHERE order_id = ? AND status = 'reserved'
+      `).run(now, nowIso(), String(orderId || ""));
+      return true;
+    });
   }
 
   function getOrCreateReferralLink(accountId) {
@@ -765,7 +878,33 @@ export function createCommerceStore({ dbPath }) {
         }
         redeemPhysicalOrderOriginals(intent.accountId, intent.targetOrderId, now);
       }
+      if (intent.kind === "bean_purchase") {
+        const beanCount = Math.max(0, Math.trunc(Number(intent.metadata?.beanCount || intent.amountCents / 100 || 0)));
+        if (beanCount > 0) {
+          appendBeanLedger(intent.accountId, beanCount, {
+            reason: "bean_purchase",
+            referenceType: "bean_purchase",
+            referenceId: intent.id,
+            note: `购买 ${beanCount} 豆`
+          });
+        }
+      }
       if (intent.kind === "body_book_order") {
+        const beanReward = Math.max(0, Math.floor(Number(intent.amountCents || 0) / 100));
+        if (beanReward > 0) {
+          appendBeanLedger(intent.accountId, beanReward, {
+            reason: "body_book_order_reward",
+            referenceType: "body_book_order_reward",
+            referenceId: intent.id,
+            note: `认知书实体书实付成功，赠送 ${beanReward} 豆`
+          });
+        }
+        db.prepare(`
+          UPDATE commerce_body_book_discount_reservations
+          SET status = 'consumed', consumed_at = COALESCE(consumed_at, ?), updated_at = ?
+          WHERE order_id = ? AND status = 'reserved'
+        `).run(now, nowIso(), intent.targetOrderId);
+
         const referral = readReferralByInviteeStatement.get(intent.accountId);
         if (referral?.registered_at && !referral.rewarded_payment_intent_id) {
           const updated = db.prepare(`
@@ -1055,6 +1194,7 @@ export function createCommerceStore({ dbPath }) {
     deleteUserSession,
     grantCredits,
     grantBeans,
+    getBodyBookDiscountSummary,
     getOrCreateReferralLink,
     hasPaidPhysicalOrder,
     isOriginalImageRedeemed,
@@ -1080,7 +1220,10 @@ export function createCommerceStore({ dbPath }) {
     replacePaymentIntentOutTradeNo,
     recordPaymentEvent,
     redeemOriginalImage,
+    releaseBodyBookDiscountReservation,
+    reserveBodyBookDiscount,
     settlePayment,
+    consumeBodyBookDiscountReservation,
     consumeEmailVerification,
     recordAccountLogin,
     setAccountStatus,

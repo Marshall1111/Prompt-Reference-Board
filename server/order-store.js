@@ -37,6 +37,8 @@ function mapOrderRow(row) {
     shippingFeeCents: Number(row.shipping_fee_cents || 0),
     subtotalCents: Number(row.subtotal_cents || 0),
     totalCents: Number(row.total_cents || 0),
+    beanDiscountCents: Number(row.bean_discount_cents || 0),
+    payableCents: Number(row.payable_cents ?? row.total_cents ?? 0),
     remark: String(row.remark || ""),
     receiverName: String(row.receiver_name || ""),
     receiverPhone: String(row.receiver_phone || ""),
@@ -129,6 +131,8 @@ export function createOrderStore({ dbPath }) {
       shipping_fee_cents INTEGER NOT NULL,
       subtotal_cents INTEGER NOT NULL,
       total_cents INTEGER NOT NULL,
+      bean_discount_cents INTEGER NOT NULL DEFAULT 0,
+      payable_cents INTEGER NOT NULL DEFAULT 0,
       remark TEXT NOT NULL DEFAULT '',
       receiver_name TEXT NOT NULL,
       receiver_phone TEXT NOT NULL,
@@ -222,12 +226,19 @@ export function createOrderStore({ dbPath }) {
   if (!orderColumns.some((column) => String(column.name || "") === "source_claimed_at")) {
     db.exec("ALTER TABLE orders ADD COLUMN source_claimed_at TEXT");
   }
+  if (!orderColumns.some((column) => String(column.name || "") === "bean_discount_cents")) {
+    db.exec("ALTER TABLE orders ADD COLUMN bean_discount_cents INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!orderColumns.some((column) => String(column.name || "") === "payable_cents")) {
+    db.exec("ALTER TABLE orders ADD COLUMN payable_cents INTEGER NOT NULL DEFAULT 0");
+    db.exec("UPDATE orders SET payable_cents = total_cents WHERE payable_cents = 0");
+  }
 
   const insertOrderStatement = db.prepare(`
     INSERT INTO orders (
       id, order_no, visitor_id, account_id, public_token, experience_type, body_book_theme_name,
       payment_status, fulfillment_status, item_count,
-      unit_price_cents, shipping_fee_cents, subtotal_cents, total_cents,
+      unit_price_cents, shipping_fee_cents, subtotal_cents, total_cents, bean_discount_cents, payable_cents,
       remark, receiver_name, receiver_phone, province, city, district, address_detail,
       source_merchant_id, source_merchant_name, commission_rate_bps, source_claimed_at,
       admin_remark, wechat_open_id, wechat_transaction_id, out_trade_no,
@@ -236,7 +247,7 @@ export function createOrderStore({ dbPath }) {
     ) VALUES (
       @id, @orderNo, @visitorId, @accountId, @publicToken, @experienceType, @bodyBookThemeName,
       @paymentStatus, @fulfillmentStatus, @itemCount,
-      @unitPriceCents, @shippingFeeCents, @subtotalCents, @totalCents,
+      @unitPriceCents, @shippingFeeCents, @subtotalCents, @totalCents, @beanDiscountCents, @payableCents,
       @remark, @receiverName, @receiverPhone, @province, @city, @district, @addressDetail,
       @sourceMerchantId, @sourceMerchantName, @commissionRateBps, @sourceClaimedAt,
       @adminRemark, @wechatOpenId, @wechatTransactionId, @outTradeNo,
@@ -305,6 +316,8 @@ export function createOrderStore({ dbPath }) {
       insertOrderStatement.run({
         accountId: order.accountId || "",
         bodyBookThemeName: order.bodyBookThemeName || "",
+        beanDiscountCents: Math.max(0, Math.trunc(Number(order.beanDiscountCents || 0))),
+        payableCents: Math.max(0, Math.trunc(Number(order.payableCents ?? order.totalCents ?? 0))),
         adminRemark: "",
         cancelledAt: null,
         completedAt: null,

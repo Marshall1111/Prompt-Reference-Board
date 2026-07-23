@@ -999,6 +999,14 @@ app.get("/api/payments/wechat/oauth-callback", async (req, res, next) => {
     const state = verifyOrderPaymentOAuthState(req.query?.state);
     const code = String(req.query?.code || "").trim();
     if (!code) throw createHttpError(400, "微信授权未返回 code。", "微信授权未完成，请返回后重试。");
+    if (state.intentId) {
+      const intent = commerceStore.readPaymentIntent(state.intentId);
+      if (!intent || intent.kind !== "bean_purchase" || intent.accountId !== state.accountId) {
+        throw createHttpError(404, "豆豆购买单不存在或已失效。", "豆豆购买单已失效，请返回后重试。");
+      }
+      res.redirect(302, `/book?beanPurchaseId=${encodeURIComponent(intent.id)}&beanPayCode=${encodeURIComponent(code)}`);
+      return;
+    }
     const order = orderStore.readOrder(state.orderId);
     if (!order || order.accountId !== state.accountId) throw createHttpError(404, "订单不存在或已失效。", "订单已失效，请返回订单页重试。");
     const prefix = order.experienceType === "body-book" ? "/book/orders" : "/fridge/orders";
@@ -1330,7 +1338,7 @@ app.post("/api/orders/:orderId/pay", requireWebAccount, async (req, res, next) =
     const settings = await readAppSettings();
     const pricing = getOrderPricingSnapshot(settings);
     const intent = commerceStore.readPaymentIntentByOutTradeNo(order.outTradeNo);
-    if (!intent || intent.accountId !== order.accountId || intent.amountCents !== order.totalCents) {
+    if (!intent || intent.accountId !== order.accountId || intent.amountCents !== getOrderPayableCents(order)) {
       throw createHttpError(409, "订单支付单不存在或金额不匹配，请重新下单。");
     }
     const payment = await prepareOrderPayment({
@@ -1394,8 +1402,81 @@ app.delete("/api/orders/:orderId", requireWebAccount, async (req, res, next) => 
       cancelledAt: order.cancelledAt || new Date().toISOString(),
       lastPaymentError: "订单已取消"
     });
+    if (order.experienceType === "body-book") commerceStore.releaseBodyBookDiscountReservation(order.id);
     commerceStore.cancelPaymentIntentByOutTradeNo(order.outTradeNo);
     res.json({ order: toPublicOrder(deleted, { includeToken: true }) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/bean-purchases", requireWebAccount, async (req, res, next) => {
+  try {
+    assertRegisteredAccount(req);
+    enforcePublicRateLimits(req);
+    const beanCount = normalizeBeanPurchaseCount(req.body?.beanCount);
+    const settings = await readAppSettings();
+    const pricing = getOrderPricingSnapshot(settings);
+    const now = new Date();
+    const intent = commerceStore.createPaymentIntent({
+      accountId: req.webAccount.id,
+      outTradeNo: generateWechatOutTradeNo("BP"),
+      kind: "bean_purchase",
+      amountCents: beanCount * 100,
+      creditAmount: beanCount,
+      expiresAt: new Date(now.getTime() + getOrderExpireMs(pricing)).toISOString(),
+      metadata: {
+        purchaseNo: generateOrderNo(),
+        beanCount,
+        unitPriceCents: 100
+      }
+    });
+    res.status(201).json({
+      purchase: toPublicBeanPurchase(intent),
+      payment: prepareInitialBeanPurchasePayment(intent, pricing)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/bean-purchases/:purchaseId", requireWebAccount, (req, res, next) => {
+  try {
+    const intent = commerceStore.readPaymentIntent(req.params.purchaseId);
+    if (!intent || intent.kind !== "bean_purchase" || intent.accountId !== req.webAccount.id) {
+      throw createHttpError(404, "豆豆购买单不存在。");
+    }
+    res.json({ purchase: toPublicBeanPurchase(intent) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/bean-purchases/:purchaseId/pay", requireWebAccount, async (req, res, next) => {
+  try {
+    assertRegisteredAccount(req);
+    const intent = commerceStore.readPaymentIntent(req.params.purchaseId);
+    if (!intent || intent.kind !== "bean_purchase" || intent.accountId !== req.webAccount.id) {
+      throw createHttpError(404, "豆豆购买单不存在。");
+    }
+    if (intent.status === "paid") {
+      return res.json({ purchase: toPublicBeanPurchase(intent), payment: { status: "already_paid", mode: "completed" } });
+    }
+    if (intent.status === "cancelled") throw createHttpError(409, "该购买单已取消，请重新购买。");
+    if (intent.expiresAt && Date.parse(intent.expiresAt) <= Date.now()) {
+      commerceStore.cancelPaymentIntentByOutTradeNo(intent.outTradeNo);
+      throw createHttpError(409, "该购买单已过期，请重新购买。");
+    }
+    const settings = await readAppSettings();
+    const pricing = getOrderPricingSnapshot(settings);
+    const payment = await prepareBeanPurchasePayment({
+      req,
+      intent,
+      pricing,
+      oauthCode: String(req.body?.code || "").trim()
+    });
+    const latest = commerceStore.readPaymentIntent(intent.id) || intent;
+    res.json({ purchase: toPublicBeanPurchase(latest), payment });
   } catch (error) {
     next(error);
   }
@@ -1449,6 +1530,15 @@ app.post("/api/payments/wechat/notify", express.text({ type: "*/*" }), async (re
       signature: String(req.get("Wechatpay-Signature") || ""),
       timestamp: String(req.get("Wechatpay-Timestamp") || "")
     };
+    if (["physical_order", "body_book_order"].includes(intent.kind)) {
+      const order = orderStore.readOrderWithRelations(intent.targetOrderId);
+      if (!order || order.accountId !== intent.accountId || getOrderPayableCents(order) !== intent.amountCents) {
+        throw createHttpError(400, "实物订单与支付单不匹配。");
+      }
+      if (order.paymentStatus === "expired" || order.fulfillmentStatus === "cancelled") {
+        throw createHttpError(409, "订单已失效，无法确认支付。");
+      }
+    }
     commerceStore.settlePayment({
       outTradeNo,
       transactionId,
@@ -1458,7 +1548,7 @@ app.post("/api/payments/wechat/notify", express.text({ type: "*/*" }), async (re
     });
     if (["physical_order", "body_book_order"].includes(intent.kind)) {
       const order = orderStore.readOrderWithRelations(intent.targetOrderId);
-      if (!order || order.accountId !== intent.accountId || order.totalCents !== intent.amountCents) {
+      if (!order || order.accountId !== intent.accountId || getOrderPayableCents(order) !== intent.amountCents) {
         throw createHttpError(400, "实物订单与支付单不匹配。");
       }
       if (order.paymentStatus !== "paid") {
@@ -2775,7 +2865,7 @@ app.get("/api/admin/orders/export", requireAdmin, async (req, res) => {
     });
 
     const rows = [
-      ["下单日期", "付款日期", "订单状态", "收件人", "电话", "地址", "备注", "订单金额", "来源商户"],
+      ["下单日期", "付款日期", "订单状态", "收件人", "电话", "地址", "备注", "商品小计", "邮费", "豆豆优惠", "实付金额", "来源商户"],
       ...orders.map((order) => [
         formatOrderExportDate(order.createdAt),
         formatOrderExportDate(order.paidAt),
@@ -2784,7 +2874,10 @@ app.get("/api/admin/orders/export", requireAdmin, async (req, res) => {
         String(order.receiverPhone || ""),
         formatOrderExportAddress(order),
         String(order.remark || ""),
-        formatOrderAmount(order.totalCents),
+        formatOrderAmount(order.subtotalCents),
+        formatOrderAmount(order.shippingFeeCents),
+        formatOrderAmount(-Math.max(0, Number(order.beanDiscountCents || 0))),
+        formatOrderAmount(getOrderPayableCents(order)),
         String(order.sourceMerchantName || "")
       ])
     ];
@@ -2918,6 +3011,9 @@ app.patch("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
       confirmManualOrderPayment(order);
     }
     const updated = orderStore.updateOrder(req.params.orderId, patch);
+    if (order.experienceType === "body-book" && order.paymentStatus === "unpaid" && updated?.paymentStatus === "expired") {
+      commerceStore.releaseBodyBookDiscountReservation(order.id);
+    }
     res.json({ order: toPublicOrder(updated, { includePrivate: true }) });
   } catch (error) {
     console.error(error);
@@ -2931,6 +3027,32 @@ app.post("/api/admin/orders/:orderId/confirm-manual-payment", requireAdmin, asyn
     if (!order) return res.status(404).json({ message: "订单不存在。" });
     const updated = confirmManualOrderPayment(order);
     res.json({ order: toPublicOrder(updated, { includePrivate: true }) });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "确认收款失败。" });
+  }
+});
+
+app.post("/api/admin/commerce/payments/:paymentIntentId/confirm-manual", requireAdmin, async (req, res) => {
+  try {
+    const intent = commerceStore.readPaymentIntent(req.params.paymentIntentId);
+    if (!intent || intent.kind !== "bean_purchase") return res.status(404).json({ message: "豆豆购买单不存在。" });
+    if (intent.status === "paid") return res.json({ payment: toPublicAdminPaymentIntent(intent) });
+    if (intent.status === "cancelled" || intent.channel !== "manual_collection") {
+      return res.status(409).json({ message: "当前购买单无法人工确认收款。" });
+    }
+    const settled = commerceStore.settlePayment({
+      outTradeNo: intent.outTradeNo,
+      transactionId: `MANUAL-${intent.outTradeNo}`,
+      paidAt: new Date().toISOString(),
+      payload: {
+        mode: "manual_collection",
+        purchaseNo: String(intent.metadata?.purchaseNo || ""),
+        confirmedBy: "admin"
+      },
+      headers: {}
+    });
+    res.json({ payment: toPublicAdminPaymentIntent(settled.intent) });
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "确认收款失败。" });
@@ -4866,7 +4988,17 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
     requestedItems,
     likedJobById: jobsById
   });
-  const created = orderStore.createOrder({
+  const discountReservation = commerceStore.reserveBodyBookDiscount({
+    accountId: req.webAccount.id,
+    orderId,
+    orderTotalCents: amount.totalCents,
+    expiresAt
+  });
+  const beanDiscountCents = discountReservation.discountCents;
+  const payableCents = Math.max(0, amount.totalCents - beanDiscountCents);
+  let created;
+  try {
+    created = orderStore.createOrder({
     order: {
       id: orderId,
       orderNo: generateOrderNo(),
@@ -4882,6 +5014,8 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
       shippingFeeCents: amount.shippingFeeCents,
       subtotalCents: amount.subtotalCents,
       totalCents: amount.totalCents,
+      beanDiscountCents,
+      payableCents,
       remark: address.remark,
       receiverName: address.receiverName,
       receiverPhone: address.receiverPhone,
@@ -4907,18 +5041,63 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
       eventType: "order_created",
       eventId: `${orderId}:order_created`,
       success: true,
-      payload: { projectId: current.sessionId, pageCount: pages.length, totalCents: amount.totalCents, paymentMode }
+      payload: {
+        projectId: current.sessionId,
+        pageCount: pages.length,
+        totalCents: amount.totalCents,
+        beanDiscountCents,
+        payableCents,
+        paymentMode
+      }
     }
-  });
+    });
+  } catch (error) {
+    commerceStore.releaseBodyBookDiscountReservation(orderId);
+    throw error;
+  }
   const paymentIntent = commerceStore.createPaymentIntent({
     accountId: req.webAccount.id,
     outTradeNo: created.outTradeNo,
     kind: "body_book_order",
-    amountCents: created.totalCents,
+    amountCents: created.payableCents,
     targetOrderId: created.id,
     expiresAt: created.expiresAt,
-    metadata: { orderNo: created.orderNo, projectId: current.sessionId, pageCount: pages.length }
+    metadata: {
+      orderNo: created.orderNo,
+      projectId: current.sessionId,
+      pageCount: pages.length,
+      itemCount: amount.itemCount,
+      beanDiscountCents,
+      payableCents
+    }
   });
+  if (created.payableCents === 0) {
+    const paidAt = new Date().toISOString();
+    commerceStore.settlePayment({
+      outTradeNo: created.outTradeNo,
+      transactionId: `BEAN-DISCOUNT-${created.outTradeNo}`,
+      paidAt,
+      payload: { mode: "bean_discount", orderId: created.id, orderNo: created.orderNo },
+      headers: {}
+    });
+    const paidOrder = orderStore.updateOrderAndAppendEvent(created.id, {
+      paymentStatus: "paid",
+      fulfillmentStatus: "new",
+      lastPaymentChannel: "bean_discount",
+      lastPaymentError: "",
+      wechatTransactionId: `BEAN-DISCOUNT-${created.outTradeNo}`,
+      paidAt
+    }, {
+      eventType: "bean_discount_settled",
+      eventId: `${created.id}:bean_discount_settled`,
+      success: true,
+      payload: { beanDiscountCents, payableCents: 0 }
+    });
+    return {
+      order: toPublicOrder(paidOrder, { includeToken: true }),
+      payment: { status: "already_paid", mode: "bean_discount", expiresAt: created.expiresAt }
+    };
+  }
   return {
     order: toPublicOrder(created, { includeToken: true }),
     payment: prepareInitialOrderPayment(created, pricing, paymentIntent)
@@ -5759,6 +5938,18 @@ function calculateBodyBookOrderAmounts(pricing) {
   };
 }
 
+function normalizeBeanPurchaseCount(value) {
+  const beanCount = Math.trunc(Number(value || 0));
+  if (!Number.isFinite(beanCount) || beanCount < 1 || beanCount > 1000) {
+    throw createHttpError(400, "购买数量需为 1 到 1000 之间的整数。");
+  }
+  return beanCount;
+}
+
+function getOrderPayableCents(order) {
+  return Math.max(0, Math.trunc(Number(order?.payableCents ?? order?.totalCents ?? 0)));
+}
+
 function getOrderExpireMs(pricing) {
   const paymentMode = normalizeOrderPaymentMode(pricing?.paymentMode);
   if (paymentMode === "manual") {
@@ -5786,6 +5977,28 @@ function prepareInitialOrderPayment(order, pricing, intent) {
     mode: "manual",
     channel: "manual_collection",
     expiresAt: order.expiresAt
+  };
+}
+
+function prepareInitialBeanPurchasePayment(intent, pricing) {
+  const paymentMode = normalizeOrderPaymentMode(pricing?.paymentMode);
+  if (paymentMode !== "manual") {
+    return {
+      status: "payment_required",
+      mode: "wechat",
+      expiresAt: intent.expiresAt
+    };
+  }
+  commerceStore.markPaymentPrepared(intent.id, {
+    channel: "manual_collection",
+    eventId: `${intent.id}:manual_collection`,
+    payload: { mode: "manual", purchaseNo: String(intent.metadata?.purchaseNo || "") }
+  });
+  return {
+    status: "manual_payment_required",
+    mode: "manual",
+    channel: "manual_collection",
+    expiresAt: intent.expiresAt
   };
 }
 
@@ -5831,6 +6044,34 @@ async function prepareOrderPayment({ req, order, intent, pricing, oauthCode = ""
     lastPaymentError: ""
   });
   return { ...payment, mode: "wechat", expiresAt: order.expiresAt };
+}
+
+async function prepareBeanPurchasePayment({ req, intent, pricing, oauthCode = "" }) {
+  const paymentMode = normalizeOrderPaymentMode(pricing?.paymentMode);
+  if (paymentMode === "manual" || intent.channel === "manual_collection") {
+    return prepareInitialBeanPurchasePayment(intent, { ...pricing, paymentMode: "manual" });
+  }
+  if (intent.status === "cancelled") throw createHttpError(409, "该购买单已取消，无法继续支付。");
+  if (!isValidWechatOutTradeNo(intent.outTradeNo)) {
+    const repaired = commerceStore.replacePaymentIntentOutTradeNo(intent.id, generateWechatOutTradeNo("BP"));
+    if (!repaired) throw createHttpError(500, "修复微信支付单失败，请重新购买。", "支付单修复失败，请重新购买。");
+    intent = repaired;
+  }
+  if (isWechatBrowser(req)) {
+    if (!oauthCode) {
+      return {
+        status: "requires_authorization",
+        mode: "wechat",
+        channel: "wechat_jsapi",
+        authorizationUrl: createBeanPurchasePaymentAuthorizationUrl(req, intent)
+      };
+    }
+    const openId = await fetchWechatOpenId(oauthCode);
+    const payment = await createWechatJsapiPayment({ intent, openId, description: "购买豆豆" });
+    return { ...payment, mode: "wechat", expiresAt: intent.expiresAt };
+  }
+  const payment = await createWechatNativePayment({ intent, description: "购买豆豆" });
+  return { ...payment, mode: "wechat", expiresAt: intent.expiresAt };
 }
 
 function calculateOrderAmounts(itemCount, pricing) {
@@ -5968,6 +6209,7 @@ function toPublicWebAccountState(req, account) {
     canGenerate: publicAccount.accountStatus !== "disabled" && publicAccount.coinBalance > 0,
     contactMessage: publicAccount.accountStatus === "disabled" ? "该账户已被禁用，请联系管理员。" : "每定制1枚冰箱贴，可获赠10枚币。",
     account: publicAccount,
+    beanPurchaseDiscount: commerceStore.getBodyBookDiscountSummary(publicAccount.id),
     authorizationUrl: ""
   };
 }
@@ -6234,9 +6476,22 @@ function toPublicPaymentIntent(intent) {
     amountCents: intent.amountCents,
     creditAmount: intent.creditAmount,
     status: intent.status,
+    channel: intent.channel,
+    metadata: intent.metadata,
     expiresAt: intent.expiresAt,
     paidAt: intent.paidAt,
     createdAt: intent.createdAt
+  };
+}
+
+function toPublicBeanPurchase(intent) {
+  const payment = toPublicPaymentIntent(intent);
+  if (!payment) return null;
+  return {
+    ...payment,
+    purchaseNo: String(intent.metadata?.purchaseNo || ""),
+    beanCount: Math.max(0, Math.trunc(Number(intent.metadata?.beanCount || intent.creditAmount || 0))),
+    unitPriceCents: 100
   };
 }
 
@@ -6295,6 +6550,19 @@ function createOrderPaymentOAuthState(order) {
   return `${payload}.${signature}`;
 }
 
+function createBeanPurchasePaymentOAuthState(intent) {
+  const stateSecret = getOrderPaymentOAuthStateSecret();
+  if (!stateSecret) throw createHttpError(503, "微信网页授权未完成配置：缺少 WECHAT_OAUTH_STATE_SECRET 或 WECHAT_OAUTH_APP_SECRET。", "微信网页授权尚未配置完成。");
+  const payload = Buffer.from(JSON.stringify({
+    intentId: String(intent?.id || ""),
+    accountId: String(intent?.accountId || ""),
+    nonce: randomUUID(),
+    expiresAt: Date.now() + 10 * 60 * 1000
+  }), "utf-8").toString("base64url");
+  const signature = createHmac("sha256", stateSecret).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
 function verifyOrderPaymentOAuthState(value) {
   const [payload, signature] = String(value || "").split(".");
   const stateSecret = getOrderPaymentOAuthStateSecret();
@@ -6310,15 +6578,26 @@ function verifyOrderPaymentOAuthState(value) {
   if (!Number.isFinite(Number(parsed?.expiresAt)) || Number(parsed.expiresAt) < Date.now()) {
     throw createHttpError(400, "微信授权状态已过期。", "微信授权已过期，请重试。");
   }
-  if (!isSafeAccountId(parsed?.orderId) || !isSafeAccountId(parsed?.accountId)) {
+  const isOrderState = isSafeAccountId(parsed?.orderId);
+  const isBeanPurchaseState = isSafeAccountId(parsed?.intentId);
+  if ((!isOrderState && !isBeanPurchaseState) || !isSafeAccountId(parsed?.accountId)) {
     throw createHttpError(400, "微信授权状态无效，请重新发起授权。", "微信授权已失效，请重试。");
   }
-  return { orderId: parsed.orderId, accountId: parsed.accountId };
+  return isBeanPurchaseState
+    ? { intentId: parsed.intentId, accountId: parsed.accountId }
+    : { orderId: parsed.orderId, accountId: parsed.accountId };
 }
 
 function createOrderPaymentAuthorizationUrl(req, order) {
   const config = assertWechatPaymentConfigured({ requireOAuth: true });
   const state = createOrderPaymentOAuthState(order);
+  const redirectUri = encodeURIComponent(config.oauthRedirectUrl);
+  return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${encodeURIComponent(config.appId)}&redirect_uri=${redirectUri}&response_type=code&scope=snsapi_base&state=${encodeURIComponent(state)}#wechat_redirect`;
+}
+
+function createBeanPurchasePaymentAuthorizationUrl(req, intent) {
+  const config = assertWechatPaymentConfigured({ requireOAuth: true });
+  const state = createBeanPurchasePaymentOAuthState(intent);
   const redirectUri = encodeURIComponent(config.oauthRedirectUrl);
   return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${encodeURIComponent(config.appId)}&redirect_uri=${redirectUri}&response_type=code&scope=snsapi_base&state=${encodeURIComponent(state)}#wechat_redirect`;
 }
@@ -6544,6 +6823,8 @@ function toPublicOrder(order, options = {}) {
     shippingFeeCents: safeOrder.shippingFeeCents,
     subtotalCents: safeOrder.subtotalCents,
     totalCents: safeOrder.totalCents,
+    beanDiscountCents: Math.max(0, Number(safeOrder.beanDiscountCents || 0)),
+    payableCents: getOrderPayableCents(safeOrder),
     remark: safeOrder.remark,
     receiverName: safeOrder.receiverName,
     publicToken: includeToken ? safeOrder.publicToken : "",
@@ -6592,7 +6873,7 @@ function confirmManualOrderPayment(order) {
   }
 
   const intent = commerceStore.readPaymentIntentByOutTradeNo(order.outTradeNo);
-  if (!intent || !["physical_order", "body_book_order"].includes(intent.kind) || intent.targetOrderId !== order.id || intent.accountId !== order.accountId) {
+  if (!intent || !["physical_order", "body_book_order"].includes(intent.kind) || intent.targetOrderId !== order.id || intent.accountId !== order.accountId || intent.amountCents !== getOrderPayableCents(order)) {
     throw createHttpError(409, "订单支付记录不存在，无法确认收款。");
   }
   if (intent.status === "cancelled") throw createHttpError(409, "订单支付记录已取消，无法确认收款。");
@@ -8696,11 +8977,12 @@ function getBuiltInColorBookPageResult(definition) {
   const isBackCover = definition?.pageType === "back-cover";
   const filename = isBackCover ? "back-cover.svg" : `${definition?.colorKey || "red"}-objects.png`;
   const imageUrl = `/body-book-color-pages/${filename}`;
+  const thumbnailUrl = isBackCover ? imageUrl : `/body-book-color-pages/thumbnails/${definition?.colorKey || "red"}-objects.webp`;
   return {
     imageDataUrl: "",
     imageUrl,
     previewUrl: imageUrl,
-    thumbnailUrl: imageUrl,
+    thumbnailUrl,
     originalImageUrl: imageUrl,
     mimeType: isBackCover ? "image/svg+xml" : "image/png",
     provider: "built-in-color-pages",
