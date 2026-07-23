@@ -1460,12 +1460,12 @@ function BodyBookPage() {
   const selectionActionText = selectionRemaining >= 0 ? `还需要选择 ${selectionRemaining} 张` : `需要去除 ${Math.abs(selectionRemaining)} 张`;
   const printedInnerPageCount = 16;
   const selectionProgressText = activeTheme?.id === "color"
-    ? `当前认知书需要 1 张封面页 + ${printedInnerPageCount} 张内页（其中颜色物品页为 8 张），${selectionActionText}宝宝页。`
+    ? `当前认知书需要 1 张封面页 + ${printedInnerPageCount} 张内页（其中 8 张为内置页面，无需生成），${selectionActionText}宝宝页。`
     : `当前认知书需要 1 张封面页 + ${printedInnerPageCount} 张内页，${selectionActionText}。`;
   const pickerSelectionRemaining = selectionTargetCount - pickerKeys.filter((key) => selectableContents.some((content) => content.key === key)).length;
   const pickerSelectionActionText = pickerSelectionRemaining >= 0 ? `还需要选择 ${pickerSelectionRemaining} 张` : `需要去除 ${Math.abs(pickerSelectionRemaining)} 张`;
   const pickerSelectionProgressText = activeTheme?.id === "color"
-    ? `当前认知书需要 1 张封面页 + ${printedInnerPageCount} 张内页（其中颜色物品页为 8 张），${pickerSelectionActionText}宝宝页。`
+    ? `当前认知书需要 1 张封面页 + ${printedInnerPageCount} 张内页（其中 8 张为内置页面，无需生成），${pickerSelectionActionText}宝宝页。`
     : `当前认知书需要 1 张封面页 + ${printedInnerPageCount} 张内页，${pickerSelectionActionText}。`;
   const bookPreviewPages = project?.printPreviewPages || [];
   const unfinishedPages = pages.filter((page) => page.status !== "succeeded" || !page.result?.imageUrl);
