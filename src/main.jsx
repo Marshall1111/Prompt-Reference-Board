@@ -2527,6 +2527,7 @@ function FridgeMagnetOrderPage() {
   const paymentRequestRef = useRef("");
   const paymentRefreshTimeoutRef = useRef(null);
   const payableCents = Number(order?.payableCents ?? order?.totalCents ?? 0);
+  const orderItems = Array.isArray(order?.items) ? order.items : [];
 
   useEffect(() => {
     return () => {
@@ -2754,13 +2755,14 @@ function FridgeMagnetOrderPage() {
             <article className="draw-observability-card">
               <h3>{isBodyBookOrder ? "认知书内容" : "下单图片"}</h3>
               <div className="draw-card-order-items order-detail-items">
-                {order.items.map((item, index) => (
+                {orderItems.map((item, index) => (
                   <article className="draw-card-order-item" key={`${item.jobId}-${index}`}>
                     <OrderItemPreview alt={item.styleName || `冰箱贴 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
                     <strong>{item.styleName || `冰箱贴 ${index + 1}`}</strong>
                     <span className="draw-card-order-item-note">数量 x{Math.max(1, Number(item.quantity || 1))}</span>
                   </article>
                 ))}
+                {!orderItems.length ? <p className="empty-note">该历史订单未保存商品明细。</p> : null}
               </div>
             </article>
           </section>
