@@ -1982,15 +1982,16 @@ function BodyBookPage() {
   }
 
   const home = !activeTheme;
+  const isBookAccountRegistered = Boolean(visitorState?.account?.isRegistered);
+  const bookAccountName = visitorState?.account?.username || "我的账户";
   return (
     <main className="body-book-page">
       <header className="body-book-header">
-        <div><p className="body-book-kicker">Baby learning book</p><h1>{activeTheme?.englishName || "My First Book"}</h1><p>{activeTheme ? `正在制作：${activeTheme.name}` : "选择主题后，自由组合页面并持续编辑。"}</p></div>
+        <div className="body-book-header-copy">{!home ? <button className="body-book-home-link" disabled={busy} onClick={backToHome} type="button"><ArrowLeft size={17} /><span>主页</span></button> : null}<p className="body-book-kicker">Baby learning book</p><h1>{activeTheme?.englishName || "My First Book"}</h1><p>{activeTheme ? `正在制作：${activeTheme.name}` : "选择主题后，自由组合页面并持续编辑。"}</p></div>
         <div className="body-book-header-actions">
-          {!home ? <button className="draw-card-secondary body-book-back-to-themes" disabled={busy} onClick={backToHome} type="button"><Home size={17} /><span>主页</span></button> : null}
+          <button className="draw-card-secondary body-book-header-orders" onClick={() => window.location.assign("/book/orders")} type="button"><ListTodo size={16} /><span>我的订单</span></button>
           <button className="draw-card-secondary body-book-header-balance" onClick={() => setShowBeanInfo(true)} type="button"><span>余额</span><strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong><span>豆</span></button>
-          {home && bodyBookOrders.length ? <button className="draw-card-secondary" onClick={() => window.location.assign("/book/orders")} type="button">我的订单</button> : null}
-          <div className="body-book-user-area" ref={userMenuRef}><button className="draw-card-secondary body-book-account-button" onClick={() => visitorState?.account?.isRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)} type="button">{visitorState?.account?.isRegistered ? (visitorState.account.username || "我的账户") : "登录 / 注册"}</button>{showUserMenu ? <div className="body-book-user-menu">{bodyBookOrders.length ? <button onClick={() => window.location.assign("/book/orders")} type="button">我的订单</button> : null}<button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}</div>
+          <div className="body-book-user-area" ref={userMenuRef}><button aria-label={isBookAccountRegistered ? `账户：${bookAccountName}` : "登录或注册"} className={`draw-card-secondary body-book-account-button${isBookAccountRegistered ? " is-signed-in" : " is-guest"}`} onClick={() => isBookAccountRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)} title={isBookAccountRegistered ? bookAccountName : "登录 / 注册"} type="button"><span>{isBookAccountRegistered ? bookAccountName.slice(0, 1) : "登录"}</span></button>{showUserMenu && isBookAccountRegistered ? <div className="body-book-user-menu"><span className="body-book-user-menu-name">{bookAccountName}</span><button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}</div>
         </div>
       </header>
 

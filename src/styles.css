@@ -6253,6 +6253,104 @@ textarea {
   min-width: 76px;
 }
 
+.body-book-page .body-book-header-copy {
+  display: grid;
+  justify-items: start;
+}
+
+.body-book-page .body-book-home-link {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--body-book-apple-blue);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.body-book-page .body-book-home-link span {
+  color: var(--body-book-apple-blue);
+}
+
+.body-book-page .body-book-home-link:hover:not(:disabled) {
+  color: #005bb5;
+}
+
+.body-book-page .body-book-home-link:disabled {
+  color: #86868b;
+  cursor: wait;
+}
+
+.body-book-page .body-book-header-orders {
+  color: var(--body-book-apple-blue);
+}
+
+.body-book-page .body-book-header-orders span {
+  color: var(--body-book-apple-blue);
+}
+
+.body-book-page .body-book-account-button.is-signed-in {
+  width: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  padding: 0;
+  border-color: rgba(0, 113, 227, 0.18);
+  background: #eaf4ff;
+  color: var(--body-book-apple-blue);
+}
+
+.body-book-page .body-book-account-button.is-signed-in span {
+  color: var(--body-book-apple-blue);
+  font-weight: 600;
+}
+
+.body-book-page .body-book-account-button.is-guest {
+  min-width: 60px;
+  max-width: none;
+}
+
+.body-book-page .body-book-user-menu {
+  min-width: 164px;
+  padding: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(16px) saturate(1.1);
+}
+
+.body-book-page .body-book-user-menu-name {
+  display: block;
+  overflow: hidden;
+  padding: 7px 10px 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  color: #6e6e73;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body-book-page .body-book-user-menu button {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  padding: 0 10px;
+  border-radius: 10px;
+  color: #d70015;
+  font-weight: 500;
+}
+
+.body-book-page .body-book-user-menu button:hover {
+  background: #fff0f0;
+  color: #d70015;
+}
+
 .body-book-page :is(.body-book-wallet-panel, .body-book-theme-card, .body-book-item, .body-book-library-cover, .body-book-order-list-item, .body-book-project-reference, .body-book-batch-row, .body-book-project-pages-head, .body-book-content-panel, .body-book-project-modal, .body-book-regenerate-panel, .body-book-library-panel, .body-book-lightbox-panel),
 .body-book-order-detail-page :is(.draw-observability-card, .draw-observability-metric, .draw-card-order-item) {
   border: 1px solid var(--body-book-apple-border);
