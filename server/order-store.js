@@ -29,6 +29,7 @@ function mapOrderRow(row) {
     accountId: String(row.account_id || ""),
     publicToken: String(row.public_token || ""),
     experienceType: String(row.experience_type || ""),
+    bodyBookThemeName: String(row.body_book_theme_name || ""),
     paymentStatus: String(row.payment_status || "unpaid"),
     fulfillmentStatus: String(row.fulfillment_status || "new"),
     itemCount: Number(row.item_count || 0),
@@ -120,6 +121,7 @@ export function createOrderStore({ dbPath }) {
       account_id TEXT NOT NULL DEFAULT '',
       public_token TEXT NOT NULL UNIQUE,
       experience_type TEXT NOT NULL,
+      body_book_theme_name TEXT NOT NULL DEFAULT '',
       payment_status TEXT NOT NULL,
       fulfillment_status TEXT NOT NULL,
       item_count INTEGER NOT NULL,
@@ -198,6 +200,9 @@ export function createOrderStore({ dbPath }) {
   if (!orderColumns.some((column) => String(column.name || "") === "account_id")) {
     db.exec("ALTER TABLE orders ADD COLUMN account_id TEXT NOT NULL DEFAULT ''");
   }
+  if (!orderColumns.some((column) => String(column.name || "") === "body_book_theme_name")) {
+    db.exec("ALTER TABLE orders ADD COLUMN body_book_theme_name TEXT NOT NULL DEFAULT ''");
+  }
   if (!orderColumns.some((column) => String(column.name || "") === "shipping_carrier")) {
     db.exec("ALTER TABLE orders ADD COLUMN shipping_carrier TEXT NOT NULL DEFAULT ''");
   }
@@ -220,7 +225,7 @@ export function createOrderStore({ dbPath }) {
 
   const insertOrderStatement = db.prepare(`
     INSERT INTO orders (
-      id, order_no, visitor_id, account_id, public_token, experience_type,
+      id, order_no, visitor_id, account_id, public_token, experience_type, body_book_theme_name,
       payment_status, fulfillment_status, item_count,
       unit_price_cents, shipping_fee_cents, subtotal_cents, total_cents,
       remark, receiver_name, receiver_phone, province, city, district, address_detail,
@@ -229,7 +234,7 @@ export function createOrderStore({ dbPath }) {
       last_payment_channel, last_payment_error, expires_at, paid_at, shipped_at, shipping_carrier, shipping_tracking_no,
       completed_at, cancelled_at, created_at, updated_at
     ) VALUES (
-      @id, @orderNo, @visitorId, @accountId, @publicToken, @experienceType,
+      @id, @orderNo, @visitorId, @accountId, @publicToken, @experienceType, @bodyBookThemeName,
       @paymentStatus, @fulfillmentStatus, @itemCount,
       @unitPriceCents, @shippingFeeCents, @subtotalCents, @totalCents,
       @remark, @receiverName, @receiverPhone, @province, @city, @district, @addressDetail,
@@ -287,10 +292,19 @@ export function createOrderStore({ dbPath }) {
     };
   }
 
+  function replaceOrderOutTradeNo(orderId, outTradeNo) {
+    const existing = readOrder(orderId);
+    if (!existing) return null;
+    db.prepare("UPDATE orders SET out_trade_no = ?, updated_at = ? WHERE id = ?")
+      .run(String(outTradeNo || ""), nowIso(), existing.id);
+    return readOrderWithRelations(existing.id);
+  }
+
   function createOrder({ order, items = [], initialPaymentEvent = null }) {
     return withTransaction(db, () => {
       insertOrderStatement.run({
         accountId: order.accountId || "",
+        bodyBookThemeName: order.bodyBookThemeName || "",
         adminRemark: "",
         cancelledAt: null,
         completedAt: null,
@@ -717,6 +731,7 @@ export function createOrderStore({ dbPath }) {
     readOrderByOutTradeNo,
     readOrderItems,
     readOrderWithRelations,
+    replaceOrderOutTradeNo,
     updateOrder,
     updateOrderAndAppendEvent
   };

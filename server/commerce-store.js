@@ -697,6 +697,14 @@ export function createCommerceStore({ dbPath }) {
     return mapPaymentIntent(readIntentByTradeNoStatement.get(String(outTradeNo || "")));
   }
 
+  function replacePaymentIntentOutTradeNo(intentId, outTradeNo) {
+    const intent = readPaymentIntent(intentId);
+    if (!intent) return null;
+    db.prepare("UPDATE commerce_payment_intents SET out_trade_no = ?, updated_at = ? WHERE id = ?")
+      .run(String(outTradeNo || ""), nowIso(), intent.id);
+    return readPaymentIntent(intent.id);
+  }
+
   function recordPaymentEvent({ paymentIntentId, eventType, eventId, success, payload = null, headers = null, errorMessage = "" }) {
     db.prepare(`
       INSERT OR IGNORE INTO commerce_payment_events (
@@ -1069,6 +1077,7 @@ export function createCommerceStore({ dbPath }) {
     readUserSession,
     readPaymentIntent,
     readPaymentIntentByOutTradeNo,
+    replacePaymentIntentOutTradeNo,
     recordPaymentEvent,
     redeemOriginalImage,
     settlePayment,

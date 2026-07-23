@@ -99,7 +99,7 @@ const ORDER_SEARCH_LIMIT = 100;
 const MERCHANT_SEARCH_LIMIT = 500;
 const ORDER_PAYMENT_STATUS_VALUES = new Set(["unpaid", "paid", "failed", "expired"]);
 const ORDER_FULFILLMENT_STATUS_VALUES = new Set(["new", "in_production", "shipped", "completed", "cancelled"]);
-const ORDER_PAYMENT_MODE_VALUES = new Set(["manual"]);
+const ORDER_PAYMENT_MODE_VALUES = new Set(["manual", "wechat"]);
 const ORDER_STATUS_VALUES = new Set(["pending_payment", "pending_shipment", "shipped", "completed", "cancelled", "expired"]);
 const BACKUP_KIND_CONFIG = "config-snapshot";
 const BACKUP_KIND_IMAGE_RANGE = "image-range-zip";
@@ -1001,7 +1001,9 @@ app.get("/api/payments/wechat/oauth-callback", async (req, res, next) => {
     if (!code) throw createHttpError(400, "微信授权未返回 code。", "微信授权未完成，请返回后重试。");
     const order = orderStore.readOrder(state.orderId);
     if (!order || order.accountId !== state.accountId) throw createHttpError(404, "订单不存在或已失效。", "订单已失效，请返回订单页重试。");
-    res.redirect(302, `/fridge/orders/${encodeURIComponent(order.id)}?code=${encodeURIComponent(code)}`);
+    const prefix = order.experienceType === "body-book" ? "/book/orders" : "/fridge/orders";
+    const returnPath = `${prefix}/${encodeURIComponent(order.id)}`;
+    res.redirect(302, `${returnPath}?payCode=${encodeURIComponent(code)}`);
   } catch (error) {
     next(error);
   }
@@ -1238,7 +1240,7 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
     const merchantSource = await resolveOrderMerchantSource(req);
     const now = new Date();
     const createdAt = now.toISOString();
-    const paymentMode = pricing.paymentMode;
+    const paymentMode = normalizeOrderPaymentMode(pricing.paymentMode);
     const expiresAt = new Date(now.getTime() + getOrderExpireMs(pricing)).toISOString();
     const orderId = randomUUID();
     const storedOrderItems = await buildStoredOrderItems({
@@ -1274,8 +1276,8 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
         sourceClaimedAt: merchantSource.sourceClaimedAt,
         wechatOpenId: "",
         wechatTransactionId: "",
-        outTradeNo: `FM${randomUUID().replace(/-/g, "")}`,
-        lastPaymentChannel: "manual_collection",
+        outTradeNo: generateWechatOutTradeNo("FM"),
+        lastPaymentChannel: paymentMode === "manual" ? "manual_collection" : "",
         lastPaymentError: "",
         expiresAt,
         createdAt,
@@ -1305,20 +1307,9 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
       expiresAt: created.expiresAt,
       metadata: { orderNo: created.orderNo, itemCount: created.itemCount }
     });
-    commerceStore.markPaymentPrepared(paymentIntent.id, {
-      channel: "manual_collection",
-      eventId: `${created.id}:manual_collection`,
-      payload: { mode: "manual", orderNo: created.orderNo }
-    });
-
     res.status(201).json({
       order: toPublicOrder(created, { includeToken: true }),
-      payment: {
-        status: "manual_payment_required",
-        mode: "manual",
-        channel: "manual_collection",
-        expiresAt: created.expiresAt
-      }
+      payment: prepareInitialOrderPayment(created, pricing, paymentIntent)
     });
   } catch (error) {
     next(error);
@@ -1328,7 +1319,6 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
 app.post("/api/orders/:orderId/pay", requireWebAccount, async (req, res, next) => {
   try {
     assertRegisteredAccount(req);
-    enforcePublicRateLimits(req);
     orderStore.expireUnpaidOrders();
     const order = orderStore.readOrderWithRelations(req.params.orderId);
     assertWebAccountOwnsOrder(req, order);
@@ -1337,15 +1327,21 @@ app.post("/api/orders/:orderId/pay", requireWebAccount, async (req, res, next) =
     }
     if (order.paymentStatus === "expired") throw createHttpError(409, "订单已过期，请重新下单。");
     if (order.paymentStatus !== "unpaid") throw createHttpError(409, "当前订单无法继续支付。");
-    res.json({
-      order: toPublicOrder(order),
-      payment: {
-        status: "manual_payment_required",
-        mode: "manual",
-        channel: "manual_collection",
-        expiresAt: order.expiresAt
-      }
+    const settings = await readAppSettings();
+    const pricing = getOrderPricingSnapshot(settings);
+    const intent = commerceStore.readPaymentIntentByOutTradeNo(order.outTradeNo);
+    if (!intent || intent.accountId !== order.accountId || intent.amountCents !== order.totalCents) {
+      throw createHttpError(409, "订单支付单不存在或金额不匹配，请重新下单。");
+    }
+    const payment = await prepareOrderPayment({
+      req,
+      order,
+      intent,
+      pricing,
+      oauthCode: String(req.body?.code || "").trim()
     });
+    const updatedOrder = orderStore.readOrderWithRelations(order.id) || order;
+    res.json({ order: toPublicOrder(updatedOrder), payment });
   } catch (error) {
     next(error);
   }
@@ -1375,7 +1371,7 @@ app.get("/api/my/orders", requireWebAccount, async (req, res, next) => {
       limit: 50
     });
     res.json({
-      orders: payload.items.map((order) => toPublicOrder(order)),
+      orders: (await Promise.all(payload.items.map(enrichBodyBookOrderThemeName))).map((order) => toPublicOrder(order)),
       config: getOrderPricingSnapshot(settings)
     });
   } catch (error) {
@@ -3267,7 +3263,7 @@ app.use((req, res) => {
   if (pathname === "/body-book" || pathname === "/body-book/") {
     return res.redirect(302, "/book");
   }
-  if (pathname === "/" || pathname === "/book" || pathname === "/book/" || pathname === "/fridge" || pathname === "/fridge/" || pathname === "/fridge/orders" || pathname === "/fridge/orders/" || pathname.startsWith("/fridge/orders/") || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
+  if (pathname === "/" || pathname === "/book" || pathname === "/book/" || pathname === "/book/orders" || pathname === "/book/orders/" || pathname.startsWith("/book/orders/") || pathname === "/fridge" || pathname === "/fridge/" || pathname === "/fridge/orders" || pathname === "/fridge/orders/" || pathname.startsWith("/fridge/orders/") || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
     return res.sendFile(path.join(rootDir, "dist", "index.html"));
   }
   if (pathname === "/luck" || pathname === "/manage" || pathname === "/tasks" || pathname === "/batch") {
@@ -4859,6 +4855,7 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
     });
   });
   const amount = calculateBodyBookOrderAmounts(bodyBookPricing);
+  const paymentMode = normalizeOrderPaymentMode(pricing?.paymentMode);
   const merchantSource = await resolveOrderMerchantSource(req);
   const now = new Date();
   const createdAt = now.toISOString();
@@ -4877,6 +4874,7 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
       accountId: req.webAccount.id,
       publicToken: randomUUID(),
       experienceType: "body-book",
+      bodyBookThemeName: theme.name,
       paymentStatus: "unpaid",
       fulfillmentStatus: "new",
       itemCount: amount.itemCount,
@@ -4897,8 +4895,8 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
       sourceClaimedAt: merchantSource.sourceClaimedAt,
       wechatOpenId: "",
       wechatTransactionId: "",
-      outTradeNo: `BB${randomUUID().replace(/-/g, "")}`,
-      lastPaymentChannel: "manual_collection",
+      outTradeNo: generateWechatOutTradeNo("BB"),
+      lastPaymentChannel: paymentMode === "manual" ? "manual_collection" : "",
       lastPaymentError: "",
       expiresAt,
       createdAt,
@@ -4909,7 +4907,7 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
       eventType: "order_created",
       eventId: `${orderId}:order_created`,
       success: true,
-      payload: { projectId: current.sessionId, pageCount: pages.length, totalCents: amount.totalCents, paymentMode: pricing.paymentMode }
+      payload: { projectId: current.sessionId, pageCount: pages.length, totalCents: amount.totalCents, paymentMode }
     }
   });
   const paymentIntent = commerceStore.createPaymentIntent({
@@ -4921,19 +4919,9 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
     expiresAt: created.expiresAt,
     metadata: { orderNo: created.orderNo, projectId: current.sessionId, pageCount: pages.length }
   });
-  commerceStore.markPaymentPrepared(paymentIntent.id, {
-    channel: "manual_collection",
-    eventId: `${created.id}:manual_collection`,
-    payload: { mode: "manual", orderNo: created.orderNo }
-  });
   return {
     order: toPublicOrder(created, { includeToken: true }),
-    payment: {
-      status: "manual_payment_required",
-      mode: "manual",
-      channel: "manual_collection",
-      expiresAt: created.expiresAt
-    }
+    payment: prepareInitialOrderPayment(created, pricing, paymentIntent)
   };
 }
 
@@ -5745,6 +5733,20 @@ function getOrderPricingSnapshot(settings) {
   };
 }
 
+async function enrichBodyBookOrderThemeName(order) {
+  if (!order || order.experienceType !== "body-book" || order.bodyBookThemeName) return order;
+  try {
+    const fullOrder = orderStore.readOrderWithRelations(order.id);
+    const createdEvent = fullOrder?.paymentEvents?.find((event) => event.eventType === "order_created");
+    const projectId = String(createdEvent?.payload?.projectId || "").trim();
+    const project = projectId ? await readBodyBookSession(projectId) : null;
+    const themeName = getBookTheme(project?.themeId)?.name || "";
+    return themeName ? { ...order, bodyBookThemeName: themeName } : order;
+  } catch {
+    return order;
+  }
+}
+
 function calculateBodyBookOrderAmounts(pricing) {
   const priceCents = normalizeMoneyCents(pricing?.priceCents, DEFAULT_BODY_BOOK_PRICE_CENTS);
   const shippingFeeCents = normalizeMoneyCents(pricing?.shippingFeeCents, DEFAULT_BODY_BOOK_SHIPPING_FEE_CENTS);
@@ -5763,6 +5765,72 @@ function getOrderExpireMs(pricing) {
     return normalizeManualPaymentExpireDays(pricing?.manualPaymentExpireDays) * 24 * 60 * 60 * 1000;
   }
   return ORDER_PAYMENT_EXPIRE_MS;
+}
+
+function prepareInitialOrderPayment(order, pricing, intent) {
+  const paymentMode = normalizeOrderPaymentMode(pricing?.paymentMode);
+  if (paymentMode !== "manual") {
+    return {
+      status: "payment_required",
+      mode: "wechat",
+      expiresAt: order.expiresAt
+    };
+  }
+  commerceStore.markPaymentPrepared(intent.id, {
+    channel: "manual_collection",
+    eventId: `${order.id}:manual_collection`,
+    payload: { mode: "manual", orderNo: order.orderNo }
+  });
+  return {
+    status: "manual_payment_required",
+    mode: "manual",
+    channel: "manual_collection",
+    expiresAt: order.expiresAt
+  };
+}
+
+async function prepareOrderPayment({ req, order, intent, pricing, oauthCode = "" }) {
+  const paymentMode = normalizeOrderPaymentMode(pricing?.paymentMode);
+  if (paymentMode === "manual" || order.lastPaymentChannel === "manual_collection") {
+    return prepareInitialOrderPayment(order, { ...pricing, paymentMode: "manual" }, intent);
+  }
+  if (intent.status === "cancelled") throw createHttpError(409, "该订单已取消，无法继续支付。");
+
+  if (!isValidWechatOutTradeNo(order.outTradeNo)) {
+    const nextOutTradeNo = generateWechatOutTradeNo(order.experienceType === "body-book" ? "BB" : "FM");
+    const repairedOrder = orderStore.replaceOrderOutTradeNo(order.id, nextOutTradeNo);
+    const repairedIntent = commerceStore.replacePaymentIntentOutTradeNo(intent.id, nextOutTradeNo);
+    if (!repairedOrder || !repairedIntent) throw createHttpError(500, "修复微信支付单失败，请重新下单。", "支付单修复失败，请重新下单。");
+    order = repairedOrder;
+    intent = repairedIntent;
+  }
+
+  const description = order.experienceType === "body-book" ? "宝宝认知书实体书" : "AI 定制冰箱贴";
+  if (isWechatBrowser(req)) {
+    if (!oauthCode) {
+      return {
+        status: "requires_authorization",
+        mode: "wechat",
+        channel: "wechat_jsapi",
+        authorizationUrl: createOrderPaymentAuthorizationUrl(req, order)
+      };
+    }
+    const openId = await fetchWechatOpenId(oauthCode);
+    const payment = await createWechatJsapiPayment({ intent, openId, description });
+    orderStore.updateOrder(order.id, {
+      wechatOpenId: openId,
+      lastPaymentChannel: payment.channel,
+      lastPaymentError: ""
+    });
+    return { ...payment, mode: "wechat", expiresAt: order.expiresAt };
+  }
+
+  const payment = await createWechatNativePayment({ intent, description });
+  orderStore.updateOrder(order.id, {
+    lastPaymentChannel: payment.channel,
+    lastPaymentError: ""
+  });
+  return { ...payment, mode: "wechat", expiresAt: order.expiresAt };
 }
 
 function calculateOrderAmounts(itemCount, pricing) {
@@ -5847,6 +5915,16 @@ function generateOrderNo() {
   const second = String(now.getSeconds()).padStart(2, "0");
   const random = Math.random().toString().slice(2, 8);
   return `FM${year}${month}${day}${hour}${minute}${second}${random}`;
+}
+
+function generateWechatOutTradeNo(prefix = "WX") {
+  const safePrefix = String(prefix || "WX").replace(/[^0-9A-Za-z]/g, "").slice(0, 6) || "WX";
+  const randomPartLength = 32 - safePrefix.length;
+  return `${safePrefix}${randomUUID().replace(/-/g, "").slice(0, randomPartLength)}`;
+}
+
+function isValidWechatOutTradeNo(value) {
+  return /^[0-9A-Za-z_-]{6,32}$/.test(String(value || ""));
 }
 
 function buildOrderReturnUrl(req, order) {
@@ -6457,6 +6535,7 @@ function toPublicOrder(order, options = {}) {
     id: safeOrder.id,
     orderNo: safeOrder.orderNo,
     experienceType: safeOrder.experienceType,
+    bodyBookThemeName: safeOrder.bodyBookThemeName,
     orderStatus: getOrderStatus(safeOrder),
     paymentStatus: safeOrder.paymentStatus,
     fulfillmentStatus: safeOrder.fulfillmentStatus,

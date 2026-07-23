@@ -9,7 +9,7 @@
   "bodyBookOrderingEnabled": true,
   "bodyBookPriceCents": 4500,
   "bodyBookShippingFeeCents": 0,
-  "paymentMode": "manual",
+  "paymentMode": "wechat",
   "manualPaymentExpireDays": 7,
   "contactWechatId": "PetPaint"
 }

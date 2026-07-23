@@ -222,6 +222,7 @@ function readRoute() {
   if (pathname === "/draw/order") return "public-draw-checkout";
   if (pathname === "/fridge/orders") return "public-fridge-orders";
   if (pathname.startsWith("/fridge/orders/")) return "public-fridge-order";
+  if (pathname === "/book/orders") return "public-body-book-orders";
   if (pathname.startsWith("/book/orders/")) return "public-body-book-order";
   if (pathname === "/fridge") return "public-fridge";
   if (pathname === "/book") return "public-body-book";
@@ -257,6 +258,7 @@ function App() {
       "public-draw-checkout": "选图定制",
       "public-fridge-order": "冰箱贴订单",
       "public-body-book-order": "认知书实体书订单",
+      "public-body-book-orders": "我的认知书订单",
       "public-fridge-orders": "我的冰箱贴订单",
       "admin-api-providers": "API 配置",
       "admin-user-clip": "用户卡夹"
@@ -271,6 +273,7 @@ function App() {
       "public-body-book": "/book",
       "public-draw-checkout": "/draw/order",
       "public-fridge-orders": "/fridge/orders",
+      "public-body-book-orders": "/book/orders",
       "public-fridge-order": window.location.pathname,
       "public-body-book-order": window.location.pathname,
       "admin-gallery": "/gallery",
@@ -300,6 +303,9 @@ function App() {
   }
   if (route === "public-fridge-orders") {
     return <FridgeMagnetOrdersPage />;
+  }
+  if (route === "public-body-book-orders") {
+    return <BodyBookOrdersPage />;
   }
   if (route === "public-fridge") {
     return <FridgeMagnetPage />;
@@ -1361,6 +1367,7 @@ function BodyBookPage() {
   const [billingEnabled, setBillingEnabled] = useState(false);
   const [visitorState, setVisitorState] = useState(null);
   const [orderConfig, setOrderConfig] = useState(null);
+  const [bodyBookOrders, setBodyBookOrders] = useState([]);
   const [savedBooks, setSavedBooks] = useState([]);
   const [selectedTheme, setSelectedTheme] = useState(null);
   const [project, setProject] = useState(null);
@@ -1461,11 +1468,14 @@ function BodyBookPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.allSettled([fetchVisitorState(), fetchOrderConfig(), fetchBodyBookThemes(), loadSavedBooks()]).then((results) => {
+    Promise.allSettled([fetchVisitorState(), fetchOrderConfig(), fetchBodyBookThemes(), loadSavedBooks(), fetchMyOrders()]).then((results) => {
       if (!active) return;
-      const [visitor, config, themePayload] = results;
+      const [visitor, config, themePayload, , ordersPayload] = results;
       if (visitor.status === "fulfilled") setVisitorState(visitor.value);
       if (config.status === "fulfilled") setOrderConfig(config.value);
+      if (ordersPayload.status === "fulfilled") {
+        setBodyBookOrders((ordersPayload.value?.orders || []).filter((order) => order.experienceType === "body-book"));
+      }
       if (themePayload.status === "fulfilled") {
         if (themePayload.value?.themes?.length) setThemes(themePayload.value.themes);
         setBillingEnabled(Boolean(themePayload.value?.billingEnabled));
@@ -1841,7 +1851,8 @@ function BodyBookPage() {
         <div className="body-book-header-actions">
           {!home ? <button className="draw-card-secondary body-book-back-to-themes" disabled={busy} onClick={backToHome} type="button"><Home size={17} /><span>返回主页</span></button> : null}
           <button className="draw-card-secondary body-book-header-balance" onClick={() => setShowBeanInfo(true)} type="button"><span>余额</span><strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong><span>豆</span></button>
-          <div className="body-book-user-area" ref={userMenuRef}><button className="draw-card-secondary body-book-account-button" onClick={() => visitorState?.account?.isRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)} type="button">{visitorState?.account?.isRegistered ? (visitorState.account.username || "我的账户") : "登录 / 注册"}</button>{showUserMenu ? <div className="body-book-user-menu"><button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}</div>
+          {home && bodyBookOrders.length ? <button className="draw-card-secondary" onClick={() => window.location.assign("/book/orders")} type="button">我的订单</button> : null}
+          <div className="body-book-user-area" ref={userMenuRef}><button className="draw-card-secondary body-book-account-button" onClick={() => visitorState?.account?.isRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)} type="button">{visitorState?.account?.isRegistered ? (visitorState.account.username || "我的账户") : "登录 / 注册"}</button>{showUserMenu ? <div className="body-book-user-menu">{bodyBookOrders.length ? <button onClick={() => window.location.assign("/book/orders")} type="button">我的订单</button> : null}<button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}</div>
         </div>
       </header>
 
@@ -2019,6 +2030,72 @@ function FridgeMagnetOrdersPage() {
                   ) : null}
                 </div>
               </article>
+            );
+          })}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function BodyBookOrdersPage() {
+  const [orders, setOrders] = useState([]);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isActive = true;
+    setIsLoading(true);
+    fetchMyOrders()
+      .then((payload) => {
+        if (!isActive) return;
+        setOrders((payload.orders || []).filter((order) => order.experienceType === "body-book"));
+        setError("");
+      })
+      .catch((nextError) => {
+        if (isActive) setError(nextError.message || "读取订单列表失败。");
+      })
+      .finally(() => {
+        if (isActive) setIsLoading(false);
+      });
+    return () => { isActive = false; };
+  }, []);
+
+  return (
+    <main className="body-book-page">
+      <section className="body-book-order-list-page">
+        <div className="body-book-order-list-head">
+          <div>
+            <p className="body-book-kicker">My orders</p>
+            <h1>我的订单</h1>
+          </div>
+          <button className="draw-card-secondary" onClick={() => window.location.assign("/book")} type="button">
+            <Home size={17} />
+            <span>返回主页</span>
+          </button>
+        </div>
+        {isLoading ? <p className="body-book-library-empty">正在读取订单列表…</p> : null}
+        {error ? <p className="error-note">{error}</p> : null}
+        {!isLoading && !error && !orders.length ? <p className="body-book-library-empty">你还没有认知书订单。</p> : null}
+        <div className="body-book-order-list" aria-label="认知书订单列表">
+          {orders.map((order) => {
+            const cover = order.items?.find((item) => Number(item.sortOrder) === 0) || order.items?.[0];
+            const themeName = order.bodyBookThemeName || cover?.styleName || "认知书";
+            return (
+              <button
+                className="body-book-order-list-item"
+                key={order.id}
+                onClick={() => window.location.assign(buildOrderDetailUrl(order.id, order.publicToken, "body-book"))}
+                type="button"
+              >
+                <span className="body-book-order-cover">
+                  {cover?.thumbnailUrl || cover?.imageUrl ? <img alt={`${themeName}封面`} src={cover.thumbnailUrl || cover.imageUrl} /> : <span>{themeName}</span>}
+                </span>
+                <span className="body-book-order-summary">
+                  <strong>{themeName}</strong>
+                  <span>{formatCurrencyCents(order.totalCents)}</span>
+                </span>
+              </button>
             );
           })}
         </div>
@@ -2208,19 +2285,26 @@ function FridgeMagnetOrderPage() {
   const isBodyBookOrder = window.location.pathname.startsWith("/book/orders/");
   const searchParams = new URLSearchParams(window.location.search);
   const token = searchParams.get("token") || "";
+  const payCode = searchParams.get("payCode") || "";
   const [order, setOrder] = useState(null);
   const [orderConfig, setOrderConfig] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [payment, setPayment] = useState(null);
+  const [paymentError, setPaymentError] = useState("");
+  const [isPreparingPayment, setIsPreparingPayment] = useState(false);
   const [orderCopied, setOrderCopied] = useState(false);
   const [contactCopied, setContactCopied] = useState(false);
   const orderCopiedTimeoutRef = useRef(null);
   const contactCopiedTimeoutRef = useRef(null);
+  const paymentRequestRef = useRef("");
+  const paymentRefreshTimeoutRef = useRef(null);
 
   useEffect(() => {
     return () => {
       if (orderCopiedTimeoutRef.current) window.clearTimeout(orderCopiedTimeoutRef.current);
       if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
+      if (paymentRefreshTimeoutRef.current) window.clearTimeout(paymentRefreshTimeoutRef.current);
     };
   }, []);
 
@@ -2247,6 +2331,64 @@ function FridgeMagnetOrderPage() {
     };
   }, [orderId, token]);
 
+  useEffect(() => {
+    if (!order?.id || order.orderStatus !== "pending_payment" || orderConfig?.paymentMode !== "wechat") return undefined;
+    const requestKey = `${order.id}:${payCode || "native"}`;
+    if (paymentRequestRef.current === requestKey) return undefined;
+    paymentRequestRef.current = requestKey;
+    let isActive = true;
+
+    const refreshPaidOrder = async (attempt = 0) => {
+      if (!isActive) return;
+      try {
+        const payload = await fetchOrderDetail(order.id, token);
+        if (!isActive) return;
+        setOrder(payload.order || null);
+        setOrderConfig(payload.config || null);
+        if (payload.order?.paymentStatus === "paid" || attempt >= 11) {
+          if (payload.order?.paymentStatus === "paid") setPayment(null);
+          return;
+        }
+      } catch {
+        if (!isActive) return;
+      }
+      paymentRefreshTimeoutRef.current = window.setTimeout(() => refreshPaidOrder(attempt + 1), 1500);
+    };
+
+    const startPayment = async () => {
+      setIsPreparingPayment(true);
+      setPaymentError("");
+      try {
+        const payload = await payOrderRequest(order.id, payCode ? { code: payCode } : {});
+        if (!isActive) return;
+        const nextPayment = payload.payment || null;
+        if (nextPayment?.status === "requires_authorization" && nextPayment.authorizationUrl) {
+          window.location.assign(nextPayment.authorizationUrl);
+          return;
+        }
+        setPayment(nextPayment);
+        if (nextPayment?.channel === "wechat_jsapi" && nextPayment.jsapi) {
+          await invokeWechatJsapiPayment(nextPayment.jsapi);
+          if (!isActive) return;
+          const url = new URL(window.location.href);
+          url.searchParams.delete("payCode");
+          window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+          await refreshPaidOrder();
+        }
+        if (nextPayment?.channel === "wechat_native") {
+          await refreshPaidOrder();
+        }
+      } catch (nextError) {
+        if (isActive) setPaymentError(nextError.message || "发起微信支付失败，请稍后重试。");
+      } finally {
+        if (isActive) setIsPreparingPayment(false);
+      }
+    };
+
+    void startPayment();
+    return () => { isActive = false; };
+  }, [order?.id, order?.orderStatus, orderConfig?.paymentMode, payCode, token]);
+
   async function handleCopyOrderNo() {
     if (!order?.orderNo) return;
     await copyText(order.orderNo);
@@ -2271,9 +2413,9 @@ function FridgeMagnetOrderPage() {
             <h2>订单详情</h2>
             <p className="storage-note">可在这里查看订单状态、收货信息和{isBodyBookOrder ? "认知书页面" : "下单图片"}。</p>
           </div>
-          <button className="secondary-button" onClick={() => window.location.assign(isBodyBookOrder ? "/book" : "/fridge/orders")} type="button">
+          <button className="secondary-button" onClick={() => window.location.assign(isBodyBookOrder ? "/book/orders" : "/fridge/orders")} type="button">
             <Home size={18} />
-            <span>{isBodyBookOrder ? "返回认知书" : "返回我的订单"}</span>
+            <span>返回我的订单</span>
           </button>
         </div>
         <div className="task-actions order-detail-contact-action">
@@ -2284,8 +2426,18 @@ function FridgeMagnetOrderPage() {
         </div>
         {isLoading ? <p className="storage-note">正在读取订单…</p> : null}
         {error ? <p className="error-note">{error}</p> : null}
+        {paymentError ? <p className="error-note">{paymentError}</p> : null}
         {order ? (
           <section className="task-page">
+            {isPreparingPayment ? <p className="storage-note">正在准备微信支付…</p> : null}
+            {payment?.channel === "wechat_native" && payment.codeUrl ? (
+              <article className="draw-observability-card native-payment-panel">
+                <h3>请使用微信扫码付款</h3>
+                <p className="storage-note">应付金额 {formatCurrencyCents(order.totalCents)}，扫码后无需手动输入金额。</p>
+                <img alt="微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(payment.codeUrl, { margin: 1 })} />
+                <p className="storage-note">支付成功后，订单状态会自动更新。</p>
+              </article>
+            ) : null}
             {order.orderStatus === "pending_payment" && isManualPaymentOrder(order, orderConfig) ? (
               <article className="draw-observability-card manual-payment-guide">
                 <div className="draw-observability-head">
@@ -3331,6 +3483,10 @@ function PublicExperiencePage({ config }) {
         ...orderForm
       });
       setShowOrderModal(false);
+      if (created.payment?.mode === "wechat") {
+        goToOrderDetail(created.order.id, created.order.publicToken);
+        return;
+      }
       syncLatestManualOrder(created.order, orderConfig, created.order.publicToken);
       setLatestManualOrder(readLatestManualOrder());
       setManualPaymentOrder(created);
@@ -7736,7 +7892,14 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
               单张邮费（分）
               <input min="0" onChange={(event) => setSingleItemShippingFeeCents(Number(event.target.value) || 0)} type="number" value={singleItemShippingFeeCents} />
             </label>
-            <p className="storage-note">用户提交订单后扫描商户收款码付款；管理员核验到账后，在订单详情中确认收款。金额规则固定为：1 枚收邮费，2 枚及以上包邮。</p>
+            <label className="field-label">
+              支付方式
+              <select onChange={(event) => setPaymentMode(event.target.value)} value={paymentMode}>
+                <option value="manual">人工收款码</option>
+                <option value="wechat">微信支付（微信内 JSAPI，其他环境 Native 扫码）</option>
+              </select>
+            </label>
+            <p className="storage-note">微信支付会自动锁定订单金额并由回调更新订单状态；人工收款码仍需用户手动输入金额并由管理员确认。金额规则固定为：1 枚收邮费，2 枚及以上包邮。</p>
             <label className="toggle-field">
               <input checked={bodyBookOrderingEnabled} onChange={(event) => setBodyBookOrderingEnabled(event.target.checked)} type="checkbox" />
               <span>开启认知书实体书下单</span>

@@ -9,8 +9,8 @@
   "status": "succeeded",
   "message": "图片已保存，可继续编辑或生成更多页面。",
   "createdAt": "2026-07-19T08:06:30.656Z",
-  "updatedAt": "2026-07-22T10:21:41.658Z",
-  "completedAt": "2026-07-19T08:14:13.520Z",
+  "updatedAt": "2026-07-23T00:28:57.440Z",
+  "completedAt": "2026-07-23T00:28:29.119Z",
   "savedAt": "2026-07-21T02:21:46.895Z",
   "reference": {
     "filename": "reference-1784600564345.png",
@@ -28,7 +28,16 @@
     "472217fe-6056-48ec-a1a5-a42ea0f9ed44",
     "568c9f14-090e-4278-81d4-8a295f9205aa",
     "44fbdc52-8636-4647-807f-ddd686c2a2de",
-    "f3184158-b1fb-4c36-97e5-c31de45ac5f6"
+    "f3184158-b1fb-4c36-97e5-c31de45ac5f6",
+    "3d601ffc-ef9e-4e39-b2cf-418027cd44e1",
+    "d2b32ca5-13a0-42e3-862a-f90a6d6f7611",
+    "832b5fd7-5cc3-4b51-aa25-37cbe5336675",
+    "d1512b88-6e45-4f6c-a855-f7f8886e66c5",
+    "603d91e5-52df-4e84-9c3c-b3ea8110e05d",
+    "cc4c1694-1bc0-4fc5-a181-507060b4e886",
+    "5f419009-9c57-4c6a-9340-0ac104b04277",
+    "3af85b1b-3c53-49a0-a0b6-ea89947bc440",
+    "d278256f-103d-4019-8776-75c73f559945"
   ],
   "billingError": "",
   "pages": [
@@ -351,6 +360,166 @@
       "isRequired": false
     },
     {
+      "key": "cheeks",
+      "chinese": "脸颊",
+      "english": "Cheeks",
+      "copy": "These are my cheeks. 这是我的脸颊。",
+      "title": "脸颊 Cheeks",
+      "order": 6,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "3d601ffc-ef9e-4e39-b2cf-418027cd44e1",
+      "status": "succeeded",
+      "prompt": "Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual 身体认知书 learning card for ages 0-3. The sole learning concept is \"Cheeks / 脸颊\". The image must attempt to render this heading exactly: \"脸颊 Cheeks\". Include this short bilingual sentence exactly: \"These are my cheeks. 这是我的脸颊。\". Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: a close, natural baby pose in which the requested body part is unmistakably visible; use one restrained dotted arrow to that body part. Mandatory page-specific art direction: Dress the baby in a blush-pink knit cardigan over a cream romper; show a close seated smile with both open palms gently resting on the cheeks, keeping both cheeks fully visible. Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, warm cream, sage green, and soft apricot accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching simple body-part learning symbols. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.",
+      "hasCustomPrompt": false,
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/3d601ffc-ef9e-4e39-b2cf-418027cd44e1.svg",
+        "mimeType": "image/svg+xml",
+        "previewUrl": "/generated-images/3d601ffc-ef9e-4e39-b2cf-418027cd44e1.svg",
+        "thumbnailUrl": "/generated-images/3d601ffc-ef9e-4e39-b2cf-418027cd44e1.svg",
+        "originalImageUrl": "",
+        "provider": {
+          "id": "body-book-mock",
+          "name": "开发模拟",
+          "model": "mock"
+        },
+        "mode": "mock",
+        "previewWidth": null,
+        "previewHeight": null,
+        "thumbnailWidth": null,
+        "thumbnailHeight": null
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "hair",
+      "chinese": "头发",
+      "english": "Hair",
+      "copy": "This is my hair. 这是我的头发。",
+      "title": "头发 Hair",
+      "order": 8,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "d2b32ca5-13a0-42e3-862a-f90a6d6f7611",
+      "status": "succeeded",
+      "prompt": "Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual 身体认知书 learning card for ages 0-3. The sole learning concept is \"Hair / 头发\". The image must attempt to render this heading exactly: \"头发 Hair\". Include this short bilingual sentence exactly: \"This is my hair. 这是我的头发。\". Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: a close, natural baby pose in which the requested body part is unmistakably visible; use one restrained dotted arrow to that body part. Mandatory page-specific art direction: Dress the baby in a soft lavender cardigan over a cream romper; show a close seated pose gently touching a small lock of hair with one hand, with the hair fully visible. Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, warm cream, sage green, and soft apricot accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching simple body-part learning symbols. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.",
+      "hasCustomPrompt": false,
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/d2b32ca5-13a0-42e3-862a-f90a6d6f7611.svg",
+        "mimeType": "image/svg+xml",
+        "previewUrl": "/generated-images/d2b32ca5-13a0-42e3-862a-f90a6d6f7611.svg",
+        "thumbnailUrl": "/generated-images/d2b32ca5-13a0-42e3-862a-f90a6d6f7611.svg",
+        "originalImageUrl": "",
+        "provider": {
+          "id": "body-book-mock",
+          "name": "开发模拟",
+          "model": "mock"
+        },
+        "mode": "mock",
+        "previewWidth": null,
+        "previewHeight": null,
+        "thumbnailWidth": null,
+        "thumbnailHeight": null
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "teeth",
+      "chinese": "牙齿",
+      "english": "Teeth",
+      "copy": "I brush my teeth. 我会刷牙。",
+      "title": "牙齿 Teeth",
+      "order": 9,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "832b5fd7-5cc3-4b51-aa25-37cbe5336675",
+      "status": "succeeded",
+      "prompt": "Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual 身体认知书 learning card for ages 0-3. The sole learning concept is \"Teeth / 牙齿\". The image must attempt to render this heading exactly: \"牙齿 Teeth\". Include this short bilingual sentence exactly: \"I brush my teeth. 我会刷牙。\". Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: a close, natural baby pose in which the requested body part is unmistakably visible; use one restrained dotted arrow to that body part. Mandatory page-specific art direction: Dress the baby in a clean mint-green cotton romper and a small towel bib; show a happy open smile while safely holding a toddler toothbrush beside the teeth. Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, warm cream, sage green, and soft apricot accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching simple body-part learning symbols. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.",
+      "hasCustomPrompt": false,
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/832b5fd7-5cc3-4b51-aa25-37cbe5336675.svg",
+        "mimeType": "image/svg+xml",
+        "previewUrl": "/generated-images/832b5fd7-5cc3-4b51-aa25-37cbe5336675.svg",
+        "thumbnailUrl": "/generated-images/832b5fd7-5cc3-4b51-aa25-37cbe5336675.svg",
+        "originalImageUrl": "",
+        "provider": {
+          "id": "body-book-mock",
+          "name": "开发模拟",
+          "model": "mock"
+        },
+        "mode": "mock",
+        "previewWidth": null,
+        "previewHeight": null,
+        "thumbnailWidth": null,
+        "thumbnailHeight": null
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "arms",
+      "chinese": "手臂",
+      "english": "Arms",
+      "copy": "These are my arms. 这是我的手臂。",
+      "title": "手臂 Arms",
+      "order": 10,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "d1512b88-6e45-4f6c-a855-f7f8886e66c5",
+      "status": "succeeded",
+      "prompt": "Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual 身体认知书 learning card for ages 0-3. The sole learning concept is \"Arms / 手臂\". The image must attempt to render this heading exactly: \"手臂 Arms\". Include this short bilingual sentence exactly: \"These are my arms. 这是我的手臂。\". Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: a close, natural baby pose in which the requested body part is unmistakably visible; use one restrained dotted arrow to that body part. Mandatory page-specific art direction: Dress the baby in a short-sleeve coral romper; show both bare arms stretched wide toward two small friendly stars. Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, warm cream, sage green, and soft apricot accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching simple body-part learning symbols. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.",
+      "hasCustomPrompt": false,
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/d1512b88-6e45-4f6c-a855-f7f8886e66c5.svg",
+        "mimeType": "image/svg+xml",
+        "previewUrl": "/generated-images/d1512b88-6e45-4f6c-a855-f7f8886e66c5.svg",
+        "thumbnailUrl": "/generated-images/d1512b88-6e45-4f6c-a855-f7f8886e66c5.svg",
+        "originalImageUrl": "",
+        "provider": {
+          "id": "body-book-mock",
+          "name": "开发模拟",
+          "model": "mock"
+        },
+        "mode": "mock",
+        "previewWidth": null,
+        "previewHeight": null,
+        "thumbnailWidth": null,
+        "thumbnailHeight": null
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
       "key": "hands",
       "chinese": "手",
       "english": "Hands",
@@ -404,6 +573,166 @@
       "isRequired": false
     },
     {
+      "key": "fingers",
+      "chinese": "手指",
+      "english": "Fingers",
+      "copy": "These are my fingers. 这是我的手指。",
+      "title": "手指 Fingers",
+      "order": 12,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "603d91e5-52df-4e84-9c3c-b3ea8110e05d",
+      "status": "succeeded",
+      "prompt": "Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual 身体认知书 learning card for ages 0-3. The sole learning concept is \"Fingers / 手指\". The image must attempt to render this heading exactly: \"手指 Fingers\". Include this short bilingual sentence exactly: \"These are my fingers. 这是我的手指。\". Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: a close, natural baby pose in which the requested body part is unmistakably visible; use one restrained dotted arrow to that body part. Mandatory page-specific art direction: Dress the baby in a soft yellow romper; show one hand close to the camera with fingers gently spread around a large soft fabric flower. Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, warm cream, sage green, and soft apricot accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching simple body-part learning symbols. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.",
+      "hasCustomPrompt": false,
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/603d91e5-52df-4e84-9c3c-b3ea8110e05d.svg",
+        "mimeType": "image/svg+xml",
+        "previewUrl": "/generated-images/603d91e5-52df-4e84-9c3c-b3ea8110e05d.svg",
+        "thumbnailUrl": "/generated-images/603d91e5-52df-4e84-9c3c-b3ea8110e05d.svg",
+        "originalImageUrl": "",
+        "provider": {
+          "id": "body-book-mock",
+          "name": "开发模拟",
+          "model": "mock"
+        },
+        "mode": "mock",
+        "previewWidth": null,
+        "previewHeight": null,
+        "thumbnailWidth": null,
+        "thumbnailHeight": null
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "legs",
+      "chinese": "腿",
+      "english": "Legs",
+      "copy": "These are my legs. 这是我的腿。",
+      "title": "腿 Legs",
+      "order": 13,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "cc4c1694-1bc0-4fc5-a181-507060b4e886",
+      "status": "succeeded",
+      "prompt": "Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual 身体认知书 learning card for ages 0-3. The sole learning concept is \"Legs / 腿\". The image must attempt to render this heading exactly: \"腿 Legs\". Include this short bilingual sentence exactly: \"These are my legs. 这是我的腿。\". Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: a close, natural baby pose in which the requested body part is unmistakably visible; use one restrained dotted arrow to that body part. Mandatory page-specific art direction: Dress the baby in a soft coral T-shirt and short cotton bloomers; show a safe floor-seated pose with both bare legs stretched forward and gently kicking toward one small soft ball, with legs fully visible. Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, warm cream, sage green, and soft apricot accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching simple body-part learning symbols. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.",
+      "hasCustomPrompt": false,
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/cc4c1694-1bc0-4fc5-a181-507060b4e886.svg",
+        "mimeType": "image/svg+xml",
+        "previewUrl": "/generated-images/cc4c1694-1bc0-4fc5-a181-507060b4e886.svg",
+        "thumbnailUrl": "/generated-images/cc4c1694-1bc0-4fc5-a181-507060b4e886.svg",
+        "originalImageUrl": "",
+        "provider": {
+          "id": "body-book-mock",
+          "name": "开发模拟",
+          "model": "mock"
+        },
+        "mode": "mock",
+        "previewWidth": null,
+        "previewHeight": null,
+        "thumbnailWidth": null,
+        "thumbnailHeight": null
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "feet",
+      "chinese": "脚",
+      "english": "Feet",
+      "copy": "My feet help me walk. 我用小脚走路。",
+      "title": "脚 Feet",
+      "order": 14,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "5f419009-9c57-4c6a-9340-0ac104b04277",
+      "status": "succeeded",
+      "prompt": "Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual 身体认知书 learning card for ages 0-3. The sole learning concept is \"Feet / 脚\". The image must attempt to render this heading exactly: \"脚 Feet\". Include this short bilingual sentence exactly: \"My feet help me walk. 我用小脚走路。\". Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: a close, natural baby pose in which the requested body part is unmistakably visible; use one restrained dotted arrow to that body part. Mandatory page-specific art direction: Dress the baby in a short-sleeve cotton bodysuit and contrasting soft socks; show a safe seated pose with both feet lifted toward a small ball. Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, warm cream, sage green, and soft apricot accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching simple body-part learning symbols. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.",
+      "hasCustomPrompt": false,
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/5f419009-9c57-4c6a-9340-0ac104b04277.svg",
+        "mimeType": "image/svg+xml",
+        "previewUrl": "/generated-images/5f419009-9c57-4c6a-9340-0ac104b04277.svg",
+        "thumbnailUrl": "/generated-images/5f419009-9c57-4c6a-9340-0ac104b04277.svg",
+        "originalImageUrl": "",
+        "provider": {
+          "id": "body-book-mock",
+          "name": "开发模拟",
+          "model": "mock"
+        },
+        "mode": "mock",
+        "previewWidth": null,
+        "previewHeight": null,
+        "thumbnailWidth": null,
+        "thumbnailHeight": null
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "toes",
+      "chinese": "脚趾",
+      "english": "Toes",
+      "copy": "These are my toes. 这是我的脚趾。",
+      "title": "脚趾 Toes",
+      "order": 15,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "3af85b1b-3c53-49a0-a0b6-ea89947bc440",
+      "status": "succeeded",
+      "prompt": "Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual 身体认知书 learning card for ages 0-3. The sole learning concept is \"Toes / 脚趾\". The image must attempt to render this heading exactly: \"脚趾 Toes\". Include this short bilingual sentence exactly: \"These are my toes. 这是我的脚趾。\". Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: a close, natural baby pose in which the requested body part is unmistakably visible; use one restrained dotted arrow to that body part. Mandatory page-specific art direction: Dress the baby in a pale aqua romper; show a safe seated pose with bare toes lightly touching a tiny soft ball, with toes clearly visible. Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, warm cream, sage green, and soft apricot accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching simple body-part learning symbols. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.",
+      "hasCustomPrompt": false,
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/3af85b1b-3c53-49a0-a0b6-ea89947bc440.svg",
+        "mimeType": "image/svg+xml",
+        "previewUrl": "/generated-images/3af85b1b-3c53-49a0-a0b6-ea89947bc440.svg",
+        "thumbnailUrl": "/generated-images/3af85b1b-3c53-49a0-a0b6-ea89947bc440.svg",
+        "originalImageUrl": "",
+        "provider": {
+          "id": "body-book-mock",
+          "name": "开发模拟",
+          "model": "mock"
+        },
+        "mode": "mock",
+        "previewWidth": null,
+        "previewHeight": null,
+        "thumbnailWidth": null,
+        "thumbnailHeight": null
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
       "key": "tummy",
       "chinese": "肚子",
       "english": "Tummy",
@@ -455,6 +784,46 @@
       },
       "hasCustomPrompt": false,
       "isRequired": false
+    },
+    {
+      "key": "knees",
+      "chinese": "膝盖",
+      "english": "Knees",
+      "copy": "My knees can bend. 我的小膝盖会弯曲。",
+      "title": "膝盖 Knees",
+      "order": 17,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "d278256f-103d-4019-8776-75c73f559945",
+      "status": "succeeded",
+      "prompt": "Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual 身体认知书 learning card for ages 0-3. The sole learning concept is \"Knees / 膝盖\". The image must attempt to render this heading exactly: \"膝盖 Knees\". Include this short bilingual sentence exactly: \"My knees can bend. 我的小膝盖会弯曲。\". Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: a close, natural baby pose in which the requested body part is unmistakably visible; use one restrained dotted arrow to that body part. Mandatory page-specific art direction: Dress the baby in soft mustard overalls with bare knees visible; show a stable crawling or kneeling play pose beside one small block. Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, warm cream, sage green, and soft apricot accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching simple body-part learning symbols. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.",
+      "hasCustomPrompt": false,
+      "reference": {
+        "filename": "reference-1784600564345.png",
+        "mimeType": "image/png",
+        "size": 2835676,
+        "originalName": "121a057f-46ed-495a-be6d-c732be24690c.png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/d278256f-103d-4019-8776-75c73f559945.svg",
+        "mimeType": "image/svg+xml",
+        "previewUrl": "/generated-images/d278256f-103d-4019-8776-75c73f559945.svg",
+        "thumbnailUrl": "/generated-images/d278256f-103d-4019-8776-75c73f559945.svg",
+        "originalImageUrl": "",
+        "provider": {
+          "id": "body-book-mock",
+          "name": "开发模拟",
+          "model": "mock"
+        },
+        "mode": "mock",
+        "previewWidth": null,
+        "previewHeight": null,
+        "thumbnailWidth": null,
+        "thumbnailHeight": null
+      },
+      "errorMessage": "",
+      "historyJobIds": []
     }
   ]
 }
