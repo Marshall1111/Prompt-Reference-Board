@@ -466,7 +466,7 @@ function AuthModal({ onAuthenticated, onClose, reloadOnLogin = true }) {
           {error ? <p className="error-note">{error}</p> : null}
           <div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={closeModal} type="button">暂不继承</button><button className="draw-card-primary" disabled={busy} onClick={finishAssetMerge} type="button">{busy ? "转移中" : "确认继承"}</button></div>
         </div> : <form className="draw-card-order-form" onSubmit={submit}>
-          {canUseWechatLogin && mode !== "reset" ? <button className="draw-card-secondary" disabled={busy} onClick={startWechatLogin} type="button">微信登录 / 注册</button> : null}
+          {canUseWechatLogin && mode !== "reset" ? <button className="draw-card-primary" disabled={busy} onClick={startWechatLogin} type="button">微信登录 / 注册</button> : null}
           <label className="field-label">邮箱<input autoComplete="email" onChange={(event) => setEmail(event.target.value)} type="email" value={email} /></label>
           {mode === "register" ? <label className="field-label">用户名<input autoComplete="username" maxLength="32" onChange={(event) => setUsername(event.target.value)} type="text" value={username} /></label> : null}
           <label className="field-label">{mode === "reset" ? "新密码" : "密码"}<input autoComplete={mode === "login" ? "current-password" : "new-password"} minLength="8" onChange={(event) => setPassword(event.target.value)} type="password" value={password} /></label>
