@@ -5820,3 +5820,696 @@ textarea {
   .body-book-content-panel-actions .draw-card-primary { width: 100%; justify-content: center; }
   .body-book-content-options { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Cognition-book claymorphism theme ---------------------------------------------------- */
+.body-book-page,
+.body-book-order-detail-page {
+  --body-book-clay-bg: #f4f1ff;
+  --body-book-clay-surface: #fdfcff;
+  --body-book-clay-surface-soft: #eeebff;
+  --body-book-clay-ink: #35304f;
+  --body-book-clay-muted: #696380;
+  --body-book-clay-primary: #6559d9;
+  --body-book-clay-primary-deep: #4e43bd;
+  --body-book-clay-border: #d6d0f3;
+  --body-book-clay-shadow: 9px 11px 24px rgba(94, 78, 149, 0.18), -7px -7px 18px rgba(255, 255, 255, 0.92), inset 1px 1px 0 rgba(255, 255, 255, 0.88);
+  --body-book-clay-shadow-pressed: inset 4px 4px 9px rgba(86, 70, 139, 0.17), inset -4px -4px 10px rgba(255, 255, 255, 0.9);
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 4% 5%, rgba(255, 210, 180, 0.58), transparent 24rem),
+    radial-gradient(circle at 96% 8%, rgba(185, 218, 255, 0.7), transparent 26rem),
+    radial-gradient(circle at 74% 92%, rgba(202, 242, 221, 0.58), transparent 28rem),
+    var(--body-book-clay-bg);
+  color: var(--body-book-clay-ink);
+  font-family: "Nunito", "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.body-book-page :is(h1, h2, h3, p, strong, span, small, label, button, a),
+.body-book-order-detail-page :is(h1, h2, h3, p, strong, span, small, label, button, a) {
+  color: var(--body-book-clay-ink);
+}
+
+.body-book-page :is(.body-book-header h1, .body-book-upload-copy h2, .body-book-status-row h2, .body-book-theme-head h2, .body-book-library-head h2, .body-book-order-list-head h1, .body-book-project-modal h2, .body-book-regenerate-panel h2, .body-book-library-panel-head h2),
+.body-book-order-detail-page :is(h2, h3) {
+  font-family: "Nunito", "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+
+.body-book-page :is(.body-book-kicker, .body-book-step, .body-book-wallet-label),
+.body-book-order-detail-page .eyebrow {
+  color: #7566c8;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+}
+
+.body-book-page :is(.body-book-header, .body-book-order-list-head, .body-book-library) {
+  border-color: rgba(126, 111, 183, 0.25);
+}
+
+.body-book-page :is(.body-book-header p:not(.body-book-kicker), .body-book-upload-copy p, .body-book-confirm-copy p, .body-book-progress, .body-book-theme-head p, .body-book-wallet-panel > p, .body-book-order-summary span, .body-book-order-summary small, .body-book-project-reference p, .body-book-batch-row p, .body-book-project-pages-head p, .body-book-content-panel-actions span, .body-book-bean-cost-note),
+.body-book-order-detail-page .storage-note {
+  color: var(--body-book-clay-muted);
+}
+
+.body-book-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button),
+.body-book-order-detail-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button) {
+  min-height: 44px;
+  border: 2px solid var(--body-book-clay-border);
+  border-radius: 18px;
+  background: linear-gradient(145deg, #ffffff, #e9e5ff);
+  color: #413960;
+  box-shadow: 5px 6px 12px rgba(94, 78, 149, 0.15), -3px -3px 8px rgba(255, 255, 255, 0.9), inset 1px 1px 0 rgba(255, 255, 255, 0.95);
+  font-weight: 900;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.body-book-page .draw-card-primary,
+.body-book-order-detail-page .draw-card-primary {
+  border-color: #584dcc;
+  background: linear-gradient(145deg, #8075f0, #5c50cf);
+  color: #ffffff;
+  box-shadow: 6px 8px 15px rgba(77, 65, 178, 0.3), -2px -2px 7px rgba(255, 255, 255, 0.55), inset 2px 2px 0 rgba(255, 255, 255, 0.22), inset -3px -3px 6px rgba(58, 45, 146, 0.2);
+}
+
+.body-book-page .draw-card-primary :is(span, strong),
+.body-book-order-detail-page .draw-card-primary :is(span, strong) {
+  color: #ffffff;
+}
+
+.body-book-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button):hover:not(:disabled),
+.body-book-order-detail-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button):hover:not(:disabled) {
+  border-color: #9c90ed;
+  background: linear-gradient(145deg, #ffffff, #dfd9ff);
+  box-shadow: 8px 10px 18px rgba(94, 78, 149, 0.2), -5px -5px 10px rgba(255, 255, 255, 0.95), inset 1px 1px 0 #ffffff;
+  transform: translateY(-2px);
+}
+
+.body-book-page .draw-card-primary:hover:not(:disabled),
+.body-book-order-detail-page .draw-card-primary:hover:not(:disabled) {
+  border-color: #4d42b9;
+  background: linear-gradient(145deg, #8a80f8, #5a4ecb);
+}
+
+.body-book-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button):active:not(:disabled),
+.body-book-order-detail-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button):active:not(:disabled) {
+  box-shadow: var(--body-book-clay-shadow-pressed);
+  transform: translateY(1px) scale(0.985);
+}
+
+.body-book-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button):disabled,
+.body-book-order-detail-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button):disabled {
+  border-color: #d9d5e8;
+  background: #e9e7f1;
+  box-shadow: none;
+  color: #8b869d;
+  opacity: 1;
+}
+
+.body-book-page :is(.body-book-wallet-panel, .body-book-theme-card, .body-book-item, .body-book-library-cover, .body-book-order-list-item, .body-book-project-reference, .body-book-batch-row, .body-book-project-pages-head, .body-book-content-panel, .body-book-project-modal, .body-book-regenerate-panel, .body-book-library-panel, .body-book-lightbox-panel),
+.body-book-order-detail-page :is(.draw-observability-card, .draw-observability-metric, .draw-card-order-item) {
+  border: 2px solid var(--body-book-clay-border);
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(234, 230, 255, 0.96));
+  box-shadow: var(--body-book-clay-shadow);
+}
+
+.body-book-page :is(.body-book-theme-card, .body-book-library-cover, .body-book-order-list-item, .body-book-batch-choice, .body-book-history-list button) {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.body-book-page :is(.body-book-theme-card, .body-book-library-cover, .body-book-order-list-item, .body-book-batch-choice, .body-book-history-list button):hover:not(:disabled) {
+  border-color: #a89cf1;
+  background: linear-gradient(145deg, #ffffff, #e2ddff);
+  box-shadow: 11px 13px 25px rgba(94, 78, 149, 0.22), -7px -7px 16px rgba(255, 255, 255, 0.9), inset 1px 1px 0 #ffffff;
+  transform: translateY(-3px);
+}
+
+.body-book-page :is(.body-book-theme-preview, .body-book-order-cover, .body-book-library-cover img, .body-book-item-media, .body-book-reference-picker img, .body-book-reference-empty, .body-book-project-upload, .body-book-checkout-preview-item, .body-book-page-reference) {
+  border: 2px solid #ded9f5;
+  border-radius: 16px;
+  background: #eeebfa;
+  box-shadow: inset 3px 3px 7px rgba(106, 93, 153, 0.13), inset -3px -3px 8px rgba(255, 255, 255, 0.9);
+}
+
+.body-book-page .body-book-theme-card,
+.body-book-page .body-book-library-cover {
+  padding: 14px;
+}
+
+.body-book-page .body-book-theme-card strong,
+.body-book-page .body-book-wallet-panel > strong {
+  color: #4e43bd;
+  font-family: "Nunito", "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 900;
+}
+
+.body-book-page :is(.body-book-theme-index, .body-book-theme-card small, .body-book-item-meta span, .body-book-library-cover small, .body-book-reference-picker small, .body-book-page-prompt small, .body-book-page-reference, .body-book-history-list small) {
+  color: var(--body-book-clay-muted);
+}
+
+.body-book-page .body-book-upload,
+.body-book-page :is(.body-book-add-page, .body-book-add-page-card) {
+  border: 2px dashed #a79aeb;
+  border-radius: 24px;
+  background: linear-gradient(145deg, #fbfaff, #e6e1ff);
+  box-shadow: var(--body-book-clay-shadow);
+  color: #5549bb;
+}
+
+.body-book-page .body-book-upload:hover,
+.body-book-page :is(.body-book-add-page, .body-book-add-page-card):hover:not(:disabled) {
+  border-color: #6e61d5;
+  background: linear-gradient(145deg, #ffffff, #ddd7ff);
+}
+
+.body-book-page .body-book-item-meta,
+.body-book-page .body-book-page-prompt {
+  border-color: #e1dcf5;
+}
+
+.body-book-page :is(.body-book-placeholder, .body-book-library-placeholder, .body-book-history-placeholder) {
+  border-radius: 16px;
+  background: #ece9fb;
+  color: #675d8c;
+}
+
+.body-book-page .body-book-item.is-failed .body-book-placeholder {
+  background: #fff0f0;
+  color: #a2474e;
+}
+
+.body-book-page :is(.body-book-wallet-field input, .body-book-page-prompt textarea, .body-book-prompt-editor textarea, .draw-card-order-form input, .draw-card-order-form textarea),
+.body-book-order-detail-page :is(.draw-card-order-form input, .draw-card-order-form textarea) {
+  border: 2px solid #d8d2ef;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 3px 3px 7px rgba(98, 82, 145, 0.12), inset -3px -3px 7px rgba(255, 255, 255, 0.86);
+  color: var(--body-book-clay-ink);
+}
+
+.body-book-page :is(.body-book-wallet-field input, .body-book-page-prompt textarea, .body-book-prompt-editor textarea, .draw-card-order-form input, .draw-card-order-form textarea):focus,
+.body-book-order-detail-page :is(.draw-card-order-form input, .draw-card-order-form textarea):focus {
+  outline: 3px solid rgba(101, 89, 217, 0.28);
+  outline-offset: 2px;
+  border-color: #776ce0;
+}
+
+.body-book-page :is(.body-book-checkout-preview-item, .draw-card-order-summary, .body-book-checkout-blocked, .manual-payment-guide, .native-payment-panel),
+.body-book-order-detail-page :is(.manual-payment-guide, .native-payment-panel) {
+  border: 2px solid var(--body-book-clay-border);
+  border-radius: 18px;
+  background: linear-gradient(145deg, #ffffff, #ebe7ff);
+  box-shadow: 5px 6px 14px rgba(94, 78, 149, 0.13), -4px -4px 10px rgba(255, 255, 255, 0.84), inset 1px 1px 0 #ffffff;
+}
+
+.body-book-page .body-book-checkout-blocked {
+  border-color: #ebc487;
+  background: linear-gradient(145deg, #fffaf0, #fff0cf);
+  color: #7e5120;
+}
+
+.body-book-page :is(.body-book-bean-modal, .body-book-referral-modal, .body-book-delete-confirm, .body-book-balance-insufficient-panel, .draw-card-confirm-panel.body-book-contact-panel) {
+  border: 2px solid var(--body-book-clay-border);
+  border-radius: 26px;
+  background: linear-gradient(145deg, #ffffff, #ece8ff);
+  box-shadow: 15px 18px 44px rgba(66, 52, 120, 0.28), -8px -8px 22px rgba(255, 255, 255, 0.8), inset 1px 1px 0 #ffffff;
+}
+
+.body-book-page .modal-backdrop {
+  background: rgba(48, 42, 81, 0.42);
+  backdrop-filter: blur(7px);
+}
+
+.body-book-page :is(.body-book-bean-modal h2, .body-book-referral-modal h2, .body-book-delete-confirm h2, .body-book-balance-insufficient-panel h2, .body-book-contact-panel .draw-card-contact-copy h3) {
+  color: #4439a5;
+  font-family: "Nunito", "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 900;
+}
+
+.body-book-page :is(.credit-pack-button, .body-book-batch-choice, .body-book-history-list button, .body-book-content-options label) {
+  border: 2px solid #d8d2ef;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #ffffff, #ebe7ff);
+  box-shadow: 4px 5px 10px rgba(94, 78, 149, 0.12), inset 1px 1px 0 #ffffff;
+  color: var(--body-book-clay-ink);
+}
+
+.body-book-page :is(.body-book-order-delete, .body-book-library-delete, .danger-button) {
+  min-height: 40px;
+  border: 2px solid #ecafb0;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #fffafa, #ffe5e5);
+  color: #a23f4b;
+  box-shadow: 3px 4px 9px rgba(158, 60, 70, 0.13), inset 1px 1px 0 #ffffff;
+}
+
+.body-book-page :is(.body-book-order-delete, .body-book-library-delete, .danger-button):hover:not(:disabled) {
+  border-color: #d56e78;
+  background: #ffdfe2;
+  color: #852d38;
+}
+
+.body-book-page .icon-button {
+  border: 2px solid #d7d1ef;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #ffffff, #ebe7ff);
+  color: #544a81;
+  box-shadow: 3px 4px 8px rgba(94, 78, 149, 0.14), inset 1px 1px 0 #ffffff;
+}
+
+.body-book-page .task-status,
+.body-book-order-detail-page .task-status {
+  min-height: 32px;
+  border: 1px solid rgba(114, 101, 186, 0.2);
+  border-radius: 999px;
+  box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.72);
+}
+
+.body-book-order-detail-page .workspace {
+  width: min(1120px, calc(100% - 40px));
+}
+
+.body-book-order-detail-page :is(.task-toolbar, .task-actions) {
+  border-color: rgba(126, 111, 183, 0.25);
+}
+
+.body-book-order-detail-page .draw-observability-grid {
+  gap: 16px;
+}
+
+.body-book-order-detail-page .draw-observability-metric span {
+  color: #5145b5;
+  font-weight: 900;
+}
+
+.body-book-order-detail-page .draw-card-order-item img,
+.body-book-order-detail-page .draw-card-order-item-placeholder {
+  border: 2px solid #ded9f5;
+  border-radius: 14px;
+  background: #eeebfa;
+}
+
+.body-book-page :is(button, a):focus-visible,
+.body-book-order-detail-page :is(button, a):focus-visible {
+  outline: 3px solid #7569df;
+  outline-offset: 3px;
+}
+
+@media (max-width: 680px) {
+  .body-book-page { padding: 16px; }
+  .body-book-page :is(.body-book-wallet-panel, .body-book-content-panel, .body-book-project-modal, .body-book-regenerate-panel, .body-book-library-panel) { border-radius: 20px; }
+  .body-book-page .body-book-theme-card { padding: 11px; }
+  .body-book-order-detail-page .workspace { width: min(100% - 28px, 1120px); }
+  .body-book-order-detail-page .draw-observability-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .body-book-page *,
+  .body-book-order-detail-page * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Cognition-book Apple-style visual system --------------------------------------------- */
+.body-book-page,
+.body-book-order-detail-page {
+  --body-book-apple-bg: #f5f5f7;
+  --body-book-apple-surface: #ffffff;
+  --body-book-apple-ink: #1d1d1f;
+  --body-book-apple-muted: #6e6e73;
+  --body-book-apple-blue: #0071e3;
+  --body-book-apple-blue-hover: #0077ed;
+  --body-book-apple-border: rgba(0, 0, 0, 0.08);
+  min-height: 100dvh;
+  background: linear-gradient(180deg, #fbfbfd 0, var(--body-book-apple-bg) 42rem);
+  color: var(--body-book-apple-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.body-book-page :is(h1, h2, h3, p, strong, span, small, label, button, a),
+.body-book-order-detail-page :is(h1, h2, h3, p, strong, span, small, label, button, a) {
+  color: var(--body-book-apple-ink);
+}
+
+.body-book-page :is(.body-book-header h1, .body-book-upload-copy h2, .body-book-status-row h2, .body-book-theme-head h2, .body-book-library-head h2, .body-book-order-list-head h1, .body-book-project-modal h2, .body-book-regenerate-panel h2, .body-book-library-panel-head h2),
+.body-book-order-detail-page :is(h2, h3) {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.028em;
+}
+
+.body-book-page :is(.body-book-kicker, .body-book-step, .body-book-wallet-label),
+.body-book-order-detail-page .eyebrow {
+  color: var(--body-book-apple-blue);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.body-book-page :is(.body-book-header, .body-book-order-list-head, .body-book-library),
+.body-book-order-detail-page :is(.task-toolbar, .task-actions) {
+  border-color: var(--body-book-apple-border);
+}
+
+.body-book-page :is(.body-book-header p:not(.body-book-kicker), .body-book-upload-copy p, .body-book-confirm-copy p, .body-book-progress, .body-book-theme-head p, .body-book-wallet-panel > p, .body-book-order-summary span, .body-book-order-summary small, .body-book-project-reference p, .body-book-batch-row p, .body-book-project-pages-head p, .body-book-content-panel-actions span, .body-book-bean-cost-note),
+.body-book-order-detail-page .storage-note {
+  color: var(--body-book-apple-muted);
+}
+
+.body-book-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button),
+.body-book-order-detail-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button) {
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: #e8e8ed;
+  color: var(--body-book-apple-ink);
+  box-shadow: none;
+  font-weight: 500;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease, opacity 180ms ease;
+}
+
+.body-book-page .draw-card-primary,
+.body-book-order-detail-page .draw-card-primary {
+  background: var(--body-book-apple-blue);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.body-book-page .draw-card-primary :is(span, strong),
+.body-book-order-detail-page .draw-card-primary :is(span, strong) {
+  color: #ffffff;
+}
+
+.body-book-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button):hover:not(:disabled),
+.body-book-order-detail-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button):hover:not(:disabled) {
+  border-color: transparent;
+  background: #dcdce1;
+  box-shadow: none;
+  transform: none;
+}
+
+.body-book-page .draw-card-primary:hover:not(:disabled),
+.body-book-order-detail-page .draw-card-primary:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--body-book-apple-blue-hover);
+}
+
+.body-book-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button):active:not(:disabled),
+.body-book-order-detail-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button):active:not(:disabled) {
+  box-shadow: none;
+  transform: scale(0.98);
+}
+
+.body-book-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button):disabled,
+.body-book-order-detail-page :is(.draw-card-primary, .draw-card-secondary, .draw-card-save-button, .secondary-button):disabled {
+  background: #e8e8ed;
+  color: #86868b;
+  box-shadow: none;
+  opacity: 0.62;
+}
+
+.body-book-page .body-book-header-actions > .draw-card-secondary,
+.body-book-page .body-book-header-actions .body-book-account-button,
+.body-book-page .body-book-header-actions .body-book-header-balance {
+  min-height: 38px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  font-size: 13px;
+}
+
+.body-book-page .body-book-header-actions > .draw-card-secondary:hover:not(:disabled),
+.body-book-page .body-book-header-actions .body-book-account-button:hover:not(:disabled),
+.body-book-page .body-book-header-actions .body-book-header-balance:hover:not(:disabled) {
+  border-color: rgba(0, 0, 0, 0.12);
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
+}
+
+.body-book-page .body-book-header-balance {
+  min-width: 76px;
+}
+
+.body-book-page :is(.body-book-wallet-panel, .body-book-theme-card, .body-book-item, .body-book-library-cover, .body-book-order-list-item, .body-book-project-reference, .body-book-batch-row, .body-book-project-pages-head, .body-book-content-panel, .body-book-project-modal, .body-book-regenerate-panel, .body-book-library-panel, .body-book-lightbox-panel),
+.body-book-order-detail-page :is(.draw-observability-card, .draw-observability-metric, .draw-card-order-item) {
+  border: 1px solid var(--body-book-apple-border);
+  border-radius: 20px;
+  background: var(--body-book-apple-surface);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.035);
+}
+
+.body-book-page .body-book-content-panel .body-book-project-pages-head {
+  padding: 20px;
+}
+
+.body-book-page .body-book-content-panel-actions {
+  justify-content: flex-end;
+}
+
+.body-book-page .body-book-checkout-modal .draw-card-order-summary {
+  padding: 20px;
+}
+
+.body-book-page .body-book-checkout-modal .draw-card-confirm-actions {
+  margin-top: 24px;
+}
+
+.body-book-page .body-book-content-panel-order-actions .draw-card-secondary {
+  border: 1px solid rgba(0, 113, 227, 0.22);
+  background: #ffffff;
+  color: var(--body-book-apple-blue);
+}
+
+.body-book-page .body-book-content-panel-order-actions .draw-card-secondary span {
+  color: var(--body-book-apple-blue);
+}
+
+.body-book-page .body-book-content-panel-order-actions .draw-card-secondary:hover:not(:disabled) {
+  border-color: rgba(0, 113, 227, 0.35);
+  background: #f0f7ff;
+}
+
+.body-book-page .body-book-library-item {
+  position: relative;
+}
+
+.body-book-page .body-book-library-delete.icon-button {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #6e6e73;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.body-book-page .body-book-library-delete.icon-button:hover:not(:disabled) {
+  border-color: rgba(215, 0, 21, 0.2);
+  background: #fff0f0;
+  color: #d70015;
+}
+
+.body-book-page :is(.body-book-theme-card, .body-book-library-cover, .body-book-order-list-item, .body-book-batch-choice, .body-book-history-list button) {
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease, background 180ms ease;
+}
+
+.body-book-page :is(.body-book-theme-card, .body-book-library-cover, .body-book-order-list-item, .body-book-batch-choice, .body-book-history-list button):hover:not(:disabled) {
+  border-color: rgba(0, 113, 227, 0.34);
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.body-book-page .body-book-theme-card,
+.body-book-page .body-book-library-cover {
+  padding: 14px;
+}
+
+.body-book-page :is(.body-book-theme-preview, .body-book-order-cover, .body-book-library-cover img, .body-book-item-media, .body-book-reference-picker img, .body-book-reference-empty, .body-book-project-upload, .body-book-checkout-preview-item, .body-book-page-reference) {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 14px;
+  background: #f5f5f7;
+  box-shadow: none;
+}
+
+.body-book-page .body-book-theme-card strong,
+.body-book-page .body-book-wallet-panel > strong {
+  color: var(--body-book-apple-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+}
+
+.body-book-page :is(.body-book-theme-index, .body-book-theme-card small, .body-book-item-meta span, .body-book-library-cover small, .body-book-reference-picker small, .body-book-page-prompt small, .body-book-page-reference, .body-book-history-list small) {
+  color: var(--body-book-apple-muted);
+}
+
+.body-book-page .body-book-upload,
+.body-book-page :is(.body-book-add-page, .body-book-add-page-card) {
+  border: 1px dashed #a1a1a6;
+  border-radius: 20px;
+  background: #fbfbfd;
+  box-shadow: none;
+  color: var(--body-book-apple-blue);
+}
+
+.body-book-page .body-book-upload:hover,
+.body-book-page :is(.body-book-add-page, .body-book-add-page-card):hover:not(:disabled) {
+  border-color: var(--body-book-apple-blue);
+  background: #f0f7ff;
+}
+
+.body-book-page .body-book-item-meta,
+.body-book-page .body-book-page-prompt {
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+.body-book-page :is(.body-book-placeholder, .body-book-library-placeholder, .body-book-history-placeholder) {
+  border-radius: 14px;
+  background: #f5f5f7;
+  color: #6e6e73;
+}
+
+.body-book-page .body-book-item.is-failed .body-book-placeholder {
+  background: #fff2f0;
+  color: #b42318;
+}
+
+.body-book-page :is(.body-book-wallet-field input, .body-book-page-prompt textarea, .body-book-prompt-editor textarea, .draw-card-order-form input, .draw-card-order-form textarea),
+.body-book-order-detail-page :is(.draw-card-order-form input, .draw-card-order-form textarea) {
+  min-height: 44px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: none;
+  color: var(--body-book-apple-ink);
+}
+
+.body-book-page :is(.body-book-wallet-field input, .body-book-page-prompt textarea, .body-book-prompt-editor textarea, .draw-card-order-form input, .draw-card-order-form textarea):focus,
+.body-book-order-detail-page :is(.draw-card-order-form input, .draw-card-order-form textarea):focus {
+  outline: 3px solid rgba(0, 113, 227, 0.22);
+  outline-offset: 1px;
+  border-color: var(--body-book-apple-blue);
+}
+
+.body-book-page :is(.body-book-checkout-preview-item, .draw-card-order-summary, .body-book-checkout-blocked, .manual-payment-guide, .native-payment-panel),
+.body-book-order-detail-page :is(.manual-payment-guide, .native-payment-panel) {
+  border: 1px solid var(--body-book-apple-border);
+  border-radius: 16px;
+  background: #fbfbfd;
+  box-shadow: none;
+}
+
+.body-book-page .body-book-checkout-blocked {
+  border-color: #f1c27d;
+  background: #fff8e8;
+  color: #7a4f01;
+}
+
+.body-book-page :is(.body-book-bean-modal, .body-book-referral-modal, .body-book-delete-confirm, .body-book-balance-insufficient-panel, .draw-card-confirm-panel.body-book-contact-panel) {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
+}
+
+.body-book-page .modal-backdrop {
+  background: rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(14px) saturate(1.05);
+}
+
+.body-book-page :is(.body-book-bean-modal h2, .body-book-referral-modal h2, .body-book-delete-confirm h2, .body-book-balance-insufficient-panel h2, .body-book-contact-panel .draw-card-contact-copy h3) {
+  color: var(--body-book-apple-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+}
+
+.body-book-page :is(.credit-pack-button, .body-book-batch-choice, .body-book-history-list button, .body-book-content-options label) {
+  border: 1px solid var(--body-book-apple-border);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: none;
+  color: var(--body-book-apple-ink);
+}
+
+.body-book-page :is(.body-book-order-delete, .body-book-library-delete, .danger-button) {
+  min-height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff0f0;
+  color: #d70015;
+  box-shadow: none;
+}
+
+.body-book-page :is(.body-book-order-delete, .body-book-library-delete, .danger-button):hover:not(:disabled) {
+  border-color: transparent;
+  background: #ffdede;
+  color: #b00012;
+}
+
+.body-book-page .icon-button {
+  border: 0;
+  border-radius: 999px;
+  background: #f0f0f2;
+  color: #3a3a3c;
+  box-shadow: none;
+}
+
+.body-book-page .icon-button:hover:not(:disabled) {
+  background: #e2e2e7;
+}
+
+.body-book-page .task-status,
+.body-book-order-detail-page .task-status {
+  min-height: 30px;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  font-weight: 600;
+}
+
+.body-book-order-detail-page .workspace {
+  width: min(1120px, calc(100% - 40px));
+}
+
+.body-book-order-detail-page .draw-observability-grid {
+  gap: 16px;
+}
+
+.body-book-order-detail-page .draw-observability-metric span {
+  color: var(--body-book-apple-ink);
+  font-weight: 600;
+}
+
+.body-book-order-detail-page .draw-card-order-item img,
+.body-book-order-detail-page .draw-card-order-item-placeholder {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  background: #f5f5f7;
+}
+
+.body-book-page :is(button, a):focus-visible,
+.body-book-order-detail-page :is(button, a):focus-visible {
+  outline: 3px solid rgba(0, 113, 227, 0.7);
+  outline-offset: 3px;
+}
+
+@media (max-width: 680px) {
+  .body-book-page { padding: 16px; }
+  .body-book-page :is(.body-book-wallet-panel, .body-book-content-panel, .body-book-project-modal, .body-book-regenerate-panel, .body-book-library-panel) { border-radius: 18px; }
+  .body-book-page .body-book-theme-card { padding: 11px; }
+  .body-book-order-detail-page .workspace { width: min(100% - 28px, 1120px); }
+  .body-book-order-detail-page .draw-observability-grid { grid-template-columns: minmax(0, 1fr); }
+}
