@@ -97,6 +97,24 @@ const DRAW_CARD_SUBJECT_OPTIONS = [
   { value: "other", label: "其他" }
 ];
 const DRAW_CARD_COUNT_OPTIONS = [1, 2, 4];
+const SHIPPING_CARRIER_OPTIONS = [
+  { value: "shunfeng", label: "顺丰速运" },
+  { value: "zhongtong", label: "中通快递" },
+  { value: "yuantong", label: "圆通速递" },
+  { value: "shentong", label: "申通快递" },
+  { value: "yunda", label: "韵达快递" },
+  { value: "jtexpress", label: "极兔速递" },
+  { value: "jingdong", label: "京东快递" },
+  { value: "debangwuliu", label: "德邦快递" },
+  { value: "baishiwuliu", label: "百世快递" },
+  { value: "ems", label: "EMS" },
+  { value: "youzhengguonei", label: "中国邮政速递物流" },
+  { value: "zhaijisong", label: "宅急送" },
+  { value: "dhl", label: "DHL" },
+  { value: "fedex", label: "FedEx" },
+  { value: "ups", label: "UPS" },
+  { value: "tnt", label: "TNT" }
+];
 
 function getSizeLabel(size) {
   return GENERATION_SIZE_OPTIONS.find((option) => option.value === size)?.label || size || DEFAULT_GENERATION_SIZE;
@@ -2528,6 +2546,7 @@ function FridgeMagnetOrderPage() {
   const paymentRefreshTimeoutRef = useRef(null);
   const payableCents = Number(order?.payableCents ?? order?.totalCents ?? 0);
   const orderItems = Array.isArray(order?.items) ? order.items : [];
+  const shipmentTrackingUrl = buildShipmentTrackingUrl(order?.shippingCarrier, order?.shippingTrackingNo);
 
   useEffect(() => {
     return () => {
@@ -2634,9 +2653,11 @@ function FridgeMagnetOrderPage() {
   }
 
   function handleQueryShipment() {
-    const trackingNo = String(order?.shippingTrackingNo || "").trim();
-    if (!trackingNo) return;
-    window.open(buildShipmentTrackingUrl(trackingNo), "_blank", "noopener,noreferrer");
+    if (!shipmentTrackingUrl) {
+      setError("该订单的快递公司或单号不完整，请联系客服。");
+      return;
+    }
+    window.location.assign(shipmentTrackingUrl);
   }
 
   return (
@@ -2742,9 +2763,9 @@ function FridgeMagnetOrderPage() {
             {order.shippingTrackingNo ? (
               <article className="draw-observability-card">
                 <h3>物流信息</h3>
-                <p className="storage-note">{order.shippingCarrier || "快递"} · {order.shippingTrackingNo}</p>
+                <p className="storage-note">{order.shippingCarrierName || "快递"} · {order.shippingTrackingNo}</p>
                 <div className="task-actions">
-                  <button className="secondary-button" onClick={handleQueryShipment} type="button">
+                  <button className="secondary-button" disabled={!shipmentTrackingUrl} onClick={handleQueryShipment} type="button">
                     <Search size={18} />
                     <span>查询物流</span>
                   </button>
@@ -8367,7 +8388,10 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
             <div className="form-grid">
               <label className="field-label">
                 快递公司
-                <input onChange={(event) => setShippingCarrier(event.target.value)} placeholder="例如：顺丰速运" value={shippingCarrier} />
+                <select onChange={(event) => setShippingCarrier(event.target.value)} value={shippingCarrier}>
+                  <option value="">请选择快递公司</option>
+                  {SHIPPING_CARRIER_OPTIONS.map((carrier) => <option key={carrier.value} value={carrier.value}>{carrier.label}</option>)}
+                </select>
               </label>
               <label className="field-label">
                 运单号
@@ -8385,7 +8409,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
                   <span>确认已收款</span>
                 </button>
               ) : null}
-              <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, shippingCarrier, shippingTrackingNo, orderStatus: "shipped" })} type="button">
+              <button className="secondary-button" disabled={isBusy || !shippingCarrier || !shippingTrackingNo.trim()} onClick={() => updateOrderStatus({ adminRemark, shippingCarrier, shippingTrackingNo, orderStatus: "shipped" })} type="button">
                 <span>标记已发货</span>
               </button>
               <button className="secondary-button" onClick={() => updateOrderStatus({ adminRemark, shippingCarrier, shippingTrackingNo, orderStatus: "completed" })} type="button">
@@ -9709,9 +9733,13 @@ function openImageSource(source) {
   window.open(source, "_blank", "noopener,noreferrer");
 }
 
-function buildShipmentTrackingUrl(trackingNo) {
+function buildShipmentTrackingUrl(carrierCode, trackingNo) {
+  const safeCarrierCode = String(carrierCode || "").trim();
+  const safeTrackingNo = String(trackingNo || "").trim();
+  if (!safeCarrierCode || !safeTrackingNo) return "";
   const url = new URL("https://www.kuaidi100.com/query");
-  url.searchParams.set("postid", String(trackingNo || "").trim());
+  url.searchParams.set("com", safeCarrierCode);
+  url.searchParams.set("nu", safeTrackingNo);
   return url.toString();
 }
 

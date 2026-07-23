@@ -102,6 +102,24 @@ const ORDER_PAYMENT_STATUS_VALUES = new Set(["unpaid", "paid", "failed", "expire
 const ORDER_FULFILLMENT_STATUS_VALUES = new Set(["new", "in_production", "shipped", "completed", "cancelled"]);
 const ORDER_PAYMENT_MODE_VALUES = new Set(["manual", "wechat"]);
 const ORDER_STATUS_VALUES = new Set(["pending_payment", "pending_shipment", "shipped", "completed", "cancelled", "expired"]);
+const SHIPPING_CARRIER_OPTIONS = [
+  { code: "shunfeng", name: "顺丰速运", aliases: ["顺丰", "顺丰快递"] },
+  { code: "zhongtong", name: "中通快递", aliases: ["中通"] },
+  { code: "yuantong", name: "圆通速递", aliases: ["圆通", "圆通快递"] },
+  { code: "shentong", name: "申通快递", aliases: ["申通"] },
+  { code: "yunda", name: "韵达快递", aliases: ["韵达"] },
+  { code: "jtexpress", name: "极兔速递", aliases: ["极兔", "极兔快递"] },
+  { code: "jingdong", name: "京东快递", aliases: ["京东", "京东物流"] },
+  { code: "debangwuliu", name: "德邦快递", aliases: ["德邦", "德邦物流"] },
+  { code: "baishiwuliu", name: "百世快递", aliases: ["百世", "百世物流"] },
+  { code: "ems", name: "EMS", aliases: ["邮政ems"] },
+  { code: "youzhengguonei", name: "中国邮政速递物流", aliases: ["中国邮政", "邮政", "邮政快递"] },
+  { code: "zhaijisong", name: "宅急送", aliases: [] },
+  { code: "dhl", name: "DHL", aliases: [] },
+  { code: "fedex", name: "FedEx", aliases: [] },
+  { code: "ups", name: "UPS", aliases: [] },
+  { code: "tnt", name: "TNT", aliases: [] }
+];
 const BACKUP_KIND_CONFIG = "config-snapshot";
 const BACKUP_KIND_IMAGE_RANGE = "image-range-zip";
 const ADMIN_DRAW_CARD_SESSION_LIMIT = 3;
@@ -3069,7 +3087,9 @@ app.patch("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
       patch.adminRemark = String(req.body.adminRemark || "").trim();
     }
     if (req.body?.shippingCarrier !== undefined) {
-      patch.shippingCarrier = String(req.body.shippingCarrier || "").trim().slice(0, 80);
+      const shippingCarrier = normalizeShippingCarrierCode(req.body.shippingCarrier);
+      if (req.body.shippingCarrier && !shippingCarrier) throw createHttpError(400, "请选择支持的快递公司。");
+      patch.shippingCarrier = shippingCarrier;
     }
     if (req.body?.shippingTrackingNo !== undefined) {
       patch.shippingTrackingNo = String(req.body.shippingTrackingNo || "").trim().slice(0, 120);
@@ -6275,6 +6295,19 @@ function getWechatConfig() {
   };
 }
 
+function normalizeShippingCarrierCode(value) {
+  const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
+  if (!normalized) return "";
+  return SHIPPING_CARRIER_OPTIONS.find((carrier) =>
+    carrier.code === normalized || carrier.aliases.some((alias) => alias.toLowerCase() === normalized)
+  )?.code || "";
+}
+
+function getShippingCarrierName(value) {
+  const carrierCode = normalizeShippingCarrierCode(value);
+  return SHIPPING_CARRIER_OPTIONS.find((carrier) => carrier.code === carrierCode)?.name || "";
+}
+
 function normalizePem(value) {
   return String(value || "").trim().replace(/\\n/g, "\n");
 }
@@ -6906,6 +6939,7 @@ function toPublicOrder(order, options = {}) {
     items: Array.isArray(order.items) ? order.items : [],
     paymentEvents: Array.isArray(order.paymentEvents) ? order.paymentEvents : []
   };
+  const shippingCarrier = normalizeShippingCarrierCode(safeOrder.shippingCarrier);
   return {
     id: safeOrder.id,
     orderNo: safeOrder.orderNo,
@@ -6939,7 +6973,8 @@ function toPublicOrder(order, options = {}) {
     expiresAt: safeOrder.expiresAt,
     paidAt: safeOrder.paidAt,
     shippedAt: safeOrder.shippedAt,
-    shippingCarrier: safeOrder.shippingCarrier,
+    shippingCarrier,
+    shippingCarrierName: getShippingCarrierName(shippingCarrier),
     shippingTrackingNo: safeOrder.shippingTrackingNo,
     completedAt: safeOrder.completedAt,
     cancelledAt: safeOrder.cancelledAt,
