@@ -2625,6 +2625,12 @@ function FridgeMagnetOrderPage() {
     contactCopiedTimeoutRef.current = window.setTimeout(() => setContactCopied(false), 1600);
   }
 
+  function handleQueryShipment() {
+    const trackingNo = String(order?.shippingTrackingNo || "").trim();
+    if (!trackingNo) return;
+    window.open(buildShipmentTrackingUrl(trackingNo), "_blank", "noopener,noreferrer");
+  }
+
   return (
     <main className={`app-shell${isBodyBookOrder ? " body-book-order-detail-page" : ""}`}>
       <section className="workspace order-page">
@@ -2729,6 +2735,12 @@ function FridgeMagnetOrderPage() {
               <article className="draw-observability-card">
                 <h3>物流信息</h3>
                 <p className="storage-note">{order.shippingCarrier || "快递"} · {order.shippingTrackingNo}</p>
+                <div className="task-actions">
+                  <button className="secondary-button" onClick={handleQueryShipment} type="button">
+                    <Search size={18} />
+                    <span>查询物流</span>
+                  </button>
+                </div>
               </article>
             ) : null}
 
@@ -9686,6 +9698,12 @@ async function deleteImageJob(jobId) {
 function openImageSource(source) {
   if (!source) return;
   window.open(source, "_blank", "noopener,noreferrer");
+}
+
+function buildShipmentTrackingUrl(trackingNo) {
+  const url = new URL("https://www.kuaidi100.com/query");
+  url.searchParams.set("postid", String(trackingNo || "").trim());
+  return url.toString();
 }
 
 function openAdminJobResult(jobId) {
