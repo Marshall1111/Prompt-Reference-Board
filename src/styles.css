@@ -123,7 +123,19 @@ body {
   display: flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: 10px;
+  gap: 6px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.body-book-header-actions > .draw-card-secondary,
+.body-book-header-actions .body-book-account-button,
+.body-book-header-actions .body-book-header-balance {
+  min-height: 38px;
+  padding: 0 10px;
+  gap: 5px;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .body-book-user-area {
@@ -131,23 +143,26 @@ body {
 }
 
 .body-book-account-button {
-  min-width: 110px;
+  min-width: 0;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .body-book-header-balance {
   align-items: baseline;
   gap: 5px;
-  min-width: 112px;
+  min-width: 80px;
   cursor: pointer;
 }
 
 .body-book-header-balance span {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
 }
 
 .body-book-header-balance strong {
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
 }
 
@@ -1111,7 +1126,7 @@ body {
 @media (max-width: 860px) {
   .body-book-page { padding: 20px; }
   .body-book-header { align-items: flex-start; flex-direction: column; }
-  .body-book-header-actions { width: 100%; justify-content: space-between; }
+  .body-book-header-actions { width: 100%; justify-content: flex-start; }
   .body-book-header h1 { font-size: 34px; }
   .body-book-status-row { align-items: flex-start; flex-direction: column; }
   .body-book-page-actions { justify-content: flex-start; }

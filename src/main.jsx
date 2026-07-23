@@ -1264,7 +1264,7 @@ function LegacyBodyBookPage() {
           <div className="body-book-status-row">
             <div><span className="body-book-step">{isCoverReview ? "02" : "03"}</span><h2>{isCoverReview ? "确认封面效果" : isGenerating ? session.message : "认知书成品"}</h2></div>
             <div className="body-book-page-actions">
-              <button className="draw-card-secondary" onClick={restart} type="button"><Home size={17} /><span>返回主页</span></button>
+              <button className="draw-card-secondary" onClick={restart} type="button"><Home size={17} /><span>主页</span></button>
               <button className="draw-card-secondary" disabled={!canDownloadAll || isSavingBook} onClick={saveBook} type="button"><Save size={17} /><span>{isSavingBook ? "保存中" : session?.savedAt ? "已保存全书" : "保存全书"}</span></button>
             </div>
           </div>
@@ -1987,7 +1987,7 @@ function BodyBookPage() {
       <header className="body-book-header">
         <div><p className="body-book-kicker">Baby learning book</p><h1>{activeTheme?.englishName || "My First Book"}</h1><p>{activeTheme ? `正在制作：${activeTheme.name}` : "选择主题后，自由组合页面并持续编辑。"}</p></div>
         <div className="body-book-header-actions">
-          {!home ? <button className="draw-card-secondary body-book-back-to-themes" disabled={busy} onClick={backToHome} type="button"><Home size={17} /><span>返回主页</span></button> : null}
+          {!home ? <button className="draw-card-secondary body-book-back-to-themes" disabled={busy} onClick={backToHome} type="button"><Home size={17} /><span>主页</span></button> : null}
           <button className="draw-card-secondary body-book-header-balance" onClick={() => setShowBeanInfo(true)} type="button"><span>余额</span><strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong><span>豆</span></button>
           {home && bodyBookOrders.length ? <button className="draw-card-secondary" onClick={() => window.location.assign("/book/orders")} type="button">我的订单</button> : null}
           <div className="body-book-user-area" ref={userMenuRef}><button className="draw-card-secondary body-book-account-button" onClick={() => visitorState?.account?.isRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)} type="button">{visitorState?.account?.isRegistered ? (visitorState.account.username || "我的账户") : "登录 / 注册"}</button>{showUserMenu ? <div className="body-book-user-menu">{bodyBookOrders.length ? <button onClick={() => window.location.assign("/book/orders")} type="button">我的订单</button> : null}<button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}</div>
@@ -2235,7 +2235,7 @@ function BodyBookOrdersPage() {
           </div>
           <button className="draw-card-secondary" onClick={() => window.location.assign("/book")} type="button">
             <Home size={17} />
-            <span>返回主页</span>
+            <span>主页</span>
           </button>
         </div>
         {isLoading ? <p className="body-book-library-empty">正在读取订单列表…</p> : null}
