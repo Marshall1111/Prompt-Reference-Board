@@ -360,6 +360,7 @@ function AuthModal({ onAuthenticated, onClose, reloadOnLogin = true }) {
   const [pendingAccount, setPendingAccount] = useState(null);
   const [mergeClip, setMergeClip] = useState(true);
   const [mergeBodyBooks, setMergeBodyBooks] = useState(true);
+  const canUseWechatLogin = /MicroMessenger/i.test(window.navigator.userAgent);
 
   useEffect(() => {
     if (!resendSeconds) return undefined;
@@ -447,19 +448,25 @@ function AuthModal({ onAuthenticated, onClose, reloadOnLogin = true }) {
     onClose();
   }
 
+  function startWechatLogin() {
+    const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.assign(`/api/auth/wechat/authorize?returnTo=${encodeURIComponent(returnTo)}`);
+  }
+
   return (
     <div className="modal-backdrop draw-card-confirm" onClick={closeModal} role="presentation">
       <section className="draw-card-confirm-panel auth-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="账户登录与注册">
         <button className="icon-button" onClick={closeModal} type="button" aria-label="关闭账户弹窗"><X size={18} /></button>
         <p className="draw-card-kicker">Account</p>
         <h2>{mode === "merge" ? "继承访客内容" : mode === "login" ? "登录" : mode === "register" ? "注册账户" : "找回密码"}</h2>
-        <p className="storage-note">{mode === "merge" ? "请选择要转入当前账户的访客内容。币和豆豆不会合并或重置。" : "访客可继续生图和加入卡夹；提交定制订单前需要完成邮箱注册。"}</p>
+        <p className="storage-note">{mode === "merge" ? "请选择要转入当前账户的访客内容。币和豆豆不会合并或重置。" : canUseWechatLogin ? "在微信内可使用微信一键登录或注册；也可继续使用邮箱账户。" : "访客可继续生图和加入卡夹；提交定制订单前需要完成注册。"}</p>
         {mode === "merge" ? <div className="draw-card-order-form auth-asset-merge">
           {Number(mergeableAssets?.clipCount || 0) > 0 ? <label className="toggle-field"><input checked={mergeClip} onChange={(event) => setMergeClip(event.target.checked)} type="checkbox" /><span>继承卡夹内的 {mergeableAssets.clipCount} 张图片</span></label> : null}
           {Number(mergeableAssets?.projectCount ?? mergeableAssets?.savedBookCount ?? 0) > 0 ? <label className="toggle-field"><input checked={mergeBodyBooks} onChange={(event) => setMergeBodyBooks(event.target.checked)} type="checkbox" /><span>继承“我的认知书”中的 {mergeableAssets.projectCount ?? mergeableAssets.savedBookCount} 个工程</span></label> : null}
           {error ? <p className="error-note">{error}</p> : null}
           <div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={closeModal} type="button">暂不继承</button><button className="draw-card-primary" disabled={busy} onClick={finishAssetMerge} type="button">{busy ? "转移中" : "确认继承"}</button></div>
         </div> : <form className="draw-card-order-form" onSubmit={submit}>
+          {canUseWechatLogin && mode !== "reset" ? <button className="draw-card-secondary" disabled={busy} onClick={startWechatLogin} type="button">微信登录 / 注册</button> : null}
           <label className="field-label">邮箱<input autoComplete="email" onChange={(event) => setEmail(event.target.value)} type="email" value={email} /></label>
           {mode === "register" ? <label className="field-label">用户名<input autoComplete="username" maxLength="32" onChange={(event) => setUsername(event.target.value)} type="text" value={username} /></label> : null}
           <label className="field-label">{mode === "reset" ? "新密码" : "密码"}<input autoComplete={mode === "login" ? "current-password" : "new-password"} minLength="8" onChange={(event) => setPassword(event.target.value)} type="password" value={password} /></label>

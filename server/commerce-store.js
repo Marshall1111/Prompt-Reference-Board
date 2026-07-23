@@ -40,10 +40,12 @@ function mapAccount(row) {
     email: String(row.email || ""),
     username: String(row.username || ""),
     passwordHash: String(row.password_hash || ""),
+    wechatNickname: String(row.wechat_nickname || ""),
+    wechatAvatarUrl: String(row.wechat_avatar_url || ""),
     accountStatus: String(row.account_status || "active"),
     registeredAt: row.registered_at || null,
     lastLoginAt: row.last_login_at || null,
-    isRegistered: Boolean(row.registered_at && row.email && row.password_hash),
+    isRegistered: Boolean(row.registered_at && (String(row.channel || "") === "web_wechat" || (row.email && row.password_hash))),
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null
   };
@@ -100,6 +102,8 @@ export function createCommerceStore({ dbPath }) {
       credit_balance INTEGER NOT NULL DEFAULT 0,
       bean_balance INTEGER NOT NULL DEFAULT 0,
       original_downloads_unlocked_at TEXT,
+      wechat_nickname TEXT NOT NULL DEFAULT '',
+      wechat_avatar_url TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       UNIQUE(channel, open_id)
@@ -264,6 +268,8 @@ export function createCommerceStore({ dbPath }) {
   ensureAccountColumn("email", "email TEXT NOT NULL DEFAULT ''");
   ensureAccountColumn("username", "username TEXT NOT NULL DEFAULT ''");
   ensureAccountColumn("password_hash", "password_hash TEXT NOT NULL DEFAULT ''");
+  ensureAccountColumn("wechat_nickname", "wechat_nickname TEXT NOT NULL DEFAULT ''");
+  ensureAccountColumn("wechat_avatar_url", "wechat_avatar_url TEXT NOT NULL DEFAULT ''");
   ensureAccountColumn("account_status", "account_status TEXT NOT NULL DEFAULT 'active'");
   ensureAccountColumn("registered_at", "registered_at TEXT");
   ensureAccountColumn("last_login_at", "last_login_at TEXT");
@@ -713,29 +719,49 @@ export function createCommerceStore({ dbPath }) {
     };
   }
 
-  function createOrGetWebAccount({ openId, visitorId, signupCredits = 5, signupBeans = 10 }) {
+  function createOrGetWebAccount({ openId, visitorId, guestAccountId = "", nickname = "", avatarUrl = "", signupCredits = 5, signupBeans = 10 }) {
     const normalizedOpenId = String(openId || "").trim();
     if (!normalizedOpenId) throw new Error("缺少微信用户标识。");
+    const normalizedNickname = String(nickname || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 80);
+    const normalizedAvatarUrl = String(avatarUrl || "").trim().slice(0, 500);
     return withTransaction(db, () => {
       let account = readAccountByOpenId(normalizedOpenId);
-      if (!account) {
-        const createdAt = nowIso();
-        const id = randomUUID();
+      const now = nowIso();
+      if (account) {
         db.prepare(`
-          INSERT INTO commerce_accounts (id, channel, open_id, credit_balance, bean_balance, original_downloads_unlocked_at, created_at, updated_at)
-          VALUES (?, 'web_wechat', ?, 0, 0, NULL, ?, ?)
-        `).run(id, normalizedOpenId, createdAt, createdAt);
-        account = readAccount(id);
-        appendLedger(account.id, Math.max(0, Math.trunc(Number(signupCredits || 0))), {
-          reason: "signup_bonus",
-          referenceType: "account",
-          referenceId: account.id
-        });
-        appendBeanLedger(account.id, Math.max(0, Math.trunc(Number(signupBeans || 0))), {
-          reason: "signup_bonus",
-          referenceType: "account",
-          referenceId: account.id
-        });
+          UPDATE commerce_accounts
+          SET wechat_nickname = ?, wechat_avatar_url = ?, registered_at = COALESCE(registered_at, ?), last_login_at = ?, updated_at = ?
+          WHERE id = ?
+        `).run(normalizedNickname, normalizedAvatarUrl, now, now, now, account.id);
+        account = readAccount(account.id);
+      } else {
+        const guestAccount = readAccount(guestAccountId);
+        if (guestAccount && guestAccount.channel === "browser_guest" && !guestAccount.isRegistered) {
+          db.prepare(`
+            UPDATE commerce_accounts
+            SET channel = 'web_wechat', open_id = ?, wechat_nickname = ?, wechat_avatar_url = ?, account_status = 'active', registered_at = ?, last_login_at = ?, updated_at = ?
+            WHERE id = ?
+          `).run(normalizedOpenId, normalizedNickname, normalizedAvatarUrl, now, now, now, guestAccount.id);
+          account = readAccount(guestAccount.id);
+        } else {
+          const createdAt = nowIso();
+          const id = randomUUID();
+          db.prepare(`
+            INSERT INTO commerce_accounts (id, channel, open_id, credit_balance, bean_balance, original_downloads_unlocked_at, wechat_nickname, wechat_avatar_url, registered_at, last_login_at, created_at, updated_at)
+            VALUES (?, 'web_wechat', ?, 0, 0, NULL, ?, ?, ?, ?, ?, ?)
+          `).run(id, normalizedOpenId, normalizedNickname, normalizedAvatarUrl, createdAt, createdAt, createdAt, createdAt);
+          account = readAccount(id);
+          appendLedger(account.id, Math.max(0, Math.trunc(Number(signupCredits || 0))), {
+            reason: "signup_bonus",
+            referenceType: "account",
+            referenceId: account.id
+          });
+          appendBeanLedger(account.id, Math.max(0, Math.trunc(Number(signupBeans || 0))), {
+            reason: "signup_bonus",
+            referenceType: "account",
+            referenceId: account.id
+          });
+        }
       }
       linkVisitor(account.id, visitorId);
       return readAccount(account.id);
@@ -1106,11 +1132,11 @@ export function createCommerceStore({ dbPath }) {
   }
 
   function listRegisteredUsers({ page = 1, limit = 20, search = "", status = "" } = {}) {
-    const conditions = ["a.registered_at IS NOT NULL"];
+    const conditions = ["a.registered_at IS NOT NULL", "(a.channel = 'web_wechat' OR (a.email != '' AND a.password_hash != ''))"];
     const params = {};
     const keyword = String(search || "").trim();
     if (keyword) {
-      conditions.push("(a.email LIKE @search OR a.username LIKE @search)");
+      conditions.push("(a.email LIKE @search OR a.username LIKE @search OR a.wechat_nickname LIKE @search)");
       params.search = `%${keyword}%`;
     }
     if (["active", "disabled"].includes(String(status || ""))) {

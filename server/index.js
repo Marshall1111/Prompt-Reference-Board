@@ -64,6 +64,7 @@ const PUBLIC_PREVIEW_WATERMARK_TEXT = "Preview Only";
 const VISITOR_COOKIE_NAME = "pg_visitor";
 const WEB_ACCOUNT_COOKIE_NAME = "pg_web_account";
 const USER_SESSION_COOKIE_NAME = "pg_user_session";
+const WEB_WECHAT_OAUTH_STATE_COOKIE_NAME = "pg_wechat_oauth_state";
 const ADMIN_COOKIE_NAME = "pg_admin";
 const VISITOR_INVITE_BONUS = 5;
 const VISITOR_RUNNING_JOB_LIMIT = 1;
@@ -852,6 +853,54 @@ app.get("/api/account", (req, res) => {
 
 app.get("/api/auth/me", requireWebAccount, (req, res) => {
   res.json({ authenticated: Boolean(req.userSession), account: toPublicCommerceAccount(req.webAccount) });
+});
+
+app.get("/api/auth/wechat/authorize", (req, res, next) => {
+  try {
+    if (!isWechatBrowser(req)) throw createHttpError(400, "请在微信内置浏览器中使用微信登录。", "请在微信内打开后再使用微信登录。");
+    const authorizationUrl = createWebWechatAuthorizationUrl(req, req.query?.returnTo);
+    if (!authorizationUrl) {
+      throw createHttpError(503, "微信网页登录未完成配置。", "微信登录暂未配置完成，请使用邮箱登录。");
+    }
+    const state = new URL(authorizationUrl).searchParams.get("state") || "";
+    setWechatOAuthStateCookie(req, res, state);
+    res.redirect(302, authorizationUrl);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/auth/wechat/callback", async (req, res, next) => {
+  try {
+    const receivedState = String(req.query?.state || "");
+    const expectedState = String(parseCookies(req)[WEB_WECHAT_OAUTH_STATE_COOKIE_NAME] || "");
+    clearWechatOAuthStateCookie(req, res);
+    if (!expectedState || !safeCompareString(expectedState, receivedState)) {
+      throw createHttpError(400, "微信授权状态无效，请重新发起登录。", "微信登录已失效，请重新发起。");
+    }
+    const state = verifyWebWechatOAuthState(receivedState);
+    const code = String(req.query?.code || "").trim();
+    if (!code) throw createHttpError(400, "微信授权未返回 code。", "微信登录未完成，请重试。");
+    const profile = await fetchWechatWebUserProfile(code);
+    const guestAccountId = req.webAccount && !req.webAccount.isRegistered ? req.webAccount.id : "";
+    const account = commerceStore.createOrGetWebAccount({
+      openId: profile.openId,
+      visitorId: req.visitorId,
+      guestAccountId,
+      nickname: profile.nickname,
+      avatarUrl: profile.avatarUrl,
+      signupCredits: WEB_SIGNUP_CREDITS,
+      signupBeans: WEB_SIGNUP_BEANS
+    });
+    if (account.accountStatus === "disabled") throw createHttpError(403, "该账户已被禁用，请联系管理员。");
+    commerceStore.markReferralRegistered(account.id);
+    const session = commerceStore.createUserSession(account.id, { ttlMs: USER_SESSION_TTL_MS });
+    clearWebAccountCookie(req, res);
+    setUserSessionCookie(req, res, session.id);
+    res.redirect(302, state.returnTo);
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.post("/api/referrals/link", requireWebAccount, (req, res, next) => {
@@ -3590,6 +3639,20 @@ function setUserSessionCookie(req, res, sessionId) {
   }));
 }
 
+function setWechatOAuthStateCookie(req, res, state) {
+  appendSetCookie(res, serializeCookie(WEB_WECHAT_OAUTH_STATE_COOKIE_NAME, state, {
+    maxAge: 10 * 60,
+    secure: shouldUseSecureCookies(req)
+  }));
+}
+
+function clearWechatOAuthStateCookie(req, res) {
+  appendSetCookie(res, serializeCookie(WEB_WECHAT_OAUTH_STATE_COOKIE_NAME, "", {
+    maxAge: 0,
+    secure: shouldUseSecureCookies(req)
+  }));
+}
+
 function clearUserSessionCookie(req, res) {
   appendSetCookie(res, serializeCookie(USER_SESSION_COOKIE_NAME, "", {
     maxAge: 0,
@@ -6292,10 +6355,10 @@ function createWebWechatAuthorizationUrl(req, returnTo = "/") {
   const config = getWebWechatOAuthConfig(req);
   if (!config.appId || !config.appSecret || !config.redirectUrl) return "";
   const state = createWebWechatOAuthState(returnTo);
-  return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${encodeURIComponent(config.appId)}&redirect_uri=${encodeURIComponent(config.redirectUrl)}&response_type=code&scope=snsapi_base&state=${encodeURIComponent(state)}#wechat_redirect`;
+  return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${encodeURIComponent(config.appId)}&redirect_uri=${encodeURIComponent(config.redirectUrl)}&response_type=code&scope=snsapi_userinfo&state=${encodeURIComponent(state)}#wechat_redirect`;
 }
 
-async function fetchWechatWebOpenId(code) {
+async function fetchWechatWebUserProfile(code) {
   const config = getWebWechatOAuthConfig();
   if (!config.appId || !config.appSecret) {
     throw createHttpError(503, "微信网页授权未完成配置：缺少 WECHAT_PAY_APP_ID 或 WECHAT_OAUTH_APP_SECRET。", "微信网页授权尚未配置完成。");
@@ -6307,10 +6370,24 @@ async function fetchWechatWebOpenId(code) {
   url.searchParams.set("grant_type", "authorization_code");
   const response = await fetch(url, { method: "GET" });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok || payload.errcode) throw createHttpError(502, payload.errmsg || "获取微信用户标识失败。", "微信授权失败，请稍后重试。");
+  if (!response.ok || payload.errcode) throw createHttpError(502, payload.errmsg || "获取微信授权令牌失败。", "微信授权失败，请稍后重试。");
+  const accessToken = String(payload.access_token || "").trim();
   const openId = String(payload.openid || "").trim();
-  if (!openId) throw createHttpError(502, "微信未返回 openid。", "微信授权失败，请稍后重试。");
-  return openId;
+  if (!accessToken || !openId) throw createHttpError(502, "微信未返回用户授权信息。", "微信授权失败，请稍后重试。");
+  const profileUrl = new URL("https://api.weixin.qq.com/sns/userinfo");
+  profileUrl.searchParams.set("access_token", accessToken);
+  profileUrl.searchParams.set("openid", openId);
+  profileUrl.searchParams.set("lang", "zh_CN");
+  const profileResponse = await fetch(profileUrl, { method: "GET" });
+  const profilePayload = await profileResponse.json().catch(() => ({}));
+  if (!profileResponse.ok || profilePayload.errcode) {
+    throw createHttpError(502, profilePayload.errmsg || "获取微信用户资料失败。", "微信授权失败，请稍后重试。");
+  }
+  return {
+    openId,
+    nickname: String(profilePayload.nickname || "").trim(),
+    avatarUrl: String(profilePayload.headimgurl || "").trim()
+  };
 }
 
 function requireWebAccount(req, _res, next) {
@@ -6324,7 +6401,7 @@ function requireWebAccount(req, _res, next) {
 function assertRegisteredAccount(req) {
   if (req.webAccount?.accountStatus === "disabled") throw createHttpError(403, "该账户已被禁用，请联系管理员。");
   if (!req.userSession || !req.webAccount?.isRegistered) {
-    throw createHttpError(401, "请先完成邮箱注册后再提交定制订单。", "请先注册并登录后再提交定制订单。");
+    throw createHttpError(401, "请先完成注册后再提交定制订单。", "请先注册并登录后再提交定制订单。");
   }
 }
 
@@ -6334,7 +6411,7 @@ function toPublicCommerceAccount(account) {
     id: account.id,
     isGuest: !account.isRegistered,
     isRegistered: Boolean(account.isRegistered),
-    username: account.username || "",
+    username: account.username || account.wechatNickname || "微信用户",
     email: account.email || "",
     accountStatus: account.accountStatus || "active",
     coinBalance: Math.max(0, Number(account.coinBalance ?? account.creditBalance ?? 0)),
@@ -6361,7 +6438,7 @@ function toPublicCreditLedger(entry) {
 function toPublicAdminUser(account) {
   return {
     id: account.id,
-    username: account.username || "",
+    username: account.username || account.wechatNickname || "微信用户",
     email: account.email || "",
     status: account.accountStatus || "active",
     coinBalance: Number(account.coinBalance ?? account.creditBalance ?? 0),
