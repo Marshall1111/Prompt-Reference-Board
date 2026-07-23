@@ -1,0 +1,15 @@
+{
+  "sessionId": "e2003785-c750-4ef1-b264-74d7174ab380",
+  "visitorId": "5f323334-6528-4dfb-94e2-2dd326fd1673",
+  "experienceType": "draw-card",
+  "route": "/",
+  "sourceMerchantId": "",
+  "sourceMerchantName": "",
+  "startedAt": "2026-07-23T04:48:42.333Z",
+  "lastHeartbeatAt": "2026-07-23T04:48:42.333Z",
+  "endedAt": "2026-07-23T04:48:45.464Z",
+  "durationSeconds": 3,
+  "status": "ended",
+  "createdAt": "2026-07-23T04:48:42.333Z",
+  "updatedAt": "2026-07-23T04:48:45.464Z"
+}

@@ -237,9 +237,9 @@ body {
 
 .body-book-order-list-item {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   width: 100%;
   border: 1px solid #cbd8ce;
   border-radius: 14px;
@@ -247,9 +247,27 @@ body {
   color: #1b2b2a;
   background: #fffdf8;
   box-shadow: 0 8px 22px rgba(42, 71, 60, 0.06);
-  cursor: pointer;
   text-align: left;
   transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.body-book-order-list-open,
+.body-book-order-list-content {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.body-book-order-list-content {
+  cursor: default;
 }
 
 .body-book-order-list-item:hover {
@@ -258,9 +276,38 @@ body {
   transform: translateY(-1px);
 }
 
-.body-book-order-list-item:focus-visible {
+.body-book-order-list-open:focus-visible {
   outline: 3px solid rgba(91, 136, 109, 0.42);
   outline-offset: 3px;
+}
+
+.body-book-order-delete {
+  border: 1px solid #d99a8b;
+  border-radius: 7px;
+  padding: 7px 10px;
+  color: #a13d2a;
+  background: #fff5f1;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.body-book-order-delete:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.body-book-bean-purchase-cover {
+  border: 1px solid #dcc58a;
+  background: linear-gradient(145deg, #fff8df, #f6dda0);
+  color: #8a6323;
+  font-size: 30px;
+}
+
+.body-book-bean-purchase-discount-note {
+  margin: -4px 0 0;
+  color: #c42b1c;
+  font-weight: 700;
 }
 
 .body-book-order-cover {
@@ -296,6 +343,10 @@ body {
   color: #496d62;
   font-size: 15px;
   font-weight: 700;
+}
+
+.body-book-order-summary small {
+  justify-self: start;
 }
 
 .body-book-credit {
@@ -5294,6 +5345,24 @@ textarea {
   background: #ffffff;
   color: #25413c;
   box-shadow: 0 28px 90px rgba(18, 35, 34, 0.24);
+}
+
+.body-book-delete-confirm {
+  border-color: rgba(30, 51, 50, 0.16);
+  background: #ffffff;
+  color: #25413c;
+  box-shadow: 0 28px 90px rgba(18, 35, 34, 0.24);
+}
+
+.body-book-delete-confirm h2 {
+  margin: 0;
+  color: #173c31;
+}
+
+.body-book-delete-confirm .storage-note {
+  margin: 0;
+  color: #566861;
+  line-height: 1.7;
 }
 
 .body-book-referral-modal .draw-card-kicker {

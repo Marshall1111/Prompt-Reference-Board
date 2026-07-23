@@ -63,6 +63,7 @@ function mapOrderRow(row) {
     shippingTrackingNo: String(row.shipping_tracking_no || ""),
     completedAt: row.completed_at || null,
     cancelledAt: row.cancelled_at || null,
+    userDeletedAt: row.user_deleted_at || null,
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null
   };
@@ -154,10 +155,11 @@ export function createOrderStore({ dbPath }) {
       paid_at TEXT,
       shipped_at TEXT,
       shipping_carrier TEXT NOT NULL DEFAULT '',
-      shipping_tracking_no TEXT NOT NULL DEFAULT '',
-      completed_at TEXT,
-      cancelled_at TEXT,
-      created_at TEXT NOT NULL,
+    shipping_tracking_no TEXT NOT NULL DEFAULT '',
+    completed_at TEXT,
+    cancelled_at TEXT,
+    user_deleted_at TEXT,
+    created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
 
@@ -233,6 +235,9 @@ export function createOrderStore({ dbPath }) {
     db.exec("ALTER TABLE orders ADD COLUMN payable_cents INTEGER NOT NULL DEFAULT 0");
     db.exec("UPDATE orders SET payable_cents = total_cents WHERE payable_cents = 0");
   }
+  if (!orderColumns.some((column) => String(column.name || "") === "user_deleted_at")) {
+    db.exec("ALTER TABLE orders ADD COLUMN user_deleted_at TEXT");
+  }
 
   const insertOrderStatement = db.prepare(`
     INSERT INTO orders (
@@ -243,7 +248,7 @@ export function createOrderStore({ dbPath }) {
       source_merchant_id, source_merchant_name, commission_rate_bps, source_claimed_at,
       admin_remark, wechat_open_id, wechat_transaction_id, out_trade_no,
       last_payment_channel, last_payment_error, expires_at, paid_at, shipped_at, shipping_carrier, shipping_tracking_no,
-      completed_at, cancelled_at, created_at, updated_at
+      completed_at, cancelled_at, user_deleted_at, created_at, updated_at
     ) VALUES (
       @id, @orderNo, @visitorId, @accountId, @publicToken, @experienceType, @bodyBookThemeName,
       @paymentStatus, @fulfillmentStatus, @itemCount,
@@ -252,7 +257,7 @@ export function createOrderStore({ dbPath }) {
       @sourceMerchantId, @sourceMerchantName, @commissionRateBps, @sourceClaimedAt,
       @adminRemark, @wechatOpenId, @wechatTransactionId, @outTradeNo,
       @lastPaymentChannel, @lastPaymentError, @expiresAt, @paidAt, @shippedAt, @shippingCarrier, @shippingTrackingNo,
-      @completedAt, @cancelledAt, @createdAt, @updatedAt
+      @completedAt, @cancelledAt, @userDeletedAt, @createdAt, @updatedAt
     )
   `);
 
@@ -321,6 +326,7 @@ export function createOrderStore({ dbPath }) {
         adminRemark: "",
         cancelledAt: null,
         completedAt: null,
+        userDeletedAt: null,
         lastPaymentChannel: order.lastPaymentChannel || "",
         lastPaymentError: order.lastPaymentError || "",
         paidAt: null,
@@ -411,6 +417,7 @@ export function createOrderStore({ dbPath }) {
       shippingTrackingNo: next.shippingTrackingNo,
       completedAt: next.completedAt,
       cancelledAt: next.cancelledAt,
+      userDeletedAt: next.userDeletedAt,
       updatedAt: next.updatedAt
     };
 
@@ -441,6 +448,7 @@ export function createOrderStore({ dbPath }) {
         shipping_tracking_no = @shippingTrackingNo,
         completed_at = @completedAt,
         cancelled_at = @cancelledAt,
+        user_deleted_at = @userDeletedAt,
         updated_at = @updatedAt
       WHERE id = @id
     `).run(persisted);
@@ -484,7 +492,7 @@ export function createOrderStore({ dbPath }) {
     `).run({ now });
   }
 
-  function listOrders({ visitorId = "", accountId = "", merchantId = "", orderStatus = "", search = "", startDate = "", endDate = "", page = 1, limit = 20 } = {}) {
+  function listOrders({ visitorId = "", accountId = "", merchantId = "", orderStatus = "", search = "", startDate = "", endDate = "", excludeUserDeleted = false, page = 1, limit = 20 } = {}) {
     expireUnpaidOrders();
 
     const conditions = [];
@@ -496,6 +504,9 @@ export function createOrderStore({ dbPath }) {
     if (accountId) {
       conditions.push("account_id = @accountId");
       params.accountId = accountId;
+    }
+    if (excludeUserDeleted) {
+      conditions.push("(user_deleted_at IS NULL OR user_deleted_at = '')");
     }
     if (merchantId) {
       conditions.push("source_merchant_id = @merchantId");

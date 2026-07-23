@@ -1376,6 +1376,7 @@ app.get("/api/my/orders", requireWebAccount, async (req, res, next) => {
     const settings = await readAppSettings();
     const payload = orderStore.listOrders({
       accountId: req.webAccount.id,
+      excludeUserDeleted: true,
       limit: 50
     });
     res.json({
@@ -1393,13 +1394,20 @@ app.delete("/api/orders/:orderId", requireWebAccount, async (req, res, next) => 
     const order = orderStore.readOrderWithRelations(req.params.orderId);
     assertWebAccountOwnsOrder(req, order);
     if (order.paymentStatus === "paid") throw createHttpError(409, "已付款订单不支持取消。");
-    if (order.paymentStatus === "expired") throw createHttpError(409, "已过期订单无需取消。");
-    if (order.fulfillmentStatus !== "new") throw createHttpError(409, "当前订单已进入处理流程，暂不支持取消。");
+    const canRemoveExpiredOrCancelledBodyBook = order.experienceType === "body-book"
+      && (order.paymentStatus === "expired" || order.fulfillmentStatus === "cancelled");
+    if (!canRemoveExpiredOrCancelledBodyBook && order.fulfillmentStatus !== "new") {
+      throw createHttpError(409, "当前订单已进入处理流程，暂不支持取消。");
+    }
+    if (!canRemoveExpiredOrCancelledBodyBook && order.paymentStatus === "expired") {
+      throw createHttpError(409, "已过期订单仅支持在认知书订单列表中删除。");
+    }
 
     const deleted = orderStore.updateOrder(order.id, {
       paymentStatus: "expired",
       fulfillmentStatus: "cancelled",
       cancelledAt: order.cancelledAt || new Date().toISOString(),
+      userDeletedAt: canRemoveExpiredOrCancelledBodyBook ? (order.userDeletedAt || new Date().toISOString()) : order.userDeletedAt,
       lastPaymentError: "订单已取消"
     });
     if (order.experienceType === "body-book") commerceStore.releaseBodyBookDiscountReservation(order.id);
@@ -1435,6 +1443,17 @@ app.post("/api/bean-purchases", requireWebAccount, async (req, res, next) => {
       purchase: toPublicBeanPurchase(intent),
       payment: prepareInitialBeanPurchasePayment(intent, pricing)
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/bean-purchases", requireWebAccount, (req, res, next) => {
+  try {
+    const purchases = commerceStore.listPaymentIntents(req.webAccount.id, 100)
+      .filter((intent) => intent.kind === "bean_purchase")
+      .map(toPublicBeanPurchase);
+    res.json({ purchases });
   } catch (error) {
     next(error);
   }
