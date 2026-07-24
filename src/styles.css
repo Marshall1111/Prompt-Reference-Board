@@ -1218,9 +1218,10 @@ body {
 
 .draw-card-handwritten-title {
   display: block;
-  width: clamp(240px, 20vw, 300px);
+  width: clamp(260px, 42vw, 560px);
   max-width: 100%;
   height: auto;
+  object-fit: contain;
 }
 
 .draw-card-subtitle {
