@@ -7309,6 +7309,14 @@ textarea {
   font-weight: 600;
 }
 
+.body-book-page .body-book-account-button.is-signed-in img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
 .body-book-page .body-book-account-button.is-guest {
   min-width: 60px;
   max-width: none;
