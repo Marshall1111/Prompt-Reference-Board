@@ -498,7 +498,7 @@ export function createOrderStore({ dbPath }) {
     `).run({ now });
   }
 
-  function listOrders({ visitorId = "", accountId = "", merchantId = "", orderStatus = "", search = "", startDate = "", endDate = "", excludeUserDeleted = false, page = 1, limit = 20 } = {}) {
+  function listOrders({ visitorId = "", accountId = "", merchantId = "", experienceScope = "", orderStatus = "", search = "", startDate = "", endDate = "", excludeUserDeleted = false, page = 1, limit = 20 } = {}) {
     expireUnpaidOrders();
 
     const conditions = [];
@@ -510,6 +510,11 @@ export function createOrderStore({ dbPath }) {
     if (accountId) {
       conditions.push("account_id = @accountId");
       params.accountId = accountId;
+    }
+    if (experienceScope === "body-book") {
+      conditions.push("experience_type = 'body-book'");
+    } else if (experienceScope === "fridge") {
+      conditions.push("experience_type != 'body-book'");
     }
     if (excludeUserDeleted) {
       conditions.push("(user_deleted_at IS NULL OR user_deleted_at = '')");

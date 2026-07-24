@@ -162,7 +162,7 @@ const DRAW_CARD_EXPERIENCE_CONFIG = {
   startButtonIdle: "试试手气",
   startButtonLoading: "任务启动中",
   resultsKicker: "Collection",
-  resultsTitle: "这一轮结果已经全部抵达。",
+  resultsTitle: "本轮已全部完成",
   resultsSubtitle: "右侧卡夹会收纳你选中的结果。点击结果可放大查看，加入时会直接飞入卡夹。",
   clipKicker: "Card clip",
   clipTitle: "卡夹",
@@ -564,6 +564,48 @@ function CoinPurchaseModal({ coinCount, busy, error, payment, purchase, onClose,
         <p className="storage-note">1 元 = 1 币。成功购买的金额可抵扣冰箱贴商品金额，每枚冰箱贴最多抵扣 15 元。</p>
         {isPaid ? <><p className="success-note">购买成功，{purchase.coinCount} 币已到账。</p><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={onClose} type="button">完成</button></div></> : isExpired ? <><p className="error-note">该购买单已过期，未产生扣款。请重新创建购买单后再支付。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" onClick={onClose} type="button">关闭</button><button className="draw-card-primary" disabled={busy} onClick={onRestart} type="button">重新购买</button></div></> : isManual ? <article className="manual-payment-guide"><strong>请扫描商户收款码付款</strong><img alt="微信商户收款码" className="manual-payment-qr" src="/payment/wechat-merchant-collection.png" /><p>应付金额 {formatCurrencyCents(purchase?.amountCents || safeCount * 100)}</p><p>购买金额将自动成为冰箱贴优惠额度。</p><p>购买单号：{purchase?.purchaseNo || "--"}</p><small>付款后管理员确认到账，币将自动发放。</small></article> : isNative ? <article className="native-payment-panel"><h3>请使用微信扫码付款</h3><p className="storage-note">应付金额 {formatCurrencyCents(purchase?.amountCents || safeCount * 100)}，扫码后无需手动输入金额。</p><p>购买金额将自动成为冰箱贴优惠额度。</p><img alt="购买币微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(payment.codeUrl, { margin: 1 })} /><p className="storage-note">支付成功后币会自动到账。</p></article> : <><div className="body-book-wallet-actions"><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(10)} type="button">10 币</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(20)} type="button">20 币</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(40)} type="button">40 币</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(100)} type="button">100 币</button></div><label className="body-book-wallet-field"><span>购买数量（1–1000 币）</span><input disabled={busy || Boolean(purchase)} min="1" max={MAX_BEAN_PURCHASE_COUNT} onChange={(event) => onCountChange(event.target.value)} type="number" value={coinCount} /></label><p className="body-book-bean-balance">应付 <strong>{formatCurrencyCents(safeCount * 100)}</strong></p><p className="body-book-bean-purchase-discount-note">购买金额可抵扣冰箱贴商品金额，每枚最多抵扣 15 元。</p><p className="storage-note">赠送币和邀请码兑换币不参与冰箱贴优惠抵扣。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={onClose} type="button">取消</button><button className="draw-card-primary" disabled={busy || safeCount < 1} onClick={purchase ? onRetry : onSubmit} type="button">{busy ? "处理中" : purchase ? "重新发起支付" : `支付 ${formatCurrencyCents(safeCount * 100)}`}</button></div></>}
         {error ? <p className="error-note">{error}</p> : null}
+      </section>
+    </div>
+  );
+}
+
+function DrawCardConfigModal({ busy, error, onClose, onSubmit }) {
+  const [subjectType, setSubjectType] = useState("");
+  const [drawCount, setDrawCount] = useState(DEFAULT_PUBLIC_DRAW_COUNT);
+  const requestedDrawCount = Math.min(Math.max(Number(drawCount) || DEFAULT_PUBLIC_DRAW_COUNT, MIN_PUBLIC_DRAW_COUNT), MAX_PUBLIC_STYLE_SELECTION);
+
+  return (
+    <div className="modal-backdrop draw-card-confirm" onClick={onClose} role="presentation">
+      <section className="draw-card-confirm-panel draw-card-config-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="抽卡设置">
+        <button className="icon-button" onClick={onClose} type="button" aria-label="关闭抽卡设置"><X size={18} /></button>
+        <div>
+          <p className="draw-card-kicker">Draw settings</p>
+          <h2>设置本次抽卡</h2>
+          <p className="storage-note">选好照片主体和出图张数后，系统会随机抽取合适风格开始生成。</p>
+        </div>
+        <div className="draw-card-config-panel">
+          <div className="draw-card-config-group">
+            <span className="draw-card-config-label">照片主体</span>
+            <div className="draw-card-segmented-control" role="radiogroup" aria-label="照片主体">
+              {DRAW_CARD_SUBJECT_OPTIONS.map((option) => <button className={`draw-card-segment ${subjectType === option.value ? "is-active" : ""}`} disabled={busy} key={option.value} onClick={() => setSubjectType(option.value)} type="button">{option.label}</button>)}
+            </div>
+          </div>
+          <div className="draw-card-count-control">
+            <span className="draw-card-config-label">本次抽卡</span>
+            <div className="draw-card-count-options" role="radiogroup" aria-label="本次抽卡张数">
+              {DRAW_CARD_COUNT_OPTIONS.map((count) => <button className={`draw-card-segment ${requestedDrawCount === count ? "is-active" : ""}`} disabled={busy} key={count} onClick={() => setDrawCount(count)} type="button">{count}张</button>)}
+            </div>
+          </div>
+          <p className="draw-card-meta-note">本次最多消耗 {requestedDrawCount} 币，失败结果不扣币。</p>
+        </div>
+        {error ? <p className="error-note">{error}</p> : null}
+        <div className="draw-card-confirm-actions">
+          <button className="draw-card-secondary" disabled={busy} onClick={onClose} type="button">取消</button>
+          <button className="draw-card-primary" disabled={!subjectType || busy} onClick={() => onSubmit({ subjectType, drawCount: requestedDrawCount })} type="button">
+            {busy ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+            <span>{busy ? "任务启动中" : "确认抽卡"}</span>
+          </button>
+        </div>
       </section>
     </div>
   );
@@ -2162,6 +2204,7 @@ function selectBodyBookPagePrompts(prompts, keys, dirtyKeys = []) {
 
 function FridgeMagnetOrdersPage() {
   const [orders, setOrders] = useState([]);
+  const [coinPurchases, setCoinPurchases] = useState([]);
   const [orderConfig, setOrderConfig] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -2170,11 +2213,12 @@ function FridgeMagnetOrdersPage() {
   useEffect(() => {
     let isActive = true;
     setIsLoading(true);
-    fetchMyOrders()
-      .then((payload) => {
+    Promise.all([fetchMyOrders("fridge"), fetchMyCoinPurchases()])
+      .then(([ordersPayload, purchasesPayload]) => {
         if (!isActive) return;
-        setOrders(payload.orders || []);
-        setOrderConfig(payload.config || null);
+        setOrders(ordersPayload.orders || []);
+        setCoinPurchases(purchasesPayload.purchases || []);
+        setOrderConfig(ordersPayload.config || null);
         setError("");
       })
       .catch((nextError) => {
@@ -2188,6 +2232,11 @@ function FridgeMagnetOrdersPage() {
       isActive = false;
     };
   }, []);
+
+  const listItems = [
+    ...orders.map((order) => ({ type: "fridge_order", record: order, createdAt: order.createdAt })),
+    ...coinPurchases.map((purchase) => ({ type: "coin_purchase", record: purchase, createdAt: purchase.createdAt }))
+  ].sort((left, right) => Date.parse(String(right.createdAt || "")) - Date.parse(String(left.createdAt || "")));
 
   async function handleDeleteOrder(order) {
     if (!order?.id) return;
@@ -2219,18 +2268,36 @@ function FridgeMagnetOrdersPage() {
           <div>
             <p className="draw-card-kicker">My orders</p>
             <h1 className="draw-card-title">我的订单</h1>
-            <p className="draw-card-subtitle">查看你的冰箱贴订单与处理状态。</p>
+            <p className="draw-card-subtitle">查看你的冰箱贴订单、购买币记录与处理状态。</p>
           </div>
           <button className="draw-card-secondary" onClick={() => window.location.assign("/")} type="button">
             <Home size={18} />
-            <span>返回抽卡页</span>
+            <span>返回主页</span>
           </button>
         </div>
         {isLoading ? <p className="draw-card-orders-note">正在读取订单列表…</p> : null}
         {error ? <p className="error-note">{error}</p> : null}
-        {!isLoading && !error && !orders.length ? <p className="draw-card-orders-empty">你还没有提交过冰箱贴订单。</p> : null}
+        {!isLoading && !error && !listItems.length ? <p className="draw-card-orders-empty">你还没有冰箱贴订单或购买币记录。</p> : null}
         <div className="draw-card-orders-list">
-          {orders.map((order) => {
+          {listItems.map((item) => {
+            if (item.type === "coin_purchase") {
+              const purchase = item.record;
+              const status = getBeanPurchaseListStatus(purchase);
+              return (
+                <article className="draw-card-order-list-card draw-card-coin-purchase-card" key={`coin-purchase:${purchase.id}`}>
+                  <div className="draw-card-order-list-open">
+                    <span className="draw-card-order-list-cover draw-card-coin-purchase-cover">币</span>
+                    <span className="draw-card-order-list-summary">
+                      <strong>购买 {purchase.coinCount} 币</strong>
+                      <small>{formatCurrencyCents(Number(purchase.amountCents || 0))}</small>
+                      <em className={`task-status ${getBeanPurchaseListTone(status)}`}>{getBeanPurchaseListStatusLabel(purchase, status)}</em>
+                    </span>
+                  </div>
+                </article>
+              );
+            }
+
+            const order = item.record;
             const isManualUnpaid = order.orderStatus === "pending_payment" && isManualPaymentOrder(order, orderConfig);
             const canRemove = ["expired", "cancelled"].includes(order.orderStatus);
             const canCancel = order.orderStatus === "pending_payment";
@@ -2280,10 +2347,10 @@ function BodyBookOrdersPage() {
   useEffect(() => {
     let isActive = true;
     setIsLoading(true);
-    Promise.all([fetchMyOrders(), fetchMyBeanPurchases()])
+    Promise.all([fetchMyOrders("body-book"), fetchMyBeanPurchases()])
       .then(([ordersPayload, purchasesPayload]) => {
         if (!isActive) return;
-        setOrders((ordersPayload.orders || []).filter((order) => order.experienceType === "body-book"));
+        setOrders(ordersPayload.orders || []);
         setBeanPurchases(purchasesPayload.purchases || []);
         setError("");
       })
@@ -2892,6 +2959,7 @@ function PublicExperiencePage({ config }) {
   } = config;
   const [phase, setPhase] = useState("idle");
   const [referenceFile, setReferenceFile] = useState(null);
+  const [referenceSessionId, setReferenceSessionId] = useState("");
   const [referencePreviewUrl, setReferencePreviewUrl] = useState("");
   const [sessionId, setSessionId] = useState("");
   const [session, setSession] = useState(null);
@@ -2900,6 +2968,8 @@ function PublicExperiencePage({ config }) {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOpeningLatestSession, setIsOpeningLatestSession] = useState(false);
+  const [isRestoringSessionReference, setIsRestoringSessionReference] = useState(false);
+  const [showPhotoChangeConfirm, setShowPhotoChangeConfirm] = useState(false);
   const [waitingLineIndex, setWaitingLineIndex] = useState(0);
   const [waitingStage, setWaitingStage] = useState("offering");
   const [activeResultIndex, setActiveResultIndex] = useState(-1);
@@ -2946,8 +3016,6 @@ function PublicExperiencePage({ config }) {
   const [visitTrackingReady, setVisitTrackingReady] = useState(false);
   const [stylePickerStyles, setStylePickerStyles] = useState([]);
   const [selectedStyleIds, setSelectedStyleIds] = useState([]);
-  const [drawCount, setDrawCount] = useState(DEFAULT_PUBLIC_DRAW_COUNT);
-  const [selectedSubjectType, setSelectedSubjectType] = useState("");
   const [stylePickerError, setStylePickerError] = useState("");
   const [isLoadingStylePicker, setIsLoadingStylePicker] = useState(false);
   const resultMediaRefs = useRef(new Map());
@@ -3235,11 +3303,25 @@ function PublicExperiencePage({ config }) {
   }
 
   async function openStylePicker() {
-    if (!referenceFile) {
-      window.alert("请先上传参考图");
-      return;
+    if (isSubmitting || isRestoringSessionReference) return;
+    const needsCurrentSessionReference = Boolean(sessionId && referenceSessionId !== sessionId);
+    if (!referenceFile || needsCurrentSessionReference) {
+      if (experienceType !== "draw-card" || !sessionId) {
+        window.alert("请先上传参考图");
+        return;
+      }
+      setIsRestoringSessionReference(true);
+      try {
+        const restoredReference = await fetchPublicExperienceSessionReference(apiBase, sessionId);
+        setReferenceFile(restoredReference);
+        setReferenceSessionId(sessionId);
+      } catch (nextError) {
+        setError(nextError.message || "读取本次任务的参考图失败，请稍后再试。");
+        return;
+      } finally {
+        setIsRestoringSessionReference(false);
+      }
     }
-    if (isSubmitting) return;
     setPhase("style-picker");
     setError("");
     setStylePickerError("");
@@ -3294,6 +3376,7 @@ function PublicExperiencePage({ config }) {
         setError("暂无最近生成任务。");
         return;
       }
+      setReferenceSessionId("");
       applySession(payload);
     } catch (nextError) {
       setError(nextError.message || "读取最近生成任务失败，请稍后再试。");
@@ -3550,8 +3633,6 @@ function PublicExperiencePage({ config }) {
   }, [selectedStyleIds, stylePickerStyles]);
 
   const isDrawCardExperience = experienceType === "draw-card";
-  const requestedDrawCount = Math.min(Math.max(Number(drawCount) || DEFAULT_PUBLIC_DRAW_COUNT, MIN_PUBLIC_DRAW_COUNT), MAX_PUBLIC_STYLE_SELECTION);
-  const estimatedRandomDrawCost = isDrawCardExperience ? requestedDrawCount : 1;
   const canStart = Boolean(referenceFile) && !isSubmitting;
   const canStartCustomDraw = Boolean(referenceFile) && selectedStyleIds.length > 0 && !isSubmitting;
   const activeResult = activeResultIndex >= 0 ? toDisplayResult(displayItems[activeResultIndex]) : activeResultIndex === -3 ? activeClipPreview : null;
@@ -3579,6 +3660,7 @@ function PublicExperiencePage({ config }) {
     clearPersistedSession();
     setPhase("idle");
     setReferenceFile(null);
+    setReferenceSessionId("");
     setSessionId("");
     setSession(null);
     setResults([]);
@@ -3590,15 +3672,16 @@ function PublicExperiencePage({ config }) {
     setClipReceiving(false);
     setStylePickerError("");
     setShowDrawConfigModal(false);
-    setSelectedSubjectType("");
-    setDrawCount(DEFAULT_PUBLIC_DRAW_COUNT);
     resultMediaRefs.current.clear();
   }
 
   function confirmResetExperience() {
-    const confirmed = window.confirm("换张图片重做后，本轮未被放入口袋的结果会被删除。请先确认你喜欢的图片已经放入口袋。");
-    if (!confirmed) return;
+    setShowPhotoChangeConfirm(false);
     resetExperience();
+  }
+
+  function requestPhotoChange() {
+    setShowPhotoChangeConfirm(true);
   }
 
   function returnToHome() {
@@ -3621,6 +3704,7 @@ function PublicExperiencePage({ config }) {
 
     clearPersistedSession();
     setReferenceFile(file);
+    setReferenceSessionId("");
     setSessionId("");
     setSession(null);
     setResults([]);
@@ -3737,13 +3821,15 @@ function PublicExperiencePage({ config }) {
     if (isSubmitting) return;
     const requestedStyleIds = Array.isArray(options.selectedStyleIds) ? options.selectedStyleIds.filter(Boolean).slice(0, MAX_PUBLIC_STYLE_SELECTION) : [];
     const isManualSelection = requestedStyleIds.length > 0;
-    const estimatedCost = isManualSelection ? requestedStyleIds.length : estimatedRandomDrawCost;
+    const requestedSubjectType = String(options.subjectType || "").trim();
+    const requestedDrawCount = Math.min(Math.max(Number(options.drawCount) || DEFAULT_PUBLIC_DRAW_COUNT, MIN_PUBLIC_DRAW_COUNT), MAX_PUBLIC_STYLE_SELECTION);
+    const estimatedCost = isManualSelection ? requestedStyleIds.length : isDrawCardExperience ? requestedDrawCount : 1;
 
     setIsSubmitting(true);
     setError("");
     setStylePickerError("");
     try {
-      if (isDrawCardExperience && !isManualSelection && !selectedSubjectType) {
+      if (isDrawCardExperience && !isManualSelection && !requestedSubjectType) {
         setError("请先选择照片主体类型。");
         return;
       }
@@ -3783,7 +3869,7 @@ function PublicExperiencePage({ config }) {
         formData.append("selectedStyleIds", JSON.stringify(requestedStyleIds));
       } else if (isDrawCardExperience) {
         formData.append("drawCount", String(requestedDrawCount));
-        formData.append("subjectType", selectedSubjectType);
+        formData.append("subjectType", requestedSubjectType);
       }
 
       const response = await fetch(`${apiBase}/sessions`, {
@@ -3795,6 +3881,7 @@ function PublicExperiencePage({ config }) {
       if (!response.ok) throw new Error(payload.message || createErrorMessage);
 
       setShowDrawConfigModal(false);
+      setReferenceSessionId(String(payload?.sessionId || ""));
       applySession(payload);
       refreshVisitorStateSilently();
     } catch (nextError) {
@@ -4486,13 +4573,13 @@ function PublicExperiencePage({ config }) {
                   <ArrowLeft size={18} />
                   <span>返回</span>
                 </button>
-                {isDrawCardExperience ? <button className="draw-card-secondary draw-card-results-restart draw-card-results-change-style" onClick={openStylePicker} type="button">
+                {isDrawCardExperience ? <button className="draw-card-secondary draw-card-results-restart draw-card-results-change-style" disabled={isRestoringSessionReference} onClick={openStylePicker} type="button">
                   <Sparkles size={18} />
-                  <span>换个风格</span>
+                  <span>{isRestoringSessionReference ? "读取中" : "换风格"}</span>
                 </button> : null}
-                <button className="draw-card-secondary draw-card-results-restart draw-card-results-new-photo" onClick={confirmResetExperience} type="button">
+                <button className="draw-card-secondary draw-card-results-restart draw-card-results-new-photo" onClick={requestPhotoChange} type="button">
                   <RefreshCw size={18} />
-                  <span>换张照片</span>
+                  <span>换照片</span>
                 </button>
               </div>
               {isDrawCardExperience ? renderClipPanel({ showAccount: false }) : null}
@@ -4592,66 +4679,12 @@ function PublicExperiencePage({ config }) {
       ) : null}
 
       {showDrawConfigModal && isDrawCardExperience ? (
-        <div className="modal-backdrop draw-card-confirm" onClick={() => setShowDrawConfigModal(false)} role="presentation">
-          <section className="draw-card-confirm-panel draw-card-config-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="抽卡设置">
-            <button className="icon-button" onClick={() => setShowDrawConfigModal(false)} type="button" aria-label="关闭抽卡设置">
-              <X size={18} />
-            </button>
-            <div>
-              <p className="draw-card-kicker">Draw settings</p>
-              <h2>设置本次抽卡</h2>
-              <p className="storage-note">选好照片主体和出图张数后，系统会随机抽取合适风格开始生成。</p>
-            </div>
-            <div className="draw-card-config-panel">
-              <div className="draw-card-config-group">
-                <span className="draw-card-config-label">照片主体</span>
-                <div className="draw-card-segmented-control" role="radiogroup" aria-label="照片主体">
-                  {DRAW_CARD_SUBJECT_OPTIONS.map((option) => (
-                    <button
-                      className={`draw-card-segment ${selectedSubjectType === option.value ? "is-active" : ""}`}
-                      disabled={isSubmitting}
-                      key={option.value}
-                      onClick={() => {
-                        setSelectedSubjectType(option.value);
-                        setError("");
-                      }}
-                      type="button"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="draw-card-count-control">
-                <span className="draw-card-config-label">本次抽卡</span>
-                <div className="draw-card-count-options" role="radiogroup" aria-label="本次抽卡张数">
-                  {DRAW_CARD_COUNT_OPTIONS.map((count) => (
-                    <button
-                      className={`draw-card-segment ${requestedDrawCount === count ? "is-active" : ""}`}
-                      disabled={isSubmitting}
-                      key={count}
-                      onClick={() => setDrawCount(count)}
-                      type="button"
-                    >
-                      {count}张
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <p className="draw-card-meta-note">本次最多消耗 {estimatedRandomDrawCost} 币，失败结果不扣币。</p>
-            </div>
-            {error ? <p className="error-note">{error}</p> : null}
-            <div className="draw-card-confirm-actions">
-              <button className="draw-card-secondary" disabled={isSubmitting} onClick={() => setShowDrawConfigModal(false)} type="button">
-                取消
-              </button>
-              <button className="draw-card-primary" disabled={!selectedSubjectType || isSubmitting} onClick={() => startDrawCard()} type="button">
-                {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
-                <span>{isSubmitting ? startButtonLoading : "确认抽卡"}</span>
-              </button>
-            </div>
-          </section>
-        </div>
+        <DrawCardConfigModal
+          busy={isSubmitting}
+          error={error}
+          onClose={() => setShowDrawConfigModal(false)}
+          onSubmit={(settings) => startDrawCard(settings)}
+        />
       ) : null}
 
       {pendingRemoval ? (
@@ -4719,6 +4752,20 @@ function PublicExperiencePage({ config }) {
             <div className="draw-card-confirm-actions">
               <button className="draw-card-secondary" onClick={() => setShowOriginalUnlockPrompt(false)} type="button">暂不定制</button>
               <button className="draw-card-primary" onClick={() => window.location.assign("/draw/order")} type="button">选图定制</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {showPhotoChangeConfirm ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => setShowPhotoChangeConfirm(false)} role="presentation">
+          <section className="draw-card-confirm-panel draw-card-photo-change-confirm" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="确认换照片">
+            <p className="draw-card-kicker">New photo</p>
+            <h2>换张照片</h2>
+            <p className="storage-note">换张照片后，本轮未加入卡夹的结果将不再显示。请先确认喜欢的图片已加入卡夹。</p>
+            <div className="draw-card-confirm-actions">
+              <button className="draw-card-secondary" onClick={() => setShowPhotoChangeConfirm(false)} type="button">取消</button>
+              <button className="draw-card-primary" onClick={confirmResetExperience} type="button">确定</button>
             </div>
           </section>
         </div>
@@ -6856,6 +6903,13 @@ async function fetchMyBeanPurchases() {
   return data;
 }
 
+async function fetchMyCoinPurchases() {
+  const response = await fetch("/api/coin-purchases");
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "读取购买币记录失败。");
+  return data;
+}
+
 async function payBeanPurchase(purchaseId, payload = {}) {
   const response = await fetch(`/api/bean-purchases/${encodeURIComponent(purchaseId)}/pay`, {
     method: "POST",
@@ -6915,8 +6969,9 @@ async function fetchOrderDetail(orderId, token = "") {
   return data;
 }
 
-async function fetchMyOrders() {
-  const response = await fetch("/api/my/orders");
+async function fetchMyOrders(scope = "") {
+  const query = scope ? `?scope=${encodeURIComponent(scope)}` : "";
+  const response = await fetch(`/api/my/orders${query}`);
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || "读取订单列表失败。");
   return data;
@@ -9335,6 +9390,20 @@ async function fetchPublicExperienceSession(apiBase, sessionId, fallbackMessage)
     throw error;
   }
   return payload;
+}
+
+async function fetchPublicExperienceSessionReference(apiBase, sessionId) {
+  const response = await fetch(`${apiBase}/sessions/${encodeURIComponent(sessionId)}/reference`);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    const error = new Error(payload.message || "读取本次任务的参考图失败，请稍后再试。");
+    error.status = response.status;
+    throw error;
+  }
+  const image = await response.blob();
+  const mimeType = String(image.type || response.headers.get("content-type") || "image/jpeg").split(";")[0];
+  const extension = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
+  return new File([image], `recent-session-reference.${extension}`, { type: mimeType });
 }
 
 async function fetchLatestPublicExperienceSession(apiBase, fallbackMessage) {

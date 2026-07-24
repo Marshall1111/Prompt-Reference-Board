@@ -1830,7 +1830,13 @@ body {
 
 .draw-card-results-actions.has-style-picker .draw-card-results-restart {
   width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  gap: 6px;
   justify-content: center;
+  padding-inline: 8px;
+  font-size: 15px;
+  white-space: nowrap;
 }
 
 .draw-card-results-actions.has-style-picker .draw-card-results-change-style {
@@ -3926,6 +3932,14 @@ h2 {
   object-fit: cover;
 }
 
+.draw-card-coin-purchase-cover {
+  border-color: rgba(255, 216, 149, 0.34);
+  background: rgba(255, 216, 149, 0.12);
+  color: #fff0c8;
+  font-size: 24px;
+  font-weight: 800;
+}
+
 .draw-card-order-list-summary {
   display: grid;
   min-width: 0;
@@ -3937,6 +3951,12 @@ h2 {
   font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
   font-size: clamp(1.5rem, 3vw, 2rem);
   line-height: 1;
+}
+
+.draw-card-coin-purchase-card .draw-card-order-list-summary strong {
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1.2;
 }
 
 .draw-card-order-list-summary small {
@@ -5418,8 +5438,17 @@ textarea {
     padding: 20px;
   }
 
-  .draw-card-stage {
+  /* 微信内置浏览器显示/隐藏全屏遮罩时会重新计算 100vh。
+     抽卡首页固定从顶部排版，避免卡夹随整页垂直居中而跳动。 */
+  .draw-card-shell.theme-draw-card {
+    min-height: 100vh;
+    min-height: 100svh;
+  }
+
+  .draw-card-shell.theme-draw-card .draw-card-stage {
+    align-content: start;
     min-height: calc(100vh - 40px);
+    min-height: calc(100svh - 40px);
   }
 
   .draw-card-orders-stage {

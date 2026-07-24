@@ -1490,8 +1490,11 @@ app.get("/api/my/orders", requireWebAccount, async (req, res, next) => {
   try {
     orderStore.expireUnpaidOrders();
     const settings = await readAppSettings();
+    const requestedScope = String(req.query?.scope || "").trim().toLowerCase();
+    const experienceScope = new Set(["body-book", "fridge"]).has(requestedScope) ? requestedScope : "";
     const payload = orderStore.listOrders({
       accountId: req.webAccount.id,
+      experienceScope,
       excludeUserDeleted: true,
       limit: 50
     });
@@ -1934,6 +1937,10 @@ app.post("/api/draw-card/sessions", requireWebAccount, beginDrawCardRequestTelem
 
 app.get("/api/draw-card/sessions/latest", requireWebAccount, async (req, res) => {
   return handleGetLatestPublicExperienceSession(req, res, "draw-card");
+});
+
+app.get("/api/draw-card/sessions/:sessionId/reference", requireWebAccount, async (req, res) => {
+  return handleGetPublicExperienceSessionReference(req, res, "draw-card");
 });
 
 app.get("/api/draw-card/sessions/:sessionId", requireWebAccount, async (req, res) => {
@@ -3857,6 +3864,26 @@ async function webAccountSessionMiddleware(req, res, next) {
     next();
   } catch (error) {
     next(error);
+  }
+}
+
+async function handleGetPublicExperienceSessionReference(req, res, experienceType) {
+  const config = getPublicExperienceConfig(experienceType);
+  try {
+    const session = await readDrawCardSession(req.params.sessionId);
+    if (!session || normalizePublicExperienceType(session.experienceType) !== config.experienceType) {
+      return res.status(404).json({ message: config.missingSessionMessage });
+    }
+    assertVisitorOwnsSession(req, session, config);
+
+    const reference = await readPublicExperienceSessionReference(session);
+    res.setHeader("Cache-Control", "private, max-age=300");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.type(reference.mimeType);
+    res.sendFile(reference.file);
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "读取参考图失败，请稍后再试。" });
   }
 }
 
@@ -7697,6 +7724,25 @@ async function sendAdminReferenceImage(res, job, index) {
   if (!(await fileExists(file))) throw createHttpError(404, "参考图不存在。");
   res.type(reference.mimeType || mimeForExtension(path.extname(file).toLowerCase()) || "application/octet-stream");
   res.sendFile(file);
+}
+
+async function readPublicExperienceSessionReference(session) {
+  const sessionItems = Array.isArray(session?.items) ? [...session.items].sort((left, right) => Number(left?.order || 0) - Number(right?.order || 0)) : [];
+  const jobId = String(sessionItems.find((item) => item?.jobId)?.jobId || "");
+  if (!jobId) throw createHttpError(404, "该任务未找到可用参考图。", "该任务未找到可用参考图。");
+
+  const job = await readImageJob(jobId);
+  const references = Array.isArray(job?.originalReferences) ? [...job.originalReferences].sort((left, right) => Number(left?.order || 0) - Number(right?.order || 0)) : [];
+  // 风格自身若带参考图会排在前面，用户上传的照片始终位于最后。
+  const reference = references[references.length - 1];
+  if (!reference) throw createHttpError(404, "该任务未找到可用参考图。", "该任务未找到可用参考图。");
+
+  const file = getJobReferenceFilePath(jobId, reference.url);
+  if (!(await fileExists(file))) throw createHttpError(404, "该任务参考图已不可用。", "该任务参考图已不可用。");
+  return {
+    file,
+    mimeType: String(reference.mimeType || mimeForExtension(path.extname(file).toLowerCase()) || "application/octet-stream")
+  };
 }
 
 async function resolveJobImageFile(job) {
