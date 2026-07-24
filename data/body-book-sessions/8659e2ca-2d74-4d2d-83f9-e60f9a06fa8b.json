@@ -9,7 +9,7 @@
   "status": "partial",
   "message": "部分图片生成失败，可单张或批量重试。",
   "createdAt": "2026-07-19T08:45:07.640Z",
-  "updatedAt": "2026-07-24T07:36:33.610Z",
+  "updatedAt": "2026-07-24T10:54:22.365Z",
   "completedAt": null,
   "savedAt": null,
   "reference": {
@@ -18,7 +18,16 @@
     "size": 2359005,
     "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
   },
+  "references": [
+    {
+      "filename": "reference.png",
+      "mimeType": "image/png",
+      "size": 2359005,
+      "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
+    }
+  ],
   "chargedJobIds": [],
+  "refundedJobIds": [],
   "billingError": "",
   "pages": [
     {
@@ -42,7 +51,15 @@
         "size": 2359005,
         "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 2359005,
+          "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
+        }
+      ]
     },
     {
       "key": "head",
@@ -65,7 +82,15 @@
         "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 2359005,
+          "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
+        }
+      ]
     },
     {
       "key": "eyes",
@@ -88,7 +113,15 @@
         "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 2359005,
+          "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
+        }
+      ]
     },
     {
       "key": "ears",
@@ -111,7 +144,15 @@
         "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 2359005,
+          "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
+        }
+      ]
     },
     {
       "key": "nose",
@@ -134,7 +175,15 @@
         "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 2359005,
+          "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
+        }
+      ]
     },
     {
       "key": "mouth",
@@ -157,7 +206,15 @@
         "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 2359005,
+          "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
+        }
+      ]
     },
     {
       "key": "hands",
@@ -180,7 +237,15 @@
         "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 2359005,
+          "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
+        }
+      ]
     },
     {
       "key": "feet",
@@ -203,7 +268,15 @@
         "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 2359005,
+          "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
+        }
+      ]
     },
     {
       "key": "tummy",
@@ -226,7 +299,15 @@
         "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 2359005,
+          "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
+        }
+      ]
     },
     {
       "key": "knees",
@@ -249,7 +330,15 @@
         "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 2359005,
+          "originalName": "141a26fc-7414-42ca-94c1-4b5cd494ec23.png"
+        }
+      ]
     }
   ]
 }

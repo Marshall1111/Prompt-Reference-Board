@@ -9,7 +9,7 @@
   "status": "partial",
   "message": "部分图片生成失败，可单张或批量重试。",
   "createdAt": "2026-07-19T08:34:14.267Z",
-  "updatedAt": "2026-07-24T07:36:33.610Z",
+  "updatedAt": "2026-07-24T10:54:22.363Z",
   "completedAt": null,
   "savedAt": null,
   "reference": {
@@ -18,7 +18,16 @@
     "size": 253239,
     "originalName": "20260719-154824-compressed.jpg"
   },
+  "references": [
+    {
+      "filename": "reference.jpg",
+      "mimeType": "image/jpeg",
+      "size": 253239,
+      "originalName": "20260719-154824-compressed.jpg"
+    }
+  ],
   "chargedJobIds": [],
+  "refundedJobIds": [],
   "billingError": "",
   "pages": [
     {
@@ -42,7 +51,15 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "head",
@@ -65,7 +82,15 @@
         "originalName": "20260719-154824-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "eyes",
@@ -88,7 +113,15 @@
         "originalName": "20260719-154824-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "ears",
@@ -111,7 +144,15 @@
         "originalName": "20260719-154824-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "nose",
@@ -136,7 +177,15 @@
         "originalName": "20260719-154824-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "mouth",
@@ -159,7 +208,15 @@
         "originalName": "20260719-154824-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "hands",
@@ -182,7 +239,15 @@
         "originalName": "20260719-154824-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "feet",
@@ -205,7 +270,15 @@
         "originalName": "20260719-154824-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "tummy",
@@ -228,7 +301,15 @@
         "originalName": "20260719-154824-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "knees",
@@ -251,7 +332,15 @@
         "originalName": "20260719-154824-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ]
     }
   ]
 }

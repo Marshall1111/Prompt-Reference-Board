@@ -1481,8 +1481,8 @@ function BodyBookPage() {
   const [selectedTheme, setSelectedTheme] = useState(null);
   const [project, setProject] = useState(null);
   const [draftKeys, setDraftKeys] = useState([]);
-  const [draftReference, setDraftReference] = useState(null);
-  const [draftReferencePreview, setDraftReferencePreview] = useState("");
+  const [draftReferences, setDraftReferences] = useState([]);
+  const [draftReferencePreviews, setDraftReferencePreviews] = useState([]);
   const [draftPageReferences, setDraftPageReferences] = useState({});
   const [draftPageReferencePreviews, setDraftPageReferencePreviews] = useState({});
   const [pagePrompts, setPagePrompts] = useState({});
@@ -1531,9 +1531,9 @@ function BodyBookPage() {
   const selectedKeys = (project?.pages?.map((page) => page.key) || draftKeys).filter((key) => selectableContents.some((content) => content.key === key));
   const draftPages = useMemo(() => selectableContents
     .filter((content) => draftKeys.includes(content.key))
-    .map((content) => ({ ...content, status: "not_started", result: null, errorMessage: "", referenceUrl: draftPageReferencePreviews[content.key] || draftReferencePreview })), [selectableContents, draftKeys, draftReferencePreview, draftPageReferencePreviews]);
+    .map((content) => ({ ...content, status: "not_started", result: null, errorMessage: "", referenceUrls: draftPageReferencePreviews[content.key] || draftReferencePreviews })), [selectableContents, draftKeys, draftReferencePreviews, draftPageReferencePreviews]);
   const pages = (project?.pages || draftPages).filter((page) => !page.isBuiltIn && page.pageType !== "back-cover");
-  const topReferenceUrl = project?.referenceUrl ? bodyBookCacheUrl(project.referenceUrl, project.updatedAt) : draftReferencePreview;
+  const topReferenceUrls = project?.referenceUrls?.length ? project.referenceUrls.map((url) => bodyBookCacheUrl(url, project.updatedAt)) : draftReferencePreviews;
   const pendingCount = pages.filter((page) => ["queued", "running"].includes(page.status)).length;
   const incompleteKeys = pages.filter((page) => !["succeeded", "queued", "running"].includes(page.status)).map((page) => page.key);
   const allAvailableKeys = pages.filter((page) => !page.isBuiltIn && !["queued", "running"].includes(page.status)).map((page) => page.key);
@@ -1672,20 +1672,16 @@ function BodyBookPage() {
   }, [showUserMenu]);
 
   useEffect(() => {
-    if (!draftReference) {
-      setDraftReferencePreview("");
-      return undefined;
-    }
-    const url = URL.createObjectURL(draftReference);
-    setDraftReferencePreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [draftReference]);
+    const previews = draftReferences.map((file) => URL.createObjectURL(file));
+    setDraftReferencePreviews(previews);
+    return () => previews.forEach((url) => URL.revokeObjectURL(url));
+  }, [draftReferences]);
 
   useEffect(() => {
-    const entries = Object.entries(draftPageReferences).filter(([, file]) => Boolean(file));
-    const previews = Object.fromEntries(entries.map(([key, file]) => [key, URL.createObjectURL(file)]));
+    const entries = Object.entries(draftPageReferences).filter(([, files]) => Array.isArray(files) && files.length);
+    const previews = Object.fromEntries(entries.map(([key, files]) => [key, files.map((file) => URL.createObjectURL(file))]));
     setDraftPageReferencePreviews(previews);
-    return () => Object.values(previews).forEach((url) => URL.revokeObjectURL(url));
+    return () => Object.values(previews).flat().forEach((url) => URL.revokeObjectURL(url));
   }, [draftPageReferences]);
 
   useEffect(() => {
@@ -1719,7 +1715,7 @@ function BodyBookPage() {
     setProject(null);
     setSelectedTheme(theme);
     setDraftKeys(themeContents.slice(0, 2).map((item) => item.key));
-    setDraftReference(null);
+    setDraftReferences([]);
     setDraftPageReferences({});
     setPagePrompts({});
     setDirtyPromptKeys([]);
@@ -1767,7 +1763,7 @@ function BodyBookPage() {
     bodyBookEditorRef.current = false;
     setProject(null);
     setSelectedTheme(null);
-    setDraftReference(null);
+    setDraftReferences([]);
     setDraftPageReferences({});
     setDraftKeys([]);
     setPagePrompts({});
@@ -1933,14 +1929,17 @@ function BodyBookPage() {
     }
   }
 
-  async function updateTopReference(file) {
+  async function updateTopReference(file, referenceIndex = null) {
     if (!file) return;
     if (!isValidBodyBookReference(file)) {
       setError("请上传 JPG、PNG 或 WebP 图片。");
       return;
     }
     if (!project) {
-      setDraftReference(file);
+      setDraftReferences((current) => {
+        if (referenceIndex === null) return current.length < 3 ? [...current, file] : current;
+        return current.map((item, index) => index === referenceIndex ? file : item);
+      });
       setDraftPageReferences({});
       setError("");
       return;
@@ -1951,6 +1950,7 @@ function BodyBookPage() {
       const prepared = await prepareReferenceForUpload({ id: "body-book-project-reference", file });
       const data = new FormData();
       data.append("image", prepared.file);
+      if (referenceIndex !== null) data.append("referenceIndex", String(referenceIndex));
       applyProject(await replaceBodyBookProjectReference(project.sessionId, data));
     } catch (nextError) {
       setError(nextError.message || "替换参考图失败，请稍后再试。");
@@ -1959,14 +1959,18 @@ function BodyBookPage() {
     }
   }
 
-  async function updatePageReference(page, file) {
+  async function updatePageReference(page, file, referenceIndex = 0) {
     if (!file) return;
     if (!isValidBodyBookReference(file)) {
       setError("请上传 JPG、PNG 或 WebP 图片。");
       return;
     }
     if (!project) {
-      setDraftPageReferences((current) => ({ ...current, [page.key]: file }));
+      setDraftPageReferences((current) => {
+        const existing = [...(current[page.key] || draftReferences)];
+        existing[referenceIndex] = file;
+        return { ...current, [page.key]: existing.filter(Boolean) };
+      });
       setError("");
       return;
     }
@@ -1976,9 +1980,28 @@ function BodyBookPage() {
       const prepared = await prepareReferenceForUpload({ id: `body-book-page-${page.key}`, file });
       const data = new FormData();
       data.append("image", prepared.file);
+      data.append("referenceIndex", String(referenceIndex));
       applyProject(await replaceBodyBookProjectPageReference(project.sessionId, page.key, data));
     } catch (nextError) {
       setError(nextError.message || "替换页面参考图失败，请稍后再试。");
+    } finally {
+      setBusyPageKey("");
+    }
+  }
+
+  async function removePageReference(page, referenceIndex) {
+    const references = project ? (page.referenceUrls || []) : (draftPageReferences[page.key] || draftReferences);
+    if (references.length <= 1) return;
+    if (!project) {
+      setDraftPageReferences((current) => ({ ...current, [page.key]: (current[page.key] || draftReferences).filter((_, index) => index !== referenceIndex) }));
+      return;
+    }
+    setBusyPageKey(page.key);
+    setError("");
+    try {
+      applyProject(await deleteBodyBookProjectPageReference(project.sessionId, page.key, referenceIndex));
+    } catch (nextError) {
+      setError(nextError.message || "删除页面参考图失败，请稍后再试。");
     } finally {
       setBusyPageKey("");
     }
@@ -2018,8 +2041,8 @@ function BodyBookPage() {
       return;
     }
     if (!(await ensureBookAccount())) return;
-    if (!project && !draftReference) {
-      setError("请先上传参考图。");
+    if (!project && !draftReferences.length) {
+      setError("请先上传至少 1 张宝宝照片。");
       return;
     }
     setBusy(true);
@@ -2030,15 +2053,15 @@ function BodyBookPage() {
       if (project) {
         next = await generateBodyBookProjectPages(project.sessionId, keys, selectBodyBookPagePrompts(pagePrompts, keys, dirtyPromptKeys));
       } else {
-        const prepared = await prepareReferenceForUpload({ id: "body-book-project-reference", file: draftReference });
         const data = new FormData();
-        data.append("image", prepared.file);
+        const preparedReferences = await Promise.all(draftReferences.map((file, index) => prepareReferenceForUpload({ id: `body-book-project-reference-${index}`, file })));
+        preparedReferences.forEach((prepared) => data.append("images", prepared.file));
         data.append("themeId", activeTheme.id);
         data.append("contentKeys", JSON.stringify(draftKeys));
         data.append("generationKeys", JSON.stringify(keys));
         data.append("pagePrompts", JSON.stringify(selectBodyBookPagePrompts(pagePrompts, draftKeys, dirtyPromptKeys)));
-        Object.entries(draftPageReferences).forEach(([key, file]) => {
-          if (draftKeys.includes(key) && file) data.append(`pageReference-${key}`, file);
+        Object.entries(draftPageReferences).forEach(([key, files]) => {
+          if (draftKeys.includes(key)) files.forEach((file) => data.append(`pageReference-${key}`, file));
         });
         next = await createBodyBookProject(data);
       }
@@ -2131,10 +2154,10 @@ function BodyBookPage() {
       </> : <section className="body-book-workspace body-book-project-workspace">
         <div className="body-book-status-row"><div><span className="body-book-step">02</span><h2>{project?.message || "配置你的认知书页面"}</h2></div></div>
         {error ? <p className="error-note">{error}</p> : null}
-        <section className="body-book-project-reference"><div><span className="body-book-step">REFERENCE</span><h3>全局参考图</h3><p>{activeTheme?.id === "color" ? "替换后会同步更新封面与所有宝宝页；颜色物品页会在成书预览中自动加入。" : "替换后会同步更新封面与所有需要生成的页面。"}</p></div><label className={`body-book-upload body-book-project-upload ${topReferenceUrl ? "has-image" : ""}`}>{topReferenceUrl ? <img alt="认知书全局参考图" src={topReferenceUrl} /> : <><ImageUp size={28} /><strong>上传参考图</strong><span>JPG、PNG、WebP</span></>}<input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label></section>
+        <section className="body-book-project-reference"><div><span className="body-book-step">REFERENCE</span><h3>全局参考图</h3><p>请上传宝宝照片。首张为必填；可继续添加，最多 3 张。所有照片只用于保持同一宝宝身份特征，不会生成多人。</p></div><div className="body-book-reference-list">{topReferenceUrls.map((url, index) => <label className="body-book-upload body-book-project-upload has-image" key={`${url}-${index}`}><img alt={`宝宝参考图 ${index + 1}`} src={url} /><span className="body-book-reference-index">{index + 1}</span><input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null, index); event.target.value = ""; }} type="file" /></label>)}{topReferenceUrls.length < 3 ? <label className="body-book-upload body-book-project-upload body-book-reference-add"><Plus size={28} /><strong>{topReferenceUrls.length ? "添加照片" : "上传宝宝照片"}</strong><span>{topReferenceUrls.length ? `${topReferenceUrls.length}/3` : "至少 1 张"}</span><input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label> : null}</div></section>
         <section className="body-book-content-panel">
           <div className="body-book-project-pages-head"><div><span className="body-book-step">03</span><h3>内容选择</h3><p>{activeTheme?.id === "color" ? "制作时仅选择封面和各颜色宝宝页；颜色物品页会在下单预览中自动加入。" : "每张卡片可单独替换参考图、修改提示词并生成。"}</p><p className="body-book-selection-progress">{selectionProgressText}</p></div></div>
-          <div className="body-book-grid body-book-project-grid">{pages.map((page) => <BodyBookProjectItem busy={busy} busyPageKey={busyPageKey} key={`${page.key}-${page.jobId || "new"}`} onDelete={() => savePageSelection(selectedKeys.filter((key) => key !== page.key))} onGenerate={() => submitGeneration([page.key], page.key)} onOpen={openActiveItem} onReplaceReference={(file) => updatePageReference(page, file)} page={page} referenceUrl={page.usesProjectReference ? topReferenceUrl : bodyBookCacheUrl(page.referenceUrl || topReferenceUrl, project?.updatedAt)} />)}<button className="body-book-add-page-card" disabled={busy} onClick={openContentPicker} type="button" aria-label="添加或编辑内容"><Plus size={36} /><span>添加内容</span></button>{!pages.length ? <p className="body-book-library-empty">点击“添加内容”选择要制作的页面。</p> : null}</div>
+          <div className="body-book-grid body-book-project-grid">{pages.map((page) => <BodyBookProjectItem busy={busy} busyPageKey={busyPageKey} key={`${page.key}-${page.jobId || "new"}`} onDelete={() => savePageSelection(selectedKeys.filter((key) => key !== page.key))} onGenerate={() => submitGeneration([page.key], page.key)} onOpen={openActiveItem} onRemoveReference={(index) => removePageReference(page, index)} onReplaceReference={(file, index) => updatePageReference(page, file, index)} page={page} referenceUrls={(page.referenceUrls || topReferenceUrls).map((url) => bodyBookCacheUrl(url, project?.updatedAt))} />)}<button className="body-book-add-page-card" disabled={busy} onClick={openContentPicker} type="button" aria-label="添加或编辑内容"><Plus size={36} /><span>添加内容</span></button>{!pages.length ? <p className="body-book-library-empty">点击“添加内容”选择要制作的页面。</p> : null}</div>
           <div className="body-book-content-panel-actions"><div className="body-book-content-panel-order-actions"><button className="draw-card-secondary" onClick={() => setShowBatchDialog(true)} type="button">{busy && !busyPageKey ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}<span>批量生成</span></button><button className="draw-card-primary" onClick={openBookCheckout} type="button">下单实体书 · {formatCurrencyCents(bookOrderPayablePreviewCents)}</button></div></div>
         </section>
       </section>}
@@ -2160,7 +2183,7 @@ function BodyBookPage() {
   );
 }
 
-function BodyBookProjectItem({ page, referenceUrl, onOpen, onReplaceReference, onGenerate, onDelete, busy, busyPageKey }) {
+function BodyBookProjectItem({ page, referenceUrls = [], onOpen, onReplaceReference, onRemoveReference, onGenerate, onDelete, busy, busyPageKey }) {
   const pending = ["queued", "running"].includes(page.status);
   const succeeded = page.status === "succeeded" && page.result?.imageUrl;
   const working = busyPageKey === page.key;
@@ -2172,7 +2195,7 @@ function BodyBookProjectItem({ page, referenceUrl, onOpen, onReplaceReference, o
     {!page.isBuiltIn && !page.isRequired ? <button className="body-book-project-delete icon-button" disabled={busy || pending} onClick={onDelete} title="删除页面" type="button"><X size={17} /></button> : null}
     {succeeded ? <button className="body-book-item-media" onClick={() => onOpen(page)} type="button"><img alt={page.title} src={page.result.previewUrl || page.result.imageUrl} /></button> : <div className="body-book-placeholder">{pending ? <LoaderCircle className="spin" size={24} /> : <AlertTriangle size={24} />}<strong>{pending ? "正在生成" : page.status === "failed" ? "生成失败" : "尚未生成"}</strong><span>{page.errorMessage || (pending ? "图片完成后会自动出现。" : "可单张生成或加入批量生成。")}</span></div>}
     <div className="body-book-item-meta"><div><strong>{page.title}</strong></div></div>
-    {page.isBuiltIn ? <div className="body-book-project-card-controls"><span className="body-book-built-in-note">项目内置物品页 · 无需生成</span></div> : <div className="body-book-project-card-controls"><label className="body-book-page-reference">{referenceUrl ? <img alt={`${page.title} 参考图`} onError={(event) => { event.currentTarget.style.display = "none"; }} src={referenceUrl} /> : <ImageUp size={16} />}<span>替换参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || pending} onChange={(event) => { onReplaceReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label><button className="draw-card-secondary" disabled={busy || pending} onClick={handleGenerate} type="button">{working ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}<span>{succeeded ? "单张重新生成" : "单张生成"}</span></button></div>}
+    {page.isBuiltIn ? <div className="body-book-project-card-controls"><span className="body-book-built-in-note">项目内置物品页 · 无需生成</span></div> : <div className="body-book-project-card-controls"><div className="body-book-page-references">{referenceUrls.map((referenceUrl, index) => <div className="body-book-page-reference-row" key={`${referenceUrl}-${index}`}><label className="body-book-page-reference">{referenceUrl ? <img alt={`${page.title} 参考图 ${index + 1}`} onError={(event) => { event.currentTarget.style.display = "none"; }} src={referenceUrl} /> : <ImageUp size={18} />}<span>替换参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || pending} onChange={(event) => { onReplaceReference(event.target.files?.[0] || null, index); event.target.value = ""; }} type="file" /></label>{referenceUrls.length > 1 ? <button aria-label={`删除第 ${index + 1} 张参考图`} className="body-book-page-reference-remove" disabled={busy || pending} onClick={() => onRemoveReference(index)} title="删除参考图" type="button"><X size={15} /></button> : null}</div>)}</div><button className="draw-card-secondary" disabled={busy || pending} onClick={handleGenerate} type="button">{working ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}<span>{succeeded ? "单张重新生成" : "单张生成"}</span></button></div>}
   </article>;
 }
 
@@ -4371,7 +4394,7 @@ function PublicExperiencePage({ config }) {
                       <button className="draw-card-secondary" onClick={openStylePicker} type="button">
                         <span>选择风格</span>
                       </button>
-                      <button className="draw-card-secondary" onClick={openRandomDrawConfig} type="button">
+                      <button className="draw-card-secondary draw-card-home-random-button" onClick={openRandomDrawConfig} type="button">
                         {isSubmitting ? <LoaderCircle className="spin" size={18} /> : null}
                         <span>{isSubmitting ? startButtonLoading : startButtonIdle}</span>
                       </button>
@@ -9524,6 +9547,13 @@ async function replaceBodyBookProjectPageReference(projectId, pageKey, formData)
   const response = await fetch(`/api/body-book/projects/${encodeURIComponent(projectId)}/pages/${encodeURIComponent(pageKey)}/reference`, { method: "POST", body: formData });
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "替换页面参考图失败，请稍后再试。");
+  return payload;
+}
+
+async function deleteBodyBookProjectPageReference(projectId, pageKey, referenceIndex) {
+  const response = await fetch(`/api/body-book/projects/${encodeURIComponent(projectId)}/pages/${encodeURIComponent(pageKey)}/reference/${encodeURIComponent(referenceIndex)}`, { method: "DELETE" });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "删除页面参考图失败，请稍后再试。");
   return payload;
 }
 

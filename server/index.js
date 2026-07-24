@@ -53,6 +53,7 @@ const RESULT_THUMBNAIL_MAX_EDGE = 384;
 const PUBLIC_PREVIEW_MAX_EDGE = 1536;
 const REFERENCE_THUMBNAIL_MAX_EDGE = 240;
 const DRAW_CARD_GROUP_NAME = "抽卡";
+const BODY_BOOK_MAX_REFERENCE_COUNT = 3;
 const FRIDGE_MAGNET_GROUP_NAME = "冰箱贴";
 const DRAW_CARD_DEFAULT_SIZE = "1024x1536";
 const STYLE_GROUP_SIZE_OPTIONS = new Set(["1024x1536", "1536x1024", "1024x1024", "1024x1365", "1365x1024"]);
@@ -1980,8 +1981,8 @@ app.get("/api/body-book/projects", requireWebAccount, async (req, res) => {
 app.post("/api/body-book/projects", requireWebAccount, upload.any(), async (req, res) => {
   try {
     const files = Array.isArray(req.files) ? req.files : [];
-    const referenceFile = files.find((file) => file.fieldname === "image");
-    if (!referenceFile) throw createHttpError(400, "请先上传一张宝宝照片。");
+    const referenceFiles = files.filter((file) => file.fieldname === "images" || file.fieldname === "image").slice(0, BODY_BOOK_MAX_REFERENCE_COUNT);
+    if (!referenceFiles.length) throw createHttpError(400, "请先上传至少一张宝宝照片。");
     if (files.some((file) => file.mimetype === "image/svg+xml")) throw createHttpError(400, "请上传 JPG、PNG 或 WebP 图片。");
     const theme = getBookTheme(req.body?.themeId);
     if (!theme) throw createHttpError(400, "请选择认知书主题。");
@@ -1997,10 +1998,14 @@ app.post("/api/body-book/projects", requireWebAccount, upload.any(), async (req,
     }
     const visitor = await getVisitorState(req);
     enforcePublicRateLimits(req);
-    const pageReferenceFiles = new Map(files
-      .filter((file) => file.fieldname.startsWith("pageReference-"))
-      .map((file) => [file.fieldname.slice("pageReference-".length).toLowerCase(), file]));
-    const project = await createBodyBookProject({ file: referenceFile, pageReferenceFiles, pagePrompts, visitor, accountId: req.webAccount.id, theme, contentKeys, generationKeys });
+    const pageReferenceFiles = new Map();
+    files.filter((file) => file.fieldname.startsWith("pageReference-")).forEach((file) => {
+      const key = file.fieldname.slice("pageReference-".length).toLowerCase();
+      const current = pageReferenceFiles.get(key) || [];
+      if (current.length < BODY_BOOK_MAX_REFERENCE_COUNT) current.push(file);
+      pageReferenceFiles.set(key, current);
+    });
+    const project = await createBodyBookProject({ files: referenceFiles, pageReferenceFiles, pagePrompts, visitor, accountId: req.webAccount.id, theme, contentKeys, generationKeys });
     res.status(202).json(toPublicBodyBookSession(project));
   } catch (error) {
     console.error(error);
@@ -2040,7 +2045,7 @@ app.post("/api/body-book/projects/:sessionId/reference", requireWebAccount, uplo
     if (!session) throw createHttpError(404, "这本认知书工程不存在或已删除。");
     assertWebAccountOwnsBodyBookSession(req, session);
     if (!req.file || req.file.mimetype === "image/svg+xml") throw createHttpError(400, "请上传 JPG、PNG 或 WebP 图片。");
-    const next = await replaceBodyBookProjectReference(session, req.file);
+    const next = await replaceBodyBookProjectReference(session, req.file, req.body?.referenceIndex);
     res.json(toPublicBodyBookSession(next));
   } catch (error) {
     console.error(error);
@@ -2054,11 +2059,24 @@ app.post("/api/body-book/projects/:sessionId/pages/:pageKey/reference", requireW
     if (!session) throw createHttpError(404, "这本认知书工程不存在或已删除。");
     assertWebAccountOwnsBodyBookSession(req, session);
     if (!req.file || req.file.mimetype === "image/svg+xml") throw createHttpError(400, "请上传 JPG、PNG 或 WebP 图片。");
-    const next = await replaceBodyBookPageReference(session, req.params.pageKey, req.file);
+    const next = await replaceBodyBookPageReference(session, req.params.pageKey, req.file, req.body?.referenceIndex);
     res.json(toPublicBodyBookSession(next));
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "替换页面参考图失败，请稍后再试。" });
+  }
+});
+
+app.delete("/api/body-book/projects/:sessionId/pages/:pageKey/reference/:referenceIndex", requireWebAccount, async (req, res) => {
+  try {
+    const session = await readBodyBookSession(req.params.sessionId);
+    if (!session) throw createHttpError(404, "这本认知书工程不存在或已删除。");
+    assertWebAccountOwnsBodyBookSession(req, session);
+    const next = await deleteBodyBookPageReference(session, req.params.pageKey, req.params.referenceIndex);
+    res.json(toPublicBodyBookSession(next));
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "删除页面参考图失败，请稍后再试。" });
   }
 });
 
@@ -2098,6 +2116,22 @@ app.get("/api/body-book/projects/:sessionId/reference", requireWebAccount, async
   }
 });
 
+app.get("/api/body-book/projects/:sessionId/reference/:referenceIndex", requireWebAccount, async (req, res) => {
+  try {
+    const session = await readBodyBookSession(req.params.sessionId);
+    if (!session) throw createHttpError(404, "这本认知书工程不存在或已删除。");
+    assertWebAccountOwnsBodyBookSession(req, session);
+    const references = normalizeBodyBookReferences(session.references, session.reference);
+    const reference = references[Number(req.params.referenceIndex)];
+    if (!reference) throw createHttpError(404, "找不到该参考图。");
+    const file = await readBodyBookReference(session, reference);
+    res.type(file.mimetype).send(file.buffer);
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "读取参考图失败，请稍后再试。" });
+  }
+});
+
 app.get("/api/body-book/projects/:sessionId/pages/:pageKey/reference", requireWebAccount, async (req, res) => {
   try {
     const session = await readBodyBookSession(req.params.sessionId);
@@ -2110,6 +2144,24 @@ app.get("/api/body-book/projects/:sessionId/pages/:pageKey/reference", requireWe
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "读取参考图失败，请稍后再试。" });
+  }
+});
+
+app.get("/api/body-book/projects/:sessionId/pages/:pageKey/reference/:referenceIndex", requireWebAccount, async (req, res) => {
+  try {
+    const session = await readBodyBookSession(req.params.sessionId);
+    if (!session) throw createHttpError(404, "这本认知书工程不存在或已删除。");
+    assertWebAccountOwnsBodyBookSession(req, session);
+    const page = session.pages.find((item) => item.key === String(req.params.pageKey || "").toLowerCase());
+    if (!page) throw createHttpError(404, "找不到该认知书页面。");
+    const references = normalizeBodyBookReferences(page.references, page.reference);
+    const reference = references[Number(req.params.referenceIndex)];
+    if (!reference) throw createHttpError(404, "找不到该参考图。");
+    const file = await readBodyBookReference(session, reference);
+    res.type(file.mimetype).send(file.buffer);
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "读取页面参考图失败，请稍后再试。" });
   }
 });
 
@@ -8869,10 +8921,11 @@ async function regenerateBodyBookCard(session, part, options = {}) {
   return next;
 }
 
-async function createBodyBookImageJob(session, slot, provider, providers, referenceMetadata = session.reference) {
-  const reference = await readBodyBookReference(session, referenceMetadata);
+async function createBodyBookImageJob(session, slot, provider, providers, referenceMetadata = session.references || [session.reference]) {
+  const references = await readBodyBookReferences(session, referenceMetadata);
   const jobId = randomUUID();
-  const originalReferences = reference ? await persistImageJobReferences(jobId, [reference]) : [];
+  const originalReferences = await persistImageJobReferences(jobId, references);
+  const prompt = `${slot.prompt}\n\nIdentity reference rule: All uploaded reference photos are photos of the same baby. Use them only to preserve one baby's consistent facial features, skin tone, age impression, and natural hair. Do not blend them into multiple people, and do not generate more than one baby.`;
   const now = new Date().toISOString();
   const job = {
     jobId,
@@ -8883,9 +8936,9 @@ async function createBodyBookImageJob(session, slot, provider, providers, refere
     createdAt: now,
     updatedAt: now,
     completedAt: null,
-    prompt: slot.prompt,
+    prompt,
     size: BODY_BOOK_SIZE,
-    referenceCount: 1,
+    referenceCount: references.length,
     originalReferences,
     styleId: slot.key,
     styleName: slot.title,
@@ -8907,9 +8960,9 @@ async function createBodyBookImageJob(session, slot, provider, providers, refere
       : runImageJob({
           jobId,
           body: { size: BODY_BOOK_SIZE, quality: "medium", output_format: "png", background: "opaque", moderation: "auto" },
-          files: [{ ...reference, buffer: Buffer.from(reference.buffer) }],
+          files: references.map((reference) => ({ ...reference, buffer: Buffer.from(reference.buffer) })),
           outputFormat: "png",
-          prompt: slot.prompt,
+          prompt,
           provider,
           providers,
           telemetry: { sessionId: session.sessionId, visitorId: session.ownerVisitorId, styleId: slot.key, styleName: slot.title, order: slot.order }
@@ -9245,11 +9298,31 @@ async function persistBodyBookReference(sessionId, file, key = "reference") {
   return { filename, mimeType: file.mimetype, size: Number(file.size || file.buffer?.length || 0), originalName: String(file.originalname || filename) };
 }
 
+function normalizeBodyBookReferences(references, fallback = null) {
+  const values = Array.isArray(references) ? references : fallback ? [fallback] : [];
+  return values
+    .filter((reference) => reference && typeof reference === "object" && String(reference.filename || ""))
+    .slice(0, BODY_BOOK_MAX_REFERENCE_COUNT);
+}
+
+async function persistBodyBookReferences(sessionId, files, keyPrefix = "reference") {
+  const safeFiles = (Array.isArray(files) ? files : [files])
+    .filter(Boolean)
+    .slice(0, BODY_BOOK_MAX_REFERENCE_COUNT);
+  return Promise.all(safeFiles.map((file, index) => persistBodyBookReference(sessionId, file, `${keyPrefix}-${index + 1}`)));
+}
+
 async function readBodyBookReference(session, referenceMetadata = session?.reference) {
   const filename = path.basename(String(referenceMetadata?.filename || ""));
   if (!filename || !isSafeImageJobId(session?.sessionId)) throw createHttpError(500, "认知书参考图不存在，请换图重新开始。");
   const buffer = await readFile(path.join(bodyBookSessionRoot, session.sessionId, filename));
   return { originalname: String(referenceMetadata.originalName || filename), mimetype: String(referenceMetadata.mimeType || "image/jpeg"), size: buffer.length, buffer };
+}
+
+async function readBodyBookReferences(session, references = session?.references) {
+  const normalized = normalizeBodyBookReferences(references, session?.reference);
+  if (!normalized.length) throw createHttpError(500, "认知书参考图不存在，请换图重新开始。");
+  return Promise.all(normalized.map((reference) => readBodyBookReference(session, reference)));
 }
 
 async function withBodyBookSessionSyncLock(sessionId, task) {
@@ -9361,7 +9434,7 @@ function parseBodyBookPagePrompts(value, theme) {
     .map(([key, prompt]) => [String(key).toLowerCase(), String(prompt).slice(0, 6000)]));
 }
 
-function createBodyBookPage(definition, theme, reference, current = {}) {
+function createBodyBookPage(definition, theme, references, current = {}) {
   const prompt = definition.key === "cover"
     ? buildBodyBookCoverPrompt(theme)
     : definition.pageType === "objects"
@@ -9384,6 +9457,8 @@ function createBodyBookPage(definition, theme, reference, current = {}) {
       historyJobIds: []
     };
   }
+  const currentReferences = normalizeBodyBookReferences(current?.references, current?.reference);
+  const pageReferences = currentReferences.length ? currentReferences : normalizeBodyBookReferences(references);
   return {
     ...definition,
     ...current,
@@ -9396,7 +9471,8 @@ function createBodyBookPage(definition, theme, reference, current = {}) {
     status: String(current?.status || (current?.jobId ? "queued" : "not_started")),
     prompt: normalizeBodyBookPrompt(current?.prompt, prompt),
     hasCustomPrompt: Boolean(current?.hasCustomPrompt),
-    reference: current?.reference && typeof current.reference === "object" ? current.reference : reference || null,
+    references: pageReferences,
+    reference: pageReferences[0] || null,
     result: current?.result ? normalizeJobResult(current.result) : null,
     errorMessage: String(current?.errorMessage || ""),
     historyJobIds: Array.isArray(current?.historyJobIds) ? current.historyJobIds.map(String).filter(Boolean) : []
@@ -9427,6 +9503,7 @@ function getBodyBookPrintPages(session) {
   const projectPages = Array.isArray(session?.pages) ? session.pages : [];
   const byKey = new Map(projectPages.map((page) => [String(page?.key || "").toLowerCase(), page]));
   const reference = session?.reference && typeof session.reference === "object" ? session.reference : {};
+  const references = normalizeBodyBookReferences(session?.references, reference);
 
   if (theme.id !== "color") {
     return projectPages
@@ -9439,22 +9516,25 @@ function getBodyBookPrintPages(session) {
     .flatMap((definition) => {
       if (definition.pageType === "objects") {
         const babyKey = `${definition.colorKey}-baby`;
-        return byKey.has(babyKey) ? [createBodyBookPage(definition, theme, reference)] : [];
+        return byKey.has(babyKey) ? [createBodyBookPage(definition, theme, references)] : [];
       }
       const existing = byKey.get(definition.key);
-      return existing ? [createBodyBookPage(definition, theme, reference, existing)] : [];
+      return existing ? [createBodyBookPage(definition, theme, references, existing)] : [];
     });
 }
 
-async function createBodyBookProject({ file, pageReferenceFiles = new Map(), pagePrompts = {}, visitor, accountId, theme, contentKeys, generationKeys }) {
+async function createBodyBookProject({ files, pageReferenceFiles = new Map(), pagePrompts = {}, visitor, accountId, theme, contentKeys, generationKeys }) {
   const sessionId = randomUUID();
   const now = new Date().toISOString();
-  const reference = await persistBodyBookReference(sessionId, file);
+  const references = await persistBodyBookReferences(sessionId, files, "reference");
+  const reference = references[0];
   const selectedKeys = ensureBodyBookCoverKey(parseBodyBookPageKeys(contentKeys, theme), theme);
   const pageReferences = new Map(await Promise.all(selectedKeys.map(async (key) => {
-    const pageFile = pageReferenceFiles.get(key);
-    const pageReference = pageFile ? await persistBodyBookReference(sessionId, pageFile, `page-${key}-${Date.now()}`) : reference;
-    return [key, pageReference];
+    const pageFiles = pageReferenceFiles.get(key);
+    const pageReferences = pageFiles?.length
+      ? await persistBodyBookReferences(sessionId, pageFiles, `page-${key}`)
+      : references;
+    return [key, pageReferences];
   })));
   const session = await saveBodyBookSession({
     schemaVersion: 2,
@@ -9470,13 +9550,14 @@ async function createBodyBookProject({ file, pageReferenceFiles = new Map(), pag
     updatedAt: now,
     completedAt: null,
     savedAt: null,
-    reference,
+    reference: references[0] || reference,
+    references,
     chargedJobIds: [],
     billingError: "",
     pages: selectedKeys.map((key) => createBodyBookPage(
       getBodyBookPageDefinition(theme, key),
       theme,
-      pageReferences.get(key) || reference,
+      pageReferences.get(key) || references,
       { prompt: pagePrompts[key], hasCustomPrompt: Boolean(String(pagePrompts[key] || "").trim()) }
     ))
   });
@@ -9493,33 +9574,69 @@ async function updateBodyBookProjectPages(session, contentKeys) {
   const byKey = new Map(current.pages.map((page) => [page.key, page]));
   return saveBodyBookSession({
     ...current,
-    pages: selectedKeys.map((key) => createBodyBookPage(getBodyBookPageDefinition(theme, key), theme, current.reference, byKey.get(key))),
+    pages: selectedKeys.map((key) => createBodyBookPage(getBodyBookPageDefinition(theme, key), theme, current.references, byKey.get(key))),
     updatedAt: new Date().toISOString(),
     message: "内容已更新，可继续生成。"
   });
 }
 
-async function replaceBodyBookProjectReference(session, file) {
+async function replaceBodyBookProjectReference(session, file, referenceIndex = null) {
   const current = normalizeBodyBookSession(session);
-  const reference = await persistBodyBookReference(current.sessionId, file, `reference-${Date.now()}`);
+  const references = [...current.references];
+  const isAppend = referenceIndex === null || referenceIndex === undefined || referenceIndex === "";
+  const index = isAppend ? references.length : Number(referenceIndex);
+  if (!Number.isInteger(index) || index < 0 || index > references.length || (!isAppend && index >= references.length)) {
+    throw createHttpError(400, "参考图序号无效。"
+    );
+  }
+  if (isAppend && references.length >= BODY_BOOK_MAX_REFERENCE_COUNT) {
+    throw createHttpError(400, `最多上传 ${BODY_BOOK_MAX_REFERENCE_COUNT} 张宝宝照片。`);
+  }
+  const nextReference = await persistBodyBookReference(current.sessionId, file, `reference-${index + 1}-${Date.now()}`);
+  if (isAppend) references.push(nextReference);
+  else references[index] = nextReference;
+  const reference = references[0];
   return saveBodyBookSession({
     ...current,
     reference,
-    pages: current.pages.map((page) => page.isBuiltIn ? page : { ...page, reference }),
+    references,
+    pages: current.pages.map((page) => page.isBuiltIn ? page : { ...page, reference, references: [...references] }),
     updatedAt: new Date().toISOString(),
     message: "已更新所有页面的参考图。"
   });
 }
 
-async function replaceBodyBookPageReference(session, pageKey, file) {
+async function replaceBodyBookPageReference(session, pageKey, file, referenceIndex = 0) {
   const current = normalizeBodyBookSession(session);
   const page = current.pages.find((item) => item.key === String(pageKey || "").toLowerCase());
   if (!page) throw createHttpError(404, "找不到该认知书页面。");
   if (page.isBuiltIn) throw createHttpError(409, "项目内置物品页不需要替换参考图。");
-  const reference = await persistBodyBookReference(current.sessionId, file, `page-${page.key}-${Date.now()}`);
+  const references = [...normalizeBodyBookReferences(page.references, page.reference)];
+  const index = Number(referenceIndex);
+  if (!Number.isInteger(index) || index < 0 || index >= references.length) throw createHttpError(400, "参考图序号无效。");
+  references[index] = await persistBodyBookReference(current.sessionId, file, `page-${page.key}-${index + 1}-${Date.now()}`);
+  const reference = references[0];
   return saveBodyBookSession({
     ...current,
-    pages: current.pages.map((item) => item.key === page.key ? { ...item, reference } : item),
+    pages: current.pages.map((item) => item.key === page.key ? { ...item, reference, references } : item),
+    updatedAt: new Date().toISOString(),
+    message: `已更新${page.chinese || page.title}的参考图。`
+  });
+}
+
+async function deleteBodyBookPageReference(session, pageKey, referenceIndex) {
+  const current = normalizeBodyBookSession(session);
+  const page = current.pages.find((item) => item.key === String(pageKey || "").toLowerCase());
+  if (!page || page.isBuiltIn) throw createHttpError(404, "找不到可编辑的认知书页面。");
+  const references = [...normalizeBodyBookReferences(page.references, page.reference)];
+  const index = Number(referenceIndex);
+  if (!Number.isInteger(index) || index < 0 || index >= references.length) throw createHttpError(400, "参考图序号无效。");
+  if (references.length <= 1) throw createHttpError(409, "每页至少保留 1 张宝宝照片。"
+  );
+  references.splice(index, 1);
+  return saveBodyBookSession({
+    ...current,
+    pages: current.pages.map((item) => item.key === page.key ? { ...item, reference: references[0], references } : item),
     updatedAt: new Date().toISOString(),
     message: `已更新${page.chinese || page.title}的参考图。`
   });
@@ -9553,7 +9670,7 @@ async function generateBodyBookPages(session, pageKeys, pagePrompts = {}) {
       bookTitle: theme.englishName,
       bookSubtitle: page.key === "cover" ? theme.title : theme.name
     };
-    const entry = await createBodyBookImageJob(current, slot, provider, providers, page.reference || current.reference);
+    const entry = await createBodyBookImageJob(current, slot, provider, providers, page.references || current.references);
     return { key: page.key, version, prompt, hasCustomPrompt: hasRequestedPrompt || page.hasCustomPrompt, jobId: entry.job.jobId, run: entry.run };
   }));
   const byKey = new Map(queued.map((entry) => [entry.key, entry]));
@@ -9694,6 +9811,7 @@ function normalizeBodyBookSession(session) {
     .map((page) => page.key)
     .filter((key) => byKey.has(key));
   const reference = session?.reference && typeof session.reference === "object" ? session.reference : {};
+  const references = normalizeBodyBookReferences(session?.references, reference);
   return {
     schemaVersion: 2,
     sessionId: String(session?.sessionId || ""),
@@ -9708,11 +9826,12 @@ function normalizeBodyBookSession(session) {
     updatedAt: session?.updatedAt || null,
     completedAt: session?.completedAt || null,
     savedAt: session?.savedAt || null,
-    reference,
+    reference: references[0] || reference,
+    references,
     chargedJobIds: Array.isArray(session?.chargedJobIds) ? session.chargedJobIds.map(String).filter(Boolean) : [],
     refundedJobIds: Array.isArray(session?.refundedJobIds) ? session.refundedJobIds.map(String).filter(Boolean) : [],
     billingError: String(session?.billingError || ""),
-    pages: selectedKeys.map((key) => createBodyBookPage(getBodyBookPageDefinition(theme, key), theme, reference, byKey.get(key)))
+    pages: selectedKeys.map((key) => createBodyBookPage(getBodyBookPageDefinition(theme, key), theme, references, byKey.get(key)))
   };
 }
 
@@ -9736,10 +9855,12 @@ function toPublicBodyBookSession(session) {
     mockMode: BODY_BOOK_MOCK_MODE,
     billingEnabled: BODY_BOOK_BILLING_ENABLED,
     referenceUrl: `/api/body-book/projects/${encodeURIComponent(current.sessionId)}/reference`,
+    referenceUrls: current.references.map((_reference, index) => `/api/body-book/projects/${encodeURIComponent(current.sessionId)}/reference/${index}`),
     pages: current.pages.map((page) => ({
       ...page,
-      usesProjectReference: String(page.reference?.filename || "") === String(current.reference?.filename || ""),
-      referenceUrl: `/api/body-book/projects/${encodeURIComponent(current.sessionId)}/pages/${encodeURIComponent(page.key)}/reference`
+      usesProjectReference: page.references?.every((reference, index) => String(reference?.filename || "") === String(current.references[index]?.filename || "")),
+      referenceUrl: `/api/body-book/projects/${encodeURIComponent(current.sessionId)}/pages/${encodeURIComponent(page.key)}/reference`,
+      referenceUrls: (page.references || []).map((_reference, index) => `/api/body-book/projects/${encodeURIComponent(current.sessionId)}/pages/${encodeURIComponent(page.key)}/reference/${index}`)
     })),
     printPreviewPages: getBodyBookPrintPages(current),
     summary: summarizeBodyBookItems(current.pages)

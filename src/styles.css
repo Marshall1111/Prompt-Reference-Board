@@ -1376,9 +1376,25 @@ body {
 .draw-card-shell.theme-draw-card .draw-card-home-actions .draw-card-secondary {
   min-width: 0;
   width: 100%;
+  min-height: 40px;
   justify-content: center;
-  padding-inline: 10px;
+  padding-inline: 16px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 700;
   white-space: nowrap;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-home-actions .draw-card-home-random-button {
+  border-color: rgba(255, 216, 149, 0.84);
+  background: linear-gradient(135deg, rgba(255, 216, 149, 0.3), rgba(255, 161, 150, 0.24));
+  color: #fff1c7;
+  box-shadow: 0 0 0 1px rgba(255, 225, 164, 0.12), 0 8px 20px rgba(255, 177, 107, 0.16);
+}
+
+.draw-card-shell.theme-draw-card .draw-card-home-actions .draw-card-home-random-button:hover:not(:disabled) {
+  border-color: rgba(255, 230, 174, 0.98);
+  background: linear-gradient(135deg, rgba(255, 225, 159, 0.42), rgba(255, 155, 139, 0.34));
 }
 
 .draw-card-shell.theme-draw-card .draw-card-home-actions .draw-card-recent-session-button {
@@ -6186,6 +6202,43 @@ textarea {
   object-fit: cover;
 }
 
+.body-book-reference-list,
+.body-book-page-references {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.body-book-reference-list { justify-content: flex-end; }
+
+.body-book-reference-add {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.body-book-reference-add input,
+.body-book-project-upload input {
+  display: none;
+}
+
+.body-book-reference-index {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .body-book-add-page {
   display: grid;
   width: 70px;
@@ -6232,6 +6285,7 @@ textarea {
 
 .body-book-project-item {
   position: relative;
+  align-content: start;
 }
 
 .body-book-project-delete {
@@ -6244,6 +6298,7 @@ textarea {
 .body-book-project-card-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  align-content: start;
   gap: 9px;
   padding: 0 14px 14px;
 }
@@ -6340,6 +6395,56 @@ textarea {
 
 .body-book-page-reference input {
   display: none;
+}
+
+.body-book-page-references {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 8px;
+}
+
+.body-book-page-reference-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.body-book-page-reference {
+  min-height: 42px;
+  flex: 1 1 auto;
+  padding: 6px 9px;
+  font-size: 13px;
+}
+
+.body-book-page-reference img {
+  width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+}
+
+.body-book-page-reference span {
+  color: #1d1d1f;
+  font-weight: 700;
+}
+
+.body-book-page-reference-remove {
+  display: grid;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(215, 0, 21, 0.18);
+  border-radius: 50%;
+  background: #fff0f0;
+  color: #d70015;
+  cursor: pointer;
+}
+
+.body-book-page-reference-remove:hover:not(:disabled) {
+  background: #ffdede;
 }
 
 .body-book-library-placeholder,
@@ -6488,8 +6593,9 @@ textarea {
   .body-book-project-delete.icon-button { width: 30px; min-width: 30px; height: 30px; }
   .body-book-item-meta { gap: 5px; padding: 7px 8px; }
   .body-book-project-card-controls { gap: 6px; padding: 0 8px 8px; }
-  .body-book-page-reference { gap: 4px; padding: 4px 5px; font-size: 11px; }
-  .body-book-page-reference img { width: 22px; height: 22px; flex-basis: 22px; }
+  .body-book-page-reference { min-height: 40px; gap: 6px; padding: 5px 8px; font-size: 12px; }
+  .body-book-page-reference img { width: 30px; height: 30px; flex-basis: 30px; }
+  .body-book-page-reference-remove { width: 30px; min-width: 30px; height: 30px; }
   .body-book-edit-prompt { gap: 3px; padding: 0 7px; font-size: 11px; }
   .body-book-project-card-controls .draw-card-secondary { min-height: 34px; padding: 0 7px; font-size: 11px; }
   .body-book-batch-row .draw-card-primary { width: 100%; justify-content: center; }

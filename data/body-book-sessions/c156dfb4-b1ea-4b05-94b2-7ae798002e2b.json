@@ -9,7 +9,7 @@
   "status": "succeeded",
   "message": "图片已保存，可继续编辑或生成更多页面。",
   "createdAt": "2026-07-21T03:06:22.602Z",
-  "updatedAt": "2026-07-24T07:36:33.613Z",
+  "updatedAt": "2026-07-24T10:54:22.369Z",
   "completedAt": "2026-07-22T09:48:43.853Z",
   "savedAt": "2026-07-21T03:07:10.511Z",
   "reference": {
@@ -18,6 +18,20 @@
     "size": 214392,
     "originalName": "20260615-164756-compressed.jpg"
   },
+  "references": [
+    {
+      "filename": "reference.jpg",
+      "mimeType": "image/jpeg",
+      "size": 214392,
+      "originalName": "20260615-164756-compressed.jpg"
+    },
+    {
+      "filename": "reference-2-1784890388745.png",
+      "mimeType": "image/png",
+      "size": 2242298,
+      "originalName": "result (13).png"
+    }
+  ],
   "chargedJobIds": [
     "3b5ae831-3992-46c4-9912-a51275e60cce",
     "6a98e780-599b-44f7-a1c1-636a4b0145c1",
@@ -29,6 +43,7 @@
     "d2e3bf8d-8e56-4a2f-8000-dd9c9d1edc01",
     "c38be0c3-714d-47a6-b6de-766a56d84ee6"
   ],
+  "refundedJobIds": [],
   "billingError": "",
   "pages": [
     {
@@ -69,7 +84,15 @@
         "thumbnailHeight": null
       },
       "errorMessage": "",
-      "historyJobIds": []
+      "historyJobIds": [],
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "red-baby",
@@ -112,7 +135,15 @@
         "originalImageUrl": ""
       },
       "errorMessage": "",
-      "historyJobIds": []
+      "historyJobIds": [],
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "orange-baby",
@@ -154,7 +185,15 @@
         "thumbnailHeight": null
       },
       "errorMessage": "",
-      "historyJobIds": []
+      "historyJobIds": [],
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "yellow-baby",
@@ -196,7 +235,15 @@
         "thumbnailHeight": null
       },
       "errorMessage": "",
-      "historyJobIds": []
+      "historyJobIds": [],
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "green-baby",
@@ -214,10 +261,10 @@
       "prompt": "Use the uploaded baby photo as the only identity reference. Strictly preserve the baby's facial features, age impression, skin tone, natural hair, and Asian baby appearance. Do not copy the reference clothing, pose, props, or background. Create one square 1:1 INNER PAGE (not a cover) for a 0-3-year-old bilingual color-learning picture book. The only learning concept is \"Green Baby / 绿色宝宝页\".\n\nComposition: make the baby the central half-body subject, recognizably the same child from the reference. Dress the baby in a clearly green soft green romper or hoodie and a coordinated matching green frog- or leaf-inspired knit hat. The baby should naturally hold, touch, or look at one clear green learning object. The requested color must be visually dominant and unmistakable.\n\nUse a bright, clean full-page green background. Give the baby a neat thick white cutout outline. At the top, include one large hand-drawn speech bubble with the exact Chinese text: \"我们一起来认识绿色宝宝页！\" The two Chinese characters \"绿色宝宝页\" must use green lettering or a contrasting shade of the same color family; the remaining text is dark brown. Use large rounded, highly legible Chinese type. Add only three to five small matching doodles or sticker-like objects from this family: a green apple, pear, broccoli, leaf, friendly frog toy, and small cactus. Keep them far from the baby's face and leave generous breathing room.\n\nStyle: warm, high-saturation but gentle early-learning picture-book cover-style illustration; realistic detailed baby photography blended with restrained children's doodle illustration, subtle paper texture, soft warm daylight, natural skin texture, clean layout. No page number, no English title, no extra people, no room, no landscape, no deep background, no watermark, no border, no collage panels, no unrelated color as a focal point, no unreadable decorative text, and no 3D animation look.",
       "hasCustomPrompt": false,
       "reference": {
-        "filename": "reference.jpg",
-        "mimeType": "image/jpeg",
-        "size": 214392,
-        "originalName": "20260615-164756-compressed.jpg"
+        "filename": "reference-2-1784890388745.png",
+        "mimeType": "image/png",
+        "size": 2242298,
+        "originalName": "result (13).png"
       },
       "result": {
         "imageDataUrl": "",
@@ -238,7 +285,15 @@
         "thumbnailHeight": null
       },
       "errorMessage": "",
-      "historyJobIds": []
+      "historyJobIds": [],
+      "references": [
+        {
+          "filename": "reference-2-1784890388745.png",
+          "mimeType": "image/png",
+          "size": 2242298,
+          "originalName": "result (13).png"
+        }
+      ]
     },
     {
       "key": "blue-baby",
@@ -280,7 +335,21 @@
         "thumbnailHeight": null
       },
       "errorMessage": "",
-      "historyJobIds": []
+      "historyJobIds": [],
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        },
+        {
+          "filename": "reference-2-1784890388745.png",
+          "mimeType": "image/png",
+          "size": 2242298,
+          "originalName": "result (13).png"
+        }
+      ]
     },
     {
       "key": "purple-baby",
@@ -322,7 +391,21 @@
         "thumbnailHeight": null
       },
       "errorMessage": "",
-      "historyJobIds": []
+      "historyJobIds": [],
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        },
+        {
+          "filename": "reference-2-1784890388745.png",
+          "mimeType": "image/png",
+          "size": 2242298,
+          "originalName": "result (13).png"
+        }
+      ]
     },
     {
       "key": "pink-baby",
@@ -364,7 +447,21 @@
         "thumbnailHeight": null
       },
       "errorMessage": "",
-      "historyJobIds": []
+      "historyJobIds": [],
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        },
+        {
+          "filename": "reference-2-1784890388745.png",
+          "mimeType": "image/png",
+          "size": 2242298,
+          "originalName": "result (13).png"
+        }
+      ]
     },
     {
       "key": "black-baby",
@@ -406,7 +503,21 @@
         "thumbnailHeight": null
       },
       "errorMessage": "",
-      "historyJobIds": []
+      "historyJobIds": [],
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        },
+        {
+          "filename": "reference-2-1784890388745.png",
+          "mimeType": "image/png",
+          "size": 2242298,
+          "originalName": "result (13).png"
+        }
+      ]
     }
   ]
 }

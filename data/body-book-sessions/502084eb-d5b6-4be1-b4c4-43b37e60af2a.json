@@ -9,7 +9,7 @@
   "status": "partial",
   "message": "部分图片生成失败，可单张或批量重试。",
   "createdAt": "2026-07-19T14:21:27.774Z",
-  "updatedAt": "2026-07-24T07:36:33.610Z",
+  "updatedAt": "2026-07-24T10:54:22.364Z",
   "completedAt": null,
   "savedAt": null,
   "reference": {
@@ -18,7 +18,16 @@
     "size": 214392,
     "originalName": "20260615-164756-compressed.jpg"
   },
+  "references": [
+    {
+      "filename": "reference.jpg",
+      "mimeType": "image/jpeg",
+      "size": 214392,
+      "originalName": "20260615-164756-compressed.jpg"
+    }
+  ],
   "chargedJobIds": [],
+  "refundedJobIds": [],
   "billingError": "",
   "pages": [
     {
@@ -42,7 +51,15 @@
         "size": 214392,
         "originalName": "20260615-164756-compressed.jpg"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "doctor",
@@ -65,7 +82,15 @@
         "originalName": "20260615-164756-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "teacher",
@@ -88,7 +113,15 @@
         "originalName": "20260615-164756-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "firefighter",
@@ -111,7 +144,15 @@
         "originalName": "20260615-164756-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "chef",
@@ -134,7 +175,15 @@
         "originalName": "20260615-164756-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "police",
@@ -157,7 +206,15 @@
         "originalName": "20260615-164756-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "farmer",
@@ -180,7 +237,15 @@
         "originalName": "20260615-164756-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "builder",
@@ -203,7 +268,15 @@
         "originalName": "20260615-164756-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "scientist",
@@ -226,7 +299,15 @@
         "originalName": "20260615-164756-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        }
+      ]
     },
     {
       "key": "artist",
@@ -249,7 +330,15 @@
         "originalName": "20260615-164756-compressed.jpg"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.jpg",
+          "mimeType": "image/jpeg",
+          "size": 214392,
+          "originalName": "20260615-164756-compressed.jpg"
+        }
+      ]
     }
   ]
 }

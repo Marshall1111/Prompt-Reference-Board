@@ -9,7 +9,7 @@
   "status": "partial",
   "message": "部分图片生成失败，可单张或批量重试。",
   "createdAt": "2026-07-19T08:49:37.507Z",
-  "updatedAt": "2026-07-24T07:36:33.611Z",
+  "updatedAt": "2026-07-24T10:54:22.365Z",
   "completedAt": null,
   "savedAt": null,
   "reference": {
@@ -18,7 +18,16 @@
     "size": 1607638,
     "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
   },
+  "references": [
+    {
+      "filename": "reference.png",
+      "mimeType": "image/png",
+      "size": 1607638,
+      "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
+    }
+  ],
   "chargedJobIds": [],
+  "refundedJobIds": [],
   "billingError": "",
   "pages": [
     {
@@ -42,7 +51,15 @@
         "size": 1607638,
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
       },
-      "hasCustomPrompt": false
+      "hasCustomPrompt": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 1607638,
+          "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
+        }
+      ]
     },
     {
       "key": "head",
@@ -65,7 +82,15 @@
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 1607638,
+          "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
+        }
+      ]
     },
     {
       "key": "eyes",
@@ -88,7 +113,15 @@
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 1607638,
+          "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
+        }
+      ]
     },
     {
       "key": "ears",
@@ -111,7 +144,15 @@
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 1607638,
+          "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
+        }
+      ]
     },
     {
       "key": "nose",
@@ -134,7 +175,15 @@
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 1607638,
+          "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
+        }
+      ]
     },
     {
       "key": "mouth",
@@ -157,7 +206,15 @@
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 1607638,
+          "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
+        }
+      ]
     },
     {
       "key": "hands",
@@ -180,7 +237,15 @@
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 1607638,
+          "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
+        }
+      ]
     },
     {
       "key": "feet",
@@ -203,7 +268,15 @@
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 1607638,
+          "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
+        }
+      ]
     },
     {
       "key": "tummy",
@@ -226,7 +299,15 @@
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 1607638,
+          "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
+        }
+      ]
     },
     {
       "key": "knees",
@@ -249,7 +330,15 @@
         "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
       },
       "hasCustomPrompt": false,
-      "isRequired": false
+      "isRequired": false,
+      "references": [
+        {
+          "filename": "reference.png",
+          "mimeType": "image/png",
+          "size": 1607638,
+          "originalName": "158d9d79-874b-4da6-8680-51ee3f6da53a.png"
+        }
+      ]
     }
   ]
 }
