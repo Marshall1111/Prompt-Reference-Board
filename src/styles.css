@@ -6209,7 +6209,27 @@ textarea {
   gap: 8px;
 }
 
-.body-book-reference-list { justify-content: flex-end; }
+.body-book-project-reference {
+  display: grid;
+  align-items: stretch;
+  gap: 18px;
+}
+
+.body-book-reference-list {
+  display: grid;
+  width: min(394px, 100%);
+  justify-self: center;
+  justify-items: center;
+  gap: 12px;
+}
+
+.body-book-reference-previews {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
 
 .body-book-reference-add {
   display: grid;
@@ -6217,6 +6237,22 @@ textarea {
   align-content: center;
   gap: 4px;
   cursor: pointer;
+}
+
+.body-book-reference-add.is-initial {
+  width: min(180px, 100%);
+  min-height: 180px;
+}
+
+.body-book-reference-add.is-compact {
+  width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+}
+
+.body-book-reference-add.is-compact strong,
+.body-book-reference-add.is-compact span {
+  display: none;
 }
 
 .body-book-reference-add input,
@@ -6585,8 +6621,8 @@ textarea {
     flex-direction: column;
   }
 
-  .body-book-project-upload { align-self: stretch; width: 100%; min-height: 180px; }
-  .body-book-project-upload img { max-height: 230px; }
+  .body-book-reference-previews .body-book-project-upload { align-self: auto; width: clamp(120px, 38vw, 180px); min-height: 0; }
+  .body-book-reference-previews .body-book-project-upload img { max-height: none; }
   .body-book-project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .body-book-add-page-card { min-height: 220px; border-radius: 10px; }
   .body-book-project-delete { top: 6px; right: 6px; }

@@ -9,7 +9,7 @@
   "status": "succeeded",
   "message": "图片已保存，可继续编辑或生成更多页面。",
   "createdAt": "2026-07-19T14:26:17.568Z",
-  "updatedAt": "2026-07-24T10:54:22.369Z",
+  "updatedAt": "2026-07-24T11:10:21.176Z",
   "completedAt": "2026-07-21T02:21:46.897Z",
   "savedAt": "2026-07-21T02:21:46.897Z",
   "reference": {
@@ -24,6 +24,18 @@
       "mimeType": "image/jpeg",
       "size": 214392,
       "originalName": "20260615-164756-compressed.jpg"
+    },
+    {
+      "filename": "reference-2-1784891415708.png",
+      "mimeType": "image/png",
+      "size": 2242298,
+      "originalName": "result (13).png"
+    },
+    {
+      "filename": "reference-3-1784891421123.png",
+      "mimeType": "image/png",
+      "size": 1918139,
+      "originalName": "result (12).png"
     }
   ],
   "chargedJobIds": [
@@ -86,6 +98,18 @@
           "mimeType": "image/jpeg",
           "size": 214392,
           "originalName": "20260615-164756-compressed.jpg"
+        },
+        {
+          "filename": "reference-2-1784891415708.png",
+          "mimeType": "image/png",
+          "size": 2242298,
+          "originalName": "result (13).png"
+        },
+        {
+          "filename": "reference-3-1784891421123.png",
+          "mimeType": "image/png",
+          "size": 1918139,
+          "originalName": "result (12).png"
         }
       ]
     }
