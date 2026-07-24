@@ -4,7 +4,7 @@
   "defaultBeanBonus": 10,
   "defaultImageProviderId": "",
   "fridgeMagnetOrderingEnabled": true,
-  "fridgeMagnetUnitPriceCents": 1990,
+  "fridgeMagnetUnitPriceCents": 2000,
   "singleItemShippingFeeCents": 800,
   "bodyBookOrderingEnabled": true,
   "bodyBookPriceCents": 4500,

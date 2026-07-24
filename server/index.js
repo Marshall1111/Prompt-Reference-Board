@@ -1509,21 +1509,22 @@ app.delete("/api/orders/:orderId", requireWebAccount, async (req, res, next) => 
     orderStore.expireUnpaidOrders();
     const order = orderStore.readOrderWithRelations(req.params.orderId);
     assertWebAccountOwnsOrder(req, order);
-    if (order.paymentStatus === "paid") throw createHttpError(409, "已付款订单不支持取消。");
-    const canRemoveExpiredOrCancelledBodyBook = order.experienceType === "body-book"
-      && (order.paymentStatus === "expired" || order.fulfillmentStatus === "cancelled");
-    if (!canRemoveExpiredOrCancelledBodyBook && order.fulfillmentStatus !== "new") {
+    const canRemoveExpiredOrCancelledOrder = order.paymentStatus === "expired" || order.fulfillmentStatus === "cancelled";
+    if (!canRemoveExpiredOrCancelledOrder && order.fulfillmentStatus !== "new") {
       throw createHttpError(409, "当前订单已进入处理流程，暂不支持取消。");
     }
-    if (!canRemoveExpiredOrCancelledBodyBook && order.paymentStatus === "expired") {
-      throw createHttpError(409, "已过期订单仅支持在认知书订单列表中删除。");
+    if (canRemoveExpiredOrCancelledOrder) {
+      const deleted = orderStore.updateOrder(order.id, {
+        userDeletedAt: order.userDeletedAt || new Date().toISOString()
+      });
+      return res.json({ order: toPublicOrder(deleted, { includeToken: true }) });
     }
+    if (order.paymentStatus === "paid") throw createHttpError(409, "已付款订单不支持取消。");
 
     const deleted = orderStore.updateOrder(order.id, {
       paymentStatus: "expired",
       fulfillmentStatus: "cancelled",
       cancelledAt: order.cancelledAt || new Date().toISOString(),
-      userDeletedAt: canRemoveExpiredOrCancelledBodyBook ? (order.userDeletedAt || new Date().toISOString()) : order.userDeletedAt,
       lastPaymentError: "订单已取消"
     });
     if (order.experienceType === "body-book") commerceStore.releaseBodyBookDiscountReservation(order.id);
@@ -6634,6 +6635,7 @@ function toPublicCommerceAccount(account) {
     isGuest: !account.isRegistered,
     isRegistered: Boolean(account.isRegistered),
     username: account.username || account.wechatNickname || "微信用户",
+    wechatAvatarUrl: account.wechatAvatarUrl || "",
     email: account.email || "",
     accountStatus: account.accountStatus || "active",
     coinBalance: Math.max(0, Number(account.coinBalance ?? account.creditBalance ?? 0)),

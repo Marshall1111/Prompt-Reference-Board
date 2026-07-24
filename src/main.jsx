@@ -159,7 +159,7 @@ const DRAW_CARD_EXPERIENCE_CONFIG = {
   subtitle: "上传照片，一键制作AI小画冰箱贴",
   waitingLines: ["总计需要约 5 分钟，请耐心等待。", "请保持当前页面开启，结果会在完成后自动出现。", "正在制作 AI 小画，请耐心等待。"],
   waitingFallback: "总计需要约 5 分钟，请耐心等待。",
-  startButtonIdle: "我要抽卡",
+  startButtonIdle: "试试手气",
   startButtonLoading: "任务启动中",
   resultsKicker: "Collection",
   resultsTitle: "这一轮结果已经全部抵达。",
@@ -2191,67 +2191,72 @@ function FridgeMagnetOrdersPage() {
 
   async function handleDeleteOrder(order) {
     if (!order?.id) return;
-    if (!window.confirm(`确定取消订单 ${order.orderNo} 吗？取消后订单状态会显示为“已取消”。`)) return;
+    const canRemove = ["expired", "cancelled"].includes(order.orderStatus);
+    const confirmation = canRemove
+      ? `确定删除订单 ${order.orderNo} 吗？删除后将不再显示在“我的订单”中。`
+      : `确定取消订单 ${order.orderNo} 吗？取消后订单状态会显示为“已取消”。`;
+    if (!window.confirm(confirmation)) return;
     setDeletingOrderId(order.id);
     setError("");
     try {
       const deleted = await deleteMyOrder(order.id, order.publicToken);
-      setOrders((current) => current.map((item) => (item.id === order.id ? deleted : item)));
+      setOrders((current) => canRemove ? current.filter((item) => item.id !== order.id) : current.map((item) => (item.id === order.id ? deleted : item)));
       syncLatestManualOrder(deleted, orderConfig, deleted.publicToken || order.publicToken || "");
       if (readLatestManualOrder()?.orderId === order.id) {
         clearLatestManualOrder();
       }
     } catch (nextError) {
-      setError(nextError.message || "取消订单失败。");
+      setError(nextError.message || (canRemove ? "删除订单失败。" : "取消订单失败。"));
     } finally {
       setDeletingOrderId("");
     }
   }
 
   return (
-    <main className="app-shell">
-      <section className="workspace order-page">
-        <div className="task-toolbar">
+    <main className="draw-card-shell theme-draw-card draw-card-orders-page">
+      <section className="draw-card-stage draw-card-orders-stage">
+        <div className="draw-card-orders-head">
           <div>
-            <p className="eyebrow">My orders</p>
-            <h2>我的订单</h2>
-            <p className="storage-note">查看你提交过的冰箱贴订单与订单状态。</p>
+            <p className="draw-card-kicker">My orders</p>
+            <h1 className="draw-card-title">我的订单</h1>
+            <p className="draw-card-subtitle">查看你的冰箱贴订单与处理状态。</p>
           </div>
-          <button className="secondary-button" onClick={() => window.location.assign("/")} type="button">
+          <button className="draw-card-secondary" onClick={() => window.location.assign("/")} type="button">
             <Home size={18} />
             <span>返回抽卡页</span>
           </button>
         </div>
-        {isLoading ? <p className="storage-note">正在读取订单列表…</p> : null}
+        {isLoading ? <p className="draw-card-orders-note">正在读取订单列表…</p> : null}
         {error ? <p className="error-note">{error}</p> : null}
-        {!isLoading && !error && !orders.length ? <p className="empty-note">你还没有提交过冰箱贴订单。</p> : null}
-        <div className="task-list">
+        {!isLoading && !error && !orders.length ? <p className="draw-card-orders-empty">你还没有提交过冰箱贴订单。</p> : null}
+        <div className="draw-card-orders-list">
           {orders.map((order) => {
             const isManualUnpaid = order.orderStatus === "pending_payment" && isManualPaymentOrder(order, orderConfig);
-            const canDelete = order.orderStatus === "pending_payment";
+            const canRemove = ["expired", "cancelled"].includes(order.orderStatus);
+            const canCancel = order.orderStatus === "pending_payment";
+            const cover = [...(order.items || [])].sort((left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0))[0];
             return (
-              <article className="task-card order-task-card" key={order.id}>
-                <div className={`task-status ${orderStatusTone(order.orderStatus)}`}>
-                  {getOrderPrimaryStatusLabel(order)}
-                </div>
-                <div className="task-detail">
-                  <div className="task-meta-row">
-                    <strong>{order.orderNo}</strong>
-                    <span>{order.experienceType === "body-book" ? "认知书实体书" : `共 ${order.itemCount} 只`}</span>
-                    <span>{formatCurrencyCents(order.totalCents)}</span>
-                  </div>
-                  <p className="storage-note">下单时间 {formatDateTime(order.createdAt)}</p>
-                  {isManualUnpaid ? <p className="storage-note">待付款：请联系客服并发送订单卡片。</p> : null}
-                </div>
-                <div className="task-actions">
-                  <button className="secondary-button" onClick={() => window.location.assign(buildOrderDetailUrl(order.id, order.publicToken, order.experienceType))} type="button">
-                    <Eye size={18} />
+              <article className="draw-card-order-list-card" key={order.id}>
+                <button className="draw-card-order-list-open" onClick={() => window.location.assign(buildOrderDetailUrl(order.id, order.publicToken, order.experienceType))} type="button">
+                  <span className="draw-card-order-list-cover">
+                    {cover?.thumbnailUrl || cover?.imageUrl ? <img alt="订单冰箱贴缩略图" src={cover.thumbnailUrl || cover.imageUrl} /> : <span>冰箱贴</span>}
+                  </span>
+                  <span className="draw-card-order-list-summary">
+                    <strong>{formatCurrencyCents(Number(order.payableCents ?? order.totalCents ?? 0))}</strong>
+                    <small>{`订单号 ${order.orderNo}`}</small>
+                    <em className={`task-status ${orderStatusTone(order.orderStatus)}`}>{getOrderPrimaryStatusLabel(order)}</em>
+                  </span>
+                </button>
+                <div className="draw-card-order-list-actions">
+                  {isManualUnpaid ? <span>待付款</span> : null}
+                  <button className="draw-card-secondary" onClick={() => window.location.assign(buildOrderDetailUrl(order.id, order.publicToken, order.experienceType))} type="button">
+                    <Eye size={17} />
                     <span>查看详情</span>
                   </button>
-                  {canDelete ? (
-                    <button className="danger-button" disabled={deletingOrderId === order.id} onClick={() => handleDeleteOrder(order)} type="button">
+                  {canRemove || canCancel ? (
+                    <button className="draw-card-order-delete" disabled={deletingOrderId === order.id} onClick={() => handleDeleteOrder(order)} type="button">
                       <Trash2 size={18} />
-                      <span>{deletingOrderId === order.id ? "取消中" : "取消订单"}</span>
+                      <span>{deletingOrderId === order.id ? (canRemove ? "删除中" : "取消中") : (canRemove ? "删除" : "取消订单")}</span>
                     </button>
                   ) : null}
                 </div>
@@ -2473,7 +2478,7 @@ function DrawCardCheckoutPage() {
           <div>
             <p className="eyebrow">Custom magnets</p>
             <h2>选图定制</h2>
-            <p className="storage-note">勾选卡夹中要制作的图片，并分别设置每张的制作数量。</p>
+            <p className="storage-note">点击图片即可选择要制作的冰箱贴。</p>
           </div>
           <button className="secondary-button" onClick={() => window.location.assign("/")} type="button">
             <ArrowLeft size={18} />
@@ -2492,30 +2497,28 @@ function DrawCardCheckoutPage() {
           <>
             <section className="draw-observability-card">
               <h3>选择图片</h3>
-              <div className="draw-card-order-items checkout-order-items">
+              <div className="draw-card-order-items checkout-order-items checkout-image-grid">
                 {clipItems.map((item, index) => {
                   const selected = selectedJobIds.includes(item.jobId);
                   const quantity = getOrderItemQuantity(quantities, item.jobId);
                   return (
-                    <article className={`draw-card-order-item ${selected ? "is-selected" : ""}`} key={`${item.jobId}-${index}`}>
-                      <label className="checkout-item-select">
-                        <input checked={selected} onChange={() => toggleSelectedItem(item.jobId)} type="checkbox" />
-                        <span>选择此图</span>
-                      </label>
-                      <OrderItemPreview alt={item.styleName || `冰箱贴 ${index + 1}`} note="图片准备中" src={item.thumbnailUrl || item.imageUrl} title={item.styleName || `冰箱贴 ${index + 1}`} />
-                      <div className="draw-card-order-item-copy">
-                        <div className="draw-card-order-item-head">
-                          <strong>{item.styleName || `冰箱贴 ${index + 1}`}</strong>
-                          {selected ? <span className="draw-card-order-item-note">小计 {formatCurrencyCents(amountPreview.unitPriceCents * quantity)}</span> : null}
+                    <article className={`checkout-image-option ${selected ? "is-selected" : ""}`} key={`${item.jobId}-${index}`}>
+                      <button
+                        aria-label={`${selected ? "取消选择" : "选择"}图片 ${index + 1}`}
+                        aria-pressed={selected}
+                        className="checkout-image-select"
+                        onClick={() => toggleSelectedItem(item.jobId)}
+                        type="button"
+                      >
+                        <OrderItemPreview alt="" note="图片准备中" src={item.thumbnailUrl || item.imageUrl} />
+                      </button>
+                      {selected ? (
+                        <div aria-label={`图片 ${index + 1} 的下单数量`} className="checkout-image-quantity">
+                          <button aria-label="减少数量" disabled={quantity <= 1} onClick={() => updateQuantity(item.jobId, quantity - 1)} type="button">−</button>
+                          <span>{quantity}</span>
+                          <button aria-label="增加数量" disabled={quantity >= MAX_ORDER_ITEM_QUANTITY} onClick={() => updateQuantity(item.jobId, quantity + 1)} type="button">+</button>
                         </div>
-                        {selected ? (
-                          <div className="draw-card-order-item-stepper">
-                            <button disabled={quantity <= 1} onClick={() => updateQuantity(item.jobId, quantity - 1)} type="button">-</button>
-                            <span>{quantity}</span>
-                            <button disabled={quantity >= MAX_ORDER_ITEM_QUANTITY} onClick={() => updateQuantity(item.jobId, quantity + 1)} type="button">+</button>
-                          </div>
-                        ) : null}
-                      </div>
+                      ) : null}
                     </article>
                   );
                 })}
@@ -2540,7 +2543,7 @@ function DrawCardCheckoutPage() {
               <div className="card-actions">
                 <button className="draw-card-primary" disabled={!orderConfig?.enabled || !selectedItems.length || !totalItemCount || isSubmitting} onClick={handleSubmit} type="button">
                   {isSubmitting ? <LoaderCircle className="spin" size={18} /> : null}
-                  <span>{isSubmitting ? "创建订单中" : "提交订单并查看收款码"}</span>
+                  <span>{isSubmitting ? "创建订单中" : "提交订单"}</span>
                 </button>
               </div>
             </section>
@@ -2707,31 +2710,31 @@ function FridgeMagnetOrderPage() {
   }
 
   return (
-    <main className={`app-shell${isBodyBookOrder ? " body-book-order-detail-page" : ""}`}>
-      <section className="workspace order-page">
-        <div className="task-toolbar">
+    <main className={isBodyBookOrder ? "app-shell body-book-order-detail-page" : "draw-card-shell theme-draw-card draw-card-order-detail-page"}>
+      <section className={isBodyBookOrder ? "workspace order-page" : "draw-card-stage draw-card-order-detail-stage"}>
+        <div className={isBodyBookOrder ? "task-toolbar" : "draw-card-order-detail-head"}>
           <div>
-            <p className="eyebrow">{isBodyBookOrder ? "Body book order" : "Fridge order"}</p>
-            <h2>订单详情</h2>
-            <p className="storage-note">可在这里查看订单状态、收货信息和{isBodyBookOrder ? "认知书页面" : "下单图片"}。</p>
+            <p className={isBodyBookOrder ? "eyebrow" : "draw-card-kicker"}>{isBodyBookOrder ? "Body book order" : "Fridge order"}</p>
+            <h2 className={isBodyBookOrder ? "" : "draw-card-title"}>订单详情</h2>
+            <p className={isBodyBookOrder ? "storage-note" : "draw-card-subtitle"}>可在这里查看订单状态、收货信息和{isBodyBookOrder ? "认知书页面" : "下单图片"}。</p>
           </div>
-          <button className="secondary-button" onClick={() => window.location.assign(isBodyBookOrder ? "/book/orders" : "/fridge/orders")} type="button">
+          <button className={isBodyBookOrder ? "secondary-button" : "draw-card-secondary"} onClick={() => window.location.assign(isBodyBookOrder ? "/book/orders" : "/fridge/orders")} type="button">
             <Home size={18} />
-            <span>返回我的订单</span>
+            <span>{isBodyBookOrder ? "返回我的订单" : "返回"}</span>
           </button>
         </div>
-        <div className="task-actions order-detail-contact-action">
+        {isBodyBookOrder ? <div className="task-actions order-detail-contact-action">
           <button className="secondary-button" onClick={handleCopyContact} type="button">
             <Clipboard size={18} />
             <span>{contactCopied ? "客服微信已复制" : "联系客服"}</span>
           </button>
-        </div>
-        {isLoading ? <p className="storage-note">正在读取订单…</p> : null}
+        </div> : null}
+        {isLoading ? <p className={isBodyBookOrder ? "storage-note" : "draw-card-order-detail-note"}>正在读取订单…</p> : null}
         {error ? <p className="error-note">{error}</p> : null}
         {paymentError ? <p className="error-note">{paymentError}</p> : null}
         {order ? (
-          <section className="task-page">
-            {isPreparingPayment ? <p className="storage-note">正在准备微信支付…</p> : null}
+          <section className={isBodyBookOrder ? "task-page" : "task-page draw-card-order-detail-content"}>
+            {isPreparingPayment ? <p className={isBodyBookOrder ? "storage-note" : "draw-card-order-detail-note"}>正在准备微信支付…</p> : null}
             {payment?.channel === "wechat_native" && payment.codeUrl ? (
               <article className="draw-observability-card native-payment-panel">
                 <h3>请使用微信扫码付款</h3>
@@ -2834,6 +2837,12 @@ function FridgeMagnetOrderPage() {
                 {!orderItems.length ? <p className="empty-note">该历史订单未保存商品明细。</p> : null}
               </div>
             </article>
+            {!isBodyBookOrder ? <div className="draw-card-order-detail-contact draw-card-order-detail-contact-bottom">
+              <button className="draw-card-secondary" onClick={handleCopyContact} type="button">
+                <Clipboard size={18} />
+                <span>{contactCopied ? "客服微信已复制" : "联系客服"}</span>
+              </button>
+            </div> : null}
           </section>
         ) : null}
       </section>
@@ -2890,6 +2899,7 @@ function PublicExperiencePage({ config }) {
   const [clipItems, setClipItems] = useState([]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOpeningLatestSession, setIsOpeningLatestSession] = useState(false);
   const [waitingLineIndex, setWaitingLineIndex] = useState(0);
   const [waitingStage, setWaitingStage] = useState("offering");
   const [activeResultIndex, setActiveResultIndex] = useState(-1);
@@ -2919,7 +2929,7 @@ function PublicExperiencePage({ config }) {
   const [showDrawConfigModal, setShowDrawConfigModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [isSwitchingAccount, setIsSwitchingAccount] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [balanceAlert, setBalanceAlert] = useState("");
   const [contactCopied, setContactCopied] = useState(false);
   const [orderConfig, setOrderConfig] = useState(null);
@@ -2942,6 +2952,7 @@ function PublicExperiencePage({ config }) {
   const [isLoadingStylePicker, setIsLoadingStylePicker] = useState(false);
   const resultMediaRefs = useRef(new Map());
   const cardClipPanelRef = useRef(null);
+  const userMenuRef = useRef(null);
   const flightTimeoutRef = useRef(null);
   const clipPulseTimeoutRef = useRef(null);
   const contactCopiedTimeoutRef = useRef(null);
@@ -2962,6 +2973,23 @@ function PublicExperiencePage({ config }) {
       if (manualMessageCopiedTimeoutRef.current) window.clearTimeout(manualMessageCopiedTimeoutRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!showUserMenu) return undefined;
+    const closeMenu = (event) => {
+      if (event.type === "keydown") {
+        if (event.key === "Escape") setShowUserMenu(false);
+        return;
+      }
+      if (!userMenuRef.current?.contains(event.target)) setShowUserMenu(false);
+    };
+    document.addEventListener("pointerdown", closeMenu);
+    document.addEventListener("keydown", closeMenu);
+    return () => {
+      document.removeEventListener("pointerdown", closeMenu);
+      document.removeEventListener("keydown", closeMenu);
+    };
+  }, [showUserMenu]);
 
   useEffect(() => {
     setVisitTrackingReady(false);
@@ -3207,6 +3235,11 @@ function PublicExperiencePage({ config }) {
   }
 
   async function openStylePicker() {
+    if (!referenceFile) {
+      window.alert("请先上传参考图");
+      return;
+    }
+    if (isSubmitting) return;
     setPhase("style-picker");
     setError("");
     setStylePickerError("");
@@ -3221,6 +3254,15 @@ function PublicExperiencePage({ config }) {
     } finally {
       setIsLoadingStylePicker(false);
     }
+  }
+
+  function openRandomDrawConfig() {
+    if (!referenceFile) {
+      window.alert("请先上传参考图");
+      return;
+    }
+    if (isSubmitting) return;
+    setShowDrawConfigModal(true);
   }
 
   function clearPersistedSession() {
@@ -3239,6 +3281,25 @@ function PublicExperiencePage({ config }) {
       refreshVisitorStateSilently();
     }
     setPhase("results");
+  }
+
+  async function openLatestSession() {
+    if (isOpeningLatestSession) return;
+
+    setIsOpeningLatestSession(true);
+    setError("");
+    try {
+      const payload = await fetchLatestPublicExperienceSession(apiBase, "读取最近生成任务失败，请稍后再试。");
+      if (!payload?.sessionId) {
+        setError("暂无最近生成任务。");
+        return;
+      }
+      applySession(payload);
+    } catch (nextError) {
+      setError(nextError.message || "读取最近生成任务失败，请稍后再试。");
+    } finally {
+      setIsOpeningLatestSession(false);
+    }
   }
 
   const sessionItems = useMemo(() => {
@@ -3540,6 +3601,14 @@ function PublicExperiencePage({ config }) {
     resetExperience();
   }
 
+  function returnToHome() {
+    // 保留当前会话与生成结果，用户可随时通过“最近生成”重新打开。
+    setPhase("idle");
+    setError("");
+    setActiveResultIndex(-1);
+    setActiveClipPreview(null);
+  }
+
   function handleFileChange(file, options = {}) {
     const successPhase = options.successPhase || "ready";
     const invalidPhase = options.invalidPhase || successPhase;
@@ -3661,7 +3730,11 @@ function PublicExperiencePage({ config }) {
   }
 
   async function startDrawCard(options = {}) {
-    if (!referenceFile) return;
+    if (!referenceFile) {
+      window.alert("请先上传参考图");
+      return;
+    }
+    if (isSubmitting) return;
     const requestedStyleIds = Array.isArray(options.selectedStyleIds) ? options.selectedStyleIds.filter(Boolean).slice(0, MAX_PUBLIC_STYLE_SELECTION) : [];
     const isManualSelection = requestedStyleIds.length > 0;
     const estimatedCost = isManualSelection ? requestedStyleIds.length : estimatedRandomDrawCost;
@@ -3804,19 +3877,18 @@ function PublicExperiencePage({ config }) {
     setOriginalPreview(null);
   }
 
-  async function handleSwitchAccount() {
-    setIsSwitchingAccount(true);
+  async function handleLogout() {
+    setIsLoggingOut(true);
     try {
       await logoutCurrentAccount();
       const payload = await fetchVisitorState().catch(() => null);
       setVisitorState(payload);
       setClipItems([]);
       setShowUserMenu(false);
-      setShowAuthModal(true);
     } catch (nextError) {
-      setError(nextError.message || "切换账号失败，请稍后再试。");
+      setError(nextError.message || "退出登录失败，请稍后再试。");
     } finally {
-      setIsSwitchingAccount(false);
+      setIsLoggingOut(false);
     }
   }
 
@@ -4002,6 +4074,41 @@ function PublicExperiencePage({ config }) {
     setPendingRemoval(result);
   }
 
+  function renderDrawCardUtilityBar() {
+    const accountName = visitorState?.account?.username || "我的账户";
+    const isRegistered = Boolean(visitorState?.account?.isRegistered);
+    const wechatAvatarUrl = String(visitorState?.account?.wechatAvatarUrl || "").trim();
+    return (
+      <div className="draw-card-utility-bar draw-card-utility-bar-draw">
+        <button className="draw-card-utility-link draw-card-coin-balance" onClick={() => setShowCoinInfo(true)} type="button">
+          余额 {visitorState ? `${visitorState.account?.coinBalance || 0} 币` : "--"}
+        </button>
+        <div className="draw-card-user-area" ref={userMenuRef}>
+          <button
+            aria-label={isRegistered ? `账户：${accountName}` : "登录或注册"}
+            className={`draw-card-utility-link draw-card-account-button${isRegistered ? " is-signed-in" : " is-guest"}`}
+            onClick={() => isRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)}
+            title={isRegistered ? accountName : "登录 / 注册"}
+            type="button"
+          >
+            {isRegistered && wechatAvatarUrl ? <img alt="" src={wechatAvatarUrl} /> : <span>{isRegistered ? accountName.slice(0, 1) : "登录"}</span>}
+          </button>
+          {showUserMenu && isRegistered ? (
+            <div className="draw-card-user-inline-menu" role="menu">
+              <span className="draw-card-user-inline-menu-name">{accountName}</span>
+              <button onClick={() => window.location.assign("/fridge/orders")} role="menuitem" type="button">
+                我的订单
+              </button>
+              <button disabled={isLoggingOut} onClick={handleLogout} role="menuitem" type="button">
+                {isLoggingOut ? "正在退出" : "退出登录"}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
   function renderClipPanel({ showCollection = true, showAccount = true } = {}) {
     return (
       <aside
@@ -4133,25 +4240,7 @@ function PublicExperiencePage({ config }) {
     <main className={`draw-card-shell ${themeClass} ${route} phase-${phase}`}>
       <div className="draw-card-ambient draw-card-ambient-a" />
       <div className="draw-card-ambient draw-card-ambient-b" />
-      {experienceType === "draw-card" ? (
-        <div className="draw-card-utility-bar draw-card-utility-bar-draw">
-          <button className="draw-card-utility-link draw-card-coin-balance" onClick={() => setShowCoinInfo(true)} type="button">
-            余额 {visitorState ? `${visitorState.account?.coinBalance || 0} 币` : "--"}
-          </button>
-          {visitorState?.account?.isRegistered ? (
-            <button
-              className="draw-card-utility-link"
-              onClick={() => setShowUserMenu(true)}
-              type="button"
-            >
-              {visitorState.account.username || "已登录"}
-            </button>
-          ) : (
-            <button className="draw-card-utility-link" onClick={() => setShowAuthModal(true)} type="button">登录 / 注册</button>
-          )}
-        </div>
-      ) : null}
-
+      {experienceType === "draw-card" && !["idle", "ready"].includes(phase) ? renderDrawCardUtilityBar() : null}
       {(phase === "idle" || phase === "ready") && (
         <section className="draw-card-stage">
           <div className={`draw-card-stage-layout${isDrawCardExperience ? " draw-card-stage-layout-no-account" : ""}`}>
@@ -4164,6 +4253,7 @@ function PublicExperiencePage({ config }) {
                   <h1 className="draw-card-title">{title}</h1>
                 )}
                 {subtitle ? <p className="draw-card-subtitle">{subtitle}</p> : null}
+                {experienceType === "draw-card" ? renderDrawCardUtilityBar() : null}
               </div>
 
               <section className={`draw-card-upload-panel ${referenceFile ? "has-image" : ""}`}>
@@ -4188,27 +4278,35 @@ function PublicExperiencePage({ config }) {
                   />
                 </label>
 
-                <div className="draw-card-actions">
-                  <button
-                    className="draw-card-primary"
-                    disabled={!canStart}
-                    onClick={isDrawCardExperience ? () => setShowDrawConfigModal(true) : startDrawCard}
-                    type="button"
-                  >
-                    {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
-                    <span>{isSubmitting ? startButtonLoading : startButtonIdle}</span>
-                  </button>
-                  {experienceType === "draw-card" ? (
-                    <button className="draw-card-secondary" disabled={isSubmitting} onClick={() => openStylePicker()} type="button">
-                      <span>自选风格</span>
-                    </button>
-                  ) : null}
-                  {referenceFile ? (
-                    <button className="draw-card-secondary" onClick={resetExperience} type="button">
-                      <RefreshCw size={18} />
-                      <span>重新选择</span>
-                    </button>
-                  ) : null}
+                <div className={`draw-card-actions${isDrawCardExperience ? " draw-card-home-actions" : ""}`}>
+                  {isDrawCardExperience ? (
+                    <>
+                      <button className="draw-card-secondary" onClick={openStylePicker} type="button">
+                        <span>选择风格</span>
+                      </button>
+                      <button className="draw-card-secondary" onClick={openRandomDrawConfig} type="button">
+                        {isSubmitting ? <LoaderCircle className="spin" size={18} /> : null}
+                        <span>{isSubmitting ? startButtonLoading : startButtonIdle}</span>
+                      </button>
+                      <button className="draw-card-secondary draw-card-recent-session-button" disabled={isOpeningLatestSession} onClick={openLatestSession} type="button">
+                        {isOpeningLatestSession ? <LoaderCircle className="spin" size={18} /> : null}
+                        <span>{isOpeningLatestSession ? "读取中" : "最近生成"}</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="draw-card-primary" disabled={!canStart} onClick={startDrawCard} type="button">
+                        {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+                        <span>{isSubmitting ? startButtonLoading : startButtonIdle}</span>
+                      </button>
+                      {referenceFile ? (
+                        <button className="draw-card-secondary" onClick={resetExperience} type="button">
+                          <RefreshCw size={18} />
+                          <span>重新选择</span>
+                        </button>
+                      ) : null}
+                    </>
+                  )}
                 </div>
 
                 {error ? <p className="error-note draw-card-inline-error">{error}</p> : null}
@@ -4241,7 +4339,7 @@ function PublicExperiencePage({ config }) {
                 type="button"
               >
                 <ArrowLeft size={18} />
-                <span>返回抽卡页</span>
+                <span>返回主页</span>
               </button>
             </div>
 
@@ -4371,16 +4469,10 @@ function PublicExperiencePage({ config }) {
                       <div className="draw-card-result-meta">
                         <span>{item.styleName || `${resultNameFallback} ${index + 1}`}</span>
                         {isSucceeded ? (
-                          <>
-                            <button className={`draw-card-save-button ${result.isLiked ? "is-liked" : ""}`} disabled={Boolean(result.isLiked)} onClick={() => addToClip(result)} type="button">
-                              {result.isLiked ? <Check size={16} /> : <Sparkles size={16} />}
-                              <span>{result.isLiked ? pocketAddedLabel : pocketAddLabel}</span>
-                            </button>
-                            <button className="draw-card-save-button" onClick={() => handleDownloadClipOriginal(result)} type="button">
-                              <Download size={16} />
-                              <span>{visitorState?.account?.canRedeemOriginalDownloads ? "1币兑换原图" : "下单后兑换"}</span>
-                            </button>
-                          </>
+                          <button className={`draw-card-save-button ${result.isLiked ? "is-liked" : ""}`} disabled={Boolean(result.isLiked)} onClick={() => addToClip(result)} type="button">
+                            {result.isLiked ? <Check size={16} /> : <Sparkles size={16} />}
+                            <span>{result.isLiked ? pocketAddedLabel : pocketAddLabel}</span>
+                          </button>
                         ) : (
                           <span className={`task-status ${item.status}`}>{statusLabel(item.status)}</span>
                         )}
@@ -4389,10 +4481,18 @@ function PublicExperiencePage({ config }) {
                   );
                 })}
               </div>
-              <div className="draw-card-results-actions">
-                <button className="draw-card-secondary draw-card-results-restart" onClick={confirmResetExperience} type="button">
+              <div className={`draw-card-results-actions${isDrawCardExperience ? " has-style-picker" : ""}`}>
+                <button className="draw-card-secondary draw-card-results-restart draw-card-results-return" onClick={returnToHome} type="button">
+                  <ArrowLeft size={18} />
+                  <span>返回</span>
+                </button>
+                {isDrawCardExperience ? <button className="draw-card-secondary draw-card-results-restart draw-card-results-change-style" onClick={openStylePicker} type="button">
+                  <Sparkles size={18} />
+                  <span>换个风格</span>
+                </button> : null}
+                <button className="draw-card-secondary draw-card-results-restart draw-card-results-new-photo" onClick={confirmResetExperience} type="button">
                   <RefreshCw size={18} />
-                  <span>换张图片重做</span>
+                  <span>换张照片</span>
                 </button>
               </div>
               {isDrawCardExperience ? renderClipPanel({ showAccount: false }) : null}
@@ -4647,30 +4747,6 @@ function PublicExperiencePage({ config }) {
           }}
           onClose={() => { pendingReferralRef.current = false; pendingCoinPurchaseRef.current = false; setShowAuthModal(false); }}
         />
-      ) : null}
-
-      {showUserMenu ? (
-        <div className="modal-backdrop draw-card-confirm" onClick={() => setShowUserMenu(false)} role="presentation">
-          <section className="draw-card-confirm-panel draw-card-user-menu" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="账户菜单">
-            <div className="draw-card-order-head">
-              <div>
-                <p className="draw-card-kicker">Account</p>
-                <h2>{visitorState?.account?.username || "我的账户"}</h2>
-              </div>
-              <button className="icon-button" onClick={() => setShowUserMenu(false)} type="button" aria-label="关闭账户菜单">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="draw-card-confirm-actions draw-card-user-menu-actions">
-              <button className="draw-card-secondary" disabled={isSwitchingAccount} onClick={handleSwitchAccount} type="button">
-                <span>{isSwitchingAccount ? "正在切换" : "切换账号"}</span>
-              </button>
-              <button className="draw-card-primary" onClick={() => window.location.assign("/fridge/orders")} type="button">
-                <span>我的订单</span>
-              </button>
-            </div>
-          </section>
-        </div>
       ) : null}
 
       {showOrderModal ? (
@@ -9255,6 +9331,17 @@ async function fetchPublicExperienceSession(apiBase, sessionId, fallbackMessage)
   const payload = await response.json();
   if (!response.ok) {
     const error = new Error(payload.message || fallbackMessage || "读取公开玩法状态失败，请稍后再试。");
+    error.status = response.status;
+    throw error;
+  }
+  return payload;
+}
+
+async function fetchLatestPublicExperienceSession(apiBase, fallbackMessage) {
+  const response = await fetch(`${apiBase}/sessions/latest`);
+  const payload = await response.json();
+  if (!response.ok) {
+    const error = new Error(payload.message || fallbackMessage || "读取最近生成任务失败，请稍后再试。");
     error.status = response.status;
     throw error;
   }
