@@ -6258,6 +6258,72 @@ textarea {
   justify-items: start;
 }
 
+.body-book-page .body-book-header {
+  padding: 22px 0 28px;
+}
+
+.body-book-page .body-book-title-lockup {
+  display: grid;
+  gap: 2px;
+  padding: 5px 2px 2px;
+}
+
+.body-book-page .body-book-title-english {
+  display: flex;
+  align-items: baseline;
+  margin: 0;
+  color: #218dcc;
+  font-family: "Arial Rounded MT Bold", "Nunito", "Avenir Next", sans-serif;
+  font-size: clamp(48px, 6.8vw, 82px);
+  font-weight: 900;
+  letter-spacing: -0.075em;
+  line-height: 0.96;
+  white-space: nowrap;
+}
+
+.body-book-page .body-book-title-english span {
+  display: inline-block;
+  color: currentColor;
+}
+
+.body-book-page .body-book-title-english .title-space {
+  width: 0.25em;
+}
+
+.body-book-page .body-book-title-english .title-coral { color: #f25f52; }
+.body-book-page .body-book-title-english .title-gold { color: #f6b51f; }
+.body-book-page .body-book-title-english .title-green { color: #52b77a; }
+.body-book-page .body-book-title-english .title-teal { color: #45bdaa; }
+.body-book-page .body-book-title-english .title-blue { color: #238ccc; }
+.body-book-page .body-book-title-english .title-indigo { color: #698aca; }
+.body-book-page .body-book-title-english .title-purple { color: #aa54a1; }
+.body-book-page .body-book-title-english .title-orange { color: #f08b3e; }
+.body-book-page .body-book-title-english .title-pink { color: #ed5d88; }
+.body-book-page .body-book-title-english .title-cyan { color: #27aeca; }
+.body-book-page .body-book-title-english .title-mint { color: #57b985; }
+.body-book-page .body-book-title-english .title-tilt-1 { transform: rotate(-5deg); }
+.body-book-page .body-book-title-english .title-tilt-2 { transform: rotate(3deg); }
+.body-book-page .body-book-title-english .title-tilt-3 { transform: rotate(-2deg); }
+.body-book-page .body-book-title-english .title-tilt-4 { transform: rotate(4deg); }
+.body-book-page .body-book-title-english .title-tilt-5 { transform: rotate(-3deg); }
+.body-book-page .body-book-title-english .title-tilt-6 { transform: rotate(2deg); }
+.body-book-page .body-book-title-english .title-tilt-7 { transform: rotate(-4deg); }
+.body-book-page .body-book-title-english .title-tilt-8 { transform: rotate(3deg); }
+.body-book-page .body-book-title-english .title-tilt-9 { transform: rotate(-2deg); }
+.body-book-page .body-book-title-english .title-tilt-10 { transform: rotate(4deg); }
+.body-book-page .body-book-title-english .title-tilt-11 { transform: rotate(-3deg); }
+.body-book-page .body-book-title-english .title-tilt-12 { transform: rotate(2deg); }
+
+.body-book-page .body-book-title-lockup h1 {
+  margin: 0;
+  color: #3a312c;
+  font-family: "Arial Rounded MT Bold", "Nunito", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: clamp(22px, 2.45vw, 32px);
+  font-weight: 900;
+  letter-spacing: 0.045em;
+  line-height: 1.2;
+}
+
 .body-book-page .body-book-home-link {
   display: inline-flex;
   min-height: 36px;
