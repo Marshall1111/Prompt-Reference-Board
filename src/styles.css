@@ -828,6 +828,12 @@ body {
   gap: 12px;
 }
 
+.body-book-lightbox-save-tip {
+  margin: 0;
+  color: #6a7772;
+  font-size: 13px;
+}
+
 .body-book-lightbox-panel .draw-card-primary {
   display: inline-flex;
   margin: 0;
@@ -6723,6 +6729,10 @@ textarea {
   .body-book-project-pages-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .body-book-reference-list.is-empty {
+    width: 100%;
   }
 
   .body-book-reference-previews .body-book-project-upload { align-self: auto; width: 100%; min-height: 0; }
