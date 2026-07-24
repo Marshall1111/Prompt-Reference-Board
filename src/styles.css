@@ -1408,10 +1408,37 @@ body {
 }
 
 .draw-card-style-picker-head {
+  display: block;
+}
+
+.draw-card-style-picker-actions {
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
-  gap: 18px;
+  gap: 12px;
+  width: 100%;
+  margin-top: 18px;
+}
+
+.draw-card-style-picker-back-button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 7px;
+  padding-inline: 12px;
+  color: #fff0c8;
+  border-color: rgba(255, 216, 149, 0.26);
+  background: rgba(255, 216, 149, 0.1);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-style-picker-actions .draw-card-utility-bar-draw {
+  position: static;
+  z-index: auto;
+  width: auto;
+  margin: 0;
+  transform: none;
 }
 
 .draw-card-style-picker-panel {
@@ -1597,16 +1624,33 @@ body {
   min-height: 238px;
 }
 
+.draw-card-shell.theme-draw-card .draw-card-stage-main {
+  width: min(960px, 100%);
+  margin-inline: auto;
+}
+
 .draw-card-shell.theme-draw-card .draw-card-hero {
+  position: relative;
   gap: 12px;
+  width: 100%;
   margin-bottom: 4px;
 }
 
 .draw-card-shell.theme-draw-card .draw-card-hero .draw-card-utility-bar-draw {
   position: static;
-  justify-content: flex-end;
   width: 100%;
   margin: 0;
+  transform: none;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-utility-bar-draw {
+  align-items: center;
+  min-height: 38px;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-utility-bar-draw .draw-card-coin-balance {
+  height: 38px;
+  min-height: 38px;
 }
 
 .draw-card-shell.theme-draw-card .draw-card-upload-panel {
@@ -1617,8 +1661,8 @@ body {
 
 /* 抽卡首页的上传区与卡夹共用同一条居中版心，避免卡夹比上传框更宽。 */
 .draw-card-shell.theme-draw-card .draw-card-stage-main > :is(.draw-card-upload-panel, .draw-card-clip-panel) {
-  width: min(960px, 100%);
-  margin-inline: auto;
+  width: 100%;
+  margin-inline: 0;
 }
 
 .draw-card-primary,
@@ -5585,6 +5629,19 @@ textarea {
     transform: none;
   }
 
+  .draw-card-shell.theme-draw-card .draw-card-hero .draw-card-utility-bar-draw {
+    position: static;
+    width: auto;
+    margin: 0;
+    justify-self: end;
+  }
+
+  .draw-card-shell.theme-draw-card .draw-card-style-picker-actions .draw-card-utility-bar-draw {
+    position: static;
+    width: auto;
+    margin: 0;
+  }
+
   .draw-card-page-footer {
     margin-top: 14px;
     padding-top: 12px;
@@ -6224,11 +6281,57 @@ textarea {
 }
 
 .body-book-reference-previews {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   width: 100%;
-  flex-wrap: wrap;
-  justify-content: center;
   gap: 8px;
+}
+
+.body-book-reference-preview {
+  position: relative;
+  min-width: 0;
+}
+
+.body-book-reference-preview-open {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 0;
+  border-radius: 14px;
+  background: #f5f5f7;
+  cursor: zoom-in;
+}
+
+.body-book-reference-preview-open img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.body-book-page .body-book-reference-delete.icon-button {
+  position: absolute;
+  z-index: 2;
+  top: -7px;
+  right: -7px;
+  display: inline-flex;
+  width: 25px;
+  min-width: 25px;
+  height: 25px;
+  min-height: 25px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  color: #d70015;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
+}
+
+.body-book-page .body-book-reference-delete.icon-button:hover:not(:disabled) {
+  background: #fff0f0;
 }
 
 .body-book-reference-add {
@@ -6245,9 +6348,10 @@ textarea {
 }
 
 .body-book-reference-add.is-compact {
-  width: 44px;
-  min-height: 44px;
-  border-radius: 50%;
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: 1;
+  border-radius: 14px;
 }
 
 .body-book-reference-add.is-compact strong,
@@ -6621,8 +6725,7 @@ textarea {
     flex-direction: column;
   }
 
-  .body-book-reference-previews .body-book-project-upload { align-self: auto; width: clamp(120px, 38vw, 180px); min-height: 0; }
-  .body-book-reference-previews .body-book-project-upload img { max-height: none; }
+  .body-book-reference-previews .body-book-project-upload { align-self: auto; width: 100%; min-height: 0; }
   .body-book-project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .body-book-add-page-card { min-height: 220px; border-radius: 10px; }
   .body-book-project-delete { top: 6px; right: 6px; }
@@ -7497,4 +7600,146 @@ textarea {
   .body-book-page .body-book-theme-card { padding: 11px; }
   .body-book-order-detail-page .workspace { width: min(100% - 28px, 1120px); }
   .body-book-order-detail-page .draw-observability-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Header actions share one lower row: home left, account actions right. */
+.body-book-page .body-book-header {
+  display: grid;
+  grid-template-areas:
+    "copy copy"
+    "home actions";
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.body-book-page .body-book-header-copy { grid-area: copy; }
+
+.body-book-page .body-book-header-actions {
+  grid-area: actions;
+  justify-self: end;
+}
+
+.body-book-page .body-book-home-link {
+  grid-area: home;
+  margin: 0;
+}
+
+.body-book-page-reference-modal-panel {
+  width: min(620px, calc(100vw - 32px));
+}
+
+.body-book-page-reference-editor-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.body-book-page-reference-editor-item {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--body-book-apple-border);
+  border-radius: 14px;
+  background: #fbfbfd;
+}
+
+.body-book-page-reference-editor-item > img {
+  width: 82px;
+  height: 82px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.body-book-page-reference-editor-item > div {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.body-book-page-reference-editor-item strong {
+  color: var(--body-book-apple-ink);
+  font-size: 14px;
+}
+
+.body-book-page-reference-editor-item .draw-card-secondary {
+  width: fit-content;
+  min-height: 34px;
+  padding: 0 11px;
+  font-size: 12px;
+}
+
+.body-book-page-reference-editor-item label {
+  cursor: pointer;
+}
+
+.body-book-page-reference-editor-item label input {
+  display: none;
+}
+
+.body-book-page .body-book-page-reference-editor-remove.icon-button {
+  display: inline-flex;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #d70015;
+}
+
+.body-book-page-reference-editor-add {
+  display: grid;
+  min-height: 82px;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  border: 1px dashed #a1a1a6;
+  border-radius: 14px;
+  background: #fbfbfd;
+  color: var(--body-book-apple-blue);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.body-book-page-reference-editor-add:hover {
+  border-color: var(--body-book-apple-blue);
+  background: #f0f7ff;
+}
+
+.body-book-page-reference-editor-add input {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .body-book-page .body-book-header-actions {
+    width: auto;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 560px) {
+  .body-book-page .body-book-header-actions > .draw-card-secondary,
+  .body-book-page .body-book-header-actions .body-book-account-button,
+  .body-book-page .body-book-header-actions .body-book-header-balance {
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .body-book-page .body-book-header-balance { min-width: 62px; }
+
+  .body-book-page .body-book-page-reference-editor-item {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    gap: 9px;
+  }
+
+  .body-book-page .body-book-page-reference-editor-item > img {
+    width: 64px;
+    height: 64px;
+  }
 }
