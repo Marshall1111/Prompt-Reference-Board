@@ -549,6 +549,26 @@ function BeanPurchaseModal({ beanCount, busy, error, payment, purchase, onClose,
   );
 }
 
+function CoinPurchaseModal({ coinCount, busy, error, payment, purchase, onClose, onCountChange, onRestart, onRetry, onSubmit }) {
+  const safeCount = Math.min(Math.max(Math.trunc(Number(coinCount || 0)), 0), MAX_BEAN_PURCHASE_COUNT);
+  const isPaid = purchase?.status === "paid";
+  const isExpired = purchase?.status === "cancelled" || (purchase?.expiresAt && Date.parse(purchase.expiresAt) <= Date.now());
+  const isManual = payment?.channel === "manual_collection";
+  const isNative = payment?.channel === "wechat_native" && payment?.codeUrl;
+  return (
+    <div className="modal-backdrop draw-card-confirm" onClick={() => !busy && onClose()} role="presentation">
+      <section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="购买币">
+        <button className="icon-button" disabled={busy} onClick={onClose} type="button" aria-label="关闭购买币"><X size={18} /></button>
+        <p className="draw-card-kicker">Buy coins</p>
+        <h2>购买币</h2>
+        <p className="storage-note">1 元 = 1 币。成功购买的金额可抵扣冰箱贴商品金额，每枚冰箱贴最多抵扣 15 元。</p>
+        {isPaid ? <><p className="success-note">购买成功，{purchase.coinCount} 币已到账。</p><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={onClose} type="button">完成</button></div></> : isExpired ? <><p className="error-note">该购买单已过期，未产生扣款。请重新创建购买单后再支付。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" onClick={onClose} type="button">关闭</button><button className="draw-card-primary" disabled={busy} onClick={onRestart} type="button">重新购买</button></div></> : isManual ? <article className="manual-payment-guide"><strong>请扫描商户收款码付款</strong><img alt="微信商户收款码" className="manual-payment-qr" src="/payment/wechat-merchant-collection.png" /><p>应付金额 {formatCurrencyCents(purchase?.amountCents || safeCount * 100)}</p><p>购买金额将自动成为冰箱贴优惠额度。</p><p>购买单号：{purchase?.purchaseNo || "--"}</p><small>付款后管理员确认到账，币将自动发放。</small></article> : isNative ? <article className="native-payment-panel"><h3>请使用微信扫码付款</h3><p className="storage-note">应付金额 {formatCurrencyCents(purchase?.amountCents || safeCount * 100)}，扫码后无需手动输入金额。</p><p>购买金额将自动成为冰箱贴优惠额度。</p><img alt="购买币微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(payment.codeUrl, { margin: 1 })} /><p className="storage-note">支付成功后币会自动到账。</p></article> : <><div className="body-book-wallet-actions"><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(10)} type="button">10 币</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(20)} type="button">20 币</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(40)} type="button">40 币</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(100)} type="button">100 币</button></div><label className="body-book-wallet-field"><span>购买数量（1–1000 币）</span><input disabled={busy || Boolean(purchase)} min="1" max={MAX_BEAN_PURCHASE_COUNT} onChange={(event) => onCountChange(event.target.value)} type="number" value={coinCount} /></label><p className="body-book-bean-balance">应付 <strong>{formatCurrencyCents(safeCount * 100)}</strong></p><p className="body-book-bean-purchase-discount-note">购买金额可抵扣冰箱贴商品金额，每枚最多抵扣 15 元。</p><p className="storage-note">赠送币和邀请码兑换币不参与冰箱贴优惠抵扣。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={onClose} type="button">取消</button><button className="draw-card-primary" disabled={busy || safeCount < 1} onClick={purchase ? onRetry : onSubmit} type="button">{busy ? "处理中" : purchase ? "重新发起支付" : `支付 ${formatCurrencyCents(safeCount * 100)}`}</button></div></>}
+        {error ? <p className="error-note">{error}</p> : null}
+      </section>
+    </div>
+  );
+}
+
 function AdminApp({ navigate, route }) {
   const [styles, setStyles] = useState([]);
   const [styleGroups, setStyleGroups] = useState([]);
@@ -2363,18 +2383,20 @@ function DrawCardCheckoutPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [account, setAccount] = useState(null);
+  const [coinPurchaseDiscount, setCoinPurchaseDiscount] = useState({ availableCents: 0 });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const pendingCheckoutRef = useRef(false);
 
   useEffect(() => {
     let isActive = true;
-    Promise.all([fetchPublicClipItems("draw-card"), fetchOrderConfig(), fetchCurrentAccount()])
+    Promise.all([fetchPublicClipItems("draw-card"), fetchOrderConfig(), fetchVisitorState()])
       .then(([clipPayload, config, accountPayload]) => {
         if (!isActive) return;
         const items = Array.isArray(clipPayload?.items) ? clipPayload.items : [];
         setClipItems(items);
         setOrderConfig(config || null);
         setAccount(accountPayload?.account || null);
+        setCoinPurchaseDiscount(accountPayload?.coinPurchaseDiscount || { availableCents: 0 });
         setOrderForm((current) => fillOrderAddressFromSaved(current, accountPayload?.account));
         setQuantities((current) => syncOrderQuantitiesWithClipItems(current, items));
         setError("");
@@ -2400,6 +2422,12 @@ function DrawCardCheckoutPage() {
   );
   const totalItemCount = getTotalOrderItemCount(selectedItems, quantities);
   const amountPreview = calculateClientOrderAmount(totalItemCount, orderConfig);
+  const coinDiscountPreviewCents = Math.min(
+    amountPreview.subtotalCents,
+    totalItemCount * 1500,
+    Math.max(0, Number(coinPurchaseDiscount.availableCents || 0))
+  );
+  const payablePreviewCents = Math.max(0, amountPreview.totalCents - coinDiscountPreviewCents);
 
   function toggleSelectedItem(jobId) {
     setSelectedJobIds((current) => current.includes(jobId)
@@ -2499,8 +2527,9 @@ function DrawCardCheckoutPage() {
                 <p>已选 {selectedItems.length} 款，共 {totalItemCount} 枚</p>
                 <p>单价 {formatCurrencyCents(amountPreview.unitPriceCents)} / 枚</p>
                 <p>邮费 {amountPreview.shippingFeeCents > 0 ? formatCurrencyCents(amountPreview.shippingFeeCents) : "包邮"}</p>
-                <strong>合计 {formatCurrencyCents(amountPreview.totalCents)}</strong>
-                <span className="storage-note">购买 {totalItemCount} 枚冰箱贴，可赠送 {totalItemCount * 10} 币。</span>
+                {coinDiscountPreviewCents > 0 ? <p>已购币优惠 -{formatCurrencyCents(coinDiscountPreviewCents)}（每枚最多抵扣 15 元）</p> : null}
+                <strong>实付 {formatCurrencyCents(payablePreviewCents)}</strong>
+                <span className="storage-note">订单支付成功后，按实付金额赠送等额币。</span>
               </div>
               <div className="draw-card-order-form">
                 <label className="field-label">收件人<input onChange={(event) => setOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={orderForm.receiverName} /></label>
@@ -2520,9 +2549,11 @@ function DrawCardCheckoutPage() {
       </section>
       {showAuthModal ? (
         <AuthModal
-          onAuthenticated={(nextAccount) => {
-            setAccount(nextAccount);
-            setOrderForm((current) => fillOrderAddressFromSaved(current, nextAccount));
+          onAuthenticated={async (nextAccount) => {
+            const nextVisitorState = await fetchVisitorState().catch(() => null);
+            setAccount(nextVisitorState?.account || nextAccount);
+            setCoinPurchaseDiscount(nextVisitorState?.coinPurchaseDiscount || { availableCents: 0 });
+            setOrderForm((current) => fillOrderAddressFromSaved(current, nextVisitorState?.account || nextAccount));
             setShowAuthModal(false);
           }}
           onClose={() => { pendingCheckoutRef.current = false; setShowAuthModal(false); }}
@@ -2764,6 +2795,7 @@ function FridgeMagnetOrderPage() {
                   <span>{formatCurrencyCents(order.totalCents)}</span>
                 </div>
                 {Number(order.beanDiscountCents || 0) > 0 ? <div className="draw-observability-metric"><strong>豆豆优惠</strong><span>-{formatCurrencyCents(order.beanDiscountCents)}</span></div> : null}
+                {Number(order.coinDiscountCents || 0) > 0 ? <div className="draw-observability-metric"><strong>已购币优惠</strong><span>-{formatCurrencyCents(order.coinDiscountCents)}</span></div> : null}
                 <div className="draw-observability-metric"><strong>实付金额</strong><span>{formatCurrencyCents(payableCents)}</span></div>
               </div>
             </article>
@@ -2872,6 +2904,17 @@ function PublicExperiencePage({ config }) {
   const [myOrders, setMyOrders] = useState([]);
   const [latestManualOrder, setLatestManualOrder] = useState(() => readLatestManualOrder());
   const [inviteCode, setInviteCode] = useState("");
+  const [showCoinInfo, setShowCoinInfo] = useState(false);
+  const [showCoinPurchase, setShowCoinPurchase] = useState(false);
+  const [coinPurchaseCount, setCoinPurchaseCount] = useState(20);
+  const [coinPurchase, setCoinPurchase] = useState(null);
+  const [coinPurchasePayment, setCoinPurchasePayment] = useState(null);
+  const [coinPurchaseBusy, setCoinPurchaseBusy] = useState(false);
+  const [coinPurchaseError, setCoinPurchaseError] = useState("");
+  const [showReferralModal, setShowReferralModal] = useState(false);
+  const [referralUrl, setReferralUrl] = useState("");
+  const [referralNotice, setReferralNotice] = useState("");
+  const [referralError, setReferralError] = useState("");
   const [showContactModal, setShowContactModal] = useState(false);
   const [showDrawConfigModal, setShowDrawConfigModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -2908,6 +2951,8 @@ function PublicExperiencePage({ config }) {
   const merchantClaimKeyRef = useRef("");
   const visitSessionIdRef = useRef("");
   const visitLifecycleTokenRef = useRef(0);
+  const pendingCoinPurchaseRef = useRef(false);
+  const pendingReferralRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -3057,6 +3102,108 @@ function PublicExperiencePage({ config }) {
     if (!authorizationUrl) return false;
     window.location.assign(authorizationUrl);
     return true;
+  }
+
+  async function showReferralDialog() {
+    setReferralError("");
+    setReferralNotice("");
+    try {
+      const payload = await createReferralLink("draw-card");
+      const nextUrl = String(payload?.inviteUrl || "");
+      setReferralUrl(nextUrl);
+      setShowReferralModal(true);
+      try {
+        await copyText(nextUrl);
+        setReferralNotice("邀请链接已复制，快去分享给新朋友吧。");
+      } catch {
+        setReferralNotice("链接已生成，请点击下方按钮复制。");
+      }
+    } catch (nextError) {
+      setReferralError(nextError.message || "创建邀请链接失败，请稍后重试。");
+      setShowReferralModal(true);
+    }
+  }
+
+  function openReferral() {
+    if (!visitorState?.account?.isRegistered) {
+      pendingReferralRef.current = true;
+      setShowAuthModal(true);
+      return;
+    }
+    void showReferralDialog();
+  }
+
+  function openCoinPurchase() {
+    if (!visitorState?.account?.isRegistered) {
+      pendingCoinPurchaseRef.current = true;
+      setShowAuthModal(true);
+      return;
+    }
+    setCoinPurchase(null);
+    setCoinPurchasePayment(null);
+    setCoinPurchaseError("");
+    setCoinPurchaseCount(20);
+    setShowCoinInfo(false);
+    setShowCoinPurchase(true);
+  }
+
+  function restartCoinPurchase() {
+    setCoinPurchase(null);
+    setCoinPurchasePayment(null);
+    setCoinPurchaseError("");
+  }
+
+  async function applyCoinPurchasePayment(payload) {
+    const nextPurchase = payload?.purchase || null;
+    const nextPayment = payload?.payment || null;
+    if (nextPurchase) setCoinPurchase(nextPurchase);
+    setCoinPurchasePayment(nextPayment);
+    if (nextPayment?.status === "requires_authorization" && nextPayment.authorizationUrl) {
+      window.location.assign(nextPayment.authorizationUrl);
+      return;
+    }
+    if (nextPayment?.channel === "wechat_jsapi" && nextPayment.jsapi) {
+      await invokeWechatJsapiPayment(nextPayment.jsapi);
+      const refreshed = await fetchCoinPurchase(nextPurchase?.id || coinPurchase?.id);
+      setCoinPurchase(refreshed.purchase);
+      setVisitorState(await fetchVisitorState());
+    }
+  }
+
+  async function prepareCoinPurchase(purchaseId, code = "") {
+    if (!purchaseId) return;
+    setCoinPurchaseBusy(true);
+    setCoinPurchaseError("");
+    try {
+      await applyCoinPurchasePayment(await payCoinPurchase(purchaseId, code ? { code } : {}));
+    } catch (nextError) {
+      setCoinPurchaseError(nextError.message || "发起币购买支付失败，请稍后重试。");
+    } finally {
+      setCoinPurchaseBusy(false);
+    }
+  }
+
+  async function submitCoinPurchase() {
+    const count = Math.trunc(Number(coinPurchaseCount || 0));
+    if (coinPurchaseBusy) return;
+    if (!Number.isFinite(count) || count < 1 || count > MAX_BEAN_PURCHASE_COUNT) {
+      setCoinPurchaseError(`请输入 1 到 ${MAX_BEAN_PURCHASE_COUNT} 之间的整数。`);
+      return;
+    }
+    setCoinPurchaseBusy(true);
+    setCoinPurchaseError("");
+    try {
+      const created = await createCoinPurchase({ coinCount: count });
+      setCoinPurchase(created.purchase);
+      setCoinPurchasePayment(created.payment || null);
+      if (created.payment?.channel !== "manual_collection") {
+        await applyCoinPurchasePayment(await payCoinPurchase(created.purchase.id, {}));
+      }
+    } catch (nextError) {
+      setCoinPurchaseError(nextError.message || "创建币购买单失败，请稍后重试。");
+    } finally {
+      setCoinPurchaseBusy(false);
+    }
   }
 
   async function openStylePicker() {
@@ -3237,6 +3384,49 @@ function PublicExperiencePage({ config }) {
       isActive = false;
     };
   }, [clipErrorMessage, experienceType, sessionStorageKey]);
+
+  useEffect(() => {
+    if (experienceType !== "draw-card") return;
+    const token = new URLSearchParams(window.location.search).get("invite");
+    if (!token) return;
+    captureReferral(token)
+      .catch(() => {})
+      .finally(() => {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("invite");
+        window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      });
+  }, [experienceType]);
+
+  useEffect(() => {
+    if (experienceType !== "draw-card") return;
+    const url = new URL(window.location.href);
+    const purchaseId = String(url.searchParams.get("coinPurchaseId") || "");
+    const payCode = String(url.searchParams.get("coinPayCode") || "");
+    if (!purchaseId || !payCode) return;
+    setShowCoinPurchase(true);
+    setCoinPurchaseError("");
+    url.searchParams.delete("coinPurchaseId");
+    url.searchParams.delete("coinPayCode");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    void prepareCoinPurchase(purchaseId, payCode);
+  }, [experienceType]);
+
+  useEffect(() => {
+    if (!showCoinPurchase || !coinPurchase?.id || coinPurchase.status === "paid") return undefined;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const payload = await fetchCoinPurchase(coinPurchase.id);
+        if (!active) return;
+        setCoinPurchase(payload.purchase);
+        if (payload.purchase?.status === "paid") setVisitorState(await fetchVisitorState());
+      } catch {}
+    };
+    const timer = window.setInterval(refresh, 2200);
+    void refresh();
+    return () => { active = false; window.clearInterval(timer); };
+  }, [coinPurchase?.id, coinPurchase?.status, showCoinPurchase]);
 
   useEffect(() => {
     if (experienceType !== "fridge-magnet") return;
@@ -3785,6 +3975,14 @@ function PublicExperiencePage({ config }) {
   const orderStyleCount = clipItems.length;
   const totalOrderItemCount = getTotalOrderItemCount(clipItems, orderQuantities);
   const orderAmountPreview = calculateClientOrderAmount(totalOrderItemCount, orderConfig);
+  const orderCoinDiscountPreviewCents = experienceType === "fridge-magnet"
+    ? Math.min(
+        orderAmountPreview.subtotalCents,
+        totalOrderItemCount * 1500,
+        Math.max(0, Number(visitorState?.coinPurchaseDiscount?.availableCents || 0))
+      )
+    : 0;
+  const orderPayablePreviewCents = Math.max(0, orderAmountPreview.totalCents - orderCoinDiscountPreviewCents);
   const recentManualOrderLink = isActiveLatestManualOrder(latestManualOrder)
     ? buildOrderDetailUrl(latestManualOrder.orderId, latestManualOrder.publicToken)
     : "";
@@ -3882,7 +4080,7 @@ function PublicExperiencePage({ config }) {
             <span>账户币</span>
             <strong>{visitorState ? `${visitorState.account?.coinBalance || 0} 币` : "--"}</strong>
             <p>{visitorState?.account?.canRedeemOriginalDownloads ? "已获得原图兑换资格，每张兑换消耗 1 币" : "定制订单支付成功后即可兑换原图"}</p>
-            <p>每定制1枚冰箱贴，可获赠10币。</p>
+            <p>冰箱贴订单支付成功后，按实付金额赠送等额币。</p>
           </div>
           {visitorState?.sourceMerchantName ? <p>来源商户：{visitorState.sourceMerchantName}</p> : null}
           <input className="field-inline-input" onChange={(event) => setInviteCode(event.target.value)} placeholder={clipInvitePlaceholder} value={inviteCode} />
@@ -3937,6 +4135,9 @@ function PublicExperiencePage({ config }) {
       <div className="draw-card-ambient draw-card-ambient-b" />
       {experienceType === "draw-card" ? (
         <div className="draw-card-utility-bar draw-card-utility-bar-draw">
+          <button className="draw-card-utility-link draw-card-coin-balance" onClick={() => setShowCoinInfo(true)} type="button">
+            余额 {visitorState ? `${visitorState.account?.coinBalance || 0} 币` : "--"}
+          </button>
           {visitorState?.account?.isRegistered ? (
             <button
               className="draw-card-utility-link"
@@ -3953,7 +4154,7 @@ function PublicExperiencePage({ config }) {
 
       {(phase === "idle" || phase === "ready") && (
         <section className="draw-card-stage">
-          <div className="draw-card-stage-layout">
+          <div className={`draw-card-stage-layout${isDrawCardExperience ? " draw-card-stage-layout-no-account" : ""}`}>
             <div className="draw-card-stage-main">
               <div className="draw-card-hero">
                 {titleKicker ? <p className="draw-card-kicker">{titleKicker}</p> : null}
@@ -4016,9 +4217,7 @@ function PublicExperiencePage({ config }) {
               {isDrawCardExperience ? renderClipPanel({ showAccount: false }) : null}
             </div>
 
-            <div className={isDrawCardExperience ? "draw-card-account-column" : ""}>
-              {isDrawCardExperience ? renderClipPanel({ showCollection: false }) : renderClipPanel()}
-            </div>
+            {isDrawCardExperience ? null : <div>{renderClipPanel()}</div>}
           </div>
         </section>
       )}
@@ -4145,7 +4344,7 @@ function PublicExperiencePage({ config }) {
 
           {error ? <p className="error-note draw-card-inline-error">{error}</p> : null}
 
-          <div className="draw-card-results-layout">
+          <div className={`draw-card-results-layout${isDrawCardExperience ? " draw-card-results-layout-no-account" : ""}`}>
             <div className="draw-card-results-main">
               <div className="draw-card-results-grid">
                 {displayItems.map((item, index) => {
@@ -4199,7 +4398,7 @@ function PublicExperiencePage({ config }) {
               {isDrawCardExperience ? renderClipPanel({ showAccount: false }) : null}
             </div>
 
-            {isDrawCardExperience ? renderClipPanel({ showCollection: false }) : renderClipPanel()}
+            {isDrawCardExperience ? null : renderClipPanel()}
           </div>
         </section>
       )}
@@ -4380,6 +4579,10 @@ function PublicExperiencePage({ config }) {
         </div>
       ) : null}
 
+      {showCoinInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowCoinInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的币"><button className="icon-button" onClick={() => setShowCoinInfo(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><p className="draw-card-kicker">My coins</p><h2>我的币</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.coinBalance || 0 : "--"}</strong> 币</p><p className="body-book-bean-cost-note">已购币剩余可抵扣额度：<strong>{formatCurrencyCents(Math.max(0, Number(visitorState?.coinPurchaseDiscount?.availableCents || 0)))}</strong></p><ul className="body-book-bean-benefits"><li>成功购买 1 元币，可获得 1 元冰箱贴优惠额度。</li><li>每枚冰箱贴最多抵扣 15 元；同一订单可按数量累计抵扣。</li><li>冰箱贴订单支付成功后，按抵扣后实付金额赠送等额币。</li><li>邀请新用户完成首笔冰箱贴订单支付，可获得 5 币。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openCoinPurchase} type="button">购买币</button><button className="draw-card-secondary" onClick={() => { setShowCoinInfo(false); openReferral(); }} type="button">邀新获币</button></div><label className="body-book-wallet-field"><span>邀请码</span><input disabled={isSubmitting} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={isSubmitting || !inviteCode.trim()} onClick={async () => { try { setIsSubmitting(true); const payload = await redeemInviteCode(inviteCode); setVisitorState(payload); setInviteCode(""); setError(""); } catch (nextError) { setError(nextError.message || inviteErrorMessage); } finally { setIsSubmitting(false); } }} type="button">兑换邀请码</button></div></section></div> : null}
+      {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀新获币"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀新获币</h2><p>邀请新用户注册，并完成首笔冰箱贴订单支付，即可获得 <strong>5 币</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
+      {showCoinPurchase ? <CoinPurchaseModal coinCount={coinPurchaseCount} busy={coinPurchaseBusy} error={coinPurchaseError} payment={coinPurchasePayment} purchase={coinPurchase} onClose={() => setShowCoinPurchase(false)} onCountChange={setCoinPurchaseCount} onRestart={restartCoinPurchase} onRetry={() => prepareCoinPurchase(coinPurchase?.id)} onSubmit={submitCoinPurchase} /> : null}
+
       {showContactModal ? (
         <div className="modal-backdrop draw-card-confirm" onClick={() => setShowContactModal(false)} role="presentation">
           <section className="draw-card-confirm-panel draw-card-contact-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="联系客服">
@@ -4425,12 +4628,24 @@ function PublicExperiencePage({ config }) {
 
       {showAuthModal ? (
         <AuthModal
-          onAuthenticated={(account) => {
+          onAuthenticated={async (account) => {
             setShowAuthModal(false);
-            setVisitorState((current) => current ? { ...current, authenticated: true, account } : current);
+            const nextVisitorState = await fetchVisitorState().catch(() => null);
+            setVisitorState(nextVisitorState || ((current) => current ? { ...current, authenticated: true, account } : current));
             setOrderForm((current) => fillOrderAddressFromSaved(current, account));
+            if (pendingReferralRef.current) {
+              pendingReferralRef.current = false;
+              await showReferralDialog();
+            }
+            if (pendingCoinPurchaseRef.current) {
+              pendingCoinPurchaseRef.current = false;
+              setCoinPurchase(null);
+              setCoinPurchasePayment(null);
+              setCoinPurchaseError("");
+              setShowCoinPurchase(true);
+            }
           }}
-          onClose={() => setShowAuthModal(false)}
+          onClose={() => { pendingReferralRef.current = false; pendingCoinPurchaseRef.current = false; setShowAuthModal(false); }}
         />
       ) : null}
 
@@ -4474,7 +4689,8 @@ function PublicExperiencePage({ config }) {
               <p>已选 {orderStyleCount} 款，共 {totalOrderItemCount} 只</p>
               <p>单价 {formatCurrencyCents(orderAmountPreview.unitPriceCents)} / 只</p>
               <p>邮费 {orderAmountPreview.shippingFeeCents > 0 ? formatCurrencyCents(orderAmountPreview.shippingFeeCents) : "包邮"}</p>
-              <strong>合计 {formatCurrencyCents(orderAmountPreview.totalCents)}</strong>
+              {orderCoinDiscountPreviewCents > 0 ? <p>已购币优惠 -{formatCurrencyCents(orderCoinDiscountPreviewCents)}（每枚最多抵扣 15 元）</p> : null}
+              <strong>实付 {formatCurrencyCents(orderPayablePreviewCents)}</strong>
               <span className="storage-note">1 只收邮费，2 只及以上包邮</span>
             </div>
             <div className="draw-card-order-items">
@@ -4543,7 +4759,7 @@ function PublicExperiencePage({ config }) {
               </button>
             </div>
             <div className="draw-card-order-summary">
-              <p>应付金额 {formatCurrencyCents(manualPaymentOrder.order.totalCents)}</p>
+              <p>应付金额 {formatCurrencyCents(Number(manualPaymentOrder.order.payableCents ?? manualPaymentOrder.order.totalCents ?? 0))}</p>
               <p>订单号 {manualPaymentOrder.order.orderNo}</p>
               <strong>请在 {formatDateTime(manualPaymentOrder.payment?.expiresAt || manualPaymentOrder.order.expiresAt)} 前完成付款</strong>
               <span className="storage-note">请使用微信扫描下方商户收款码，并按订单金额付款。转账备注请填写订单号；管理员核验到账后会更新订单状态。</span>
@@ -6435,8 +6651,12 @@ async function fetchCurrentAccount() {
   return payload;
 }
 
-async function createReferralLink() {
-  const response = await fetch("/api/referrals/link", { method: "POST" });
+async function createReferralLink(target = "") {
+  const response = await fetch("/api/referrals/link", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(target ? { target } : {})
+  });
   const payload = await readAuthJsonResponse(response, { message: "创建邀请链接失败。" });
   if (!response.ok) throw new Error(payload.message || "创建邀请链接失败。");
   return payload;
@@ -6568,6 +6788,35 @@ async function payBeanPurchase(purchaseId, payload = {}) {
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || "发起豆豆购买支付失败。");
+  return data;
+}
+
+async function createCoinPurchase(payload) {
+  const response = await fetch("/api/coin-purchases", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "创建币购买单失败。");
+  return data;
+}
+
+async function fetchCoinPurchase(purchaseId) {
+  const response = await fetch(`/api/coin-purchases/${encodeURIComponent(purchaseId)}`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "读取币购买单失败。");
+  return data;
+}
+
+async function payCoinPurchase(purchaseId, payload = {}) {
+  const response = await fetch(`/api/coin-purchases/${encodeURIComponent(purchaseId)}/pay`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "发起币购买支付失败。");
   return data;
 }
 
@@ -8127,8 +8376,10 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
 
   async function confirmManualBeanPurchase(payment) {
     if (!payment?.id || payment.status === "paid") return;
-    const beanCount = Number(payment.metadata?.beanCount || payment.creditAmount || 0);
-    if (!window.confirm(`确认已收到 ${formatCurrencyCents(payment.amountCents)}，并为用户发放 ${beanCount} 豆吗？`)) return;
+    const isCoinPurchase = payment.kind === "coin_purchase";
+    const unitName = isCoinPurchase ? "币" : "豆";
+    const count = Number((isCoinPurchase ? payment.metadata?.coinCount : payment.metadata?.beanCount) || payment.creditAmount || 0);
+    if (!window.confirm(`确认已收到 ${formatCurrencyCents(payment.amountCents)}，并为用户发放 ${count} ${unitName}吗？`)) return;
     setIsBusy(true);
     setError("");
     setStatusMessage("");
@@ -8136,9 +8387,9 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
       await confirmAdminManualBeanPurchase(payment.id);
       const payload = await fetchAdminCommercePayments();
       setCommercePayments(payload.payments || []);
-      setStatusMessage("已确认购买收款，豆豆已发放。");
+      setStatusMessage(`已确认购买收款，${unitName}已发放。`);
     } catch (nextError) {
-      setError(nextError.message || "确认豆豆购买收款失败。");
+      setError(nextError.message || "确认购买收款失败。");
     } finally {
       setIsBusy(false);
     }
@@ -8212,9 +8463,9 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
           {!commercePayments.length ? <p className="storage-note">暂无收款记录。</p> : null}
         </div>
         <div className="task-list">
-          {commercePayments.filter((payment) => payment.kind === "bean_purchase").slice(0, 8).map((payment) => (
+          {commercePayments.filter((payment) => ["bean_purchase", "coin_purchase"].includes(payment.kind)).slice(0, 8).map((payment) => (
             <div className="task-meta-row" key={payment.id}>
-              <strong>购买 {Number(payment.metadata?.beanCount || payment.creditAmount || 0)} 豆</strong>
+              <strong>购买 {Number((payment.kind === "coin_purchase" ? payment.metadata?.coinCount : payment.metadata?.beanCount) || payment.creditAmount || 0)} {payment.kind === "coin_purchase" ? "币" : "豆"}</strong>
               <span>{formatCurrencyCents(payment.amountCents)}</span>
               <span>{payment.status === "paid" ? "已支付" : "待确认"}</span>
               {payment.status !== "paid" && payment.channel === "manual_collection" ? <button className="secondary-button" disabled={isBusy} onClick={() => confirmManualBeanPurchase(payment)} type="button">确认收款</button> : null}
@@ -8377,7 +8628,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
             </div>
             <div className="task-meta-row">
               <span className={`task-status ${getAdminOrderPrimaryStatusTone(selectedOrder)}`}>{getAdminOrderPrimaryStatusLabel(selectedOrder)}</span>
-              <span>商品小计 {formatCurrencyCents(selectedOrder.subtotalCents)} · 邮费 {selectedOrder.shippingFeeCents > 0 ? formatCurrencyCents(selectedOrder.shippingFeeCents) : "包邮"} · 豆豆优惠 -{formatCurrencyCents(selectedOrder.beanDiscountCents || 0)} · 实付 {formatCurrencyCents(Number(selectedOrder.payableCents ?? selectedOrder.totalCents ?? 0))}</span>
+              <span>商品小计 {formatCurrencyCents(selectedOrder.subtotalCents)} · 邮费 {selectedOrder.shippingFeeCents > 0 ? formatCurrencyCents(selectedOrder.shippingFeeCents) : "包邮"} · 豆豆优惠 -{formatCurrencyCents(selectedOrder.beanDiscountCents || 0)} · 已购币优惠 -{formatCurrencyCents(selectedOrder.coinDiscountCents || 0)} · 实付 {formatCurrencyCents(Number(selectedOrder.payableCents ?? selectedOrder.totalCents ?? 0))}</span>
             </div>
             <p className="storage-note">{selectedOrder.receiverName} · {selectedOrder.receiverPhone}</p>
             <p className="storage-note">{selectedOrder.addressDetail}</p>
@@ -9530,7 +9781,7 @@ function buildManualPaymentMessage(order) {
   return [
     "冰箱贴订单待付款",
     `订单号：${String(order?.orderNo || "")}`,
-    `应付金额：${formatCurrencyCents(order?.totalCents)}`,
+    `应付金额：${formatCurrencyCents(order?.payableCents ?? order?.totalCents)}`,
     `收货人：${String(order?.receiverName || "未填写")}`,
     `手机号：${String(order?.receiverPhone || "未填写")}`,
     "请确认收款，我会发送订单卡片"
@@ -9569,7 +9820,7 @@ async function buildManualPaymentCard(order, config) {
   context.fillText("长按保存，发给客服", 250, 388);
 
   drawPaymentCardRow(context, "订单号", String(order?.orderNo || ""), 192, 464);
-  drawPaymentCardRow(context, "应付金额", formatCurrencyCents(order?.totalCents), 192, 584);
+  drawPaymentCardRow(context, "应付金额", formatCurrencyCents(order?.payableCents ?? order?.totalCents), 192, 584);
   drawPaymentCardRow(context, "客服微信", getContactWechatId(config), 192, 704);
   drawPaymentCardRow(context, "付款截止", formatDateTime(order?.expiresAt), 192, 824);
   drawPaymentCardRow(context, "收货人", String(order?.receiverName || "未填写"), 192, 944);

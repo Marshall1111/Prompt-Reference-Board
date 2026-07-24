@@ -38,6 +38,7 @@ function mapOrderRow(row) {
     subtotalCents: Number(row.subtotal_cents || 0),
     totalCents: Number(row.total_cents || 0),
     beanDiscountCents: Number(row.bean_discount_cents || 0),
+    coinDiscountCents: Number(row.coin_discount_cents || 0),
     payableCents: Number(row.payable_cents ?? row.total_cents ?? 0),
     remark: String(row.remark || ""),
     receiverName: String(row.receiver_name || ""),
@@ -133,6 +134,7 @@ export function createOrderStore({ dbPath }) {
       subtotal_cents INTEGER NOT NULL,
       total_cents INTEGER NOT NULL,
       bean_discount_cents INTEGER NOT NULL DEFAULT 0,
+      coin_discount_cents INTEGER NOT NULL DEFAULT 0,
       payable_cents INTEGER NOT NULL DEFAULT 0,
       remark TEXT NOT NULL DEFAULT '',
       receiver_name TEXT NOT NULL,
@@ -231,6 +233,9 @@ export function createOrderStore({ dbPath }) {
   if (!orderColumns.some((column) => String(column.name || "") === "bean_discount_cents")) {
     db.exec("ALTER TABLE orders ADD COLUMN bean_discount_cents INTEGER NOT NULL DEFAULT 0");
   }
+  if (!orderColumns.some((column) => String(column.name || "") === "coin_discount_cents")) {
+    db.exec("ALTER TABLE orders ADD COLUMN coin_discount_cents INTEGER NOT NULL DEFAULT 0");
+  }
   if (!orderColumns.some((column) => String(column.name || "") === "payable_cents")) {
     db.exec("ALTER TABLE orders ADD COLUMN payable_cents INTEGER NOT NULL DEFAULT 0");
     db.exec("UPDATE orders SET payable_cents = total_cents WHERE payable_cents = 0");
@@ -243,7 +248,7 @@ export function createOrderStore({ dbPath }) {
     INSERT INTO orders (
       id, order_no, visitor_id, account_id, public_token, experience_type, body_book_theme_name,
       payment_status, fulfillment_status, item_count,
-      unit_price_cents, shipping_fee_cents, subtotal_cents, total_cents, bean_discount_cents, payable_cents,
+      unit_price_cents, shipping_fee_cents, subtotal_cents, total_cents, bean_discount_cents, coin_discount_cents, payable_cents,
       remark, receiver_name, receiver_phone, province, city, district, address_detail,
       source_merchant_id, source_merchant_name, commission_rate_bps, source_claimed_at,
       admin_remark, wechat_open_id, wechat_transaction_id, out_trade_no,
@@ -252,7 +257,7 @@ export function createOrderStore({ dbPath }) {
     ) VALUES (
       @id, @orderNo, @visitorId, @accountId, @publicToken, @experienceType, @bodyBookThemeName,
       @paymentStatus, @fulfillmentStatus, @itemCount,
-      @unitPriceCents, @shippingFeeCents, @subtotalCents, @totalCents, @beanDiscountCents, @payableCents,
+      @unitPriceCents, @shippingFeeCents, @subtotalCents, @totalCents, @beanDiscountCents, @coinDiscountCents, @payableCents,
       @remark, @receiverName, @receiverPhone, @province, @city, @district, @addressDetail,
       @sourceMerchantId, @sourceMerchantName, @commissionRateBps, @sourceClaimedAt,
       @adminRemark, @wechatOpenId, @wechatTransactionId, @outTradeNo,
@@ -322,6 +327,7 @@ export function createOrderStore({ dbPath }) {
         accountId: order.accountId || "",
         bodyBookThemeName: order.bodyBookThemeName || "",
         beanDiscountCents: Math.max(0, Math.trunc(Number(order.beanDiscountCents || 0))),
+        coinDiscountCents: Math.max(0, Math.trunc(Number(order.coinDiscountCents || 0))),
         payableCents: Math.max(0, Math.trunc(Number(order.payableCents ?? order.totalCents ?? 0))),
         adminRemark: "",
         cancelledAt: null,
@@ -649,7 +655,7 @@ export function createOrderStore({ dbPath }) {
     }
 
     const rows = db.prepare(`
-      SELECT source_merchant_id, source_merchant_name, commission_rate_bps, total_cents, paid_at, created_at
+      SELECT source_merchant_id, source_merchant_name, commission_rate_bps, payable_cents, total_cents, paid_at, created_at
       FROM orders
       WHERE ${conditions.join(" AND ")}
       ORDER BY created_at DESC
@@ -680,8 +686,9 @@ export function createOrderStore({ dbPath }) {
       };
 
       current.paidOrderCount += 1;
-      current.paidTotalCents += Number(row.total_cents || 0);
-      current.commissionAmountCents += Math.round(Number(row.total_cents || 0) * effectiveCommissionRateBps / 10000);
+      const paidCents = Number(row.payable_cents ?? row.total_cents ?? 0);
+      current.paidTotalCents += paidCents;
+      current.commissionAmountCents += Math.round(paidCents * effectiveCommissionRateBps / 10000);
       current.merchantName = current.merchantName || String(row.source_merchant_name || "");
       current.latestPaidAt = current.latestPaidAt || row.paid_at || null;
       current.latestCreatedAt = current.latestCreatedAt || row.created_at || null;

@@ -1553,6 +1553,11 @@ body {
   gap: 28px;
 }
 
+.draw-card-shell.theme-draw-card .draw-card-stage-layout.draw-card-stage-layout-no-account,
+.draw-card-shell.theme-draw-card .draw-card-results-layout.draw-card-results-layout-no-account {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .draw-card-shell.theme-draw-card .draw-card-upload {
   min-height: 238px;
 }
@@ -1566,6 +1571,12 @@ body {
   gap: 16px;
   padding: 18px;
   border-radius: 24px;
+}
+
+/* 抽卡首页的上传区与卡夹共用同一条居中版心，避免卡夹比上传框更宽。 */
+.draw-card-shell.theme-draw-card .draw-card-stage-main > :is(.draw-card-upload-panel, .draw-card-clip-panel) {
+  width: min(960px, 100%);
+  margin-inline: auto;
 }
 
 .draw-card-primary,
@@ -2956,6 +2967,16 @@ button:disabled {
   text-decoration: none;
   text-transform: uppercase;
   transition: color 180ms ease, border-color 180ms ease, opacity 180ms ease;
+}
+
+.draw-card-utility-bar-draw {
+  gap: 8px;
+}
+
+.draw-card-coin-balance {
+  color: #fff0c8;
+  border-color: rgba(255, 216, 149, 0.26);
+  background: rgba(255, 216, 149, 0.1);
 }
 
 button.draw-card-utility-link {
@@ -5328,6 +5349,31 @@ textarea {
 
 .body-book-bean-modal h2 {
   color: #173c31;
+}
+
+/* 钱包弹窗使用浅色背景，不能继承抽卡深色页面的白色次级按钮文字。 */
+.body-book-bean-modal .draw-card-secondary,
+.body-book-referral-modal .draw-card-secondary {
+  border-color: #bfd0c4;
+  background: #fffdf8;
+  color: #25483e;
+}
+
+.body-book-bean-modal .draw-card-secondary:hover:not(:disabled),
+.body-book-referral-modal .draw-card-secondary:hover:not(:disabled) {
+  border-color: #789889;
+  background: #f0f6f0;
+  color: #173c31;
+}
+
+.body-book-bean-modal .draw-card-primary:disabled,
+.body-book-bean-modal .draw-card-secondary:disabled,
+.body-book-referral-modal .draw-card-primary:disabled,
+.body-book-referral-modal .draw-card-secondary:disabled {
+  border-color: #eee5d8;
+  background: #faf7f1;
+  color: #a18f76;
+  opacity: 1;
 }
 
 .body-book-bean-balance {

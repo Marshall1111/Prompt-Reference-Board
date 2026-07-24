@@ -925,7 +925,7 @@ app.post("/api/referrals/link", requireWebAccount, (req, res, next) => {
   try {
     assertRegisteredAccount(req);
     const referral = commerceStore.getOrCreateReferralLink(req.webAccount.id);
-    const inviteUrl = new URL("/book", getRequestOrigin(req));
+    const inviteUrl = new URL(req.body?.target === "draw-card" ? "/" : "/book", getRequestOrigin(req));
     inviteUrl.searchParams.set("invite", referral.token);
     res.json({ inviteUrl: inviteUrl.toString() });
   } catch (error) {
@@ -1068,10 +1068,13 @@ app.get("/api/payments/wechat/oauth-callback", async (req, res, next) => {
     if (!code) throw createHttpError(400, "微信授权未返回 code。", "微信授权未完成，请返回后重试。");
     if (state.intentId) {
       const intent = commerceStore.readPaymentIntent(state.intentId);
-      if (!intent || intent.kind !== "bean_purchase" || intent.accountId !== state.accountId) {
-        throw createHttpError(404, "豆豆购买单不存在或已失效。", "豆豆购买单已失效，请返回后重试。");
+      if (!intent || !["bean_purchase", "coin_purchase"].includes(intent.kind) || intent.accountId !== state.accountId) {
+        throw createHttpError(404, "购买单不存在或已失效。", "购买单已失效，请返回后重试。");
       }
-      res.redirect(302, `/book?beanPurchaseId=${encodeURIComponent(intent.id)}&beanPayCode=${encodeURIComponent(code)}`);
+      const returnPath = intent.kind === "coin_purchase"
+        ? `/?coinPurchaseId=${encodeURIComponent(intent.id)}&coinPayCode=${encodeURIComponent(code)}`
+        : `/book?beanPurchaseId=${encodeURIComponent(intent.id)}&beanPayCode=${encodeURIComponent(code)}`;
+      res.redirect(302, returnPath);
       return;
     }
     const order = orderStore.readOrder(state.orderId);
@@ -1323,7 +1326,18 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
       requestedItems,
       likedJobById
     });
-    const created = orderStore.createOrder({
+    const discountReservation = commerceStore.reserveFridgeCoinDiscount({
+      accountId: req.webAccount.id,
+      orderId,
+      itemCount: amount.itemCount,
+      subtotalCents: amount.subtotalCents,
+      expiresAt
+    });
+    const coinDiscountCents = discountReservation.discountCents;
+    const payableCents = Math.max(0, amount.totalCents - coinDiscountCents);
+    let created;
+    try {
+      created = orderStore.createOrder({
       order: {
         id: orderId,
         orderNo: generateOrderNo(),
@@ -1338,6 +1352,8 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
         shippingFeeCents: amount.shippingFeeCents,
         subtotalCents: amount.subtotalCents,
         totalCents: amount.totalCents,
+        coinDiscountCents,
+        payableCents,
         remark: address.remark,
         receiverName: address.receiverName,
         receiverPhone: address.receiverPhone,
@@ -1366,22 +1382,55 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
         payload: {
           itemCount: amount.itemCount,
           totalCents: amount.totalCents,
+          coinDiscountCents,
+          payableCents,
           paymentMode,
           sourceMerchantId: merchantSource.sourceMerchantId,
           commissionRateBps: merchantSource.commissionRateBps
         }
       }
     });
+    } catch (error) {
+      commerceStore.releaseFridgeCoinDiscountReservation(orderId);
+      throw error;
+    }
 
     const paymentIntent = commerceStore.createPaymentIntent({
       accountId: req.webAccount.id,
       outTradeNo: created.outTradeNo,
       kind: "physical_order",
-      amountCents: created.totalCents,
+      amountCents: created.payableCents,
       targetOrderId: created.id,
       expiresAt: created.expiresAt,
-      metadata: { orderNo: created.orderNo, itemCount: created.itemCount }
+      metadata: { orderNo: created.orderNo, itemCount: created.itemCount, coinDiscountCents, payableCents }
     });
+    if (created.payableCents === 0) {
+      const paidAt = new Date().toISOString();
+      commerceStore.settlePayment({
+        outTradeNo: created.outTradeNo,
+        transactionId: `COIN-DISCOUNT-${created.outTradeNo}`,
+        paidAt,
+        payload: { mode: "coin_discount", orderId: created.id, orderNo: created.orderNo },
+        headers: {}
+      });
+      const paidOrder = orderStore.updateOrderAndAppendEvent(created.id, {
+        paymentStatus: "paid",
+        fulfillmentStatus: "new",
+        lastPaymentChannel: "coin_discount",
+        lastPaymentError: "",
+        wechatTransactionId: `COIN-DISCOUNT-${created.outTradeNo}`,
+        paidAt
+      }, {
+        eventType: "coin_discount_settled",
+        eventId: `${created.id}:coin_discount_settled`,
+        success: true,
+        payload: { coinDiscountCents, payableCents: 0 }
+      });
+      return res.status(201).json({
+        order: toPublicOrder(paidOrder, { includeToken: true }),
+        payment: { status: "already_paid", mode: "coin_discount", expiresAt: created.expiresAt }
+      });
+    }
     res.status(201).json({
       order: toPublicOrder(created, { includeToken: true }),
       payment: prepareInitialOrderPayment(created, pricing, paymentIntent)
@@ -1478,6 +1527,7 @@ app.delete("/api/orders/:orderId", requireWebAccount, async (req, res, next) => 
       lastPaymentError: "订单已取消"
     });
     if (order.experienceType === "body-book") commerceStore.releaseBodyBookDiscountReservation(order.id);
+    else commerceStore.releaseFridgeCoinDiscountReservation(order.id);
     commerceStore.cancelPaymentIntentByOutTradeNo(order.outTradeNo);
     res.json({ order: toPublicOrder(deleted, { includeToken: true }) });
   } catch (error) {
@@ -1563,6 +1613,85 @@ app.post("/api/bean-purchases/:purchaseId/pay", requireWebAccount, async (req, r
     });
     const latest = commerceStore.readPaymentIntent(intent.id) || intent;
     res.json({ purchase: toPublicBeanPurchase(latest), payment });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/coin-purchases", requireWebAccount, async (req, res, next) => {
+  try {
+    assertRegisteredAccount(req);
+    enforcePublicRateLimits(req);
+    const coinCount = normalizeCoinPurchaseCount(req.body?.coinCount);
+    const settings = await readAppSettings();
+    const pricing = getOrderPricingSnapshot(settings);
+    const now = new Date();
+    const intent = commerceStore.createPaymentIntent({
+      accountId: req.webAccount.id,
+      outTradeNo: generateWechatOutTradeNo("CP"),
+      kind: "coin_purchase",
+      amountCents: coinCount * 100,
+      creditAmount: coinCount,
+      expiresAt: new Date(now.getTime() + getOrderExpireMs(pricing)).toISOString(),
+      metadata: { purchaseNo: generateOrderNo(), coinCount, unitPriceCents: 100 }
+    });
+    res.status(201).json({
+      purchase: toPublicCoinPurchase(intent),
+      payment: prepareInitialCoinPurchasePayment(intent, pricing)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/coin-purchases", requireWebAccount, (req, res, next) => {
+  try {
+    const purchases = commerceStore.listPaymentIntents(req.webAccount.id, 100)
+      .filter((intent) => intent.kind === "coin_purchase")
+      .map(toPublicCoinPurchase);
+    res.json({ purchases });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/coin-purchases/:purchaseId", requireWebAccount, (req, res, next) => {
+  try {
+    const intent = commerceStore.readPaymentIntent(req.params.purchaseId);
+    if (!intent || intent.kind !== "coin_purchase" || intent.accountId !== req.webAccount.id) {
+      throw createHttpError(404, "币购买单不存在。");
+    }
+    res.json({ purchase: toPublicCoinPurchase(intent) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/coin-purchases/:purchaseId/pay", requireWebAccount, async (req, res, next) => {
+  try {
+    assertRegisteredAccount(req);
+    const intent = commerceStore.readPaymentIntent(req.params.purchaseId);
+    if (!intent || intent.kind !== "coin_purchase" || intent.accountId !== req.webAccount.id) {
+      throw createHttpError(404, "币购买单不存在。");
+    }
+    if (intent.status === "paid") {
+      return res.json({ purchase: toPublicCoinPurchase(intent), payment: { status: "already_paid", mode: "completed" } });
+    }
+    if (intent.status === "cancelled") throw createHttpError(409, "该购买单已取消，请重新购买。");
+    if (intent.expiresAt && Date.parse(intent.expiresAt) <= Date.now()) {
+      commerceStore.cancelPaymentIntentByOutTradeNo(intent.outTradeNo);
+      throw createHttpError(409, "该购买单已过期，请重新购买。");
+    }
+    const settings = await readAppSettings();
+    const pricing = getOrderPricingSnapshot(settings);
+    const payment = await prepareCoinPurchasePayment({
+      req,
+      intent,
+      pricing,
+      oauthCode: String(req.body?.code || "").trim()
+    });
+    const latest = commerceStore.readPaymentIntent(intent.id) || intent;
+    res.json({ purchase: toPublicCoinPurchase(latest), payment });
   } catch (error) {
     next(error);
   }
@@ -2951,7 +3080,7 @@ app.get("/api/admin/orders/export", requireAdmin, async (req, res) => {
     });
 
     const rows = [
-      ["下单日期", "付款日期", "订单状态", "收件人", "电话", "地址", "备注", "商品小计", "邮费", "豆豆优惠", "实付金额", "来源商户"],
+      ["下单日期", "付款日期", "订单状态", "收件人", "电话", "地址", "备注", "商品小计", "邮费", "豆豆优惠", "已购币优惠", "实付金额", "来源商户"],
       ...orders.map((order) => [
         formatOrderExportDate(order.createdAt),
         formatOrderExportDate(order.paidAt),
@@ -2963,6 +3092,7 @@ app.get("/api/admin/orders/export", requireAdmin, async (req, res) => {
         formatOrderAmount(order.subtotalCents),
         formatOrderAmount(order.shippingFeeCents),
         formatOrderAmount(-Math.max(0, Number(order.beanDiscountCents || 0))),
+        formatOrderAmount(-Math.max(0, Number(order.coinDiscountCents || 0))),
         formatOrderAmount(getOrderPayableCents(order)),
         String(order.sourceMerchantName || "")
       ])
@@ -3124,7 +3254,7 @@ app.post("/api/admin/orders/:orderId/confirm-manual-payment", requireAdmin, asyn
 app.post("/api/admin/commerce/payments/:paymentIntentId/confirm-manual", requireAdmin, async (req, res) => {
   try {
     const intent = commerceStore.readPaymentIntent(req.params.paymentIntentId);
-    if (!intent || intent.kind !== "bean_purchase") return res.status(404).json({ message: "豆豆购买单不存在。" });
+    if (!intent || !["bean_purchase", "coin_purchase"].includes(intent.kind)) return res.status(404).json({ message: "购买单不存在。" });
     if (intent.status === "paid") return res.json({ payment: toPublicAdminPaymentIntent(intent) });
     if (intent.status === "cancelled" || intent.channel !== "manual_collection") {
       return res.status(409).json({ message: "当前购买单无法人工确认收款。" });
@@ -6048,6 +6178,14 @@ function normalizeBeanPurchaseCount(value) {
   return beanCount;
 }
 
+function normalizeCoinPurchaseCount(value) {
+  const coinCount = Math.trunc(Number(value || 0));
+  if (!Number.isFinite(coinCount) || coinCount < 1 || coinCount > 1000) {
+    throw createHttpError(400, "购买数量需为 1 到 1000 之间的整数。");
+  }
+  return coinCount;
+}
+
 function getOrderPayableCents(order) {
   return Math.max(0, Math.trunc(Number(order?.payableCents ?? order?.totalCents ?? 0)));
 }
@@ -6083,6 +6221,28 @@ function prepareInitialOrderPayment(order, pricing, intent) {
 }
 
 function prepareInitialBeanPurchasePayment(intent, pricing) {
+  const paymentMode = normalizeOrderPaymentMode(pricing?.paymentMode);
+  if (paymentMode !== "manual") {
+    return {
+      status: "payment_required",
+      mode: "wechat",
+      expiresAt: intent.expiresAt
+    };
+  }
+  commerceStore.markPaymentPrepared(intent.id, {
+    channel: "manual_collection",
+    eventId: `${intent.id}:manual_collection`,
+    payload: { mode: "manual", purchaseNo: String(intent.metadata?.purchaseNo || "") }
+  });
+  return {
+    status: "manual_payment_required",
+    mode: "manual",
+    channel: "manual_collection",
+    expiresAt: intent.expiresAt
+  };
+}
+
+function prepareInitialCoinPurchasePayment(intent, pricing) {
   const paymentMode = normalizeOrderPaymentMode(pricing?.paymentMode);
   if (paymentMode !== "manual") {
     return {
@@ -6173,6 +6333,34 @@ async function prepareBeanPurchasePayment({ req, intent, pricing, oauthCode = ""
     return { ...payment, mode: "wechat", expiresAt: intent.expiresAt };
   }
   const payment = await createWechatNativePayment({ intent, description: "购买豆豆" });
+  return { ...payment, mode: "wechat", expiresAt: intent.expiresAt };
+}
+
+async function prepareCoinPurchasePayment({ req, intent, pricing, oauthCode = "" }) {
+  const paymentMode = normalizeOrderPaymentMode(pricing?.paymentMode);
+  if (paymentMode === "manual" || intent.channel === "manual_collection") {
+    return prepareInitialCoinPurchasePayment(intent, { ...pricing, paymentMode: "manual" });
+  }
+  if (intent.status === "cancelled") throw createHttpError(409, "该购买单已取消，无法继续支付。");
+  if (!isValidWechatOutTradeNo(intent.outTradeNo)) {
+    const repaired = commerceStore.replacePaymentIntentOutTradeNo(intent.id, generateWechatOutTradeNo("CP"));
+    if (!repaired) throw createHttpError(500, "修复微信支付单失败，请重新购买。", "支付单修复失败，请重新购买。");
+    intent = repaired;
+  }
+  if (isWechatBrowser(req)) {
+    if (!oauthCode) {
+      return {
+        status: "requires_authorization",
+        mode: "wechat",
+        channel: "wechat_jsapi",
+        authorizationUrl: createCoinPurchasePaymentAuthorizationUrl(req, intent)
+      };
+    }
+    const openId = await fetchWechatOpenId(oauthCode);
+    const payment = await createWechatJsapiPayment({ intent, openId, description: "购买币" });
+    return { ...payment, mode: "wechat", expiresAt: intent.expiresAt };
+  }
+  const payment = await createWechatNativePayment({ intent, description: "购买币" });
   return { ...payment, mode: "wechat", expiresAt: intent.expiresAt };
 }
 
@@ -6322,9 +6510,10 @@ function toPublicWebAccountState(req, account) {
     quotaUsed: 0,
     quotaRemaining: publicAccount.coinBalance,
     canGenerate: publicAccount.accountStatus !== "disabled" && publicAccount.coinBalance > 0,
-    contactMessage: publicAccount.accountStatus === "disabled" ? "该账户已被禁用，请联系管理员。" : "每定制1枚冰箱贴，可获赠10枚币。",
+    contactMessage: publicAccount.accountStatus === "disabled" ? "该账户已被禁用，请联系管理员。" : "冰箱贴订单支付后，按实付金额赠送等额币。",
     account: publicAccount,
     beanPurchaseDiscount: commerceStore.getBodyBookDiscountSummary(publicAccount.id),
+    coinPurchaseDiscount: commerceStore.getFridgeCoinDiscountSummary(publicAccount.id),
     authorizationUrl: ""
   };
 }
@@ -6624,6 +6813,17 @@ function toPublicBeanPurchase(intent) {
   };
 }
 
+function toPublicCoinPurchase(intent) {
+  const payment = toPublicPaymentIntent(intent);
+  if (!payment) return null;
+  return {
+    ...payment,
+    purchaseNo: String(intent.metadata?.purchaseNo || ""),
+    coinCount: Math.max(0, Math.trunc(Number(intent.metadata?.coinCount || intent.creditAmount || 0))),
+    unitPriceCents: 100
+  };
+}
+
 function toPublicAdminPaymentIntent(intent) {
   return {
     ...toPublicPaymentIntent(intent),
@@ -6725,6 +6925,13 @@ function createOrderPaymentAuthorizationUrl(req, order) {
 }
 
 function createBeanPurchasePaymentAuthorizationUrl(req, intent) {
+  const config = assertWechatPaymentConfigured({ requireOAuth: true });
+  const state = createBeanPurchasePaymentOAuthState(intent);
+  const redirectUri = encodeURIComponent(config.oauthRedirectUrl);
+  return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${encodeURIComponent(config.appId)}&redirect_uri=${redirectUri}&response_type=code&scope=snsapi_base&state=${encodeURIComponent(state)}#wechat_redirect`;
+}
+
+function createCoinPurchasePaymentAuthorizationUrl(req, intent) {
   const config = assertWechatPaymentConfigured({ requireOAuth: true });
   const state = createBeanPurchasePaymentOAuthState(intent);
   const redirectUri = encodeURIComponent(config.oauthRedirectUrl);
@@ -6954,6 +7161,7 @@ function toPublicOrder(order, options = {}) {
     subtotalCents: safeOrder.subtotalCents,
     totalCents: safeOrder.totalCents,
     beanDiscountCents: Math.max(0, Number(safeOrder.beanDiscountCents || 0)),
+    coinDiscountCents: Math.max(0, Number(safeOrder.coinDiscountCents || 0)),
     payableCents: getOrderPayableCents(safeOrder),
     remark: safeOrder.remark,
     receiverName: safeOrder.receiverName,

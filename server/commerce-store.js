@@ -8,7 +8,8 @@ function nowIso() {
 }
 
 function generateReferralShortCode() {
-  return randomInt(36 ** 6).toString(36).toUpperCase().padStart(6, "0");
+  // 分享链接只暴露一个易输入的六码数字，完整 token 仍只保存在数据库中以兼容旧链接。
+  return String(randomInt(1_000_000)).padStart(6, "0");
 }
 
 function safeJsonParse(value, fallback = null) {
@@ -206,6 +207,20 @@ export function createCommerceStore({ dbPath }) {
       FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS commerce_fridge_coin_discount_reservations (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      order_id TEXT NOT NULL UNIQUE,
+      discount_cents INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'reserved',
+      expires_at TEXT,
+      consumed_at TEXT,
+      released_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS commerce_user_sessions (
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL,
@@ -253,6 +268,7 @@ export function createCommerceStore({ dbPath }) {
     CREATE INDEX IF NOT EXISTS idx_commerce_payment_intents_account ON commerce_payment_intents(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_payment_intents_transaction ON commerce_payment_intents(transaction_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_body_book_discount_reservations_account ON commerce_body_book_discount_reservations(account_id, status, expires_at);
+    CREATE INDEX IF NOT EXISTS idx_commerce_fridge_coin_discount_reservations_account ON commerce_fridge_coin_discount_reservations(account_id, status, expires_at);
     CREATE INDEX IF NOT EXISTS idx_commerce_credit_ledger_account ON commerce_credit_ledger(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_bean_ledger_account ON commerce_bean_ledger(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_original_image_redemptions_order ON commerce_original_image_redemptions(source_order_id);
@@ -315,6 +331,7 @@ export function createCommerceStore({ dbPath }) {
   const readIntentByIdStatement = db.prepare("SELECT * FROM commerce_payment_intents WHERE id = ?");
   const readIntentByTradeNoStatement = db.prepare("SELECT * FROM commerce_payment_intents WHERE out_trade_no = ?");
   const readBodyBookDiscountReservationStatement = db.prepare("SELECT * FROM commerce_body_book_discount_reservations WHERE order_id = ?");
+  const readFridgeCoinDiscountReservationStatement = db.prepare("SELECT * FROM commerce_fridge_coin_discount_reservations WHERE order_id = ?");
   const readReferralLinkByAccountStatement = db.prepare("SELECT * FROM commerce_referral_links WHERE referrer_account_id = ?");
   const readReferralLinkByTokenStatement = db.prepare("SELECT * FROM commerce_referral_links WHERE token = ?");
   const readReferralLinkByShortCodeStatement = db.prepare("SELECT * FROM commerce_referral_links WHERE short_code = ?");
@@ -374,6 +391,15 @@ export function createCommerceStore({ dbPath }) {
     const now = String(referenceTime || nowIso());
     db.prepare(`
       UPDATE commerce_body_book_discount_reservations
+      SET status = 'released', released_at = COALESCE(released_at, ?), updated_at = ?
+      WHERE status = 'reserved' AND expires_at IS NOT NULL AND expires_at <= ?
+    `).run(now, now, now);
+  }
+
+  function releaseExpiredFridgeCoinDiscountReservations(referenceTime = nowIso()) {
+    const now = String(referenceTime || nowIso());
+    db.prepare(`
+      UPDATE commerce_fridge_coin_discount_reservations
       SET status = 'released', released_at = COALESCE(released_at, ?), updated_at = ?
       WHERE status = 'reserved' AND expires_at IS NOT NULL AND expires_at <= ?
     `).run(now, now, now);
@@ -460,6 +486,95 @@ export function createCommerceStore({ dbPath }) {
       const now = String(consumedAt || nowIso());
       db.prepare(`
         UPDATE commerce_body_book_discount_reservations
+        SET status = 'consumed', consumed_at = ?, updated_at = ?
+        WHERE order_id = ? AND status = 'reserved'
+      `).run(now, nowIso(), String(orderId || ""));
+      return true;
+    });
+  }
+
+  function getFridgeCoinDiscountSummary(accountId) {
+    const safeAccountId = String(accountId || "");
+    if (!readAccount(safeAccountId)) {
+      return { purchasedCents: 0, reservedCents: 0, usedCents: 0, availableCents: 0 };
+    }
+    releaseExpiredFridgeCoinDiscountReservations();
+    const purchasedCents = Number(db.prepare(`
+      SELECT COALESCE(SUM(amount_cents), 0) AS total
+      FROM commerce_payment_intents
+      WHERE account_id = ? AND kind = 'coin_purchase' AND status = 'paid'
+    `).get(safeAccountId)?.total || 0);
+    const reservation = db.prepare(`
+      SELECT
+        COALESCE(SUM(CASE WHEN status = 'reserved' THEN discount_cents ELSE 0 END), 0) AS reserved_cents,
+        COALESCE(SUM(CASE WHEN status = 'consumed' THEN discount_cents ELSE 0 END), 0) AS used_cents
+      FROM commerce_fridge_coin_discount_reservations
+      WHERE account_id = ?
+    `).get(safeAccountId) || {};
+    const reservedCents = Number(reservation.reserved_cents || 0);
+    const usedCents = Number(reservation.used_cents || 0);
+    return {
+      purchasedCents,
+      reservedCents,
+      usedCents,
+      availableCents: Math.max(0, purchasedCents - reservedCents - usedCents)
+    };
+  }
+
+  function reserveFridgeCoinDiscount({ accountId, orderId, itemCount, subtotalCents, expiresAt }) {
+    return withTransaction(db, () => {
+      const safeAccountId = String(accountId || "");
+      const safeOrderId = String(orderId || "");
+      const existing = readFridgeCoinDiscountReservationStatement.get(safeOrderId);
+      if (existing) {
+        return {
+          discountCents: Math.max(0, Number(existing.discount_cents || 0)),
+          summary: getFridgeCoinDiscountSummary(safeAccountId)
+        };
+      }
+      const summary = getFridgeCoinDiscountSummary(safeAccountId);
+      const itemLimitCents = Math.max(0, Math.trunc(Number(itemCount || 0))) * 1500;
+      const safeSubtotalCents = Math.max(0, Math.trunc(Number(subtotalCents || 0)));
+      const discountCents = Math.min(itemLimitCents, safeSubtotalCents, summary.availableCents);
+      const now = nowIso();
+      db.prepare(`
+        INSERT INTO commerce_fridge_coin_discount_reservations (
+          id, account_id, order_id, discount_cents, status, expires_at, consumed_at, released_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, 'reserved', ?, NULL, NULL, ?, ?)
+      `).run(randomUUID(), safeAccountId, safeOrderId, discountCents, expiresAt || null, now, now);
+      return {
+        discountCents,
+        summary: {
+          ...summary,
+          reservedCents: summary.reservedCents + discountCents,
+          availableCents: Math.max(0, summary.availableCents - discountCents)
+        }
+      };
+    });
+  }
+
+  function releaseFridgeCoinDiscountReservation(orderId) {
+    return withTransaction(db, () => {
+      const reservation = readFridgeCoinDiscountReservationStatement.get(String(orderId || ""));
+      if (!reservation || String(reservation.status || "") !== "reserved") return false;
+      const now = nowIso();
+      db.prepare(`
+        UPDATE commerce_fridge_coin_discount_reservations
+        SET status = 'released', released_at = ?, updated_at = ?
+        WHERE order_id = ? AND status = 'reserved'
+      `).run(now, now, String(orderId || ""));
+      return true;
+    });
+  }
+
+  function consumeFridgeCoinDiscountReservation(orderId, consumedAt = nowIso()) {
+    return withTransaction(db, () => {
+      const reservation = readFridgeCoinDiscountReservationStatement.get(String(orderId || ""));
+      if (!reservation || String(reservation.status || "") === "consumed") return Boolean(reservation);
+      if (String(reservation.status || "") !== "reserved") return false;
+      const now = String(consumedAt || nowIso());
+      db.prepare(`
+        UPDATE commerce_fridge_coin_discount_reservations
         SET status = 'consumed', consumed_at = ?, updated_at = ?
         WHERE order_id = ? AND status = 'reserved'
       `).run(now, nowIso(), String(orderId || ""));
@@ -934,15 +1049,51 @@ export function createCommerceStore({ dbPath }) {
         WHERE id = ?
       `).run(String(transactionId || ""), now, nowIso(), intent.id);
       if (intent.kind === "physical_order") {
-        const itemCount = Math.max(0, Math.trunc(Number(intent.metadata?.itemCount || 0)));
-        if (itemCount > 0) {
-          appendLedger(intent.accountId, itemCount * 10, {
+        const coinReward = Math.max(0, Math.floor(Number(intent.amountCents || 0) / 100));
+        if (coinReward > 0) {
+          appendLedger(intent.accountId, coinReward, {
             reason: "physical_order_reward",
             referenceType: "payment_intent_reward",
-            referenceId: intent.id
+            referenceId: intent.id,
+            note: `冰箱贴订单实付成功，赠送 ${coinReward} 币`
           });
         }
+        db.prepare(`
+          UPDATE commerce_fridge_coin_discount_reservations
+          SET status = 'consumed', consumed_at = COALESCE(consumed_at, ?), updated_at = ?
+          WHERE order_id = ? AND status = 'reserved'
+        `).run(now, nowIso(), intent.targetOrderId);
         redeemPhysicalOrderOriginals(intent.accountId, intent.targetOrderId, now);
+
+        const referral = readReferralByInviteeStatement.get(intent.accountId);
+        if (referral?.registered_at && !referral.rewarded_payment_intent_id) {
+          const updated = db.prepare(`
+            UPDATE commerce_referrals
+            SET rewarded_payment_intent_id = ?, rewarded_at = ?
+            WHERE invitee_account_id = ?
+              AND registered_at IS NOT NULL
+              AND (rewarded_payment_intent_id IS NULL OR rewarded_payment_intent_id = '')
+          `).run(intent.id, now, intent.accountId);
+          if (Number(updated.changes || 0) > 0) {
+            appendLedger(String(referral.referrer_account_id || ""), 5, {
+              reason: "referral_first_fridge_order",
+              referenceType: "referral_payment_reward",
+              referenceId: intent.id,
+              note: "邀请新用户完成首笔冰箱贴订单支付"
+            });
+          }
+        }
+      }
+      if (intent.kind === "coin_purchase") {
+        const coinCount = Math.max(0, Math.trunc(Number(intent.metadata?.coinCount || intent.amountCents / 100 || 0)));
+        if (coinCount > 0) {
+          appendLedger(intent.accountId, coinCount, {
+            reason: "coin_purchase",
+            referenceType: "coin_purchase",
+            referenceId: intent.id,
+            note: `购买 ${coinCount} 币`
+          });
+        }
       }
       if (intent.kind === "bean_purchase") {
         const beanCount = Math.max(0, Math.trunc(Number(intent.metadata?.beanCount || intent.amountCents / 100 || 0)));
@@ -1261,6 +1412,7 @@ export function createCommerceStore({ dbPath }) {
     grantCredits,
     grantBeans,
     getBodyBookDiscountSummary,
+    getFridgeCoinDiscountSummary,
     getOrCreateReferralLink,
     hasPaidPhysicalOrder,
     isOriginalImageRedeemed,
@@ -1287,9 +1439,12 @@ export function createCommerceStore({ dbPath }) {
     recordPaymentEvent,
     redeemOriginalImage,
     releaseBodyBookDiscountReservation,
+    releaseFridgeCoinDiscountReservation,
     reserveBodyBookDiscount,
+    reserveFridgeCoinDiscount,
     settlePayment,
     consumeBodyBookDiscountReservation,
+    consumeFridgeCoinDiscountReservation,
     consumeEmailVerification,
     recordAccountLogin,
     setAccountStatus,
