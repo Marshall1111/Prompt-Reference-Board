@@ -561,7 +561,7 @@ function CoinPurchaseModal({ coinCount, busy, error, payment, purchase, onClose,
         <button className="icon-button" disabled={busy} onClick={onClose} type="button" aria-label="关闭购买币"><X size={18} /></button>
         <p className="draw-card-kicker">Buy coins</p>
         <h2>购买币</h2>
-        <p className="storage-note">1 元 = 1 币。成功购买的金额可抵扣冰箱贴商品金额，每枚冰箱贴最多抵扣 15 元。</p>
+        <p className="storage-note">1 元 = 1 币。成功购买的金额可抵扣冰箱贴商品金额，每枚冰箱贴最多抵扣 15 元；累计成功购买满 20 元可解锁账户下全部原图下载。</p>
         {isPaid ? <><p className="success-note">购买成功，{purchase.coinCount} 币已到账。</p><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={onClose} type="button">完成</button></div></> : isExpired ? <><p className="error-note">该购买单已过期，未产生扣款。请重新创建购买单后再支付。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" onClick={onClose} type="button">关闭</button><button className="draw-card-primary" disabled={busy} onClick={onRestart} type="button">重新购买</button></div></> : isManual ? <article className="manual-payment-guide"><strong>请扫描商户收款码付款</strong><img alt="微信商户收款码" className="manual-payment-qr" src="/payment/wechat-merchant-collection.png" /><p>应付金额 {formatCurrencyCents(purchase?.amountCents || safeCount * 100)}</p><p>购买金额将自动成为冰箱贴优惠额度。</p><p>购买单号：{purchase?.purchaseNo || "--"}</p><small>付款后管理员确认到账，币将自动发放。</small></article> : isNative ? <article className="native-payment-panel"><h3>请使用微信扫码付款</h3><p className="storage-note">应付金额 {formatCurrencyCents(purchase?.amountCents || safeCount * 100)}，扫码后无需手动输入金额。</p><p>购买金额将自动成为冰箱贴优惠额度。</p><img alt="购买币微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(payment.codeUrl, { margin: 1 })} /><p className="storage-note">支付成功后币会自动到账。</p></article> : <><div className="body-book-wallet-actions"><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(10)} type="button">10 币</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(20)} type="button">20 币</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(40)} type="button">40 币</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(100)} type="button">100 币</button></div><label className="body-book-wallet-field"><span>购买数量（1–1000 币）</span><input disabled={busy || Boolean(purchase)} min="1" max={MAX_BEAN_PURCHASE_COUNT} onChange={(event) => onCountChange(event.target.value)} type="number" value={coinCount} /></label><p className="body-book-bean-balance">应付 <strong>{formatCurrencyCents(safeCount * 100)}</strong></p><p className="body-book-bean-purchase-discount-note">购买金额可抵扣冰箱贴商品金额，每枚最多抵扣 15 元。</p><p className="storage-note">赠送币和邀请码兑换币不参与冰箱贴优惠抵扣。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={onClose} type="button">取消</button><button className="draw-card-primary" disabled={busy || safeCount < 1} onClick={purchase ? onRetry : onSubmit} type="button">{busy ? "处理中" : purchase ? "重新发起支付" : `支付 ${formatCurrencyCents(safeCount * 100)}`}</button></div></>}
         {error ? <p className="error-note">{error}</p> : null}
       </section>
@@ -4085,14 +4085,6 @@ function PublicExperiencePage({ config }) {
       return;
     }
 
-    const clipItem = clipItems.find((clip) => clip.jobId === item.jobId);
-    const isAlreadyRedeemed = Boolean(clipItem?.originalRedeemed);
-    if (!isAlreadyRedeemed && Number(latestVisitorState.account.coinBalance || 0) < 1) {
-      setBalanceAlert("兑换原图需要 1 币，当前币不足。");
-      return;
-    }
-    if (!isAlreadyRedeemed && !window.confirm("本次兑换将消耗 1 枚币。是否继续？")) return;
-
     try {
       setOriginalPreviewLoadingJobId(item.jobId);
       const url = await fetchPublicClipOriginalPreview(item.jobId);
@@ -4297,7 +4289,7 @@ function PublicExperiencePage({ config }) {
                           {pocketRemoveLabel}
                         </button>
                         <button className="draw-card-clip-download" disabled={originalPreviewLoadingJobId === item.jobId} onClick={() => handleDownloadClipOriginal(item)} type="button">
-                          {originalPreviewLoadingJobId === item.jobId ? "加载中" : item.originalRedeemed ? "下载原图" : visitorState?.account?.canRedeemOriginalDownloads ? "1币兑换原图" : "下单后兑换"}
+                          {originalPreviewLoadingJobId === item.jobId ? "加载中" : visitorState?.account?.canRedeemOriginalDownloads ? "下载原图" : "解锁后下载"}
                         </button>
                       </div>
                     </div>
@@ -4329,7 +4321,7 @@ function PublicExperiencePage({ config }) {
           <div className="draw-card-account-summary">
             <span>账户币</span>
             <strong>{visitorState ? `${visitorState.account?.coinBalance || 0} 币` : "--"}</strong>
-            <p>{visitorState?.account?.canRedeemOriginalDownloads ? "已获得原图兑换资格，每张兑换消耗 1 币" : "定制订单支付成功后即可兑换原图"}</p>
+            <p>{visitorState?.account?.canRedeemOriginalDownloads ? "已获得原图下载权限，可下载账户下全部图片" : "购买币累计满 20 元或定制订单支付成功后即可下载原图"}</p>
             <p>冰箱贴订单支付成功后，按实付金额赠送等额币。</p>
           </div>
           {visitorState?.sourceMerchantName ? <p>来源商户：{visitorState.sourceMerchantName}</p> : null}
@@ -4807,9 +4799,9 @@ function PublicExperiencePage({ config }) {
           <section className="draw-card-confirm-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="解锁原图">
             <p className="draw-card-kicker">Original images</p>
             <h2>下载原图</h2>
-            <p className="storage-note">任意定制订单支付成功后可兑换原图，每张需消耗 1 币。已下单制作冰箱贴的图片会自动兑换，不额外消耗币。</p>
+            <p className="storage-note">成功购买币累计满 20 元，或任意定制订单支付成功后，即可下载同一账户下的全部原图，无需额外消耗币。</p>
             <div className="draw-card-confirm-actions">
-              <button className="draw-card-secondary" onClick={() => setShowOriginalUnlockPrompt(false)} type="button">暂不定制</button>
+              <button className="draw-card-secondary" onClick={() => { setShowOriginalUnlockPrompt(false); openCoinPurchase(); }} type="button">购买币</button>
               <button className="draw-card-primary" onClick={() => window.location.assign("/draw/order")} type="button">选图定制</button>
             </div>
           </section>

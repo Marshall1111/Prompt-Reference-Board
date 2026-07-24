@@ -6767,7 +6767,7 @@ function toPublicCommerceAccount(account) {
     accountStatus: account.accountStatus || "active",
     coinBalance: Math.max(0, Number(account.coinBalance ?? account.creditBalance ?? 0)),
     beanBalance: Math.max(0, Number(account.beanBalance || 0)),
-    canRedeemOriginalDownloads: commerceStore.hasPaidPhysicalOrder(account.id),
+    canRedeemOriginalDownloads: commerceStore.hasOriginalImageDownloadAccess(account.id),
     createdAt: account.createdAt || null
   };
 }

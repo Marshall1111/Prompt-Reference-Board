@@ -3,6 +3,8 @@ import path from "node:path";
 import { randomInt, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
+const ORIGINAL_IMAGE_DOWNLOAD_UNLOCK_CENTS = 20 * 100;
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -385,6 +387,18 @@ export function createCommerceStore({ dbPath }) {
 
   function hasPaidPhysicalOrder(accountId) {
     return Boolean(readPaidPhysicalOrderStatement.get(String(accountId || "")));
+  }
+
+  function getPaidCoinPurchaseCents(accountId) {
+    return Number(db.prepare(`
+      SELECT COALESCE(SUM(amount_cents), 0) AS total
+      FROM commerce_payment_intents
+      WHERE account_id = ? AND kind = 'coin_purchase' AND status = 'paid'
+    `).get(String(accountId || ""))?.total || 0);
+  }
+
+  function hasOriginalImageDownloadAccess(accountId) {
+    return hasPaidPhysicalOrder(accountId) || getPaidCoinPurchaseCents(accountId) >= ORIGINAL_IMAGE_DOWNLOAD_UNLOCK_CENTS;
   }
 
   function releaseExpiredBodyBookDiscountReservations(referenceTime = nowIso()) {
@@ -1216,10 +1230,10 @@ export function createCommerceStore({ dbPath }) {
       if (existing) {
         return { account: readAccount(safeAccountId), redeemedNow: false, redemptionType: String(existing.redemption_type || "") };
       }
-      if (!hasPaidPhysicalOrder(safeAccountId)) {
-        const error = new Error("定制订单支付成功后，才可兑换原图。");
+      if (!hasOriginalImageDownloadAccess(safeAccountId)) {
+        const error = new Error("购买币累计满 20 元或定制订单支付成功后，才可下载原图。");
         error.code = "ORIGINAL_REDEMPTION_REQUIRES_PAID_ORDER";
-        error.publicMessage = error.message;
+        error.publicMessage = "购买币累计满 20 元或定制订单支付成功后，才可下载原图。";
         throw error;
       }
 
@@ -1244,8 +1258,8 @@ export function createCommerceStore({ dbPath }) {
 
       let debit;
       try {
-        debit = appendLedger(safeAccountId, -1, {
-          reason: "original_image_redemption",
+        debit = appendLedger(safeAccountId, 0, {
+          reason: "original_image_download",
           referenceType: "original_image_redemption",
           referenceId: safeJobId
         });
@@ -1258,9 +1272,9 @@ export function createCommerceStore({ dbPath }) {
       db.prepare(`
         INSERT INTO commerce_original_image_redemptions (
           account_id, job_id, redemption_type, source_order_id, redeemed_at
-        ) VALUES (?, ?, 'credit', '', ?)
+        ) VALUES (?, ?, 'account_access', '', ?)
       `).run(safeAccountId, safeJobId, redeemedAt);
-      return { account: debit.account, redeemedNow: true, redemptionType: "credit" };
+      return { account: debit.account, redeemedNow: true, redemptionType: "account_access" };
     });
   }
 
@@ -1464,6 +1478,7 @@ export function createCommerceStore({ dbPath }) {
     getBodyBookDiscountSummary,
     getFridgeCoinDiscountSummary,
     getOrCreateReferralLink,
+    hasOriginalImageDownloadAccess,
     hasPaidPhysicalOrder,
     isOriginalImageRedeemed,
     linkVisitor,
