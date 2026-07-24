@@ -3651,7 +3651,7 @@ function PublicExperiencePage({ config }) {
   const resultsBodyCopy = currentSessionStatus === "running" || currentSessionStatus === "queued"
     ? (session?.message || waitingFallback)
     : currentSessionStatus === "partial"
-      ? (session?.message || "成功结果可以正常保留，仅扣除成功生成的币。")
+      ? (session?.message || "成功结果可以正常保留，失败任务的币已自动退回。")
       : currentSessionStatus === "failed"
         ? (session?.message || "所有卡位都已结束，本轮没有可保留的成功结果。")
         : resultsSubtitle;

@@ -1991,7 +1991,8 @@ app.post("/api/body-book/projects", requireWebAccount, upload.any(), async (req,
     if (!contentKeys.length) throw createHttpError(400, "请至少选择一个认知书内容。");
     if (!generationKeys.length) throw createHttpError(400, "请选择至少一页进行生成。");
     const generatedPageCount = generationKeys.filter((key) => !getBodyBookPageDefinition(theme, key)?.isBuiltIn).length;
-    if (BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.beanBalance || 0) < generatedPageCount) {
+    const currentAccount = commerceStore.readAccount(req.webAccount.id) || req.webAccount;
+    if (BODY_BOOK_BILLING_ENABLED && Number(currentAccount.beanBalance || 0) < generatedPageCount) {
       throw createHttpError(409, `生成 ${generatedPageCount} 张图片需要 ${generatedPageCount} 个豆豆，当前豆豆不足。`);
     }
     const visitor = await getVisitorState(req);
@@ -2072,7 +2073,8 @@ app.post("/api/body-book/projects/:sessionId/generate", requireWebAccount, async
       .filter((page) => requestedKeys.includes(page.key) && !page.isBuiltIn && !["queued", "running"].includes(page.status))
       .map((page) => page.key);
     if (!eligibleKeys.length) throw createHttpError(409, "所选页面正在生成，暂时不能重复提交。");
-    if (BODY_BOOK_BILLING_ENABLED && Number(req.webAccount.beanBalance || 0) < eligibleKeys.length) {
+    const currentAccount = commerceStore.readAccount(req.webAccount.id) || req.webAccount;
+    if (BODY_BOOK_BILLING_ENABLED && Number(currentAccount.beanBalance || 0) < eligibleKeys.length) {
       throw createHttpError(409, `生成 ${eligibleKeys.length} 张图片需要 ${eligibleKeys.length} 个豆豆，当前豆豆不足。`);
     }
     const next = await generateBodyBookPages(current, eligibleKeys, parseBodyBookPagePrompts(req.body?.pagePrompts, getBookTheme(current.themeId)));
@@ -7903,6 +7905,7 @@ async function createDrawCardSession(file, visitor, options = {}) {
   const providerChain = getProviderFallbackChain("", providers, settings);
   const preparedJobs = [];
   const sessionItems = [];
+  let chargedJobIds = [];
   let totalReferencePersistMs = 0;
   let totalReferenceThumbnailMs = 0;
   let totalReferenceBytes = 0;
@@ -8038,6 +8041,14 @@ async function createDrawCardSession(file, visitor, options = {}) {
     }
 
     await Promise.all(preparedJobs.map((item) => saveImageJob(item.job)));
+    if (preparedJobs.length) {
+      const charge = commerceStore.debitCreditsForGenerationJobs({
+        accountId: ownerAccountId,
+        jobIds: preparedJobs.map((item) => item.job.jobId),
+        reason: "image_generation"
+      });
+      chargedJobIds = charge.chargedJobIds;
+    }
 
     const session = await saveDrawCardSession({
       sessionId,
@@ -8051,8 +8062,10 @@ async function createDrawCardSession(file, visitor, options = {}) {
       updatedAt: now,
       completedAt: null,
       failedReason: "",
-      quotaChargedAt: null,
-      quotaChargedCount: 0,
+      quotaChargedAt: chargedJobIds.length ? new Date().toISOString() : null,
+      quotaChargedCount: chargedJobIds.length,
+      chargedJobIds,
+      refundedJobIds: [],
       requestedDrawCount: usesAllStylesForExperience ? requestedDrawCount : selectedStyles.length,
       requestedSubjectType,
       telemetry: {
@@ -8088,8 +8101,9 @@ async function createDrawCardSession(file, visitor, options = {}) {
           totalReferenceBytes,
           finalStatus: "queued",
           finalElapsedMs: null,
-          quotaChargeStatus: "",
-          charged: false
+          quotaChargeStatus: chargedJobIds.length ? "charged_on_submit" : "not_charged",
+          charged: chargedJobIds.length > 0,
+          quotaChargedCount: chargedJobIds.length
         },
         jobs: summarizeDrawCardJobStatuses(sessionItems.map((item) => ({ status: item.status || "queued" })))
       },
@@ -8126,6 +8140,17 @@ async function createDrawCardSession(file, visitor, options = {}) {
 
     return session;
   } catch (error) {
+    if (chargedJobIds.length) {
+      try {
+        commerceStore.refundCreditsForGenerationJobs({
+          accountId: ownerAccountId,
+          jobIds: chargedJobIds,
+          reason: "image_generation_submit_refund"
+        });
+      } catch (refundError) {
+        console.error("Failed to refund draw card submission charge.", refundError);
+      }
+    }
     await Promise.all(
       preparedJobs.map(async (item) => {
         await deleteJobReferences(item.job);
@@ -8269,54 +8294,56 @@ async function synchronizeDrawCardSession(session) {
         likedAt: item.result?.likedAt || null
       }))
       .sort((a, b) => a.order - b.order);
-    let quotaChargedAt = current.quotaChargedAt || null;
-    let quotaChargedCount = Math.max(0, Number(current.quotaChargedCount || 0));
-    let quotaChargeStatus = "";
     const summary = summarizeDrawCardJobStatuses(normalizedItems);
     const hasQueued = summary.queued > 0;
     const hasRunning = summary.running > 0;
     const successCount = summary.succeeded;
     const failedCount = summary.failed + summary.cancelled;
     const hasPending = hasQueued || hasRunning;
+    const chargedJobIds = new Set(current.chargedJobIds || []);
+    const refundedJobIds = new Set(current.refundedJobIds || []);
+    const failedJobIds = normalizedItems
+      .filter((item) => ["failed", "cancelled"].includes(item.status) && chargedJobIds.has(item.jobId) && !refundedJobIds.has(item.jobId))
+      .map((item) => item.jobId);
+    let billingError = "";
+    if (failedJobIds.length) {
+      try {
+        const refund = commerceStore.refundCreditsForGenerationJobs({
+          accountId: current.ownerAccountId,
+          jobIds: failedJobIds,
+          reason: "image_generation_refund"
+        });
+        refund.refundedJobIds.forEach((jobId) => refundedJobIds.add(jobId));
+      } catch (error) {
+        billingError = error.publicMessage || error.message || "币退款失败，请联系客服。";
+      }
+    }
+    const quotaChargedAt = current.quotaChargedAt || null;
+    const quotaChargedCount = Math.max(0, chargedJobIds.size - refundedJobIds.size);
+    const quotaChargeStatus = billingError
+      ? "refund_failed"
+      : refundedJobIds.size > 0
+        ? "partially_refunded"
+        : chargedJobIds.size > 0
+          ? "charged_on_submit"
+          : "not_charged";
 
     if (jobs.length && successCount === jobs.length) {
       nextStatus = "succeeded";
       nextMessage = config.successMessage;
       completedAt = current.completedAt || new Date().toISOString();
-      if (!quotaChargedAt && quotaChargedCount <= 0 && successCount > 0) {
-        const chargeStatus = chargeCommerceSessionCredits(current, successCount);
-        quotaChargeStatus = chargeStatus;
-        if (chargeStatus === "charged" || chargeStatus === "already_charged") {
-          quotaChargedAt = new Date().toISOString();
-          quotaChargedCount = successCount;
-        }
-      } else {
-        quotaChargeStatus = quotaChargedAt || quotaChargedCount > 0 ? "already_charged" : "not_charged";
-      }
     } else if (hasPending) {
       nextStatus = hasRunning ? "running" : "queued";
       nextMessage = config.waitingMessage;
-      quotaChargeStatus = quotaChargedAt || quotaChargedCount > 0 ? "already_charged" : "";
     } else if (successCount > 0 && failedCount > 0) {
       nextStatus = "partial";
       nextMessage = config.partialMessage;
       completedAt = current.completedAt || new Date().toISOString();
-      if (!quotaChargedAt && quotaChargedCount <= 0) {
-        const chargeStatus = chargeCommerceSessionCredits(current, successCount);
-        quotaChargeStatus = chargeStatus;
-        if (chargeStatus === "charged" || chargeStatus === "already_charged") {
-          quotaChargedAt = new Date().toISOString();
-          quotaChargedCount = successCount;
-        }
-      } else {
-        quotaChargeStatus = "already_charged";
-      }
     } else if (failedCount > 0 && successCount === 0) {
       nextStatus = "failed";
       nextMessage = config.failureMessage;
       completedAt = current.completedAt || new Date().toISOString();
       failedReason = config.failureMessage;
-      quotaChargeStatus = quotaChargedAt || quotaChargedCount > 0 ? "already_charged" : "not_charged";
     } else if (jobs.some((job) => job?.status === "running")) {
       nextStatus = "running";
       nextMessage = config.waitingMessage;
@@ -8335,8 +8362,8 @@ async function synchronizeDrawCardSession(session) {
         finalElapsedMs: completedAt && current.createdAt
           ? Math.max(0, Math.round(new Date(completedAt).getTime() - new Date(current.createdAt).getTime()))
           : current.telemetry?.server?.finalElapsedMs || null,
-        quotaChargeStatus: quotaChargeStatus || current.telemetry?.server?.quotaChargeStatus || "",
-        charged: Boolean(quotaChargedAt || quotaChargedCount > 0),
+        quotaChargeStatus,
+        charged: quotaChargedCount > 0,
         quotaChargedCount
       },
       jobs: summarizeDrawCardJobStatuses(normalizedItems)
@@ -8364,6 +8391,9 @@ async function synchronizeDrawCardSession(session) {
       failedReason,
       quotaChargedAt,
       quotaChargedCount,
+      chargedJobIds: [...chargedJobIds],
+      refundedJobIds: [...refundedJobIds],
+      billingError,
       telemetry: nextTelemetry,
       results,
       items: normalizedItems
@@ -8408,11 +8438,16 @@ function normalizeDrawCardSession(session) {
     ? normalizeUserSelectedSubject(session?.requestedSubjectType || telemetryServer.requestedSubjectType)
     : "";
   const rawQuotaChargedCount = Number(session?.quotaChargedCount ?? telemetryServer.quotaChargedCount);
-  const quotaChargedCount = Number.isFinite(rawQuotaChargedCount)
+  const legacyQuotaChargedCount = Number.isFinite(rawQuotaChargedCount)
     ? Math.max(0, Math.round(rawQuotaChargedCount))
     : session?.quotaChargedAt
       ? 1
       : 0;
+  const chargedJobIds = Array.isArray(session?.chargedJobIds) ? session.chargedJobIds.map(String).filter(Boolean) : [];
+  const refundedJobIds = Array.isArray(session?.refundedJobIds) ? session.refundedJobIds.map(String).filter(Boolean) : [];
+  const quotaChargedCount = chargedJobIds.length
+    ? Math.max(0, chargedJobIds.length - new Set(refundedJobIds).size)
+    : legacyQuotaChargedCount;
   const normalizedResults = Array.isArray(session?.results)
     ? session.results
         .map((result, index) => ({
@@ -8471,6 +8506,9 @@ function normalizeDrawCardSession(session) {
     failedReason: String(session?.failedReason || ""),
     quotaChargedAt: session?.quotaChargedAt || null,
     quotaChargedCount,
+    chargedJobIds,
+    refundedJobIds,
+    billingError: String(session?.billingError || ""),
     requestedDrawCount,
     requestedSubjectType,
     telemetry: {
@@ -8512,7 +8550,7 @@ function normalizeDrawCardSession(session) {
       },
       jobs: summary
     },
-    charged: Boolean(session?.quotaChargedAt || telemetryServer.charged || quotaChargedCount > 0),
+    charged: quotaChargedCount > 0,
     summary,
     results: normalizedResults,
     items: normalizedItems
@@ -8534,6 +8572,8 @@ function toPublicDrawCardSession(session) {
     charged: current.charged,
     quotaChargedAt: current.quotaChargedAt,
     quotaChargedCount: current.quotaChargedCount,
+    quotaRefundedCount: current.refundedJobIds.length,
+    billingError: current.billingError,
     requestedDrawCount: current.requestedDrawCount,
     requestedSubjectType: current.requestedSubjectType,
     summary: current.summary,
@@ -8735,6 +8775,7 @@ async function createBodyBookSession(file, visitor, accountId, theme) {
     coverConfirmedAt: null,
     reference,
     chargedJobIds: [],
+    refundedJobIds: [],
     billingError: "",
     cover: { key: "cover", title: "封面 Cover", order: 0, version: 1, jobId: "", status: "queued", result: null, errorMessage: "", historyJobIds: [] },
     cards: theme.parts.map((part, index) => ({
@@ -8967,20 +9008,21 @@ async function legacySynchronizeBodyBookSession(session) {
     const cover = await hydrateBodyBookItem(current.cover);
     const cards = await Promise.all((current.cards || []).map(hydrateBodyBookItem));
     const chargedJobIds = new Set(current.chargedJobIds || []);
+    const refundedJobIds = new Set(current.refundedJobIds || []);
+    const failedJobIds = [cover, ...cards]
+      .filter((item) => ["failed", "cancelled"].includes(item.status) && chargedJobIds.has(item.jobId) && !refundedJobIds.has(item.jobId))
+      .map((item) => item.jobId);
     let billingError = "";
-    for (const item of [cover, ...cards]) {
-      if (item.status !== "succeeded" || !item.jobId || chargedJobIds.has(item.jobId)) continue;
-      if (!BODY_BOOK_BILLING_ENABLED) continue;
+    if (BODY_BOOK_BILLING_ENABLED && failedJobIds.length) {
       try {
-        commerceStore.debitBeans({
+        const refund = commerceStore.refundBeansForGenerationJobs({
           accountId: current.ownerAccountId,
-          amount: 1,
-          referenceId: `body-book:${current.sessionId}:${item.jobId}`,
-          reason: "body_book_generation"
+          jobIds: failedJobIds,
+          reason: "body_book_generation_refund"
         });
-        chargedJobIds.add(item.jobId);
+        refund.refundedJobIds.forEach((jobId) => refundedJobIds.add(jobId));
       } catch (error) {
-        billingError = error.publicMessage || error.message || "豆豆结算失败，请联系客服。";
+        billingError = error.publicMessage || error.message || "豆豆退款失败，请联系客服。";
       }
     }
     const cardSummary = summarizeBodyBookItems(cards);
@@ -9020,6 +9062,7 @@ async function legacySynchronizeBodyBookSession(session) {
       status,
       message,
       chargedJobIds: [...chargedJobIds],
+      refundedJobIds: [...refundedJobIds],
       billingError,
       updatedAt: new Date().toISOString(),
       completedAt: stage === "complete" || stage === "cards_partial" || stage === "cover_failed" ? current.completedAt || new Date().toISOString() : null
@@ -9514,7 +9557,16 @@ async function generateBodyBookPages(session, pageKeys, pagePrompts = {}) {
     return { key: page.key, version, prompt, hasCustomPrompt: hasRequestedPrompt || page.hasCustomPrompt, jobId: entry.job.jobId, run: entry.run };
   }));
   const byKey = new Map(queued.map((entry) => [entry.key, entry]));
-  const next = await saveBodyBookSession({
+  const chargedJobIds = BODY_BOOK_BILLING_ENABLED
+    ? commerceStore.debitBeansForGenerationJobs({
+        accountId: current.ownerAccountId,
+        jobIds: queued.map((entry) => entry.jobId),
+        reason: "body_book_generation"
+      }).chargedJobIds
+    : [];
+  let next;
+  try {
+    next = await saveBodyBookSession({
     ...current,
     pages: current.pages.map((page) => {
       const entry = byKey.get(page.key);
@@ -9533,9 +9585,26 @@ async function generateBodyBookPages(session, pageKeys, pagePrompts = {}) {
     stage: "generating",
     status: "queued",
     message: `正在生成 ${queued.length} 张图片。`,
+    chargedJobIds: [...new Set([...(current.chargedJobIds || []), ...chargedJobIds])],
+    refundedJobIds: current.refundedJobIds || [],
+    billingError: "",
     completedAt: null,
     updatedAt: new Date().toISOString()
-  });
+    });
+  } catch (error) {
+    if (chargedJobIds.length) {
+      try {
+        commerceStore.refundBeansForGenerationJobs({
+          accountId: current.ownerAccountId,
+          jobIds: chargedJobIds,
+          reason: "body_book_generation_submit_refund"
+        });
+      } catch (refundError) {
+        console.error("Failed to refund body book submission charge.", refundError);
+      }
+    }
+    throw error;
+  }
   queued.forEach((entry) => entry.run());
   return next;
 }
@@ -9554,19 +9623,21 @@ async function synchronizeBodyBookSession(session) {
     const current = normalizeBodyBookSession((await readBodyBookSession(sessionId)) || session);
     const pages = await Promise.all(current.pages.map(hydrateBodyBookItem));
     const chargedJobIds = new Set(current.chargedJobIds || []);
+    const refundedJobIds = new Set(current.refundedJobIds || []);
+    const failedJobIds = pages
+      .filter((page) => ["failed", "cancelled"].includes(page.status) && chargedJobIds.has(page.jobId) && !refundedJobIds.has(page.jobId))
+      .map((page) => page.jobId);
     let billingError = "";
-    for (const page of pages) {
-      if (page.status !== "succeeded" || !page.jobId || chargedJobIds.has(page.jobId) || !BODY_BOOK_BILLING_ENABLED) continue;
+    if (BODY_BOOK_BILLING_ENABLED && failedJobIds.length) {
       try {
-        commerceStore.debitBeans({
+        const refund = commerceStore.refundBeansForGenerationJobs({
           accountId: current.ownerAccountId,
-          amount: 1,
-          referenceId: `body-book:${current.sessionId}:${page.jobId}`,
-          reason: "body_book_generation"
+          jobIds: failedJobIds,
+          reason: "body_book_generation_refund"
         });
-        chargedJobIds.add(page.jobId);
+        refund.refundedJobIds.forEach((jobId) => refundedJobIds.add(jobId));
       } catch (error) {
-        billingError = error.publicMessage || error.message || "豆豆结算失败，请联系客服。";
+        billingError = error.publicMessage || error.message || "豆豆退款失败，请联系客服。";
       }
     }
     const summary = summarizeBodyBookItems(pages);
@@ -9598,6 +9669,7 @@ async function synchronizeBodyBookSession(session) {
       status,
       message,
       chargedJobIds: [...chargedJobIds],
+      refundedJobIds: [...refundedJobIds],
       billingError,
       savedAt: current.savedAt || (hasSucceededPage ? now : null),
       updatedAt: now,
@@ -9638,6 +9710,7 @@ function normalizeBodyBookSession(session) {
     savedAt: session?.savedAt || null,
     reference,
     chargedJobIds: Array.isArray(session?.chargedJobIds) ? session.chargedJobIds.map(String).filter(Boolean) : [],
+    refundedJobIds: Array.isArray(session?.refundedJobIds) ? session.refundedJobIds.map(String).filter(Boolean) : [],
     billingError: String(session?.billingError || ""),
     pages: selectedKeys.map((key) => createBodyBookPage(getBodyBookPageDefinition(theme, key), theme, reference, byKey.get(key)))
   };
@@ -9658,7 +9731,8 @@ function toPublicBodyBookSession(session) {
     completedAt: current.completedAt,
     savedAt: current.savedAt,
     billingError: current.billingError,
-    chargedCount: current.chargedJobIds.length,
+    chargedCount: Math.max(0, current.chargedJobIds.length - new Set(current.refundedJobIds).size),
+    refundedCount: current.refundedJobIds.length,
     mockMode: BODY_BOOK_MOCK_MODE,
     billingEnabled: BODY_BOOK_BILLING_ENABLED,
     referenceUrl: `/api/body-book/projects/${encodeURIComponent(current.sessionId)}/reference`,
@@ -10523,20 +10597,6 @@ function getAdminSessionPath(sessionId) {
 
 function isSafeVisitorId(visitorId) {
   return /^[a-f0-9-]{36}$/i.test(String(visitorId || ""));
-}
-
-function chargeCommerceSessionCredits(session, successCount) {
-  const accountId = String(session?.ownerAccountId || "");
-  if (!accountId) {
-    throw createHttpError(409, "生成会话缺少账户归属。", "本次生成无法完成币结算，请联系客服。");
-  }
-  commerceStore.debitCredits({
-    accountId,
-    amount: successCount,
-    referenceId: String(session?.sessionId || ""),
-    reason: "image_generation"
-  });
-  return "charged";
 }
 
 function assertWebAccountOwnsOrder(req, order) {

@@ -1162,6 +1162,52 @@ export function createCommerceStore({ dbPath }) {
     }));
   }
 
+  function normalizeGenerationJobIds(jobIds) {
+    return [...new Set((Array.isArray(jobIds) ? jobIds : [jobIds])
+      .map((jobId) => String(jobId || "").trim())
+      .filter(Boolean))];
+  }
+
+  function debitCreditsForGenerationJobs({ accountId, jobIds, reason = "image_generation" }) {
+    const safeJobIds = normalizeGenerationJobIds(jobIds);
+    return withTransaction(db, () => {
+      for (const jobId of safeJobIds) {
+        appendLedger(accountId, -1, { reason, referenceType: "generation_job", referenceId: jobId });
+      }
+      return { account: readAccount(accountId), chargedJobIds: safeJobIds };
+    });
+  }
+
+  function refundCreditsForGenerationJobs({ accountId, jobIds, reason = "image_generation_refund" }) {
+    const safeJobIds = normalizeGenerationJobIds(jobIds);
+    return withTransaction(db, () => {
+      for (const jobId of safeJobIds) {
+        appendLedger(accountId, 1, { reason, referenceType: "generation_job_refund", referenceId: jobId });
+      }
+      return { account: readAccount(accountId), refundedJobIds: safeJobIds };
+    });
+  }
+
+  function debitBeansForGenerationJobs({ accountId, jobIds, reason = "body_book_generation" }) {
+    const safeJobIds = normalizeGenerationJobIds(jobIds);
+    return withTransaction(db, () => {
+      for (const jobId of safeJobIds) {
+        appendBeanLedger(accountId, -1, { reason, referenceType: "generation_job", referenceId: jobId });
+      }
+      return { account: readAccount(accountId), chargedJobIds: safeJobIds };
+    });
+  }
+
+  function refundBeansForGenerationJobs({ accountId, jobIds, reason = "body_book_generation_refund" }) {
+    const safeJobIds = normalizeGenerationJobIds(jobIds);
+    return withTransaction(db, () => {
+      for (const jobId of safeJobIds) {
+        appendBeanLedger(accountId, 1, { reason, referenceType: "generation_job_refund", referenceId: jobId });
+      }
+      return { account: readAccount(accountId), refundedJobIds: safeJobIds };
+    });
+  }
+
   function redeemOriginalImage({ accountId, jobId }) {
     const safeAccountId = String(accountId || "");
     const safeJobId = String(jobId || "");
@@ -1406,6 +1452,10 @@ export function createCommerceStore({ dbPath }) {
     cancelPaymentIntentByOutTradeNo,
     debitCredits,
     debitBeans,
+    debitCreditsForGenerationJobs,
+    refundCreditsForGenerationJobs,
+    debitBeansForGenerationJobs,
+    refundBeansForGenerationJobs,
     adjustCredits,
     adjustBeans,
     deleteUserSession,
