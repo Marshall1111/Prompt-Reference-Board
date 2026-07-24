@@ -1,10 +1,14 @@
 import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function generateReferralShortCode() {
+  return randomInt(36 ** 6).toString(36).toUpperCase().padStart(6, "0");
 }
 
 function safeJsonParse(value, fallback = null) {
@@ -225,6 +229,7 @@ export function createCommerceStore({ dbPath }) {
 
     CREATE TABLE IF NOT EXISTS commerce_referral_links (
       token TEXT PRIMARY KEY,
+      short_code TEXT UNIQUE,
       referrer_account_id TEXT NOT NULL UNIQUE,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -280,6 +285,11 @@ export function createCommerceStore({ dbPath }) {
   }
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_commerce_accounts_email_unique ON commerce_accounts(email) WHERE email != ''");
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_commerce_accounts_username_unique ON commerce_accounts(username) WHERE username != ''");
+  const referralLinkColumns = db.prepare("PRAGMA table_info(commerce_referral_links)").all();
+  if (!referralLinkColumns.some((column) => String(column.name || "") === "short_code")) {
+    db.exec("ALTER TABLE commerce_referral_links ADD COLUMN short_code TEXT");
+  }
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_commerce_referral_links_short_code_unique ON commerce_referral_links(short_code) WHERE short_code IS NOT NULL");
 
   if (addedBeanBalance) {
     withTransaction(db, () => {
@@ -307,6 +317,7 @@ export function createCommerceStore({ dbPath }) {
   const readBodyBookDiscountReservationStatement = db.prepare("SELECT * FROM commerce_body_book_discount_reservations WHERE order_id = ?");
   const readReferralLinkByAccountStatement = db.prepare("SELECT * FROM commerce_referral_links WHERE referrer_account_id = ?");
   const readReferralLinkByTokenStatement = db.prepare("SELECT * FROM commerce_referral_links WHERE token = ?");
+  const readReferralLinkByShortCodeStatement = db.prepare("SELECT * FROM commerce_referral_links WHERE short_code = ?");
   const readReferralByInviteeStatement = db.prepare("SELECT * FROM commerce_referrals WHERE invitee_account_id = ?");
   const readOriginalImageRedemptionStatement = db.prepare(`
     SELECT * FROM commerce_original_image_redemptions
@@ -317,6 +328,27 @@ export function createCommerceStore({ dbPath }) {
     WHERE account_id = ? AND kind = 'physical_order' AND status = 'paid'
     LIMIT 1
   `);
+
+  function createUniqueReferralShortCode() {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const shortCode = generateReferralShortCode();
+      if (!readReferralLinkByShortCodeStatement.get(shortCode)) return shortCode;
+    }
+    throw new Error("无法生成唯一的邀请链接身份码。");
+  }
+
+  const referralLinksMissingShortCode = db.prepare(`
+    SELECT token FROM commerce_referral_links
+    WHERE short_code IS NULL OR short_code = ''
+  `).all();
+  if (referralLinksMissingShortCode.length) {
+    const assignShortCode = db.prepare("UPDATE commerce_referral_links SET short_code = ?, updated_at = ? WHERE token = ?");
+    withTransaction(db, () => {
+      referralLinksMissingShortCode.forEach((link) => {
+        assignShortCode.run(createUniqueReferralShortCode(), nowIso(), String(link.token || ""));
+      });
+    });
+  }
 
   function readAccount(accountId) {
     return mapAccount(readAccountByIdStatement.get(String(accountId || "")));
@@ -444,14 +476,22 @@ export function createCommerceStore({ dbPath }) {
         throw error;
       }
       const existing = readReferralLinkByAccountStatement.get(account.id);
-      if (existing) return { token: String(existing.token), referrerAccountId: account.id };
+      if (existing) {
+        const shortCode = String(existing.short_code || createUniqueReferralShortCode());
+        if (!existing.short_code) {
+          db.prepare("UPDATE commerce_referral_links SET short_code = ?, updated_at = ? WHERE token = ?")
+            .run(shortCode, nowIso(), String(existing.token));
+        }
+        return { token: shortCode, referrerAccountId: account.id };
+      }
       const token = randomUUID().replace(/-/g, "");
+      const shortCode = createUniqueReferralShortCode();
       const now = nowIso();
       db.prepare(`
-        INSERT INTO commerce_referral_links (token, referrer_account_id, created_at, updated_at)
-        VALUES (?, ?, ?, ?)
-      `).run(token, account.id, now, now);
-      return { token, referrerAccountId: account.id };
+        INSERT INTO commerce_referral_links (token, short_code, referrer_account_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(token, shortCode, account.id, now, now);
+      return { token: shortCode, referrerAccountId: account.id };
     });
   }
 
@@ -462,7 +502,7 @@ export function createCommerceStore({ dbPath }) {
       if (!safeToken || !invitee || invitee.isRegistered) return { captured: false, reason: "ineligible" };
       const existing = readReferralByInviteeStatement.get(invitee.id);
       if (existing) return { captured: false, reason: "already_bound" };
-      const link = readReferralLinkByTokenStatement.get(safeToken);
+      const link = readReferralLinkByShortCodeStatement.get(safeToken) || readReferralLinkByTokenStatement.get(safeToken);
       if (!link || String(link.referrer_account_id || "") === invitee.id) return { captured: false, reason: "invalid" };
       const referrer = readAccount(String(link.referrer_account_id || ""));
       if (!referrer?.isRegistered) return { captured: false, reason: "invalid" };
@@ -471,7 +511,7 @@ export function createCommerceStore({ dbPath }) {
         INSERT INTO commerce_referrals (
           invitee_account_id, referrer_account_id, referral_token, captured_at, registered_at, rewarded_payment_intent_id, rewarded_at
         ) VALUES (?, ?, ?, ?, NULL, NULL, NULL)
-      `).run(invitee.id, referrer.id, safeToken, now);
+      `).run(invitee.id, referrer.id, String(link.token), now);
       return { captured: true, reason: "captured" };
     });
   }
