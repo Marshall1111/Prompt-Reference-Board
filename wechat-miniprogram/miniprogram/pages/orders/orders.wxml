@@ -1,33 +1,45 @@
-<view class="page">
+<view class="page orders-page">
   <view class="content">
-    <view class="header">
-      <view>
-        <text class="kicker">My orders</text>
-        <text class="title">我的冰箱贴订单</text>
-      </view>
-      <button bindtap="goFridge" class="secondary-button">继续制作</button>
+    <view class="orders-header">
+      <text class="kicker">My orders</text>
+      <text class="title">我的订单</text>
+      <text class="subtitle">查看你的冰箱贴订单、购买币记录与处理状态。</text>
+      <button bindtap="goFridge" class="orders-home-button"><text>⌂</text><text>返回主页</text></button>
     </view>
 
-    <view class="notice error" wx:if="{{errorMessage}}">{{errorMessage}}</view>
-    <view class="notice" wx:if="{{!isLoading && !orders.length}}">还没有订单。先去冰箱贴工作室挑几款喜欢的结果吧。</view>
+    <view class="orders-note" wx:if="{{isLoading}}">正在读取订单列表…</view>
+    <view class="orders-note error" wx:if="{{errorMessage}}">{{errorMessage}}</view>
+    <view class="orders-note empty" wx:if="{{!isLoading && !errorMessage && !listItems.length}}">你还没有冰箱贴订单或购买币记录。</view>
 
-    <view class="order-list">
-      <view wx:for="{{orders}}" wx:key="id" class="order-card">
-        <image class="order-cover" mode="aspectFill" src="{{item.imageUrl}}" wx:if="{{item.imageUrl}}" />
-        <view class="order-cover empty" wx:else>{{item.statusText}}</view>
-        <view class="order-body">
-          <view class="order-head">
-            <text class="order-no">{{item.orderNo}}</text>
-            <text class="status {{item.statusClass}}">{{item.statusText}}</text>
+    <view class="order-list" wx:if="{{listItems.length}}">
+      <view wx:for="{{listItems}}" wx:key="key" class="order-card {{item.type === 'coin_purchase' ? 'coin-purchase-card' : ''}}">
+        <block wx:if="{{item.type === 'coin_purchase'}}">
+          <view class="order-card-open">
+            <view class="order-cover coin-purchase-cover">币</view>
+            <view class="order-summary">
+              <text class="order-price">购买 {{item.coinCount}} 币</text>
+              <text class="order-no">购买单号 {{item.purchaseNo}}</text>
+              <text class="status {{item.statusClass}}">{{item.statusText}}</text>
+            </view>
           </view>
-          <text class="meta">共 {{item.itemCount}} 只 · {{item.totalText}}</text>
-          <text class="meta">下单时间 {{item.createdAtText}}</text>
-          <text class="meta" wx:if="{{item.expiresAtText}}">付款截止 {{item.expiresAtText}}</text>
-          <view class="actions">
-            <button bindtap="openOrder" class="primary-button" data-id="{{item.id}}">查看详情</button>
-            <button bindtap="cancelOrder" class="danger-button" data-id="{{item.id}}" wx:if="{{item.canCancel}}">取消订单</button>
+          <text class="coin-purchase-amount">{{item.amountText}}</text>
+        </block>
+
+        <block wx:else>
+          <view class="order-card-open">
+            <image class="order-cover" mode="aspectFill" src="{{item.imageUrl}}" wx:if="{{item.imageUrl}}" />
+            <view class="order-cover empty" wx:else>冰箱贴</view>
+            <view class="order-summary">
+              <text class="order-price">{{item.totalText}}</text>
+              <text class="order-no">订单号 {{item.orderNo}}</text>
+              <text class="status {{item.statusClass}}">{{item.statusText}}</text>
+            </view>
           </view>
-        </view>
+          <view class="order-actions">
+            <button bindtap="openOrder" class="order-detail-button" data-id="{{item.id}}"><text>◉</text><text>查看详情</text></button>
+            <button bindtap="cancelOrder" class="order-cancel-button" data-id="{{item.id}}" wx:if="{{item.canCancel}}">取消订单</button>
+          </view>
+        </block>
       </view>
     </view>
   </view>

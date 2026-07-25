@@ -11,6 +11,16 @@ const DRAW_COUNT_OPTIONS = [1, 2, 4];
 const MAX_STYLE_SELECTION = 6;
 const REFERENCE_UPLOAD_QUALITY = 72;
 
+function readInviteToken(inviteUrl) {
+  var match = String(inviteUrl || "").match(/[?&]invite=([^&#]+)/);
+  if (!match) return "";
+  try {
+    return decodeURIComponent(match[1]);
+  } catch (error) {
+    return match[1];
+  }
+}
+
 function createExperiencePage(config) {
   const experienceType = config.experienceType;
   const isDrawCard = experienceType === "draw-card";
@@ -74,11 +84,40 @@ function createExperiencePage(config) {
       orderUnitPriceText: "¥0.00",
       orderShippingText: "包邮",
       orderError: "",
-      isCreatingOrder: false
+      isCreatingOrder: false,
+      showAccountModal: false,
+      showCoinInfo: false,
+      showUserMenu: false,
+      isAccountRegistered: false,
+      accountDisplayInitial: "登录",
+      accountAvatarUrl: "",
+      coinPurchaseDiscountText: "¥0.00",
+      isPreparingReferral: false,
+      referralSharePath: "",
+      referralError: "",
+      isLoggingOut: false,
+      authMode: "login",
+      authForm: {
+        email: "",
+        username: "",
+        password: "",
+        code: ""
+      },
+      authError: "",
+      authMessage: "",
+      authBusy: false
     },
 
-    onLoad: function () {
+    onLoad: function (options) {
+      this.incomingReferralToken = String(options && options.invite || "").trim();
       this.loadInitialState();
+    },
+
+    onShareAppMessage: function () {
+      return {
+        title: "上传照片，一键制作AI小画冰箱贴",
+        path: this.data.referralSharePath || "pages/draw/draw"
+      };
     },
 
     onShow: function () {
@@ -112,10 +151,16 @@ function createExperiencePage(config) {
       var self = this;
       this.setData({ isLoading: true });
 
-      Promise.all([
-        this.refreshPublicState(),
-        isDrawCard ? this.loadStyles() : Promise.resolve()
-      ]).then(function () {
+      publicExperience.ensureMiniProgramLogin(this.incomingReferralToken).catch(function (error) {
+        self.setData({ errorMessage: (error && error.message) || "微信登录失败，请稍后重试。" });
+        return null;
+      }).then(function () {
+        self.incomingReferralToken = "";
+        return Promise.all([
+          self.refreshPublicState(),
+          isDrawCard ? self.loadStyles() : Promise.resolve()
+        ]);
+      }).then(function () {
         return self.restoreSession();
       }).catch(function (error) {
         self.setData({
@@ -133,10 +178,18 @@ function createExperiencePage(config) {
         publicExperience.fetchOrderConfig().catch(function () { return null; }),
         publicExperience.fetchClipItems(experienceType).catch(function () { return []; })
       ]).then(function (results) {
+        var visitorState = results[0];
+        var account = visitorState && visitorState.account ? visitorState.account : {};
+        var isAccountRegistered = Boolean(account.isRegistered);
+        var accountName = String(account.username || "我的账户").trim();
         self.setData({
-          visitorState: results[0],
+          visitorState: visitorState,
           orderConfig: results[1],
           clipItems: results[2],
+          isAccountRegistered: isAccountRegistered,
+          accountDisplayInitial: isAccountRegistered ? (accountName.slice(0, 1) || "我") : "登录",
+          accountAvatarUrl: String(account.wechatAvatarUrl || "").trim(),
+          coinPurchaseDiscountText: format.formatCurrencyCents(Math.max(0, Number(visitorState && visitorState.coinPurchaseDiscount && visitorState.coinPurchaseDiscount.availableCents || 0))),
           errorMessage: ""
         });
         self.rebuildOrderSummary();
@@ -206,6 +259,21 @@ function createExperiencePage(config) {
 
     openOrders: function () {
       wx.navigateTo({ url: "/pages/orders/orders" });
+    },
+
+    openLatestSession: function () {
+      var self = this;
+      if (this.data.isSubmitting) return;
+      this.setData({ errorMessage: "" });
+      publicExperience.fetchLatestSession(experienceType).then(function (session) {
+        if (!session || !session.sessionId) throw new Error("还没有可恢复的生成记录。");
+        self.applySession(session);
+        if (!publicExperience.isTerminalStatus(session.status)) {
+          self.startPolling(session.sessionId);
+        }
+      }).catch(function (error) {
+        self.setData({ errorMessage: (error && error.message) || "读取最近生成失败，请稍后重试。" });
+      });
     },
 
     openDrawConfig: function () {
@@ -429,22 +497,10 @@ function createExperiencePage(config) {
       var self = this;
       var jobId = event.currentTarget.dataset.jobid;
       var visitorState = this.data.visitorState || {};
-      var clipItem = (this.data.clipItems || []).find(function (item) { return item.jobId === jobId; });
 
       if (!jobId) return;
       if (!visitorState.account || !visitorState.account.canRedeemOriginalDownloads) {
-        showOriginalDownloadOrderModal(this.data.orderConfig);
-        return;
-      }
-      if (clipItem && !clipItem.originalRedeemed) {
-        wx.showModal({
-          title: "兑换原图",
-          content: "本次下载将消耗 1 个点数。",
-          confirmText: "确认兑换",
-          success: function (result) {
-            if (result.confirm) downloadClipOriginalToAlbum(self, jobId);
-          }
-        });
+        showOriginalDownloadUnlockModal(self);
         return;
       }
       downloadClipOriginalToAlbum(self, jobId);
@@ -532,6 +588,212 @@ function createExperiencePage(config) {
       });
     },
 
+    openAccountModal: function () {
+      this.setData({
+        showAccountModal: true,
+        showUserMenu: false,
+        authMode: "login",
+        authError: "",
+        authMessage: ""
+      });
+    },
+
+    openCoinInfo: function () {
+      this.setData({ showCoinInfo: true, showUserMenu: false });
+      this.prepareReferralShare();
+    },
+
+    closeCoinInfo: function () {
+      this.setData({ showCoinInfo: false });
+    },
+
+    prepareReferralShare: function () {
+      var self = this;
+      if (this.data.isPreparingReferral || this.data.referralSharePath) return;
+      if (!this.data.isAccountRegistered) {
+        this.setData({ referralError: "请先登录后再邀请好友。" });
+        return;
+      }
+      this.setData({ isPreparingReferral: true, referralError: "" });
+      publicExperience.createReferralLink().then(function (payload) {
+        var token = readInviteToken(payload && payload.inviteUrl);
+        if (!token) throw new Error("邀请链接生成失败，请稍后重试。");
+        self.setData({
+          referralSharePath: "pages/draw/draw?invite=" + encodeURIComponent(token)
+        });
+      }).catch(function (error) {
+        self.setData({ referralError: (error && error.message) || "邀请链接生成失败，请稍后重试。" });
+      }).finally(function () {
+        self.setData({ isPreparingReferral: false });
+      });
+    },
+
+    stopTap: function () {},
+
+    toggleAccountMenu: function () {
+      if (!this.data.isAccountRegistered) {
+        this.openAccountModal();
+        return;
+      }
+      this.setData({
+        showUserMenu: !this.data.showUserMenu,
+        showCoinInfo: false
+      });
+    },
+
+    closeUserMenu: function () {
+      this.setData({ showUserMenu: false });
+    },
+
+    openOrdersFromUserMenu: function () {
+      this.setData({ showUserMenu: false });
+      this.openOrders();
+    },
+
+    logoutAccount: function () {
+      var self = this;
+      if (this.data.isLoggingOut) return;
+      this.setData({ isLoggingOut: true });
+      publicExperience.logout().then(function () {
+        return publicExperience.initializeGuestAccount();
+      }).then(function () {
+        return self.refreshPublicState();
+      }).then(function () {
+        self.setData({
+          showUserMenu: false,
+          referralSharePath: "",
+          referralError: ""
+        });
+        wx.showToast({ title: "已退出登录", icon: "success" });
+      }).catch(function (error) {
+        self.setData({ errorMessage: (error && error.message) || "退出登录失败，请稍后重试。" });
+      }).finally(function () {
+        self.setData({ isLoggingOut: false });
+      });
+    },
+
+    closeAccountModal: function () {
+      if (this.data.authBusy) return;
+      this.setData({ showAccountModal: false, authError: "", authMessage: "" });
+    },
+
+    setAuthMode: function (event) {
+      var mode = String(event.currentTarget.dataset.mode || "login");
+      if (["login", "register", "reset"].indexOf(mode) === -1) return;
+      this.setData({ authMode: mode, authError: "", authMessage: "" });
+    },
+
+    onAuthFieldInput: function (event) {
+      var field = String(event.currentTarget.dataset.field || "");
+      if (["email", "username", "password", "code"].indexOf(field) === -1) return;
+      var form = Object.assign({}, this.data.authForm);
+      form[field] = event.detail.value;
+      this.setData({ authForm: form });
+    },
+
+    sendAuthCode: function () {
+      var self = this;
+      var form = this.data.authForm || {};
+      var purpose = this.data.authMode === "reset" ? "reset_password" : "register";
+      if (!String(form.email || "").trim()) {
+        this.setData({ authError: "请先填写邮箱地址。" });
+        return;
+      }
+      this.setData({ authBusy: true, authError: "", authMessage: "" });
+      publicExperience.requestEmailCode(form.email, purpose).then(function (result) {
+        var developmentCode = String(result && result.developmentCode || "");
+        var nextForm = Object.assign({}, self.data.authForm);
+        if (developmentCode) nextForm.code = developmentCode;
+        self.setData({
+          authForm: nextForm,
+          authMessage: developmentCode ? "本地验证码已自动填入。" : "验证码已发送，请查收邮箱。"
+        });
+      }).catch(function (error) {
+        self.setData({ authError: (error && error.message) || "验证码发送失败，请稍后重试。" });
+      }).finally(function () {
+        self.setData({ authBusy: false });
+      });
+    },
+
+    submitEmailAuth: function () {
+      var self = this;
+      var mode = this.data.authMode;
+      var form = this.data.authForm || {};
+      var email = String(form.email || "").trim();
+      var password = String(form.password || "");
+
+      if (!email || !password) {
+        this.setData({ authError: "请填写邮箱和密码。" });
+        return;
+      }
+      if ((mode === "register" || mode === "reset") && !String(form.code || "").trim()) {
+        this.setData({ authError: "请填写邮箱验证码。" });
+        return;
+      }
+      if (mode === "register" && !String(form.username || "").trim()) {
+        this.setData({ authError: "请填写用户名。" });
+        return;
+      }
+
+      this.setData({ authBusy: true, authError: "", authMessage: "" });
+      var request = mode === "login"
+        ? publicExperience.loginWithEmail(email, password)
+        : mode === "reset"
+          ? publicExperience.resetPasswordWithEmail({ email: email, password: password, code: form.code })
+          : publicExperience.logout().then(function () {
+            return publicExperience.initializeGuestAccount();
+          }).then(function () {
+            return publicExperience.registerWithEmail({
+              email: email,
+              username: form.username,
+              password: password,
+              code: form.code
+            });
+          });
+
+      request.then(function () {
+        if (mode === "reset") {
+          self.setData({ authMode: "login", authMessage: "密码已更新，请使用新密码登录。" });
+          return;
+        }
+        self.setData({ showAccountModal: false, authMessage: "", authError: "" });
+        return self.refreshPublicState().then(function () {
+          wx.showToast({ title: mode === "login" ? "登录成功" : "注册成功", icon: "success" });
+        });
+      }).catch(function (error) {
+        self.setData({ authError: (error && error.message) || "账号操作失败，请稍后重试。" });
+      }).finally(function () {
+        self.setData({ authBusy: false });
+      });
+    },
+
+    loginWithWechat: function () {
+      var self = this;
+      this.setData({ authBusy: true, authError: "", authMessage: "" });
+      publicExperience.loginWithMiniProgram().then(function () {
+        self.setData({ showAccountModal: false });
+        return self.refreshPublicState();
+      }).then(function () {
+        wx.showToast({ title: "微信登录成功", icon: "success" });
+      }).catch(function (error) {
+        self.setData({ authError: (error && error.message) || "微信登录失败，请稍后重试。" });
+      }).finally(function () {
+        self.setData({ authBusy: false });
+      });
+    },
+
+    openCoinPurchase: function () {
+      var self = this;
+      this.setData({ showCoinInfo: false });
+      wx.showActionSheet({
+        itemList: ["购买 10 币", "购买 20 币", "购买 40 币", "购买 100 币"],
+        success: function (result) {
+          var options = [10, 20, 40, 100];
+          purchaseCoins(self, options[Number(result.tapIndex || 0)] || 20);
+        }
+      });
+    },
+
     openOrderModal: function () {
       if (!this.data.clipItems.length) {
         this.setData({ errorMessage: "请先把想要的冰箱贴加入口袋。" });
@@ -603,7 +865,7 @@ function createExperiencePage(config) {
       });
 
       publicExperience.createOrder({
-        experienceType: "fridge-magnet",
+          experienceType: isDrawCard ? "draw-card" : "fridge-magnet",
         items: this.data.orderItems.map(function (item) {
           return {
             jobId: item.jobId,
@@ -615,6 +877,27 @@ function createExperiencePage(config) {
         address: form.address,
         remark: form.remark
       }).then(function (created) {
+        return settleMiniProgramPayment(created).then(function (settlement) {
+          return { created: created, settlement: settlement };
+        });
+      }).then(function (result) {
+        var created = result.created;
+        var settlement = result.settlement || {};
+        if (settlement.mode !== "manual") {
+          self.setData({
+            showOrderModal: false,
+            orderForm: {
+              receiverName: "",
+              receiverPhone: "",
+              address: "",
+              remark: ""
+            }
+          });
+          wx.showToast({ title: settlement.mode === "already_paid" ? "订单已支付" : "支付已提交", icon: "success" });
+          return self.refreshPublicState().then(function () {
+            wx.navigateTo({ url: "/pages/order-detail/order-detail?id=" + encodeURIComponent(created.order.id) });
+          });
+        }
         self.setData({
           showOrderModal: false,
           showManualPayment: true,
@@ -744,22 +1027,78 @@ function downloadClipOriginalToAlbum(page, jobId) {
   });
 }
 
-function showOriginalDownloadOrderModal(orderConfig) {
-  var contact = getContact(orderConfig);
+function requestMiniProgramPayment(payment) {
+  if (!payment || payment.status === "already_paid") return Promise.resolve();
+  if (payment.channel === "manual_collection") {
+    return Promise.reject(new Error("当前订单需等待人工确认收款。"));
+  }
+  var jsapi = payment.jsapi || {};
+  if (payment.channel !== "wechat_jsapi" || !jsapi.timeStamp || !jsapi.nonceStr || !jsapi.package || !jsapi.paySign) {
+    return Promise.reject(new Error("微信支付参数准备失败，请稍后重试。"));
+  }
+  return new Promise(function (resolve, reject) {
+    wx.requestPayment({
+      timeStamp: String(jsapi.timeStamp),
+      nonceStr: String(jsapi.nonceStr),
+      package: String(jsapi.package),
+      signType: String(jsapi.signType || "RSA"),
+      paySign: String(jsapi.paySign),
+      success: resolve,
+      fail: function (error) {
+        if (String(error && error.errMsg || "").indexOf("cancel") !== -1) {
+          reject(new Error("已取消支付。"));
+          return;
+        }
+        reject(new Error("微信支付未完成，请稍后在订单中继续支付。"));
+      }
+    });
+  });
+}
 
+function settleMiniProgramPayment(created) {
+  var order = created && created.order;
+  var initialPayment = created && created.payment;
+  if (!order || !order.id || !initialPayment || initialPayment.status === "already_paid") {
+    return Promise.resolve({ mode: "already_paid" });
+  }
+  if (initialPayment.channel === "manual_collection") return Promise.resolve({ mode: "manual" });
+  return publicExperience.payOrder(order.id).then(function (payload) {
+    return requestMiniProgramPayment(payload && payload.payment).then(function () {
+      return { mode: "wechat" };
+    });
+  });
+}
+
+function purchaseCoins(page, coinCount) {
+  wx.showLoading({ title: "正在创建购买单", mask: true });
+  publicExperience.createCoinPurchase(coinCount).then(function (created) {
+    var purchase = created && created.purchase;
+    var initialPayment = created && created.payment;
+    if (!purchase || !purchase.id) throw new Error("购买单创建失败，请重试。");
+    if (initialPayment && initialPayment.channel === "manual_collection") {
+      return Promise.reject(new Error("当前购买币需等待人工确认收款。"));
+    }
+    return publicExperience.payCoinPurchase(purchase.id).then(function (payload) {
+      return requestMiniProgramPayment(payload && payload.payment);
+    });
+  }).then(function () {
+    wx.hideLoading();
+    wx.showToast({ title: "支付完成，币已到账", icon: "success" });
+    return page.refreshPublicState();
+  }).catch(function (error) {
+    wx.hideLoading();
+    page.setData({ errorMessage: (error && error.message) || "购买币失败，请稍后重试。" });
+  });
+}
+
+function showOriginalDownloadUnlockModal(page) {
   wx.showModal({
-    title: "下单后可兑换原图",
-    content: "任意定制订单支付成功后即可获得兑换资格；每张原图兑换需消耗 1 点。用于制作冰箱贴的图片会自动兑换，不额外消耗点数。",
-    confirmText: "联系客服",
+    title: "解锁原图下载",
+    content: "成功购买币累计满 20 元，或任意定制订单支付成功后，即可下载同一账户下的全部原图，无需额外消耗币。",
+    confirmText: "购买币",
     cancelText: "知道了",
     success: function (result) {
-      if (!result.confirm) return;
-      wx.setClipboardData({
-        data: contact,
-        success: function () {
-          wx.showToast({ title: "已复制客服微信", icon: "success" });
-        }
-      });
+      if (result.confirm) page.openCoinPurchase();
     }
   });
 }

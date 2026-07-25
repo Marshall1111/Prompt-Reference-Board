@@ -1019,6 +1019,43 @@ app.post("/api/auth/login", async (req, res, next) => {
   }
 });
 
+app.post("/api/auth/miniprogram/login", requireWebAccount, async (req, res, next) => {
+  try {
+    const code = String(req.body?.code || "").trim();
+    if (!code) throw createHttpError(400, "缺少小程序登录凭证，请重试。");
+    const identity = await fetchWechatMiniProgramIdentity(code);
+    const existingAccount = commerceStore.readAccountByOpenId(identity.openId);
+    const guestAccount = req.webAccount?.isRegistered ? null : req.webAccount;
+    const account = commerceStore.createOrGetWebAccount({
+      openId: identity.openId,
+      visitorId: req.visitorId,
+      guestAccountId: guestAccount?.channel === "browser_guest" ? guestAccount.id : "",
+      nickname: identity.nickname,
+      avatarUrl: identity.avatarUrl,
+      signupCredits: WEB_SIGNUP_CREDITS,
+      signupBeans: WEB_SIGNUP_BEANS
+    });
+    if (account.accountStatus === "disabled") throw createHttpError(403, "该账户已被禁用，请联系管理员。");
+    const inviteToken = String(req.body?.invite || "").trim();
+    if (!existingAccount && inviteToken) {
+      commerceStore.captureReferral({
+        token: inviteToken,
+        inviteeAccountId: account.id,
+        allowRegistered: true
+      });
+    }
+    commerceStore.markReferralRegistered(account.id);
+    const session = commerceStore.createUserSession(account.id, { ttlMs: USER_SESSION_TTL_MS });
+    req.webAccount = account;
+    req.userSession = { ...session, account };
+    clearWebAccountCookie(req, res);
+    setUserSessionCookie(req, res, session.id);
+    res.json({ authenticated: true, account: toPublicCommerceAccount(account) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/auth/guest-assets/merge", requireWebAccount, async (req, res, next) => {
   try {
     if (!req.userSession || !req.webAccount?.isRegistered) throw createHttpError(401, "请先登录注册账户。", "请先登录后再合并访客资产。");
@@ -1727,7 +1764,8 @@ app.post("/api/payments/wechat/notify", express.text({ type: "*/*" }), async (re
     if (String(notifyData.trade_state || "") !== "SUCCESS") {
       throw createHttpError(400, "微信支付通知交易状态不是成功。");
     }
-    if (String(notifyData.mchid || "") !== config.mchId || String(notifyData.appid || "") !== config.appId) {
+    const acceptedAppIds = new Set([config.appId, getWechatMiniProgramPaymentConfig().appId].filter(Boolean));
+    if (String(notifyData.mchid || "") !== config.mchId || !acceptedAppIds.has(String(notifyData.appid || ""))) {
       throw createHttpError(400, "微信支付通知商户信息不匹配。");
     }
     const outTradeNo = String(notifyData.out_trade_no || "");
@@ -6409,6 +6447,20 @@ async function prepareOrderPayment({ req, order, intent, pricing, oauthCode = ""
   }
 
   const description = order.experienceType === "body-book" ? "宝宝认知书实体书" : "AI 定制冰箱贴";
+  if (isMiniProgramRequest(req)) {
+    const payment = await createWechatJsapiPayment({
+      intent,
+      openId: getMiniProgramPaymentOpenId(req),
+      description,
+      config: assertWechatMiniProgramPaymentConfigured()
+    });
+    orderStore.updateOrder(order.id, {
+      wechatOpenId: String(req.webAccount?.openId || ""),
+      lastPaymentChannel: payment.channel,
+      lastPaymentError: ""
+    });
+    return { ...payment, mode: "wechat", expiresAt: order.expiresAt };
+  }
   if (isWechatBrowser(req)) {
     if (!oauthCode) {
       return {
@@ -6447,6 +6499,15 @@ async function prepareBeanPurchasePayment({ req, intent, pricing, oauthCode = ""
     if (!repaired) throw createHttpError(500, "修复微信支付单失败，请重新购买。", "支付单修复失败，请重新购买。");
     intent = repaired;
   }
+  if (isMiniProgramRequest(req)) {
+    const payment = await createWechatJsapiPayment({
+      intent,
+      openId: getMiniProgramPaymentOpenId(req),
+      description: "购买豆豆",
+      config: assertWechatMiniProgramPaymentConfigured()
+    });
+    return { ...payment, mode: "wechat", expiresAt: intent.expiresAt };
+  }
   if (isWechatBrowser(req)) {
     if (!oauthCode) {
       return {
@@ -6474,6 +6535,15 @@ async function prepareCoinPurchasePayment({ req, intent, pricing, oauthCode = ""
     const repaired = commerceStore.replacePaymentIntentOutTradeNo(intent.id, generateWechatOutTradeNo("CP"));
     if (!repaired) throw createHttpError(500, "修复微信支付单失败，请重新购买。", "支付单修复失败，请重新购买。");
     intent = repaired;
+  }
+  if (isMiniProgramRequest(req)) {
+    const payment = await createWechatJsapiPayment({
+      intent,
+      openId: getMiniProgramPaymentOpenId(req),
+      description: "购买币",
+      config: assertWechatMiniProgramPaymentConfigured()
+    });
+    return { ...payment, mode: "wechat", expiresAt: intent.expiresAt };
   }
   if (isWechatBrowser(req)) {
     if (!oauthCode) {
@@ -6609,6 +6679,39 @@ function getWechatConfig() {
     notifyUrl: String(process.env.WECHAT_PAY_NOTIFY_URL || "").trim(),
     oauthRedirectUrl: String(process.env.WECHAT_OAUTH_REDIRECT_URL || "").trim()
   };
+}
+
+function getWechatMiniProgramConfig() {
+  return {
+    appId: String(process.env.WECHAT_MINIPROGRAM_APP_ID || "").trim(),
+    appSecret: String(process.env.WECHAT_MINIPROGRAM_APP_SECRET || "").trim()
+  };
+}
+
+function getWechatMiniProgramPaymentConfig() {
+  return {
+    ...getWechatConfig(),
+    appId: String(process.env.WECHAT_MINIPROGRAM_APP_ID || "").trim()
+  };
+}
+
+async function fetchWechatMiniProgramIdentity(code) {
+  const config = getWechatMiniProgramConfig();
+  if (!config.appId || !config.appSecret) {
+    throw createHttpError(503, "小程序微信登录未完成配置。", "小程序登录暂未配置完成，请联系管理员。");
+  }
+  const url = new URL("https://api.weixin.qq.com/sns/jscode2session");
+  url.searchParams.set("appid", config.appId);
+  url.searchParams.set("secret", config.appSecret);
+  url.searchParams.set("js_code", String(code || ""));
+  url.searchParams.set("grant_type", "authorization_code");
+  const response = await fetch(url, { method: "GET" });
+  const payload = await response.json().catch(() => ({}));
+  const openId = String(payload.openid || "").trim();
+  if (!response.ok || payload.errcode || !openId) {
+    throw createHttpError(502, payload.errmsg || "小程序微信登录失败，请稍后重试。");
+  }
+  return { openId, nickname: "微信用户", avatarUrl: "" };
 }
 
 function normalizeShippingCarrierCode(value) {
@@ -6980,9 +7083,35 @@ function assertWechatPaymentConfigured({ requireOAuth = false } = {}) {
   return config;
 }
 
+function assertWechatMiniProgramPaymentConfigured() {
+  const config = getWechatMiniProgramPaymentConfig();
+  const missing = [];
+  if (!config.appId) missing.push("WECHAT_MINIPROGRAM_APP_ID");
+  if (!config.mchId) missing.push("WECHAT_PAY_MCH_ID");
+  if (!config.apiV3Key) missing.push("WECHAT_PAY_API_V3_KEY");
+  if (!config.serialNo) missing.push("WECHAT_PAY_SERIAL_NO");
+  if (!config.privateKey) missing.push("WECHAT_PAY_PRIVATE_KEY");
+  if (!config.notifyUrl) missing.push("WECHAT_PAY_NOTIFY_URL");
+  if (missing.length) {
+    throw createHttpError(503, `小程序微信支付配置缺失：${missing.join("、")}`);
+  }
+  return config;
+}
+
 function isWechatBrowser(req) {
   const userAgent = String(req.headers["user-agent"] || "");
   return /MicroMessenger/i.test(userAgent);
+}
+
+function isMiniProgramRequest(req) {
+  return String(req.headers["x-petpaint-client"] || "").trim().toLowerCase() === "miniprogram";
+}
+
+function getMiniProgramPaymentOpenId(req) {
+  if (req.webAccount?.channel !== "web_wechat" || !String(req.webAccount?.openId || "").trim()) {
+    throw createHttpError(403, "小程序内微信支付需使用微信登录账户。", "请先在“登录 / 切换账号”中使用微信登录，再完成支付。");
+  }
+  return String(req.webAccount.openId).trim();
 }
 
 function isLocalMockPaymentEnabled(req) {
@@ -7108,8 +7237,7 @@ function verifyWechatNotifySignature(req, bodyText) {
   if (!ok) throw createHttpError(401, "微信支付回调验签失败。");
 }
 
-function buildWechatAuthorizationHeader(method, urlPath, body = "") {
-  const config = assertWechatPaymentConfigured();
+function buildWechatAuthorizationHeader(method, urlPath, body = "", config = assertWechatPaymentConfigured()) {
   const nonceStr = randomUUID().replace(/-/g, "");
   const timestamp = String(Math.floor(Date.now() / 1000));
   const message = `${method}\n${urlPath}\n${timestamp}\n${nonceStr}\n${body}\n`;
@@ -7127,14 +7255,13 @@ function buildWechatAuthorizationHeader(method, urlPath, body = "") {
   return `WECHATPAY2-SHA256-RSA2048 ${value}`;
 }
 
-async function callWechatPayApi(method, pathname, bodyObject = null) {
-  const config = assertWechatPaymentConfigured();
+async function callWechatPayApi(method, pathname, bodyObject = null, config = assertWechatPaymentConfigured()) {
   const bodyText = bodyObject ? JSON.stringify(bodyObject) : "";
   const response = await fetch(`https://api.mch.weixin.qq.com${pathname}`, {
     method,
     headers: {
       Accept: "application/json",
-      Authorization: buildWechatAuthorizationHeader(method, pathname, bodyText),
+      Authorization: buildWechatAuthorizationHeader(method, pathname, bodyText, config),
       "Content-Type": "application/json",
       "User-Agent": "PromptReferenceBoard/1.0",
       ...(config.serialNo ? { "Wechatpay-Serial": config.serialNo } : {})
@@ -7149,8 +7276,7 @@ async function callWechatPayApi(method, pathname, bodyObject = null) {
   return payload;
 }
 
-function signJsapiPayParams({ appId, timeStamp, nonceStr, prepayId }) {
-  const config = assertWechatPaymentConfigured();
+function signJsapiPayParams({ appId, timeStamp, nonceStr, prepayId, config = assertWechatPaymentConfigured() }) {
   const packageValue = `prepay_id=${prepayId}`;
   const message = `${appId}\n${timeStamp}\n${nonceStr}\n${packageValue}\n`;
   const signer = createSign("RSA-SHA256");
@@ -7171,12 +7297,12 @@ async function createWechatJsapiPayment({ intent, openId, description, config = 
     notify_url: config.notifyUrl,
     amount: { total: intent.amountCents, currency: "CNY" },
     payer: { openid: openId }
-  });
+  }, config);
   const prepayId = String(payload.prepay_id || "").trim();
   if (!prepayId) throw createHttpError(502, "微信支付未返回预支付标识。", "支付创建失败，请重试。");
   const nonceStr = randomUUID().replace(/-/g, "");
   const timeStamp = String(Math.floor(Date.now() / 1000));
-  const paySign = signJsapiPayParams({ appId: config.appId, timeStamp, nonceStr, prepayId });
+  const paySign = signJsapiPayParams({ appId: config.appId, timeStamp, nonceStr, prepayId, config });
   commerceStore.markPaymentPrepared(intent.id, {
     channel: "wechat_jsapi",
     eventId: prepayId,
@@ -7207,7 +7333,7 @@ async function createWechatNativePayment({ intent, description, config = assertW
     time_expire: intent.expiresAt || undefined,
     notify_url: config.notifyUrl,
     amount: { total: intent.amountCents, currency: "CNY" }
-  });
+  }, config);
   const codeUrl = String(payload.code_url || "").trim();
   if (!codeUrl) throw createHttpError(502, "微信支付未返回扫码支付地址。", "支付创建失败，请重试。");
   commerceStore.markPaymentPrepared(intent.id, {

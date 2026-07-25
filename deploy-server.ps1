@@ -41,6 +41,7 @@ if (Test-Path $archivePath) {
 $tarArgs = @(
   "-czf", $archivePath,
   "--exclude=.git",
+  "--exclude=.env",
   "--exclude=node_modules",
   "--exclude=dist",
   "--exclude=public/generated-images",

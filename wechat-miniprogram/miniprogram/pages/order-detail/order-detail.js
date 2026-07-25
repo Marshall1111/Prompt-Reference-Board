@@ -9,6 +9,7 @@ Page({
     order: null,
     orderConfig: null,
     isLoading: true,
+    isPaying: false,
     errorMessage: ""
   },
 
@@ -42,7 +43,7 @@ Page({
         throw new Error("订单不存在或已无法访问。");
       }
       self.setData({
-        order: normalizeOrder(payload.order),
+        order: normalizeOrder(payload.order, payload.config || null),
         orderConfig: payload.config || null,
         errorMessage: ""
       });
@@ -106,16 +107,35 @@ Page({
         });
       }
     });
+  },
+
+  payOrder: function () {
+    var self = this;
+    var order = this.data.order;
+    if (!order || !order.canPay || this.data.isPaying) return;
+    this.setData({ isPaying: true, errorMessage: "" });
+    publicExperience.payOrder(order.id).then(function (payload) {
+      return requestMiniProgramPayment(payload && payload.payment);
+    }).then(function () {
+      wx.showToast({ title: "支付已提交", icon: "success" });
+      return self.loadOrder();
+    }).catch(function (error) {
+      self.setData({ errorMessage: (error && error.message) || "支付未完成，请稍后重试。" });
+    }).finally(function () {
+      self.setData({ isPaying: false });
+    });
   }
 });
 
-function normalizeOrder(order) {
+function normalizeOrder(order, orderConfig) {
   return {
     id: order.id,
     orderNo: order.orderNo,
     orderStatus: order.orderStatus,
     statusText: order.orderStatus === "pending_payment" && order.lastPaymentChannel === "manual_collection" ? "待确认收款" : format.orderStatusLabel(order.orderStatus),
     statusClass: order.orderStatus,
+    experienceLabel: order.experienceType === "draw-card" ? "Draw card order" : "Fridge magnet order",
+    experienceText: order.experienceType === "draw-card" ? "抽卡定制" : "冰箱贴定制",
     itemCount: order.itemCount,
     totalText: format.formatCurrencyCents(order.totalCents),
     subtotalText: format.formatCurrencyCents(order.subtotalCents),
@@ -127,6 +147,7 @@ function normalizeOrder(order) {
     createdAtText: format.formatDateTime(order.createdAt),
     expiresAtText: format.formatDateTime(order.expiresAt),
     canCancel: order.orderStatus === "pending_payment",
+    canPay: order.orderStatus === "pending_payment" && String(orderConfig && orderConfig.paymentMode || "").toLowerCase() !== "manual",
     items: (order.items || []).map(function (item) {
       return {
         jobId: item.jobId,
@@ -137,4 +158,32 @@ function normalizeOrder(order) {
       };
     })
   };
+}
+
+function requestMiniProgramPayment(payment) {
+  if (!payment || payment.status === "already_paid") return Promise.resolve();
+  if (payment.channel === "manual_collection") {
+    return Promise.reject(new Error("当前订单需等待人工确认收款。"));
+  }
+  var jsapi = payment.jsapi || {};
+  if (payment.channel !== "wechat_jsapi" || !jsapi.timeStamp || !jsapi.nonceStr || !jsapi.package || !jsapi.paySign) {
+    return Promise.reject(new Error("微信支付参数准备失败，请稍后重试。"));
+  }
+  return new Promise(function (resolve, reject) {
+    wx.requestPayment({
+      timeStamp: String(jsapi.timeStamp),
+      nonceStr: String(jsapi.nonceStr),
+      package: String(jsapi.package),
+      signType: String(jsapi.signType || "RSA"),
+      paySign: String(jsapi.paySign),
+      success: resolve,
+      fail: function (error) {
+        if (String(error && error.errMsg || "").indexOf("cancel") !== -1) {
+          reject(new Error("已取消支付。"));
+          return;
+        }
+        reject(new Error("微信支付未完成，请稍后重试。"));
+      }
+    });
+  });
 }

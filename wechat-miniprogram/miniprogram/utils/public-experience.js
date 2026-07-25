@@ -38,6 +38,14 @@ function fetchVisitorState() {
   return publicApi.request({ path: "/api/visitor-state" });
 }
 
+function ensureMiniProgramLogin(inviteToken) {
+  return publicApi.ensureMiniProgramLogin(inviteToken);
+}
+
+function createReferralLink() {
+  return publicApi.createReferralLink("draw-card");
+}
+
 function fetchDrawCardStyles() {
   return publicApi.request({ path: "/api/public/draw-card-styles" }).then(function (payload) {
     return (payload.styles || []).map(normalizeStyle);
@@ -156,8 +164,74 @@ function createOrder(payload) {
   });
 }
 
-function fetchMyOrders() {
-  return publicApi.request({ path: "/api/my/orders" });
+function payOrder(orderId) {
+  return publicApi.request({
+    path: "/api/orders/" + encodeURIComponent(orderId) + "/pay",
+    method: "POST",
+    header: {
+      "Content-Type": "application/json"
+    },
+    data: {}
+  });
+}
+
+function createCoinPurchase(coinCount) {
+  return publicApi.request({
+    path: "/api/coin-purchases",
+    method: "POST",
+    header: {
+      "Content-Type": "application/json"
+    },
+    data: { coinCount: Number(coinCount || 0) }
+  });
+}
+
+function payCoinPurchase(purchaseId) {
+  return publicApi.request({
+    path: "/api/coin-purchases/" + encodeURIComponent(purchaseId) + "/pay",
+    method: "POST",
+    header: {
+      "Content-Type": "application/json"
+    },
+    data: {}
+  });
+}
+
+function fetchMyOrders(scope) {
+  var query = String(scope || "").trim();
+  return publicApi.request({ path: "/api/my/orders" + (query ? "?scope=" + encodeURIComponent(query) : "") });
+}
+
+function fetchCoinPurchases() {
+  return publicApi.request({ path: "/api/coin-purchases" });
+}
+
+function loginWithEmail(email, password) {
+  return publicApi.loginWithEmail(email, password);
+}
+
+function registerWithEmail(payload) {
+  return publicApi.registerWithEmail(payload);
+}
+
+function requestEmailCode(email, purpose) {
+  return publicApi.requestEmailCode(email, purpose);
+}
+
+function resetPasswordWithEmail(payload) {
+  return publicApi.resetPasswordWithEmail(payload);
+}
+
+function logout() {
+  return publicApi.logout();
+}
+
+function initializeGuestAccount() {
+  return publicApi.initializeGuestAccount();
+}
+
+function loginWithMiniProgram(inviteToken) {
+  return publicApi.loginWithMiniProgram(inviteToken);
 }
 
 function fetchOrder(orderId, token) {
@@ -280,11 +354,15 @@ function isTerminalStatus(status) {
 
 module.exports = {
   clearSessionId: clearSessionId,
+  createCoinPurchase: createCoinPurchase,
   createOrder: createOrder,
+  createReferralLink: createReferralLink,
   createSession: createSession,
   deleteOrder: deleteOrder,
   downloadClipOriginal: downloadClipOriginal,
+  ensureMiniProgramLogin: ensureMiniProgramLogin,
   fetchClipItems: fetchClipItems,
+  fetchCoinPurchases: fetchCoinPurchases,
   fetchDrawCardStyles: fetchDrawCardStyles,
   fetchLatestSession: fetchLatestSession,
   fetchMyOrders: fetchMyOrders,
@@ -293,10 +371,19 @@ module.exports = {
   fetchSession: fetchSession,
   fetchVisitorState: fetchVisitorState,
   isTerminalStatus: isTerminalStatus,
+  initializeGuestAccount: initializeGuestAccount,
   likeJob: likeJob,
+  loginWithEmail: loginWithEmail,
+  loginWithMiniProgram: loginWithMiniProgram,
+  logout: logout,
+  payCoinPurchase: payCoinPurchase,
+  payOrder: payOrder,
   readLatestManualOrder: readLatestManualOrder,
   readSessionId: readSessionId,
   redeemInviteCode: redeemInviteCode,
+  registerWithEmail: registerWithEmail,
+  requestEmailCode: requestEmailCode,
+  resetPasswordWithEmail: resetPasswordWithEmail,
   saveSessionId: saveSessionId,
   unlikeJob: unlikeJob
 };

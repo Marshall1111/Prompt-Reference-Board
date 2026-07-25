@@ -624,11 +624,11 @@ export function createCommerceStore({ dbPath }) {
     });
   }
 
-  function captureReferral({ token, inviteeAccountId }) {
+  function captureReferral({ token, inviteeAccountId, allowRegistered = false }) {
     const safeToken = String(token || "").trim();
     return withTransaction(db, () => {
       const invitee = readAccount(inviteeAccountId);
-      if (!safeToken || !invitee || invitee.isRegistered) return { captured: false, reason: "ineligible" };
+      if (!safeToken || !invitee || (invitee.isRegistered && !allowRegistered)) return { captured: false, reason: "ineligible" };
       const existing = readReferralByInviteeStatement.get(invitee.id);
       if (existing) return { captured: false, reason: "already_bound" };
       const link = readReferralLinkByShortCodeStatement.get(safeToken) || readReferralLinkByTokenStatement.get(safeToken);
@@ -639,8 +639,8 @@ export function createCommerceStore({ dbPath }) {
       db.prepare(`
         INSERT INTO commerce_referrals (
           invitee_account_id, referrer_account_id, referral_token, captured_at, registered_at, rewarded_payment_intent_id, rewarded_at
-        ) VALUES (?, ?, ?, ?, NULL, NULL, NULL)
-      `).run(invitee.id, referrer.id, String(link.token), now);
+        ) VALUES (?, ?, ?, ?, ?, NULL, NULL)
+      `).run(invitee.id, referrer.id, String(link.token), now, invitee.isRegistered ? now : null);
       return { captured: true, reason: "captured" };
     });
   }

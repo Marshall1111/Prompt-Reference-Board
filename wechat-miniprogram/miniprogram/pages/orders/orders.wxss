@@ -1,172 +1,222 @@
-.page {
+.orders-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f8f2e8 0%, #eef5f0 100%);
-  color: #1f2b2b;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(197, 162, 117, 0.18), transparent 34%),
+    linear-gradient(180deg, #0f1012 0%, #17181c 44%, #111214 100%);
+  color: #f3ede1;
 }
 
 .content {
-  padding: 28rpx 22rpx 42rpx;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 900rpx;
+  margin: 0 auto;
+  padding: 42rpx 22rpx 64rpx;
 }
 
-.header {
+.orders-header {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 18rpx;
 }
 
 .kicker {
-  display: block;
-  color: #8b6c3e;
+  color: #c6a26d;
   font-size: 22rpx;
-  font-weight: 800;
+  font-weight: 900;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
 .title {
   display: block;
   margin-top: 8rpx;
-  color: #24504a;
-  font-size: 50rpx;
+  color: #faf5eb;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 68rpx;
   font-weight: 900;
-  line-height: 1.1;
+  letter-spacing: -0.04em;
+  line-height: 1;
 }
 
-.notice {
-  margin-top: 24rpx;
-  padding: 22rpx;
+.subtitle {
+  display: block;
+  margin-top: 22rpx;
+  color: rgba(235, 227, 214, 0.82);
+  font-size: 28rpx;
+  line-height: 1.65;
+}
+
+.orders-home-button,
+.order-detail-button,
+.order-cancel-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  margin: 0;
+  border: 2rpx solid rgba(239, 225, 198, 0.22);
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.04);
+  color: #f3ede1;
+  font-size: 25rpx;
+  font-weight: 900;
+}
+
+.orders-home-button::after,
+.order-detail-button::after,
+.order-cancel-button::after {
+  border: 0;
+}
+
+.orders-home-button {
+  min-height: 82rpx;
+  margin-top: 38rpx;
+  padding: 0 28rpx;
+  font-size: 28rpx;
+}
+
+.orders-note {
+  margin-top: 38rpx;
+  padding: 24rpx;
+  border: 2rpx solid rgba(239, 225, 198, 0.12);
   border-radius: 20rpx;
-  background: #fffaf0;
-  color: #5f726d;
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(243, 237, 225, 0.76);
   font-size: 26rpx;
   line-height: 1.6;
 }
 
-.notice.error {
-  background: #fff1ef;
-  color: #9f2418;
+.orders-note.error {
+  border-color: rgba(230, 132, 122, 0.36);
+  color: #ffc8c0;
 }
 
 .order-list {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
-  margin-top: 24rpx;
+  gap: 18rpx;
+  margin-top: 38rpx;
 }
 
 .order-card {
-  display: grid;
-  grid-template-columns: 150rpx minmax(0, 1fr);
-  gap: 16rpx;
-  padding: 16rpx;
-  border: 2rpx solid #d9e3dc;
-  border-radius: 22rpx;
-  background: rgba(255, 253, 247, 0.96);
-  box-shadow: 0 16rpx 42rpx rgba(31, 43, 43, 0.08);
+  padding: 22rpx;
+  border: 2rpx solid rgba(239, 225, 198, 0.16);
+  border-radius: 28rpx;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    rgba(18, 19, 22, 0.78);
+  box-shadow: 0 22rpx 60rpx rgba(0, 0, 0, 0.22);
+}
+
+.order-card-open {
+  display: flex;
+  gap: 20rpx;
+  align-items: flex-start;
 }
 
 .order-cover {
-  width: 150rpx;
-  height: 150rpx;
-  border-radius: 18rpx;
-  background: #e3f0ea;
+  flex: 0 0 auto;
+  width: 138rpx;
+  height: 138rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.order-cover.empty {
+.order-cover.empty,
+.coin-purchase-cover {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #5f726d;
-  font-size: 24rpx;
+  color: #f3ede1;
+  font-size: 25rpx;
   font-weight: 900;
-  text-align: center;
 }
 
-.order-body {
-  min-width: 0;
+.coin-purchase-cover {
+  background: linear-gradient(135deg, #f0d5a0, #b98749);
+  color: #171719;
+  font-size: 46rpx;
 }
 
-.order-head {
+.order-summary {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12rpx;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  padding-top: 4rpx;
+}
+
+.order-price {
+  color: #ffe0a3;
+  font-size: 40rpx;
+  font-weight: 900;
+  line-height: 1.1;
 }
 
 .order-no {
+  display: block;
+  margin-top: 10rpx;
   overflow: hidden;
-  color: #24504a;
-  font-size: 27rpx;
-  font-weight: 900;
+  color: rgba(243, 237, 225, 0.65);
+  font-size: 23rpx;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .status {
-  flex: 0 0 auto;
-  min-height: 44rpx;
+  align-self: flex-start;
+  min-height: 46rpx;
+  margin-top: 12rpx;
   padding: 0 14rpx;
-  border-radius: 999rpx;
-  background: #e3f0ea;
-  color: #24504a;
-  font-size: 22rpx;
+  border-radius: 12rpx;
+  background: #e1f3c7;
+  color: #2c6c2c;
+  font-size: 23rpx;
   font-weight: 900;
-  line-height: 44rpx;
+  line-height: 46rpx;
 }
 
 .status.pending_payment {
-  background: #fff1d8;
-  color: #9a5b1f;
+  background: #fff0ca;
+  color: #99631c;
 }
 
 .status.cancelled,
 .status.expired {
-  background: #fff1ef;
-  color: #9f2418;
+  background: #f7d8d3;
+  color: #9f302b;
 }
 
-.meta {
-  display: block;
-  margin-top: 8rpx;
-  color: #5f726d;
-  font-size: 24rpx;
-  line-height: 1.5;
-}
-
-.actions {
+.order-actions {
   display: flex;
-  gap: 10rpx;
-  margin-top: 14rpx;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 22rpx;
 }
 
-.primary-button,
-.secondary-button,
-.danger-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.order-detail-button,
+.order-cancel-button {
   min-height: 70rpx;
-  padding: 0 18rpx;
-  border-radius: 999rpx;
-  font-size: 24rpx;
-  font-weight: 900;
+  padding: 0 22rpx;
 }
 
-.primary-button {
-  flex: 1;
-  background: #b45309;
-  color: #fffaf0;
+.order-cancel-button {
+  border-color: rgba(239, 142, 132, 0.4);
+  color: #ffc2ba;
 }
 
-.secondary-button {
-  min-width: 150rpx;
-  border: 2rpx solid #d5dfd8;
-  background: #fffaf0;
-  color: #24504a;
+.coin-purchase-card {
+  position: relative;
 }
 
-.danger-button {
-  flex: 1;
-  background: #fff1ef;
-  color: #9f2418;
+.coin-purchase-amount {
+  position: absolute;
+  right: 24rpx;
+  bottom: 24rpx;
+  color: rgba(243, 237, 225, 0.72);
+  font-size: 25rpx;
+  font-weight: 800;
 }

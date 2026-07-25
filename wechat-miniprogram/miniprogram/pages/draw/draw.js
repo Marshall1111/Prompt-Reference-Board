@@ -4,7 +4,7 @@ Page(experiencePage.createExperiencePage({
   experienceType: "draw-card",
   themeClass: "theme-draw",
   title: "AI小画家",
-  subtitle: "上传照片，一键制作 AI 小画。随机抽卡或自选喜欢的风格，生成后把想保留的结果收进卡夹。",
+  subtitle: "上传照片，一键制作AI小画冰箱贴",
   startButtonText: "我要抽卡",
   clipTitle: "卡夹",
   clipEmptyText: "挑中想保留的结果后，它会被收进这里。",

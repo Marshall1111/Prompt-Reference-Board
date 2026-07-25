@@ -5,6 +5,7 @@ const format = require("../../utils/format");
 Page({
   data: {
     orders: [],
+    listItems: [],
     orderConfig: null,
     isLoading: true,
     errorMessage: ""
@@ -23,9 +24,19 @@ Page({
   loadOrders: function () {
     var self = this;
     this.setData({ isLoading: true });
-    return publicExperience.fetchMyOrders().then(function (payload) {
+    return Promise.all([
+      publicExperience.fetchMyOrders("fridge"),
+      publicExperience.fetchCoinPurchases()
+    ]).then(function (results) {
+      var payload = results[0] || {};
+      var purchasePayload = results[1] || {};
+      var orders = (payload.orders || []).map(normalizeOrder);
+      var purchases = (purchasePayload.purchases || []).map(normalizeCoinPurchase);
       self.setData({
-        orders: (payload.orders || []).map(normalizeOrder),
+        orders: orders,
+        listItems: orders.concat(purchases).sort(function (left, right) {
+          return Date.parse(String(right.createdAt || "")) - Date.parse(String(left.createdAt || ""));
+        }),
         orderConfig: payload.config || null,
         errorMessage: ""
       });
@@ -71,7 +82,11 @@ Page({
   },
 
   goFridge: function () {
-    wx.navigateTo({ url: "/pages/fridge/fridge" });
+    if (getCurrentPages().length > 1) {
+      wx.navigateBack();
+      return;
+    }
+    wx.reLaunch({ url: "/pages/draw/draw" });
   }
 });
 
@@ -86,11 +101,41 @@ function normalizeOrder(order) {
     orderStatus: order.orderStatus,
     statusText: order.orderStatus === "pending_payment" && order.lastPaymentChannel === "manual_collection" ? "待确认收款" : format.orderStatusLabel(order.orderStatus),
     statusClass: order.orderStatus,
+    experienceText: order.experienceType === "draw-card" ? "抽卡定制" : "冰箱贴定制",
     itemCount: order.itemCount,
     totalText: format.formatCurrencyCents(order.totalCents),
     createdAtText: format.formatDateTime(order.createdAt),
+    createdAt: order.createdAt,
     expiresAtText: format.formatDateTime(order.expiresAt),
     imageUrl: imageUrl,
-    canCancel: canCancel
+    canCancel: canCancel,
+    type: "order",
+    key: "order:" + order.id
+  };
+}
+
+function normalizeCoinPurchase(purchase) {
+  var status = getCoinPurchaseStatus(purchase);
+  return {
+    id: purchase.id,
+    key: "coin-purchase:" + purchase.id,
+    type: "coin_purchase",
+    coinCount: Math.max(0, Number(purchase.coinCount || 0)),
+    amountText: format.formatCurrencyCents(purchase.amountCents),
+    purchaseNo: String(purchase.purchaseNo || "--"),
+    statusText: status.label,
+    statusClass: status.className,
+    createdAt: purchase.createdAt
+  };
+}
+
+function getCoinPurchaseStatus(purchase) {
+  if (purchase && purchase.status === "paid") return { label: "已支付", className: "paid" };
+  if (purchase && (purchase.status === "cancelled" || (purchase.expiresAt && Date.parse(purchase.expiresAt) <= Date.now()))) {
+    return { label: "已过期", className: "cancelled" };
+  }
+  return {
+    label: purchase && purchase.channel === "manual_collection" ? "待确认收款" : "待付款",
+    className: "pending_payment"
   };
 }

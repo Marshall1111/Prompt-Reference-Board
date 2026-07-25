@@ -1,6 +1,8 @@
 const env = require("../env");
 
 const VISITOR_COOKIE_NAME = "pg_visitor";
+const WEB_ACCOUNT_COOKIE_NAME = "pg_web_account";
+const USER_SESSION_COOKIE_NAME = "pg_user_session";
 const COOKIE_STORAGE_KEY = "petpaint.public.cookie";
 const UPLOAD_TOO_LARGE_MESSAGE = "图片太大，服务器拒绝了本次上传。请换一张较小的图片，或把服务器 Nginx 的 client_max_body_size 调大后重试。";
 
@@ -52,6 +54,7 @@ function mergeHeaders(headers) {
   var next = headers ? Object.assign({}, headers) : {};
   var cookie = getRequestCookieHeader();
   if (cookie) next.Cookie = cookie;
+  next["X-PetPaint-Client"] = "miniprogram";
   return next;
 }
 
@@ -83,11 +86,17 @@ function persistResponseCookie(headers, cookies) {
   }
 
   cookieText = cookieParts.join(",");
-  match = cookieText.match(/pg_visitor=([^;,\s]+)/);
+  [VISITOR_COOKIE_NAME, WEB_ACCOUNT_COOKIE_NAME, USER_SESSION_COOKIE_NAME].forEach(function (name) {
+    match = cookieText.match(new RegExp("(?:^|[,;\\s])" + name + "=([^;,\\s]*)"));
+    if (match) setCookieValue(name, match[1]);
+  });
+}
 
-  if (match && match[1]) {
-    setStoredCookie(VISITOR_COOKIE_NAME + "=" + match[1]);
-  }
+function setCookieValue(name, value) {
+  var current = getRequestCookieHeader().split(";").map(function (item) { return item.trim(); }).filter(Boolean);
+  var next = current.filter(function (item) { return item.indexOf(name + "=") !== 0; });
+  if (value) next.push(name + "=" + value);
+  setStoredCookie(next.join("; "));
 }
 
 function safeParseJson(data) {
@@ -191,6 +200,107 @@ function downloadFile(url) {
   });
 }
 
+function loginWithMiniProgram(inviteToken) {
+  if (!wx.login) return Promise.reject(new Error("当前微信版本不支持小程序登录。"));
+  return new Promise(function (resolve, reject) {
+    wx.login({
+      success: function (result) {
+        var code = String(result && result.code || "");
+        if (!code) {
+          reject(new Error("微信登录失败，请重试。"));
+          return;
+        }
+        request({
+          path: "/api/auth/miniprogram/login",
+          method: "POST",
+          header: { "Content-Type": "application/json" },
+          data: {
+            code: code,
+            invite: String(inviteToken || "").trim()
+          }
+        }).then(resolve, reject);
+      },
+      fail: function () {
+        reject(new Error("微信登录失败，请重试。"));
+      }
+    });
+  });
+}
+
+function requestEmailCode(email, purpose) {
+  return request({
+    path: "/api/auth/email-code",
+    method: "POST",
+    header: { "Content-Type": "application/json" },
+    data: { email: String(email || "").trim(), purpose: String(purpose || "register") }
+  });
+}
+
+function loginWithEmail(email, password) {
+  return request({
+    path: "/api/auth/login",
+    method: "POST",
+    header: { "Content-Type": "application/json" },
+    data: { email: String(email || "").trim(), password: String(password || "") }
+  });
+}
+
+function registerWithEmail(payload) {
+  var data = payload || {};
+  return request({
+    path: "/api/auth/register",
+    method: "POST",
+    header: { "Content-Type": "application/json" },
+    data: {
+      email: String(data.email || "").trim(),
+      username: String(data.username || "").trim(),
+      password: String(data.password || ""),
+      code: String(data.code || "").trim()
+    }
+  });
+}
+
+function resetPasswordWithEmail(payload) {
+  var data = payload || {};
+  return request({
+    path: "/api/auth/password-reset",
+    method: "POST",
+    header: { "Content-Type": "application/json" },
+    data: {
+      email: String(data.email || "").trim(),
+      password: String(data.password || ""),
+      code: String(data.code || "").trim()
+    }
+  });
+}
+
+function createReferralLink(target) {
+  return request({
+    path: "/api/referrals/link",
+    method: "POST",
+    header: { "Content-Type": "application/json" },
+    data: { target: String(target || "draw-card") }
+  });
+}
+
+function logout() {
+  return request({ path: "/api/auth/logout", method: "POST" }).finally(function () {
+    setCookieValue(WEB_ACCOUNT_COOKIE_NAME, "");
+    setCookieValue(USER_SESSION_COOKIE_NAME, "");
+  });
+}
+
+function initializeGuestAccount() {
+  return request({ path: "/api/account" });
+}
+
+function ensureMiniProgramLogin(inviteToken) {
+  return request({ path: "/api/account" }).then(function (state) {
+    if (state && state.authenticated) return state;
+    return loginWithMiniProgram(inviteToken);
+  });
+}
+
 function formatNetworkError(error, apiName, url) {
   var message = String((error && error.errMsg) || "");
   var baseUrl = getApiBaseUrl();
@@ -208,10 +318,19 @@ function createTraceId(prefix) {
 
 module.exports = {
   buildUrl: buildUrl,
+  createReferralLink: createReferralLink,
   createTraceId: createTraceId,
   downloadFile: downloadFile,
+  ensureMiniProgramLogin: ensureMiniProgramLogin,
   getApiBaseUrl: getApiBaseUrl,
+  initializeGuestAccount: initializeGuestAccount,
+  loginWithEmail: loginWithEmail,
+  loginWithMiniProgram: loginWithMiniProgram,
+  logout: logout,
+  registerWithEmail: registerWithEmail,
+  requestEmailCode: requestEmailCode,
   request: request,
+  resetPasswordWithEmail: resetPasswordWithEmail,
   toAbsoluteUrl: toAbsoluteUrl,
   uploadFile: uploadFile
 };

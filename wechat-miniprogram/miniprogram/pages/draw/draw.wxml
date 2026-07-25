@@ -1,4 +1,4 @@
-<view class="page {{themeClass}}">
+<view class="page {{themeClass}} {{isDrawCard ? 'web-draw-page' : ''}}">
   <view class="content">
     <view class="utility-row" wx:if="{{showOtherEntry}}">
       <button bindtap="openOtherPage" class="utility-button">{{otherPageLabel}}</button>
@@ -6,9 +6,22 @@
 
     <view class="hero">
       <text class="kicker" wx:if="{{titleKicker}}">{{titleKicker}}</text>
-      <image class="draw-card-handwritten-title" mode="widthFix" src="./title-ai-artist-handwritten.png" wx:if="{{isDrawCard}}" />
+      <image class="draw-card-handwritten-title" mode="widthFix" src="https://www.petpaint.top/ui/ai-artist-title.png" wx:if="{{isDrawCard}}" />
       <text class="title" wx:else>{{title}}</text>
       <text class="subtitle">{{subtitle}}</text>
+      <view class="draw-utility-bar" wx:if="{{isDrawCard}}">
+        <button bindtap="openCoinInfo" class="draw-utility-coin"><text>余额</text><text class="draw-utility-coin-number">{{visitorState && visitorState.account ? visitorState.account.coinBalance : '--'}}</text><text>币</text></button>
+        <view class="draw-user-area">
+          <view bindtap="toggleAccountMenu" class="draw-account-button {{isAccountRegistered ? 'is-signed-in' : 'is-guest'}}" role="button">
+            <image class="draw-account-avatar" mode="aspectFill" src="{{accountAvatarUrl}}" wx:if="{{isAccountRegistered && accountAvatarUrl}}" />
+            <text wx:else>{{accountDisplayInitial}}</text>
+          </view>
+          <view class="draw-user-menu" wx:if="{{showUserMenu}}">
+            <button bindtap="openOrdersFromUserMenu" class="draw-user-menu-button">我的订单</button>
+            <button bindtap="logoutAccount" class="draw-user-menu-button" disabled="{{isLoggingOut}}">{{isLoggingOut ? '正在退出' : '退出登录'}}</button>
+          </view>
+        </view>
+      </view>
     </view>
 
     <view class="main-layout">
@@ -23,13 +36,15 @@
             </view>
           </view>
 
-          <view class="action-row">
-            <button bindtap="startDefault" class="primary-button" disabled="{{isSubmitting}}">
-              {{isSubmitting ? '任务启动中' : startButtonText}}
+          <view class="action-row {{isDrawCard ? 'draw-home-actions' : ''}}">
+            <button bindtap="openStylePicker" class="secondary-button" disabled="{{isSubmitting}}" wx:if="{{isDrawCard}}">选择风格</button>
+            <button bindtap="startDefault" class="primary-button draw-random-button" disabled="{{isSubmitting}}">
+              {{isSubmitting ? '任务启动中' : (isDrawCard ? '随机抽卡' : startButtonText)}}
             </button>
-            <button bindtap="openStylePicker" class="secondary-button" disabled="{{isSubmitting}}" wx:if="{{isDrawCard}}">自选风格</button>
-            <button bindtap="clearImage" class="secondary-button" disabled="{{!referencePreviewUrl || isSubmitting}}">换张图片</button>
+            <button bindtap="openLatestSession" class="secondary-button" disabled="{{isSubmitting}}" wx:if="{{isDrawCard}}">最近生成</button>
+            <button bindtap="clearImage" class="secondary-button" disabled="{{!referencePreviewUrl || isSubmitting}}" wx:if="{{!isDrawCard}}">换张图片</button>
           </view>
+          <button bindtap="clearImage" class="draw-change-photo" disabled="{{!referencePreviewUrl || isSubmitting}}" wx:if="{{isDrawCard && referencePreviewUrl}}">换照片</button>
         </view>
 
         <view class="notice error" wx:if="{{errorMessage}}">{{errorMessage}}</view>
@@ -63,13 +78,24 @@
       <view class="clip-panel">
         <view class="clip-head">
           <view>
-            <text class="kicker">Collection</text>
+            <text class="kicker">{{isDrawCard ? 'CARD CLIP' : 'Collection'}}</text>
             <text class="clip-title">{{clipTitle}}</text>
           </view>
           <text class="clip-count">{{clipItems.length}}</text>
         </view>
 
-        <view class="clip-list" wx:if="{{clipItems.length}}">
+        <scroll-view class="draw-card-clip-strip" scroll-x="true" show-scrollbar="false" wx:if="{{isDrawCard && clipItems.length}}">
+          <view wx:for="{{clipItems}}" wx:key="jobId" bindtap="previewClip" class="draw-card-clip-thumbnail" data-url="{{item.imageUrl || item.thumbnailUrl}}">
+            <image class="draw-card-clip-image" mode="aspectFill" src="{{item.thumbnailUrl || item.imageUrl}}" />
+            <view class="draw-card-acrylic-shine"></view>
+            <view class="magnet-corner top-left"></view>
+            <view class="magnet-corner top-right"></view>
+            <view class="magnet-corner bottom-left"></view>
+            <view class="magnet-corner bottom-right"></view>
+          </view>
+        </scroll-view>
+
+        <view class="clip-list" wx:if="{{!isDrawCard && clipItems.length}}">
           <view wx:for="{{clipItems}}" wx:key="jobId" class="clip-item">
             <view bindtap="previewClip" class="clip-magnet-frame" data-url="{{item.imageUrl || item.thumbnailUrl}}">
               <image class="clip-image" mode="aspectFill" src="{{item.thumbnailUrl || item.imageUrl}}" />
@@ -81,20 +107,36 @@
             <view class="clip-meta">
               <text>{{item.styleName || clipItemFallback}}</text>
               <view class="clip-item-actions">
-                <button bindtap="downloadClipOriginal" class="mini-primary" data-jobid="{{item.jobId}}">{{item.originalRedeemed ? '下载原图' : (visitorState && visitorState.account && visitorState.account.canRedeemOriginalDownloads ? '1点兑换原图' : '下单后兑换')}}</button>
+                <button bindtap="downloadClipOriginal" class="mini-primary" data-jobid="{{item.jobId}}">{{visitorState && visitorState.account && visitorState.account.canRedeemOriginalDownloads ? '下载原图' : '解锁后下载'}}</button>
                 <button bindtap="removeFromClip" class="mini-danger" data-jobid="{{item.jobId}}">{{pocketRemoveLabel}}</button>
               </view>
             </view>
           </view>
         </view>
-        <view class="clip-empty" wx:else>{{clipEmptyText}}</view>
+        <view class="clip-empty" wx:if="{{!clipItems.length}}">{{clipEmptyText}}</view>
 
-        <view class="account-panel">
-          <text>剩余点数：{{visitorState ? visitorState.quotaRemaining : '--'}}</text>
+        <view class="draw-card-clip-order-row" wx:if="{{isDrawCard}}">
+          <button bindtap="openOrderModal" class="draw-card-clip-order" disabled="{{!clipItems.length || !orderConfig || !orderConfig.enabled}}">
+            <text>✦</text>
+            <text>{{orderConfig && orderConfig.enabled ? '选图定制' : '定制暂未开放'}}</text>
+          </button>
+          <text class="draw-card-clip-order-price">冰箱贴 {{orderUnitPriceText}} / 枚</text>
+        </view>
+
+        <view class="account-panel" wx:if="{{!isDrawCard}}">
+          <view class="account-summary">
+            <text class="account-name">{{visitorState && visitorState.account ? visitorState.account.username : '微信用户'}}</text>
+            <text class="account-access">{{visitorState && visitorState.account && visitorState.account.canRedeemOriginalDownloads ? '已解锁账户下全部原图下载' : '购买币累计满 20 元或完成定制订单可解锁原图下载'}}</text>
+          </view>
+          <text>账户币：{{visitorState && visitorState.account ? visitorState.account.coinBalance : '--'}}</text>
           <input bindinput="onInviteInput" class="inline-input" placeholder="输入邀请码" value="{{inviteCode}}" />
           <view class="clip-actions">
+            <button bindtap="openCoinPurchase" class="secondary-button" wx:if="{{isDrawCard}}">购买币</button>
+            <button bindtap="openOrderModal" class="primary-button" disabled="{{!clipItems.length || !orderConfig || !orderConfig.enabled}}" wx:if="{{isDrawCard}}">选图定制</button>
+            <button bindtap="openOrders" class="secondary-button" wx:if="{{isDrawCard}}">我的订单</button>
             <button bindtap="redeemInvite" class="secondary-button">兑换邀请码</button>
             <button bindtap="copyContact" class="secondary-button">联系客服</button>
+            <button bindtap="toggleAccountMenu" class="secondary-button">{{isAccountRegistered ? '账号菜单' : '登录 / 注册'}}</button>
           </view>
           <button bindtap="openOrderModal" class="primary-button order-entry" disabled="{{!clipItems.length || !orderConfig || !orderConfig.enabled}}" wx:if="{{isFridge}}">
             {{orderConfig && orderConfig.enabled ? '提交订单' : '下单未开放'}}
@@ -105,6 +147,8 @@
       </view>
     </view>
   </view>
+
+  <view bindtap="closeUserMenu" class="draw-user-menu-dismiss" wx:if="{{showUserMenu}}"></view>
 
   <view class="modal-mask" wx:if="{{showDrawConfig}}">
     <view class="modal-card">
@@ -197,6 +241,61 @@
         <button bindtap="viewManualOrder" class="primary-button">查看订单详情</button>
         <button bindtap="closeManualPayment" class="secondary-button">我知道了</button>
       </view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showAccountModal}}">
+    <view class="modal-card large account-modal">
+      <text class="modal-title">账号登录</text>
+      <text class="modal-note">可使用微信账号或已有邮箱账户登录；邮箱注册后可在网页和小程序使用同一邮箱账户。小程序内微信支付需切换为微信登录。</text>
+
+      <view class="auth-tabs">
+        <button bindtap="setAuthMode" class="auth-tab {{authMode === 'login' ? 'active' : ''}}" data-mode="login">邮箱登录</button>
+        <button bindtap="setAuthMode" class="auth-tab {{authMode === 'register' ? 'active' : ''}}" data-mode="register">邮箱注册</button>
+        <button bindtap="setAuthMode" class="auth-tab {{authMode === 'reset' ? 'active' : ''}}" data-mode="reset">找回密码</button>
+      </view>
+
+      <view class="form-grid auth-form">
+        <input bindinput="onAuthFieldInput" class="form-input full" data-field="email" placeholder="邮箱" type="text" value="{{authForm.email}}" />
+        <input bindinput="onAuthFieldInput" class="form-input full" data-field="username" placeholder="用户名（2–32 个字符）" wx:if="{{authMode === 'register'}}" value="{{authForm.username}}" />
+        <input bindinput="onAuthFieldInput" class="form-input full" data-field="password" password placeholder="{{authMode === 'reset' ? '新密码（至少 8 位）' : '密码（至少 8 位）'}}" value="{{authForm.password}}" />
+        <view class="auth-code-row" wx:if="{{authMode !== 'login'}}">
+          <input bindinput="onAuthFieldInput" class="form-input" data-field="code" maxlength="6" placeholder="邮箱验证码" value="{{authForm.code}}" />
+          <button bindtap="sendAuthCode" class="secondary-button" disabled="{{authBusy}}">获取验证码</button>
+        </view>
+      </view>
+
+      <view class="notice error" wx:if="{{authError}}">{{authError}}</view>
+      <view class="notice success" wx:if="{{authMessage}}">{{authMessage}}</view>
+      <view class="modal-actions vertical">
+        <button bindtap="submitEmailAuth" class="primary-button" loading="{{authBusy}}" disabled="{{authBusy}}">{{authMode === 'login' ? '邮箱登录' : (authMode === 'register' ? '注册邮箱账户' : '更新密码')}}</button>
+        <button bindtap="loginWithWechat" class="secondary-button" disabled="{{authBusy}}">微信登录</button>
+        <button bindtap="closeAccountModal" class="secondary-button" disabled="{{authBusy}}">取消</button>
+      </view>
+    </view>
+  </view>
+
+  <view bindtap="closeCoinInfo" class="modal-mask coin-info-mask" wx:if="{{showCoinInfo}}">
+    <view catchtap="stopTap" class="modal-card large coin-info-modal">
+      <button bindtap="closeCoinInfo" class="modal-close-button" aria-label="关闭">×</button>
+      <text class="modal-eyebrow">My coins</text>
+      <text class="modal-title">我的币</text>
+      <text class="coin-info-balance">当前剩余 <text>{{visitorState && visitorState.account ? visitorState.account.coinBalance : '--'}}</text> 币</text>
+      <text class="modal-note">已购币剩余可抵扣额度：{{coinPurchaseDiscountText}}</text>
+      <view class="coin-info-benefits">
+        <view><text>•</text><text>成功购买 1 元币，可获得 1 元冰箱贴优惠额度。</text></view>
+        <view><text>•</text><text>每枚冰箱贴最多抵扣 15 元；同一订单可按数量累计抵扣。</text></view>
+        <view><text>•</text><text>冰箱贴订单支付成功后，按抵扣后实付金额赠送等额币。</text></view>
+        <view><text>•</text><text>邀请新用户完成首笔冰箱贴订单支付，可获得 5 币。</text></view>
+      </view>
+      <view class="modal-actions coin-info-actions">
+        <button bindtap="openCoinPurchase" class="primary-button">购买币</button>
+        <button bindtap="prepareReferralShare" class="secondary-button coin-referral-button" disabled="{{isPreparingReferral || !referralSharePath}}" open-type="share">{{isPreparingReferral ? '准备邀请中…' : '邀新获币'}}</button>
+      </view>
+      <text class="coin-info-error" wx:if="{{referralError}}">{{referralError}}</text>
+      <text class="field-label">邀请码</text>
+      <input bindinput="onInviteInput" class="form-input" placeholder="输入邀请码" value="{{inviteCode}}" />
+      <button bindtap="redeemInvite" class="primary-button coin-redeem-button" disabled="{{!inviteCode}}">兑换邀请码</button>
     </view>
   </view>
 </view>

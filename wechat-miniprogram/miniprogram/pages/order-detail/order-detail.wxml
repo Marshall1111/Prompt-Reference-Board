@@ -5,7 +5,7 @@
     <view wx:if="{{order}}">
       <view class="header">
         <view>
-          <text class="kicker">Fridge order</text>
+          <text class="kicker">{{order.experienceLabel}}</text>
           <text class="title">{{order.orderNo}}</text>
         </view>
         <text class="status {{order.statusClass}}">{{order.statusText}}</text>
@@ -13,7 +13,17 @@
 
       <button bindtap="copyContact" class="secondary-button full">联系客服</button>
 
-      <view class="payment-card" wx:if="{{order.orderStatus === 'pending_payment'}}">
+      <view class="payment-card" wx:if="{{order.canPay}}">
+        <text class="card-title">微信支付</text>
+        <text>应付金额：{{order.totalText}}</text>
+        <text>订单号：{{order.orderNo}}</text>
+        <text class="payment-note">支付完成后订单状态会自动更新；如未及时更新，请下拉刷新。</text>
+        <view class="actions">
+          <button bindtap="payOrder" class="primary-button" loading="{{isPaying}}" disabled="{{isPaying}}">继续支付</button>
+        </view>
+      </view>
+
+      <view class="payment-card" wx:if="{{order.orderStatus === 'pending_payment' && !order.canPay}}">
         <text class="card-title">请扫描商户收款码付款</text>
         <text>应付金额：{{order.totalText}}</text>
         <text>订单号：{{order.orderNo}}</text>
@@ -27,6 +37,7 @@
 
       <view class="section-card">
         <text class="card-title">订单信息</text>
+        <text>{{order.experienceText}}</text>
         <text>下单时间：{{order.createdAtText}}</text>
         <text>商品小计：{{order.subtotalText}}</text>
         <text>邮费：{{order.shippingText}}</text>

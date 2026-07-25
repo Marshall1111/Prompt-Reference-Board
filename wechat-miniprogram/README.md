@@ -44,6 +44,15 @@
 
 建议正式小程序优先使用 JPG、PNG 或 WebP 示例图。
 
+## 小程序账户与支付配置
+
+小程序抽卡页会在启动时调用 `wx.login`，后端需配置：
+
+- `WECHAT_MINIPROGRAM_APP_ID`：小程序 AppID；可与公众号的 `WECHAT_PAY_APP_ID` 不同，且必须已绑定到同一微信支付商户号。
+- `WECHAT_MINIPROGRAM_APP_SECRET`：小程序 AppSecret。
+
+`WECHAT_PAY_APP_ID` 保持公众号 AppID，用于网页授权和公众号支付；小程序支付会使用 `WECHAT_MINIPROGRAM_APP_ID`。上线前还需将后端 HTTPS 域名配置为小程序合法请求与下载域名。
+
 ## 功能范围
 
 - 风格卡片展示

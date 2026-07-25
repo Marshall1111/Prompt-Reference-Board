@@ -230,12 +230,41 @@
   color: #6f817c;
 }
 
+.account-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  margin-bottom: 12rpx;
+}
+
+.account-name {
+  color: inherit;
+  font-size: 30rpx;
+  font-weight: 800;
+}
+
+.account-access {
+  color: rgba(243, 237, 225, 0.64);
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+
+.theme-fridge .account-access {
+  color: #6f817c;
+}
+
 .action-row,
 .clip-actions,
 .modal-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 14rpx;
   margin-top: 18rpx;
+}
+
+.clip-actions .primary-button,
+.clip-actions .secondary-button {
+  min-width: calc(50% - 7rpx);
 }
 
 .modal-actions.vertical {
@@ -523,7 +552,6 @@
 .magnet-corner.top-right { top: 5rpx; right: 5rpx; }
 .magnet-corner.bottom-left { bottom: 5rpx; left: 5rpx; }
 .magnet-corner.bottom-right { right: 5rpx; bottom: 5rpx; }
-}
 
 .clip-meta {
   display: flex;
@@ -857,4 +885,586 @@
   width: 100%;
   min-height: 128rpx;
   padding-top: 18rpx;
+}
+
+.account-modal {
+  max-width: 640rpx;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 10rpx;
+  margin-top: 20rpx;
+}
+
+.auth-tab {
+  flex: 1;
+  min-height: 62rpx;
+  padding: 0 8rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.16);
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(243, 237, 225, 0.78);
+  font-size: 22rpx;
+  font-weight: 800;
+  line-height: 58rpx;
+}
+
+.auth-tab.active {
+  border-color: rgba(255, 216, 149, 0.72);
+  background: rgba(209, 169, 97, 0.22);
+  color: #fff8df;
+}
+
+.auth-form {
+  margin-top: 18rpx;
+}
+
+.auth-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-column: 1 / -1;
+  gap: 14rpx;
+}
+
+.auth-code-row .form-input {
+  min-width: 0;
+}
+
+.auth-code-row .secondary-button {
+  min-height: 72rpx;
+  padding: 0 18rpx;
+  font-size: 23rpx;
+}
+
+.notice.success {
+  background: rgba(79, 161, 115, 0.18);
+  color: #b9f2ca;
+}
+
+.theme-fridge .auth-tab {
+  border-color: #d5dfd8;
+  background: #fffaf0;
+  color: #5f726d;
+}
+
+.theme-fridge .auth-tab.active {
+  border-color: #7fb19b;
+  background: #e3f0ea;
+  color: #24504a;
+}
+
+.theme-fridge .notice.success {
+  background: #e3f0ea;
+  color: #24504a;
+}
+
+/* Draw-card page: mirror the web page's centered dark stage and compact utility bar. */
+.web-draw-page {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 10% 6%, rgba(197, 162, 117, 0.24), transparent 34%),
+    radial-gradient(circle at 104% 78%, rgba(102, 85, 60, 0.2), transparent 38%),
+    linear-gradient(180deg, #0f1012 0%, #17181c 44%, #111214 100%);
+}
+
+.web-draw-page .content {
+  width: 100%;
+  max-width: 960rpx;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding-top: 42rpx;
+}
+
+.web-draw-page .hero {
+  gap: 16rpx;
+  margin-top: 0;
+}
+
+.web-draw-page .draw-card-handwritten-title {
+  width: 470rpx;
+}
+
+.web-draw-page .subtitle {
+  max-width: 620rpx;
+  color: rgba(235, 227, 214, 0.76);
+  font-size: 28rpx;
+  line-height: 1.7;
+}
+
+.draw-utility-bar {
+  position: relative;
+  display: block;
+  height: 68rpx;
+  width: 100%;
+  margin-top: 4rpx;
+}
+
+.draw-utility-coin,
+.draw-account-button,
+.draw-change-photo {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 68rpx;
+  margin: 0;
+  border: 2rpx solid rgba(239, 225, 198, 0.18);
+  border-radius: 999rpx;
+  color: #f3ede1;
+  font-size: 23rpx;
+  font-weight: 800;
+}
+
+.draw-utility-coin::after,
+.draw-account-button::after,
+.draw-change-photo::after {
+  border: 0;
+}
+
+.draw-utility-coin {
+  position: absolute;
+  top: 0;
+  right: 80rpx;
+  width: 200rpx !important;
+  min-width: 200rpx !important;
+  max-width: 200rpx !important;
+  justify-content: center;
+  padding: 0 8rpx;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.draw-utility-coin-number {
+  margin: 0 5rpx;
+  color: #f1cf88;
+  font-size: 31rpx;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.draw-user-area {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  width: 68rpx;
+  min-width: 68rpx;
+  max-width: 68rpx;
+}
+
+.draw-account-button {
+  flex: 0 0 68rpx !important;
+  width: 68rpx !important;
+  min-width: 68rpx !important;
+  max-width: 68rpx !important;
+  height: 68rpx !important;
+  min-height: 68rpx !important;
+  max-height: 68rpx !important;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.draw-account-button.is-signed-in {
+  border-color: rgba(201, 165, 111, 0.62);
+  background: rgba(201, 165, 111, 0.13);
+  color: #f7e5c6;
+}
+
+.draw-account-avatar {
+  display: block;
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+}
+
+.draw-user-menu {
+  position: absolute;
+  top: 80rpx;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: 210rpx;
+  padding: 12rpx;
+  border: 2rpx solid rgba(239, 225, 198, 0.18);
+  border-radius: 18rpx;
+  background: #1a1b1f;
+  box-shadow: 0 18rpx 48rpx rgba(0, 0, 0, 0.34);
+}
+
+.draw-user-menu-dismiss {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  background: transparent;
+}
+
+.draw-user-menu-button {
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 58rpx;
+  margin: 0;
+  padding: 0 12rpx;
+  border: 0;
+  border-radius: 12rpx;
+  background: transparent;
+  color: #f3ede1;
+  font-size: 23rpx;
+  line-height: 58rpx;
+  text-align: left;
+}
+
+.draw-user-menu-button::after {
+  border: 0;
+}
+
+.draw-user-menu-button:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.coin-info-mask {
+  align-items: center;
+  padding: 28rpx;
+}
+
+.coin-info-modal {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 650rpx;
+  max-height: calc(100vh - 96rpx);
+  padding: 72rpx 40rpx 38rpx;
+  border: 0;
+  border-radius: 36rpx;
+  background: #fffdf9;
+  color: #1b453a;
+  box-shadow: 0 28rpx 80rpx rgba(0, 0, 0, 0.32);
+}
+
+.coin-info-modal .modal-close-button {
+  position: absolute;
+  top: 24rpx;
+  right: 24rpx;
+  width: 66rpx;
+  min-width: 66rpx;
+  height: 66rpx;
+  min-height: 66rpx;
+  margin: 0;
+  padding: 0;
+  border: 1rpx solid #c4d1ca;
+  border-radius: 12rpx;
+  background: transparent;
+  color: #1b453a;
+  font-size: 42rpx;
+  line-height: 62rpx;
+}
+
+.coin-info-modal .modal-close-button::after {
+  border: 0;
+}
+
+.coin-info-modal .modal-eyebrow {
+  display: block;
+  margin-bottom: 20rpx;
+  color: #96713f;
+  font-size: 24rpx;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.coin-info-modal .modal-title {
+  color: #174738;
+  font-size: 52rpx;
+  line-height: 1.1;
+}
+
+.coin-info-balance {
+  display: block;
+  margin: 38rpx 0 22rpx;
+  color: #425d55;
+  font-size: 30rpx;
+}
+
+.coin-info-balance text {
+  color: #1d755b;
+  font-size: 56rpx;
+  font-weight: 900;
+}
+
+.coin-info-modal .modal-note {
+  display: block;
+  color: #4e665f;
+  font-size: 25rpx;
+  line-height: 1.65;
+}
+
+.coin-info-benefits {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  margin-top: 24rpx;
+  color: #4e665f;
+  font-size: 25rpx;
+  line-height: 1.55;
+}
+
+.coin-info-benefits > view {
+  display: flex;
+  gap: 12rpx;
+}
+
+.coin-info-actions {
+  flex-direction: column;
+  gap: 14rpx;
+  margin-top: 32rpx;
+}
+
+.coin-info-actions .primary-button,
+.coin-info-actions .secondary-button {
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 100rpx;
+  font-size: 30rpx;
+}
+
+.coin-info-actions .primary-button {
+  color: #1d1c19;
+}
+
+.coin-info-actions .coin-referral-button {
+  border-color: #afcabb;
+  background: #fffefa;
+  color: #275647;
+}
+
+.coin-info-modal .field-label {
+  margin-top: 32rpx;
+  color: #3e5d54;
+  font-size: 25rpx;
+}
+
+.coin-info-modal .form-input {
+  min-height: 84rpx;
+  border-color: #aec7ba;
+  border-radius: 14rpx;
+  background: #fffefa;
+  color: #234c40;
+}
+
+.coin-info-error {
+  display: block;
+  margin-top: 16rpx;
+  color: #b84545;
+  font-size: 23rpx;
+}
+
+.coin-info-modal .coin-redeem-button {
+  width: 100%;
+  min-height: 100rpx;
+  margin-top: 24rpx;
+  font-size: 30rpx;
+}
+
+.coin-info-modal .coin-redeem-button[disabled] {
+  border: 1rpx solid #eadfcf;
+  background: #fbf8f2;
+  color: #b79c75;
+  opacity: 1;
+}
+
+.web-draw-page .main-layout {
+  gap: 28rpx;
+  margin-top: 28rpx;
+}
+
+.web-draw-page .main-column {
+  gap: 26rpx;
+}
+
+.web-draw-page .upload-panel,
+.web-draw-page .status-panel,
+.web-draw-page .clip-panel {
+  border-color: rgba(239, 225, 198, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.025)),
+    rgba(18, 19, 22, 0.78);
+  box-shadow: 0 28rpx 90rpx rgba(0, 0, 0, 0.32);
+}
+
+.web-draw-page .upload-panel {
+  padding: 18rpx;
+  border-radius: 24rpx;
+}
+
+.web-draw-page .upload-box {
+  min-height: 400rpx;
+  border-color: rgba(239, 225, 198, 0.12);
+  border-radius: 20rpx;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    rgba(15, 16, 18, 0.86);
+}
+
+.web-draw-page .upload-preview {
+  height: 400rpx;
+}
+
+.web-draw-page .action-row.draw-home-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.web-draw-page .draw-home-actions .primary-button,
+.web-draw-page .draw-home-actions .secondary-button {
+  width: 100%;
+  min-height: 76rpx;
+  padding: 10rpx;
+  font-size: 24rpx;
+}
+
+.web-draw-page .draw-home-actions .draw-random-button {
+  background: linear-gradient(135deg, #f1dfc3, #b98f58);
+  color: #111214;
+}
+
+.draw-change-photo {
+  width: 100%;
+  min-height: 64rpx;
+  margin-top: 12rpx;
+  background: transparent;
+  color: rgba(243, 237, 225, 0.78);
+}
+
+.web-draw-page .status-panel {
+  padding: 18rpx;
+}
+
+.web-draw-page .result-card {
+  border-color: rgba(239, 225, 198, 0.14);
+  border-radius: 20rpx;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025)),
+    rgba(18, 19, 22, 0.76);
+  box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.2);
+}
+
+.web-draw-page .clip-panel {
+  gap: 16rpx;
+  padding: 18rpx;
+  border-radius: 24rpx;
+}
+
+.draw-card-clip-strip {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.draw-card-clip-thumbnail {
+  position: relative;
+  display: inline-flex;
+  width: 142rpx;
+  height: 210rpx;
+  box-sizing: border-box;
+  margin-right: 14rpx;
+  padding: 8rpx;
+  overflow: hidden;
+  vertical-align: top;
+  border: 2rpx solid rgba(239, 248, 249, 0.86);
+  border-radius: 14rpx;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.68), rgba(194, 221, 225, 0.24));
+  box-shadow: 0 10rpx 20rpx rgba(0, 0, 0, 0.26), inset 0 2rpx 3rpx rgba(255, 255, 255, 0.94), inset 0 0 0 4rpx rgba(255, 255, 255, 0.14);
+}
+
+.draw-card-clip-image {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 7rpx;
+}
+
+.draw-card-acrylic-shine {
+  position: absolute;
+  z-index: 2;
+  top: 4rpx;
+  right: 4rpx;
+  bottom: 4rpx;
+  left: 4rpx;
+  pointer-events: none;
+  border-radius: 10rpx;
+  background: linear-gradient(118deg, transparent 30%, rgba(255, 255, 255, 0.06) 39%, rgba(255, 255, 255, 0.68) 48%, rgba(255, 255, 255, 0.12) 57%, transparent 66%);
+}
+
+.draw-card-clip-thumbnail .magnet-corner {
+  width: 15rpx;
+  height: 15rpx;
+  border-width: 2rpx;
+}
+
+.draw-card-clip-thumbnail .magnet-corner.top-left { top: 5rpx; left: 5rpx; }
+.draw-card-clip-thumbnail .magnet-corner.top-right { top: 5rpx; right: 5rpx; }
+.draw-card-clip-thumbnail .magnet-corner.bottom-left { bottom: 5rpx; left: 5rpx; }
+.draw-card-clip-thumbnail .magnet-corner.bottom-right { right: 5rpx; bottom: 5rpx; }
+
+.draw-card-clip-order-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14rpx;
+  margin-top: 2rpx;
+}
+
+.draw-card-clip-order {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  min-height: 80rpx;
+  margin: 0;
+  padding: 0 24rpx;
+  border: 2rpx solid rgba(255, 216, 149, 0.6);
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, rgba(255, 216, 149, 0.3), rgba(255, 161, 150, 0.24));
+  color: #fff1c7;
+  font-size: 26rpx;
+  font-weight: 900;
+}
+
+.draw-card-clip-order::after {
+  border: 0;
+}
+
+.draw-card-clip-order[disabled] {
+  opacity: 0.48;
+}
+
+.draw-card-clip-order-price {
+  color: rgba(243, 237, 225, 0.72);
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.web-draw-page .clip-item {
+  border: 2rpx solid rgba(239, 225, 198, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.web-draw-page .account-panel {
+  padding-top: 16rpx;
+  border-top: 2rpx solid rgba(239, 225, 198, 0.1);
+}
+
+@media (max-width: 560px) {
+  .web-draw-page .content {
+    padding-top: 30rpx;
+  }
 }
