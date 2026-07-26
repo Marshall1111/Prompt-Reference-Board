@@ -19,7 +19,6 @@
           <view class="draw-user-menu" wx:if="{{showUserMenu}}">
             <button bindtap="openOrdersFromUserMenu" class="draw-user-menu-button">我的订单</button>
             <button bindtap="openProfileSettingsFromUserMenu" class="draw-user-menu-button">用户信息</button>
-            <button bindtap="logoutAccount" class="draw-user-menu-button" disabled="{{isLoggingOut}}">{{isLoggingOut ? '正在退出' : '退出登录'}}</button>
           </view>
         </view>
       </view>
@@ -186,18 +185,22 @@
       <view class="orders-overlay-list" wx:if="{{orderOverlayItems.length}}">
         <view wx:for="{{orderOverlayItems}}" wx:key="key" class="orders-overlay-card {{item.type === 'coin_purchase' ? 'coin-purchase-card' : ''}}">
           <block wx:if="{{item.type === 'coin_purchase'}}">
-            <view class="orders-overlay-card-row">
+            <view bindtap="openOverlayCoinPurchase" class="orders-overlay-card-row" data-id="{{item.id}}">
               <view class="orders-overlay-cover coin">币</view>
               <view class="orders-overlay-summary">
                 <text class="orders-overlay-price">购买 {{item.coinCount}} 币</text>
                 <text class="orders-overlay-no">购买单号 {{item.purchaseNo}}</text>
                 <text class="orders-overlay-status {{item.statusClass}}">{{item.statusText}}</text>
               </view>
+              <view class="orders-overlay-actions orders-overlay-actions-side">
+                <button catchtap="payOverlayCoinPurchase" class="orders-overlay-pay" data-id="{{item.id}}" loading="{{payingOverlayPurchaseId === item.id}}" disabled="{{payingOverlayPurchaseId === item.id}}" wx:if="{{item.canPay}}">支付</button>
+                <button catchtap="deleteOverlayCoinPurchase" class="orders-overlay-cancel" data-id="{{item.id}}" wx:if="{{item.canDelete}}">删除</button>
+              </view>
             </view>
             <text class="orders-overlay-amount">{{item.amountText}}</text>
           </block>
           <block wx:else>
-            <view class="orders-overlay-card-row">
+            <view bindtap="openOverlayOrder" class="orders-overlay-card-row" data-id="{{item.id}}">
               <image class="orders-overlay-cover" mode="aspectFill" src="{{item.imageUrl}}" wx:if="{{item.imageUrl}}" />
               <view class="orders-overlay-cover empty" wx:else>冰箱贴</view>
               <view class="orders-overlay-summary">
@@ -205,10 +208,9 @@
                 <text class="orders-overlay-no">订单号 {{item.orderNo}}</text>
                 <text class="orders-overlay-status {{item.statusClass}}">{{item.statusText}}</text>
               </view>
-            </view>
-            <view class="orders-overlay-actions">
-              <button bindtap="openOverlayOrder" class="orders-overlay-detail" data-id="{{item.id}}">查看详情</button>
-              <button bindtap="cancelOverlayOrder" class="orders-overlay-cancel" data-id="{{item.id}}" wx:if="{{item.canCancel}}">取消订单</button>
+              <view class="orders-overlay-actions orders-overlay-actions-side">
+                <button catchtap="deleteOverlayOrder" class="orders-overlay-cancel" data-id="{{item.id}}" wx:if="{{item.canDelete}}">删除</button>
+              </view>
             </view>
           </block>
         </view>
@@ -314,28 +316,28 @@
 
   <view class="modal-mask" wx:if="{{showAccountModal}}">
     <view class="modal-card large account-modal">
-      <text class="modal-title">微信授权登录</text>
-      <text class="modal-note">授权后可同步你账户下的生成结果、卡夹和订单，并在账户按钮展示微信头像。</text>
+      <text class="modal-title">微信登录</text>
+      <text class="modal-note">用于识别你的微信账户并同步生成结果、卡夹和订单。头像和昵称将在下一步由你单独选择使用。</text>
       <view class="notice error" wx:if="{{authError}}">{{authError}}</view>
       <view class="notice success" wx:if="{{authMessage}}">{{authMessage}}</view>
       <view class="modal-actions vertical">
-        <button bindtap="loginWithWechat" class="primary-button" loading="{{authBusy}}" disabled="{{authBusy}}">授权微信登录</button>
+        <button bindtap="loginWithWechat" class="primary-button" loading="{{authBusy}}" disabled="{{authBusy}}">微信登录</button>
       </view>
     </view>
   </view>
 
   <view class="modal-mask profile-setup-mask" wx:if="{{showProfileSetup}}">
     <view class="modal-card profile-setup-modal">
-      <text class="modal-title">{{profileEditorMode === 'settings' ? '用户信息' : '使用微信资料'}}</text>
-      <text class="modal-note">{{profileEditorMode === 'settings' ? '点击头像或昵称可修改你的账户信息。' : '点击头像后选择“用微信头像”；点击昵称输入框后选择“用微信昵称”。'}}</text>
+      <text class="modal-title">{{profileEditorMode === 'settings' ? '用户信息' : '完善资料'}}</text>
+      <text class="modal-note">默认头像和昵称已为你准备好，点击头像或昵称可自行修改。</text>
       <button class="profile-avatar-picker" open-type="chooseAvatar" bindchooseavatar="onProfileAvatarChosen" disabled="{{isSavingProfile}}">
         <image class="profile-avatar-preview" mode="aspectFill" src="{{profileAvatarPreviewUrl}}" />
-        <text class="profile-avatar-action">{{profileAvatarMode === 'default' ? '点击使用微信头像' : '更换头像'}}</text>
+        <text class="profile-avatar-action">更换头像</text>
       </button>
-      <input bindinput="onProfileNicknameInput" class="form-input full" type="nickname" maxlength="80" placeholder="点击后选择“用微信昵称”" value="{{profileNickname}}" disabled="{{isSavingProfile}}" />
+      <input bindinput="onProfileNicknameInput" class="form-input full" type="nickname" maxlength="80" placeholder="昵称" value="{{profileNickname}}" disabled="{{isSavingProfile}}" />
       <view class="notice error" wx:if="{{profileError}}">{{profileError}}</view>
       <view class="modal-actions vertical">
-        <button bindtap="submitProfileSetup" class="primary-button" loading="{{isSavingProfile}}" disabled="{{isSavingProfile}}">{{profileEditorMode === 'settings' ? '保存修改' : '保存微信资料'}}</button>
+        <button bindtap="submitProfileSetup" class="primary-button" loading="{{isSavingProfile}}" disabled="{{isSavingProfile}}">{{profileEditorMode === 'settings' ? '保存修改' : '保存并开始使用'}}</button>
       </view>
     </view>
   </view>

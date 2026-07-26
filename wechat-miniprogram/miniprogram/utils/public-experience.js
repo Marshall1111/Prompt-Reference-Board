@@ -198,6 +198,13 @@ function payCoinPurchase(purchaseId) {
   });
 }
 
+function deleteCoinPurchase(purchaseId) {
+  return publicApi.request({
+    path: "/api/coin-purchases/" + encodeURIComponent(purchaseId),
+    method: "DELETE"
+  });
+}
+
 function fetchMyOrders(scope) {
   var query = String(scope || "").trim();
   return publicApi.request({ path: "/api/my/orders" + (query ? "?scope=" + encodeURIComponent(query) : "") });
@@ -413,6 +420,7 @@ module.exports = {
   createOrder: createOrder,
   createReferralLink: createReferralLink,
   createSession: createSession,
+  deleteCoinPurchase: deleteCoinPurchase,
   deleteOrder: deleteOrder,
   downloadClipOriginal: downloadClipOriginal,
   ensureMiniProgramLogin: ensureMiniProgramLogin,

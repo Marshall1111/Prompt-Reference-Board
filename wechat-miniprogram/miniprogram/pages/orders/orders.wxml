@@ -13,19 +13,23 @@
     <view class="order-list" wx:if="{{listItems.length}}">
       <view wx:for="{{listItems}}" wx:key="key" class="order-card {{item.type === 'coin_purchase' ? 'coin-purchase-card' : ''}}">
         <block wx:if="{{item.type === 'coin_purchase'}}">
-          <view class="order-card-open">
+          <view bindtap="openCoinPurchase" class="order-card-open">
             <view class="order-cover coin-purchase-cover">币</view>
             <view class="order-summary">
               <text class="order-price">购买 {{item.coinCount}} 币</text>
               <text class="order-no">购买单号 {{item.purchaseNo}}</text>
               <text class="status {{item.statusClass}}">{{item.statusText}}</text>
             </view>
+            <view class="order-actions order-actions-side">
+              <button catchtap="payCoinPurchase" class="order-pay-button" data-id="{{item.id}}" loading="{{payingPurchaseId === item.id}}" disabled="{{payingPurchaseId === item.id}}" wx:if="{{item.canPay}}">支付</button>
+              <button catchtap="deleteCoinPurchase" class="order-cancel-button" data-id="{{item.id}}" wx:if="{{item.canDelete}}">删除</button>
+            </view>
           </view>
           <text class="coin-purchase-amount">{{item.amountText}}</text>
         </block>
 
         <block wx:else>
-          <view class="order-card-open">
+          <view bindtap="openOrder" class="order-card-open" data-id="{{item.id}}">
             <image class="order-cover" mode="aspectFill" src="{{item.imageUrl}}" wx:if="{{item.imageUrl}}" />
             <view class="order-cover empty" wx:else>冰箱贴</view>
             <view class="order-summary">
@@ -33,10 +37,9 @@
               <text class="order-no">订单号 {{item.orderNo}}</text>
               <text class="status {{item.statusClass}}">{{item.statusText}}</text>
             </view>
-          </view>
-          <view class="order-actions">
-            <button bindtap="openOrder" class="order-detail-button" data-id="{{item.id}}"><text>◉</text><text>查看详情</text></button>
-            <button bindtap="cancelOrder" class="order-cancel-button" data-id="{{item.id}}" wx:if="{{item.canCancel}}">取消订单</button>
+            <view class="order-actions order-actions-side">
+              <button catchtap="deleteOrder" class="order-cancel-button" data-id="{{item.id}}" wx:if="{{item.canDelete}}">删除</button>
+            </view>
           </view>
         </block>
       </view>

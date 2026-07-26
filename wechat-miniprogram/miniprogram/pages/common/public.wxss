@@ -1309,7 +1309,8 @@
 }
 
 .orders-overlay-detail::after,
-.orders-overlay-cancel::after {
+.orders-overlay-cancel::after,
+.orders-overlay-pay::after {
   border: 0;
 }
 
@@ -1371,6 +1372,7 @@
 
 .orders-overlay-card {
   position: relative;
+  overflow: hidden;
   padding: 22rpx;
   border: 2rpx solid rgba(239, 225, 198, 0.16);
   border-radius: 28rpx;
@@ -1384,6 +1386,7 @@
   display: flex;
   gap: 20rpx;
   align-items: flex-start;
+  padding-right: 164rpx;
 }
 
 .orders-overlay-cover {
@@ -1465,16 +1468,37 @@
   margin-top: 22rpx;
 }
 
-.orders-overlay-detail,
-.orders-overlay-cancel {
-  min-height: 70rpx;
+.orders-overlay-actions-side {
+  position: absolute;
+  top: 22rpx;
+  right: 22rpx;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 10rpx;
+  width: 150rpx !important;
+  max-width: 150rpx !important;
   margin: 0;
-  padding: 0 22rpx;
+}
+
+.orders-overlay-detail,
+.orders-overlay-cancel,
+.orders-overlay-pay {
+  flex: none !important;
+  width: 150rpx !important;
+  min-width: 150rpx !important;
+  max-width: 150rpx !important;
+  height: 54rpx !important;
+  min-height: 54rpx !important;
+  max-height: 54rpx !important;
+  margin: 0;
+  padding: 0 14rpx;
   border: 2rpx solid rgba(239, 225, 198, 0.22);
   border-radius: 999rpx;
   background: rgba(255, 255, 255, 0.04);
   color: #f3ede1;
-  font-size: 25rpx;
+  font-size: 22rpx;
   font-weight: 900;
 }
 
@@ -1483,14 +1507,20 @@
   color: #ffc2ba;
 }
 
+.orders-overlay-pay {
+  border-color: rgba(240, 213, 160, 0.58);
+  background: linear-gradient(135deg, #f0d5a0, #b98749);
+  color: #171719;
+}
+
 .orders-overlay-amount {
-  position: absolute;
-  right: 24rpx;
-  bottom: 24rpx;
+  display: block;
+  margin: 10rpx 164rpx 0 158rpx;
   color: rgba(243, 237, 225, 0.72);
   font-size: 25rpx;
   font-weight: 800;
 }
+
 
 .draw-user-menu-button {
   justify-content: flex-start;

@@ -73,6 +73,7 @@ function mapPaymentIntent(row) {
     transactionId: String(row.transaction_id || ""),
     expiresAt: row.expires_at || null,
     paidAt: row.paid_at || null,
+    userDeletedAt: row.user_deleted_at || null,
     metadata: safeJsonParse(row.metadata_json, {}),
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null
@@ -175,6 +176,7 @@ export function createCommerceStore({ dbPath }) {
       transaction_id TEXT NOT NULL DEFAULT '',
       expires_at TEXT,
       paid_at TEXT,
+      user_deleted_at TEXT,
       metadata_json TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -297,6 +299,10 @@ export function createCommerceStore({ dbPath }) {
   ensureAccountColumn("registered_at", "registered_at TEXT");
   ensureAccountColumn("last_login_at", "last_login_at TEXT");
   const addedBeanBalance = ensureAccountColumn("bean_balance", "bean_balance INTEGER NOT NULL DEFAULT 0");
+  const paymentIntentColumns = db.prepare("PRAGMA table_info(commerce_payment_intents)").all();
+  if (!paymentIntentColumns.some((column) => String(column.name || "") === "user_deleted_at")) {
+    db.exec("ALTER TABLE commerce_payment_intents ADD COLUMN user_deleted_at TEXT");
+  }
   const ledgerColumns = db.prepare("PRAGMA table_info(commerce_credit_ledger)").all();
   if (!ledgerColumns.some((column) => String(column.name || "") === "note")) {
     db.exec("ALTER TABLE commerce_credit_ledger ADD COLUMN note TEXT NOT NULL DEFAULT ''");
@@ -1064,6 +1070,14 @@ export function createCommerceStore({ dbPath }) {
     });
   }
 
+  function hidePaymentIntentForUser(intentId) {
+    const intent = readPaymentIntent(intentId);
+    if (!intent) return null;
+    db.prepare("UPDATE commerce_payment_intents SET user_deleted_at = COALESCE(user_deleted_at, ?), updated_at = ? WHERE id = ?")
+      .run(nowIso(), nowIso(), intent.id);
+    return readPaymentIntent(intent.id);
+  }
+
   function settlePayment({ outTradeNo, transactionId, paidAt, payload, headers }) {
     return withTransaction(db, () => {
       const intent = readPaymentIntentByOutTradeNo(outTradeNo);
@@ -1369,11 +1383,12 @@ export function createCommerceStore({ dbPath }) {
     `).all(String(accountId || ""), safeLimit).map(mapLedgerRow);
   }
 
-  function listPaymentIntents(accountId, limit = 100) {
+  function listPaymentIntents(accountId, limit = 100, { excludeUserDeleted = false } = {}) {
     const safeLimit = Math.min(Math.max(Math.trunc(Number(limit || 100)), 1), 500);
+    const userDeletedCondition = excludeUserDeleted ? " AND (user_deleted_at IS NULL OR user_deleted_at = '')" : "";
     return db.prepare(`
       SELECT * FROM commerce_payment_intents
-      WHERE account_id = ?
+      WHERE account_id = ?${userDeletedCondition}
       ORDER BY created_at DESC
       LIMIT ?
     `).all(String(accountId || ""), safeLimit).map(mapPaymentIntent);
@@ -1482,6 +1497,7 @@ export function createCommerceStore({ dbPath }) {
     createUserSession,
     createPaymentIntent,
     cancelPaymentIntentByOutTradeNo,
+    hidePaymentIntentForUser,
     debitCredits,
     debitBeans,
     debitCreditsForGenerationJobs,

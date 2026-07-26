@@ -336,7 +336,10 @@ function initializeGuestAccount() {
 }
 
 function ensureMiniProgramLogin(inviteToken) {
-  return request({ path: "/api/account" });
+  return request({ path: "/api/account" }).then(function (state) {
+    if (state && state.authenticated) return state;
+    return loginWithMiniProgram(inviteToken);
+  });
 }
 
 function formatNetworkError(error, apiName, url) {

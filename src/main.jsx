@@ -74,6 +74,7 @@ const DEFAULT_IMAGE_JOB_QUERY = {
 const DEFAULT_ADMIN_ORDER_QUERY = {
   page: 1,
   limit: 20,
+  orderType: "",
   orderStatus: "",
   search: "",
   merchantId: "",
@@ -8358,6 +8359,7 @@ function UserClipAdminPage({ onBack, userId }) {
 function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onRefreshSettings, settings, merchants }) {
   const [orders, setOrders] = useState(initialOrders || []);
   const [orderQuery, setOrderQuery] = useState(DEFAULT_ADMIN_ORDER_QUERY);
+  const [orderType, setOrderType] = useState(DEFAULT_ADMIN_ORDER_QUERY.orderType);
   const [orderStatus, setOrderStatus] = useState(DEFAULT_ADMIN_ORDER_QUERY.orderStatus);
   const [search, setSearch] = useState(DEFAULT_ADMIN_ORDER_QUERY.search);
   const [merchantId, setMerchantId] = useState(DEFAULT_ADMIN_ORDER_QUERY.merchantId);
@@ -8369,8 +8371,6 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
   const [adminRemark, setAdminRemark] = useState("");
   const [shippingCarrier, setShippingCarrier] = useState("");
   const [shippingTrackingNo, setShippingTrackingNo] = useState("");
-  const [commercePayments, setCommercePayments] = useState([]);
-  const [creditLedger, setCreditLedger] = useState([]);
   const [fridgeMagnetOrderingEnabled, setFridgeMagnetOrderingEnabled] = useState(settings?.fridgeMagnetOrderingEnabled === true);
   const [fridgeMagnetUnitPriceCents, setFridgeMagnetUnitPriceCents] = useState(settings?.fridgeMagnetUnitPriceCents || 2000);
   const [singleItemShippingFeeCents, setSingleItemShippingFeeCents] = useState(settings?.singleItemShippingFeeCents || 800);
@@ -8389,22 +8389,6 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
   useEffect(() => {
     setOrders(initialOrders || []);
   }, [initialOrders]);
-
-  useEffect(() => {
-    let active = true;
-    Promise.all([fetchAdminCommercePayments(), fetchAdminCreditLedger()])
-      .then(([paymentPayload, creditPayload]) => {
-        if (!active) return;
-        setCommercePayments(paymentPayload.payments || []);
-        setCreditLedger(creditPayload.ledger || []);
-      })
-      .catch(() => {
-        if (!active) return;
-        setCommercePayments([]);
-        setCreditLedger([]);
-      });
-    return () => { active = false; };
-  }, []);
 
   useEffect(() => {
     setOrderTotal(Number(initialOrdersMeta?.total || 0));
@@ -8445,6 +8429,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
       setOrderQuery({
         page: Number(payload.page || nextQuery.page || DEFAULT_ADMIN_ORDER_QUERY.page),
         limit: Number(payload.limit || nextQuery.limit || DEFAULT_ADMIN_ORDER_QUERY.limit),
+        orderType: nextQuery.orderType || "",
         orderStatus: nextQuery.orderStatus,
         search: nextQuery.search,
         merchantId: nextQuery.merchantId || "",
@@ -8468,6 +8453,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
   function applyFilters() {
     refreshList({
       page: 1,
+      orderType,
       orderStatus,
       search: search.trim(),
       merchantId,
@@ -8568,8 +8554,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
     setStatusMessage("");
     try {
       await confirmAdminManualBeanPurchase(payment.id);
-      const payload = await fetchAdminCommercePayments();
-      setCommercePayments(payload.payments || []);
+      await refreshList({}, { showLoading: false });
       setStatusMessage(`已确认购买收款，${unitName}已发放。`);
     } catch (nextError) {
       setError(nextError.message || "确认购买收款失败。");
@@ -8599,6 +8584,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
     setStatusMessage("");
     try {
       const payload = await downloadAdminOrdersExport({
+        orderType: orderQuery.orderType,
         orderStatus: orderQuery.orderStatus,
         search: orderQuery.search,
         merchantId: orderQuery.merchantId,
@@ -8619,7 +8605,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
         <div>
           <p className="eyebrow">Orders</p>
           <h2>订单管理</h2>
-          <p className="storage-note">查看冰箱贴订单、来源商户与订单状态。共 {orderTotal} 条，当前第 {orderQuery.page} / {totalPages} 页。</p>
+          <p className="storage-note">统一查看实体定制、购买币和购买豆豆订单。共 {orderTotal} 条，当前第 {orderQuery.page} / {totalPages} 页。</p>
         </div>
         <div className="task-actions">
           <button className="secondary-button" disabled={isBusy} onClick={exportOrderList} type="button">
@@ -8631,31 +8617,6 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
             <span>{isLoadingOrders ? "刷新中" : "刷新订单"}</span>
           </button>
         </div>
-      </div>
-
-      <div className="draw-observability-card">
-          <h3>最近实体订单、豆豆购买与币流水</h3>
-          <div className="task-list">
-          {commercePayments.filter((payment) => ["physical_order", "body_book_order"].includes(payment.kind)).slice(0, 8).map((payment) => (
-            <div className="task-meta-row" key={payment.id}>
-              <strong>{payment.kind === "body_book_order" ? "认知书实体书" : "冰箱贴订单"}</strong>
-              <span>{formatCurrencyCents(payment.amountCents)}</span>
-              <span>{payment.status === "paid" ? "已支付" : "待支付"}</span>
-            </div>
-          ))}
-          {!commercePayments.length ? <p className="storage-note">暂无收款记录。</p> : null}
-        </div>
-        <div className="task-list">
-          {commercePayments.filter((payment) => ["bean_purchase", "coin_purchase"].includes(payment.kind)).slice(0, 8).map((payment) => (
-            <div className="task-meta-row" key={payment.id}>
-              <strong>购买 {Number((payment.kind === "coin_purchase" ? payment.metadata?.coinCount : payment.metadata?.beanCount) || payment.creditAmount || 0)} {payment.kind === "coin_purchase" ? "币" : "豆"}</strong>
-              <span>{formatCurrencyCents(payment.amountCents)}</span>
-              <span>{payment.status === "paid" ? "已支付" : "待确认"}</span>
-              {payment.status !== "paid" && payment.channel === "manual_collection" ? <button className="secondary-button" disabled={isBusy} onClick={() => confirmManualBeanPurchase(payment)} type="button">确认收款</button> : null}
-            </div>
-          ))}
-        </div>
-        {creditLedger.length ? <p className="storage-note">最近币变动：{creditLedger.slice(0, 5).map((item) => `${item.delta > 0 ? "+" : ""}${item.delta}`).join("、")}</p> : null}
       </div>
 
       <div className="draw-card-upload-panel">
@@ -8720,6 +8681,13 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
       </div>
 
       <div className="task-filters">
+        <select onChange={(event) => setOrderType(event.target.value)} value={orderType}>
+          <option value="">全部订单类型</option>
+          <option value="fridge">冰箱贴定制</option>
+          <option value="body_book">认知书实体书</option>
+          <option value="coin_purchase">购买币</option>
+          <option value="bean_purchase">购买豆豆</option>
+        </select>
         <select onChange={(event) => setOrderStatus(event.target.value)} value={orderStatus}>
           <option value="">全部订单状态</option>
           <option value="pending_payment">待付款</option>
@@ -8728,6 +8696,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
           <option value="completed">已完成</option>
           <option value="cancelled">已取消</option>
           <option value="expired">已过期</option>
+          <option value="paid">已支付（购买币/豆豆）</option>
         </select>
         <select onChange={(event) => setMerchantId(event.target.value)} value={merchantId}>
           <option value="">全部来源商户</option>
@@ -8745,7 +8714,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
         </label>
         <label className="search-box">
           <Search size={18} />
-          <input onChange={(event) => setSearch(event.target.value)} placeholder="订单号 / 姓名 / 手机号 / 商户名" value={search} />
+          <input onChange={(event) => setSearch(event.target.value)} placeholder="订单号 / 用户 / 姓名 / 手机号" value={search} />
         </label>
         <button className="secondary-button" onClick={applyFilters} type="button">
           <span>筛选</span>
@@ -8755,31 +8724,30 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
       {error ? <p className="error-note">{error}</p> : null}
       {statusMessage ? <p className="success-note">{statusMessage}</p> : null}
 
-      <div className="task-list">
-        {orders.map((order) => (
-          <article className="task-card order-task-card" key={order.id}>
-            <div className={`task-status ${getAdminOrderPrimaryStatusTone(order)}`}>
-              {getAdminOrderPrimaryStatusLabel(order)}
-            </div>
-            <div className="task-detail">
-              <div className="task-meta-row">
-                <strong>{order.orderNo}</strong>
-                <span>{order.experienceType === "body-book" ? "认知书实体书" : `共 ${order.itemCount} 只`}</span>
-                <span>{formatCurrencyCents(Number(order.payableCents ?? order.totalCents ?? 0))}</span>
-              </div>
-              <p className="storage-note">{order.receiverName} · {order.receiverPhone}</p>
-              <p className="storage-note">来源商户：{order.sourceMerchantName || "无"}</p>
-              <p className="storage-note">创建于 {formatDateTime(order.createdAt)}</p>
-            </div>
-            <div className="task-actions">
-              <button className="secondary-button" onClick={() => loadOrderDetail(order.id)} type="button">
-                <Eye size={18} />
-                <span>查看详情</span>
-              </button>
-            </div>
-          </article>
-        ))}
-        {!orders.length ? <p className="empty-note">当前没有符合条件的订单。</p> : null}
+      <div className="order-table-wrap">
+        <table className="order-table">
+          <thead>
+            <tr><th>订单类型</th><th>订单号</th><th>用户 / 收件人</th><th>金额</th><th>状态</th><th>创建时间</th><th aria-label="操作"></th></tr>
+          </thead>
+          <tbody>
+            {orders.map((order) => (
+              <tr key={`${order.recordType || "order"}:${order.id}`}>
+                <td><span className="order-type-tag">{getAdminOrderTypeLabel(order)}</span></td>
+                <td className="order-number-cell"><strong>{order.orderNo}</strong>{order.recordType !== "purchase" && order.experienceType !== "body-book" ? <small>共 {order.itemCount} 枚</small> : null}{order.recordType === "purchase" ? <small>{order.purchaseQuantityText}</small> : null}</td>
+                <td>{order.recordType === "purchase" ? <>{order.accountName || "用户"}</> : <>{order.receiverName || "--"}<small>{order.receiverPhone || ""}</small></>}</td>
+                <td>{formatCurrencyCents(Number(order.amountCents ?? order.payableCents ?? order.totalCents ?? 0))}</td>
+                <td><span className={`task-status ${getAdminOrderPrimaryStatusTone(order)}`}>{getAdminOrderPrimaryStatusLabel(order)}</span></td>
+                <td>{formatDateTime(order.createdAt)}</td>
+                <td className="order-table-actions">
+                  {order.recordType === "purchase" && order.canConfirmManual ? <button className="secondary-button" disabled={isBusy} onClick={() => confirmManualBeanPurchase(order)} type="button">确认收款</button> : null}
+                  {order.recordType !== "purchase" ? <button className="secondary-button" onClick={() => loadOrderDetail(order.id)} type="button"><Eye size={16} /><span>详情</span></button> : null}
+                  {order.recordType === "purchase" && !order.canConfirmManual ? <span className="order-table-empty-action">—</span> : null}
+                </td>
+              </tr>
+            ))}
+            {!orders.length ? <tr><td className="order-table-empty" colSpan="7">当前没有符合条件的订单。</td></tr> : null}
+          </tbody>
+        </table>
       </div>
       <div className="task-pagination">
         <p className="storage-note">
@@ -9643,7 +9611,7 @@ function orderStatusLabel(status) {
 }
 
 function orderStatusTone(status) {
-  if (status === "completed" || status === "pending_shipment" || status === "shipped") return "succeeded";
+  if (status === "paid" || status === "completed" || status === "pending_shipment" || status === "shipped") return "succeeded";
   if (status === "cancelled" || status === "expired") return "cancelled";
   return "queued";
 }
@@ -9667,6 +9635,7 @@ function getBeanPurchaseListStatusLabel(purchase, status) {
 }
 
 function getAdminOrderPrimaryStatusLabel(order) {
+  if (order?.recordType === "purchase") return String(order.purchaseStatusLabel || orderStatusLabel(order.orderStatus));
   return getOrderPrimaryStatusLabel(order);
 }
 
@@ -9677,6 +9646,11 @@ function getOrderPrimaryStatusLabel(order) {
 
 function getAdminOrderPrimaryStatusTone(order) {
   return orderStatusTone(String(order?.orderStatus || ""));
+}
+
+function getAdminOrderTypeLabel(order) {
+  if (order?.recordType === "purchase") return order.orderType === "coin_purchase" ? "购买币" : "购买豆豆";
+  return order?.experienceType === "body-book" ? "认知书实体书" : "冰箱贴定制";
 }
 
 function OrderItemPreview({ src, alt, title = "订单图片", note = "历史图片资源已缺失" }) {
@@ -9714,6 +9688,7 @@ function areAdminOrderQueriesEqual(left, right) {
   return (
     Number(left?.page || 0) === Number(right?.page || 0) &&
     Number(left?.limit || 0) === Number(right?.limit || 0) &&
+    String(left?.orderType || "") === String(right?.orderType || "") &&
     String(left?.orderStatus || "") === String(right?.orderStatus || "") &&
     String(left?.search || "") === String(right?.search || "") &&
     String(left?.merchantId || "") === String(right?.merchantId || "") &&

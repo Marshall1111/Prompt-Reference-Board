@@ -96,7 +96,7 @@ function createExperiencePage(config) {
       showAccountModal: false,
       showProfileSetup: false,
       profileEditorMode: "onboarding",
-      profileNickname: "",
+      profileNickname: "小画家00000000",
       profileAvatarTempUrl: "",
       profileDefaultAvatarUrl: publicApi.toAbsoluteUrl("/account-avatars/default-avatar.svg"),
       profileAvatarPreviewUrl: publicApi.toAbsoluteUrl("/account-avatars/default-avatar.svg"),
@@ -112,6 +112,7 @@ function createExperiencePage(config) {
       isCoinPurchaseBusy: false,
       showOrdersOverlay: false,
       orderOverlayItems: [],
+      payingOverlayPurchaseId: "",
       isOrdersOverlayLoading: false,
       ordersOverlayError: "",
       showUserMenu: false,
@@ -143,7 +144,8 @@ function createExperiencePage(config) {
     onShareAppMessage: function () {
       return {
         title: "上传照片，一键制作AI小画冰箱贴",
-        path: this.data.referralSharePath || "pages/draw/draw"
+        path: this.data.referralSharePath || "pages/draw/draw",
+        imageUrl: "/images/share-home.png"
       };
     },
 
@@ -377,22 +379,83 @@ function createExperiencePage(config) {
       wx.navigateTo({ url: "/pages/order-detail/order-detail?id=" + encodeURIComponent(orderId) });
     },
 
-    cancelOverlayOrder: function (event) {
+    deleteOverlayOrder: function (event) {
       var self = this;
       var orderId = event.currentTarget.dataset.id;
       if (!orderId) return;
       wx.showModal({
-        title: "取消订单",
-        content: "确认取消这个未付款订单吗？",
-        confirmText: "取消订单",
+        title: "删除订单",
+        content: "确认删除此订单记录吗？",
+        confirmText: "删除",
         confirmColor: "#9f2418",
         success: function (result) {
           if (!result.confirm) return;
           publicExperience.deleteOrder(orderId).then(function () {
-            wx.showToast({ title: "已取消", icon: "success" });
+            wx.showToast({ title: "已删除", icon: "success" });
             self.loadOrdersOverlay();
           }).catch(function (error) {
-            wx.showToast({ title: (error && error.message) || "取消失败", icon: "none" });
+            wx.showToast({ title: (error && error.message) || "删除失败", icon: "none" });
+          });
+        }
+      });
+    },
+
+    openOverlayCoinPurchase: function (event) {
+      var purchaseId = event.currentTarget.dataset.id;
+      var purchase = (this.data.orderOverlayItems || []).find(function (item) {
+        return item.type === "coin_purchase" && item.id === purchaseId;
+      });
+      if (!purchase) return;
+      var self = this;
+      wx.showModal({
+        title: "购买币订单",
+        content: "订单号：" + purchase.purchaseNo + "\n购买数量：" + purchase.coinCount + " 币\n支付金额：" + purchase.amountText + "\n下单时间：" + purchase.createdAtText + "\n当前状态：" + purchase.statusText,
+        showCancel: purchase.canPay,
+        cancelText: "关闭",
+        confirmText: purchase.canPay ? "继续支付" : "知道了",
+        confirmColor: "#b98749",
+        success: function (result) {
+          if (result.confirm && purchase.canPay) self.payOverlayCoinPurchase(purchaseId);
+        }
+      });
+    },
+
+    payOverlayCoinPurchase: function (eventOrPurchaseId) {
+      var purchaseId = typeof eventOrPurchaseId === "string" ? eventOrPurchaseId : eventOrPurchaseId.currentTarget.dataset.id;
+      var purchase = (this.data.orderOverlayItems || []).find(function (item) {
+        return item.type === "coin_purchase" && item.id === purchaseId;
+      });
+      if (!purchase || !purchase.canPay || this.data.payingOverlayPurchaseId) return;
+      var self = this;
+      this.setData({ payingOverlayPurchaseId: purchaseId, ordersOverlayError: "" });
+      publicExperience.payCoinPurchase(purchaseId).then(function (payload) {
+        return requestMiniProgramPayment(payload && payload.payment);
+      }).then(function () {
+        wx.showToast({ title: "支付已提交", icon: "success" });
+        self.loadOrdersOverlay();
+      }).catch(function (error) {
+        wx.showToast({ title: (error && error.message) || "支付未完成", icon: "none" });
+      }).finally(function () {
+        self.setData({ payingOverlayPurchaseId: "" });
+      });
+    },
+
+    deleteOverlayCoinPurchase: function (event) {
+      var purchaseId = event.currentTarget.dataset.id;
+      if (!purchaseId) return;
+      var self = this;
+      wx.showModal({
+        title: "删除订单",
+        content: "确认删除这条购买币订单记录吗？",
+        confirmText: "删除",
+        confirmColor: "#9f2418",
+        success: function (result) {
+          if (!result.confirm) return;
+          publicExperience.deleteCoinPurchase(purchaseId).then(function () {
+            wx.showToast({ title: "已删除", icon: "success" });
+            self.loadOrdersOverlay();
+          }).catch(function (error) {
+            wx.showToast({ title: (error && error.message) || "删除失败", icon: "none" });
           });
         }
       });
@@ -825,10 +888,10 @@ function createExperiencePage(config) {
 
     openProfileSetupIfNeeded: function () {
       var account = this.data.visitorState && this.data.visitorState.account ? this.data.visitorState.account : {};
-      if (!this.data.isAccountRegistered || (account.hasWechatProfile && !account.usesDefaultWechatProfile)) return;
+      if (!this.data.isAccountRegistered || account.hasWechatProfile) return;
       this.setData({
         showProfileSetup: true,
-        profileNickname: "",
+        profileNickname: String(account.defaultWechatNickname || "小画家00000000"),
         profileAvatarTempUrl: "",
         profileAvatarPreviewUrl: this.data.profileDefaultAvatarUrl,
         profileAvatarMode: "default",
@@ -844,7 +907,9 @@ function createExperiencePage(config) {
       this.setData({
         showProfileSetup: true,
         profileEditorMode: "settings",
-        profileNickname: String(account.username || "").trim() === "微信用户" ? "" : String(account.username || "").trim(),
+        profileNickname: String(account.username || "").trim() === "微信用户"
+          ? String(account.defaultWechatNickname || "小画家00000000")
+          : String(account.username || "").trim(),
         profileAvatarTempUrl: "",
         profileAvatarPreviewUrl: currentAvatarUrl || this.data.profileDefaultAvatarUrl,
         profileAvatarMode: usesDefaultAvatar || !currentAvatarUrl ? "default" : "existing",
@@ -1061,14 +1126,7 @@ function createExperiencePage(config) {
       var nickname = String(this.data.profileNickname || "").trim();
       var avatarFilePath = String(this.data.profileAvatarTempUrl || "").trim();
 
-      if (!nickname) {
-        this.setData({ profileError: "请点击昵称输入框，选择“用微信昵称”。" });
-        return;
-      }
-      if (this.data.profileEditorMode === "onboarding" && this.data.profileAvatarMode === "default") {
-        this.setData({ profileError: "请点击头像，选择“用微信头像”。" });
-        return;
-      }
+      if (!nickname) nickname = "小画家00000000";
 
       this.setData({ isSavingProfile: true, profileError: "" });
       publicExperience.updateMiniProgramProfile(nickname, avatarFilePath, this.data.profileAvatarMode).then(function () {
@@ -1349,12 +1407,15 @@ function normalizeOverlayOrder(order) {
     createdAt: order.createdAt,
     statusText: order.orderStatus === "pending_payment" && order.lastPaymentChannel === "manual_collection" ? "待确认收款" : format.orderStatusLabel(order.orderStatus),
     statusClass: order.orderStatus,
-    canCancel: order.orderStatus === "pending_payment"
+    canDelete: ["pending_payment", "expired", "cancelled"].indexOf(order.orderStatus) !== -1
   };
 }
 
 function normalizeOverlayCoinPurchase(purchase) {
   var status = getOverlayCoinPurchaseStatus(purchase);
+  var rawStatus = String(purchase && purchase.status || "");
+  var isExpired = Boolean(purchase && purchase.expiresAt && Date.parse(purchase.expiresAt) <= Date.now());
+  var isManualCollection = String(purchase && purchase.channel || "") === "manual_collection";
   return {
     id: purchase.id,
     key: "coin-purchase:" + purchase.id,
@@ -1363,12 +1424,17 @@ function normalizeOverlayCoinPurchase(purchase) {
     amountText: format.formatCurrencyCents(purchase.amountCents),
     purchaseNo: String(purchase.purchaseNo || "--"),
     createdAt: purchase.createdAt,
+    createdAtText: format.formatDateTime(purchase.createdAt),
     statusText: status.label,
-    statusClass: status.className
+    statusClass: status.className,
+    canPay: !isManualCollection && !isExpired && ["created", "pending"].indexOf(rawStatus) !== -1,
+    canDelete: rawStatus !== "paid"
   };
 }
 
 function getOverlayCoinPurchaseStatus(purchase) {
+  if (purchase && purchase.status === "cancelled") return { label: "已取消", className: "cancelled" };
+  if (purchase && purchase.status !== "paid" && purchase.expiresAt && Date.parse(purchase.expiresAt) <= Date.now()) return { label: "已过期", className: "expired" };
   if (purchase && purchase.status === "paid") return { label: "已支付", className: "paid" };
   if (purchase && (purchase.status === "cancelled" || (purchase.expiresAt && Date.parse(purchase.expiresAt) <= Date.now()))) {
     return { label: "已过期", className: "cancelled" };

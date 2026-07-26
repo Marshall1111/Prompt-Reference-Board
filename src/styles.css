@@ -4233,6 +4233,112 @@ h2 {
   grid-template-columns: 120px minmax(0, 1fr) 220px;
 }
 
+.order-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #ded8ce;
+  border-radius: 10px;
+  background: rgba(255, 253, 249, 0.96);
+  box-shadow: 0 12px 32px rgba(33, 38, 40, 0.06);
+}
+
+.order-table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  color: #30413d;
+  font-size: 0.82rem;
+}
+
+.order-table th,
+.order-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e9e3da;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.order-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f7f3ec;
+  color: #64716d;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.order-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.order-table tbody tr:hover {
+  background: rgba(231, 244, 239, 0.42);
+}
+
+.order-table td small,
+.order-table td strong {
+  display: block;
+}
+
+.order-table td small {
+  margin-top: 3px;
+  color: #7c8984;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.order-number-cell {
+  min-width: 166px;
+}
+
+.order-number-cell strong {
+  color: #25413c;
+  font-size: 0.8rem;
+}
+
+.order-type-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #edf3f0;
+  color: #416159;
+  font-size: 0.72rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.order-table .task-status {
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.order-table-actions {
+  min-width: 76px;
+  text-align: right !important;
+}
+
+.order-table-actions .secondary-button {
+  min-height: 30px;
+  padding: 0 9px;
+  font-size: 0.75rem;
+}
+
+.order-table-empty {
+  padding: 28px 12px !important;
+  color: #7c8984;
+  text-align: center !important;
+}
+
+.order-table-empty-action {
+  color: #a1aaa5;
+}
+
 .order-admin-modal {
   width: min(900px, 100%);
   max-height: 90vh;

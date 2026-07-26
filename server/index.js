@@ -1610,27 +1610,22 @@ app.delete("/api/orders/:orderId", requireWebAccount, async (req, res, next) => 
     orderStore.expireUnpaidOrders();
     const order = orderStore.readOrderWithRelations(req.params.orderId);
     assertWebAccountOwnsOrder(req, order);
-    const canRemoveExpiredOrCancelledOrder = order.paymentStatus === "expired" || order.fulfillmentStatus === "cancelled";
-    if (!canRemoveExpiredOrCancelledOrder && order.fulfillmentStatus !== "new") {
-      throw createHttpError(409, "当前订单已进入处理流程，暂不支持取消。");
-    }
-    if (canRemoveExpiredOrCancelledOrder) {
-      const deleted = orderStore.updateOrder(order.id, {
-        userDeletedAt: order.userDeletedAt || new Date().toISOString()
-      });
-      return res.json({ order: toPublicOrder(deleted, { includeToken: true }) });
-    }
     if (order.paymentStatus === "paid") throw createHttpError(409, "已付款订单不支持取消。");
+    const isUnpaidOrder = order.paymentStatus === "unpaid" || order.paymentStatus === "expired" || order.fulfillmentStatus === "cancelled";
+    if (!isUnpaidOrder) throw createHttpError(409, "当前订单已进入处理流程，暂不支持删除。");
 
+    if (order.paymentStatus === "unpaid") {
+      if (order.experienceType === "body-book") commerceStore.releaseBodyBookDiscountReservation(order.id);
+      else commerceStore.releaseFridgeCoinDiscountReservation(order.id);
+      commerceStore.cancelPaymentIntentByOutTradeNo(order.outTradeNo);
+    }
     const deleted = orderStore.updateOrder(order.id, {
-      paymentStatus: "expired",
-      fulfillmentStatus: "cancelled",
+      paymentStatus: order.paymentStatus === "unpaid" ? "expired" : order.paymentStatus,
+      fulfillmentStatus: order.fulfillmentStatus === "new" ? "cancelled" : order.fulfillmentStatus,
       cancelledAt: order.cancelledAt || new Date().toISOString(),
-      lastPaymentError: "订单已取消"
+      lastPaymentError: order.lastPaymentError || "订单已删除",
+      userDeletedAt: order.userDeletedAt || new Date().toISOString()
     });
-    if (order.experienceType === "body-book") commerceStore.releaseBodyBookDiscountReservation(order.id);
-    else commerceStore.releaseFridgeCoinDiscountReservation(order.id);
-    commerceStore.cancelPaymentIntentByOutTradeNo(order.outTradeNo);
     res.json({ order: toPublicOrder(deleted, { includeToken: true }) });
   } catch (error) {
     next(error);
@@ -1748,7 +1743,7 @@ app.post("/api/coin-purchases", requireWebAccount, async (req, res, next) => {
 
 app.get("/api/coin-purchases", requireWebAccount, (req, res, next) => {
   try {
-    const purchases = commerceStore.listPaymentIntents(req.webAccount.id, 100)
+    const purchases = commerceStore.listPaymentIntents(req.webAccount.id, 100, { excludeUserDeleted: true })
       .filter((intent) => intent.kind === "coin_purchase")
       .map(toPublicCoinPurchase);
     res.json({ purchases });
@@ -1760,10 +1755,25 @@ app.get("/api/coin-purchases", requireWebAccount, (req, res, next) => {
 app.get("/api/coin-purchases/:purchaseId", requireWebAccount, (req, res, next) => {
   try {
     const intent = commerceStore.readPaymentIntent(req.params.purchaseId);
-    if (!intent || intent.kind !== "coin_purchase" || intent.accountId !== req.webAccount.id) {
+    if (!intent || intent.userDeletedAt || intent.kind !== "coin_purchase" || intent.accountId !== req.webAccount.id) {
       throw createHttpError(404, "币购买单不存在。");
     }
     res.json({ purchase: toPublicCoinPurchase(intent) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/coin-purchases/:purchaseId", requireWebAccount, (req, res, next) => {
+  try {
+    const intent = commerceStore.readPaymentIntent(req.params.purchaseId);
+    if (!intent || intent.userDeletedAt || intent.kind !== "coin_purchase" || intent.accountId !== req.webAccount.id) {
+      throw createHttpError(404, "币购买单不存在。");
+    }
+    if (intent.status === "paid") throw createHttpError(409, "已支付的购买币记录不支持删除。");
+    commerceStore.cancelPaymentIntentByOutTradeNo(intent.outTradeNo);
+    const deleted = commerceStore.hidePaymentIntentForUser(intent.id);
+    res.json({ purchase: toPublicCoinPurchase(deleted) });
   } catch (error) {
     next(error);
   }
@@ -1773,7 +1783,7 @@ app.post("/api/coin-purchases/:purchaseId/pay", requireWebAccount, async (req, r
   try {
     assertRegisteredAccount(req);
     const intent = commerceStore.readPaymentIntent(req.params.purchaseId);
-    if (!intent || intent.kind !== "coin_purchase" || intent.accountId !== req.webAccount.id) {
+    if (!intent || intent.userDeletedAt || intent.kind !== "coin_purchase" || intent.accountId !== req.webAccount.id) {
       throw createHttpError(404, "币购买单不存在。");
     }
     if (intent.status === "paid") {
@@ -3242,26 +3252,22 @@ app.get("/api/admin/orders", requireAdmin, async (req, res) => {
     const page = Math.max(Number(req.query.page || 1), 1);
     const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), ORDER_SEARCH_LIMIT);
     const merchantId = normalizeMerchantId(String(req.query.merchantId || ""));
-    const orderStatus = normalizeOrderStatus(String(req.query.orderStatus || ""), "");
+    const orderStatus = normalizeAdminOrderListStatus(String(req.query.orderStatus || ""));
+    const orderType = normalizeAdminOrderListType(String(req.query.orderType || ""));
     const search = String(req.query.search || "").trim();
     const startDate = String(req.query.startDate || "").trim();
     const endDate = String(req.query.endDate || "").trim();
-
-    const payload = orderStore.listOrders({
-      page,
-      limit,
-      merchantId,
-      orderStatus,
-      search,
-      startDate,
-      endDate
-    });
+    const records = listAdminOrderRecords({ merchantId, orderStatus, orderType, search, startDate, endDate });
+    const total = records.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const safePage = Math.min(page, totalPages);
+    const offset = (safePage - 1) * limit;
 
     res.json({
-      total: payload.total,
-      page: payload.page,
-      limit: payload.limit,
-      orders: payload.items.map((order) => toPublicOrder(order, { includePrivate: true }))
+      total,
+      page: safePage,
+      limit,
+      orders: records.slice(offset, offset + limit)
     });
   } catch (error) {
     console.error(error);
@@ -3272,34 +3278,30 @@ app.get("/api/admin/orders", requireAdmin, async (req, res) => {
 app.get("/api/admin/orders/export", requireAdmin, async (req, res) => {
   try {
     const merchantId = normalizeMerchantId(String(req.query.merchantId || ""));
-    const orderStatus = normalizeOrderStatus(String(req.query.orderStatus || ""), "");
+    const orderStatus = normalizeAdminOrderListStatus(String(req.query.orderStatus || ""));
+    const orderType = normalizeAdminOrderListType(String(req.query.orderType || ""));
     const search = String(req.query.search || "").trim();
     const startDate = String(req.query.startDate || "").trim();
     const endDate = String(req.query.endDate || "").trim();
-
-    const orders = orderStore.listOrdersForExport({
-      merchantId,
-      orderStatus,
-      search,
-      startDate,
-      endDate
-    });
+    const orders = listAdminOrderRecords({ merchantId, orderStatus, orderType, search, startDate, endDate });
 
     const rows = [
-      ["下单日期", "付款日期", "订单状态", "收件人", "电话", "地址", "备注", "商品小计", "邮费", "豆豆优惠", "已购币优惠", "实付金额", "来源商户"],
+      ["下单日期", "付款日期", "订单类型", "订单号", "订单状态", "用户/收件人", "电话", "地址", "备注", "商品小计", "邮费", "豆豆优惠", "已购币优惠", "实付金额", "来源商户"],
       ...orders.map((order) => [
         formatOrderExportDate(order.createdAt),
         formatOrderExportDate(order.paidAt),
-        getOrderStatusLabel(order),
-        String(order.receiverName || ""),
+        getAdminOrderRecordTypeLabel(order),
+        String(order.orderNo || ""),
+        getAdminOrderRecordStatusLabel(order),
+        String(order.recordType === "purchase" ? order.accountName : order.receiverName || ""),
         String(order.receiverPhone || ""),
-        formatOrderExportAddress(order),
-        String(order.remark || ""),
-        formatOrderAmount(order.subtotalCents),
+        order.recordType === "purchase" ? "" : formatOrderExportAddress(order),
+        order.recordType === "purchase" ? order.purchaseQuantityText : String(order.remark || ""),
+        formatOrderAmount(order.subtotalCents ?? order.amountCents),
         formatOrderAmount(order.shippingFeeCents),
         formatOrderAmount(-Math.max(0, Number(order.beanDiscountCents || 0))),
         formatOrderAmount(-Math.max(0, Number(order.coinDiscountCents || 0))),
-        formatOrderAmount(getOrderPayableCents(order)),
+        formatOrderAmount(order.recordType === "purchase" ? order.amountCents : getOrderPayableCents(order)),
         String(order.sourceMerchantName || "")
       ])
     ];
@@ -6981,10 +6983,6 @@ function toPublicCommerceAccount(account) {
     username: account.username || account.wechatNickname || "微信用户",
     defaultWechatNickname: buildDefaultWechatNickname(account.id),
     hasWechatProfile: Boolean(account.wechatNickname && account.wechatAvatarUrl),
-    usesDefaultWechatProfile: Boolean(
-      /^小画家用户\d{8}$/.test(String(account.wechatNickname || "")) &&
-      avatarUrl === "/account-avatars/default-avatar.svg"
-    ),
     wechatAvatarUrl: localAvatarUrl || (avatarUrl ? `/api/public/account-avatars/${encodeURIComponent(account.id)}` : ""),
     email: account.email || "",
     accountStatus: account.accountStatus || "active",
@@ -6998,7 +6996,7 @@ function toPublicCommerceAccount(account) {
 function buildDefaultWechatNickname(accountId) {
   const compactId = String(accountId || "").replace(/[^0-9a-f]/gi, "").slice(-10);
   const serial = Number.parseInt(compactId || "0", 16) % 100000000;
-  return `小画家用户${String(serial).padStart(8, "0")}`;
+  return `小画家${String(serial).padStart(8, "0")}`;
 }
 
 function toPublicCreditLedger(entry) {
@@ -7191,6 +7189,98 @@ function toPublicAdminPaymentIntent(intent) {
     transactionId: intent.transactionId,
     metadata: intent.metadata
   };
+}
+
+function normalizeAdminOrderListType(value) {
+  const type = String(value || "").trim();
+  return new Set(["fridge", "body_book", "coin_purchase", "bean_purchase"]).has(type) ? type : "";
+}
+
+function normalizeAdminOrderListStatus(value) {
+  const status = String(value || "").trim();
+  return ORDER_STATUS_VALUES.has(status) || status === "paid" ? status : "";
+}
+
+function getAdminPurchaseOrderStatus(intent) {
+  if (intent?.status === "paid") return "paid";
+  if (intent?.status === "cancelled") return "cancelled";
+  if (intent?.expiresAt && Date.parse(intent.expiresAt) <= Date.now()) return "expired";
+  return "pending_payment";
+}
+
+function getAdminPurchaseOrderStatusLabel(intent) {
+  const status = getAdminPurchaseOrderStatus(intent);
+  if (status === "paid") return "已支付";
+  if (status === "cancelled") return "已取消";
+  if (status === "expired") return "已过期";
+  return intent?.channel === "manual_collection" ? "待确认收款" : "待付款";
+}
+
+function getAdminOrderRecordTypeLabel(record) {
+  if (record?.recordType === "purchase") return record.orderType === "coin_purchase" ? "购买币" : "购买豆豆";
+  return record?.experienceType === "body-book" ? "认知书实体书" : "冰箱贴定制";
+}
+
+function getAdminOrderRecordStatusLabel(record) {
+  if (record?.recordType === "purchase") return record.purchaseStatusLabel || getAdminPurchaseOrderStatusLabel(record);
+  return getOrderStatusLabel(record);
+}
+
+function isWithinAdminOrderDateRange(createdAt, startDate, endDate) {
+  const createdAtMs = Date.parse(createdAt || "");
+  if (!Number.isFinite(createdAtMs)) return false;
+  if (startDate && createdAtMs < Date.parse(`${startDate}T00:00:00.000Z`)) return false;
+  if (endDate && createdAtMs > Date.parse(`${endDate}T23:59:59.999Z`)) return false;
+  return true;
+}
+
+function listAdminOrderRecords({ merchantId = "", orderStatus = "", orderType = "", search = "", startDate = "", endDate = "" } = {}) {
+  const records = [];
+  const includePhysicalOrders = !orderType || ["fridge", "body_book"].includes(orderType);
+  const includePurchases = !merchantId && (!orderType || ["coin_purchase", "bean_purchase"].includes(orderType));
+  const physicalOrderStatus = ORDER_STATUS_VALUES.has(orderStatus) ? orderStatus : "";
+
+  if (includePhysicalOrders) {
+    const physicalOrders = orderStore.listOrdersForExport({ merchantId, orderStatus: physicalOrderStatus, search, startDate, endDate });
+    physicalOrders.forEach((order) => {
+      if (orderType === "fridge" && order.experienceType === "body-book") return;
+      if (orderType === "body_book" && order.experienceType !== "body-book") return;
+      records.push({
+        ...toPublicOrder(order, { includePrivate: true }),
+        recordType: "order",
+        orderType: order.experienceType === "body-book" ? "body_book" : "fridge"
+      });
+    });
+  }
+
+  if (includePurchases) {
+    const searchText = String(search || "").trim().toLocaleLowerCase();
+    commerceStore.listAllPaymentIntents(500).forEach((intent) => {
+      if (!["coin_purchase", "bean_purchase"].includes(intent.kind)) return;
+      if (orderType && intent.kind !== orderType) return;
+      const purchaseStatus = getAdminPurchaseOrderStatus(intent);
+      if (orderStatus && purchaseStatus !== orderStatus) return;
+      if (!isWithinAdminOrderDateRange(intent.createdAt, startDate, endDate)) return;
+      const account = commerceStore.readAccount(intent.accountId);
+      const accountName = String(account?.username || account?.wechatNickname || account?.email || account?.id || "用户");
+      const purchaseNo = String(intent.metadata?.purchaseNo || intent.outTradeNo || intent.id);
+      const purchaseQuantity = Math.max(0, Number(intent.kind === "coin_purchase" ? intent.metadata?.coinCount : intent.metadata?.beanCount) || Number(intent.creditAmount || 0));
+      if (searchText && ![purchaseNo, intent.outTradeNo, accountName, intent.accountId].some((value) => String(value || "").toLocaleLowerCase().includes(searchText))) return;
+      records.push({
+        ...toPublicAdminPaymentIntent(intent),
+        recordType: "purchase",
+        orderType: intent.kind,
+        orderNo: purchaseNo,
+        orderStatus: purchaseStatus,
+        purchaseStatusLabel: getAdminPurchaseOrderStatusLabel(intent),
+        purchaseQuantityText: `${purchaseQuantity} ${intent.kind === "coin_purchase" ? "币" : "豆"}`,
+        accountName,
+        canConfirmManual: purchaseStatus === "pending_payment" && intent.channel === "manual_collection"
+      });
+    });
+  }
+
+  return records.sort((left, right) => Date.parse(right.createdAt || "") - Date.parse(left.createdAt || ""));
 }
 
 function assertWechatPaymentConfigured({ requireOAuth = false } = {}) {
