@@ -61,7 +61,11 @@ const DRAW_CARD_WAITING_MESSAGE = "总计需要约 5 分钟，请耐心等待。
 const DRAW_CARD_SUCCESS_MESSAGE = "结果已准备好。";
 const DRAW_CARD_FAILURE_MESSAGE = "这一轮未能顺利完成，请重新开始。";
 const DRAW_CARD_PARTIAL_MESSAGE = "部分结果已准备好，仅扣除成功生成的币。";
-const PUBLIC_PREVIEW_WATERMARK_TEXT = "Preview Only";
+const PUBLIC_PREVIEW_WATERMARK_TEXT = "AI小画家";
+const PUBLIC_PREVIEW_WATERMARK_OUTLINE_FONT_SIZE = 100;
+const PUBLIC_PREVIEW_WATERMARK_OUTLINE_ADVANCE = 404.3;
+const PUBLIC_PREVIEW_WATERMARK_OUTLINE_BASELINE = 96.48;
+const PUBLIC_PREVIEW_WATERMARK_OUTLINE_PATH = "M64.7 83.98L55.32 83.98L49.85 63.28L32.67 63.28L27.2 83.98L17.82 83.98L37.35 16.41L45.17 16.41ZM47.9 55.86L41.65 32.03L40.87 32.03L34.62 55.86ZM97.07 83.98L88.09 83.98L88.09 17.19L97.07 17.19ZM174.37 5.47C174.1 9.11 173.97 14.06 173.97 20.31L173.97 83.2C173.97 88.15 172.67 91.28 170.07 92.58C167.46 93.88 163.04 94.79 156.79 95.31C156.27 92.19 155.09 89.19 153.27 86.33C159 86.33 162.58 86.2 164.01 85.94C165.45 85.68 166.16 84.11 166.16 81.25L166.16 20.31C166.16 15.63 166.03 10.68 165.77 5.47ZM152.1 32.81C149.76 39.32 147.02 46.81 143.9 55.27C140.77 63.74 138.04 70.05 135.69 74.22C133.09 72.14 130.35 70.83 127.49 70.31C131.92 62.5 135.43 54.75 138.04 47.07C140.64 39.39 142.33 33.72 143.12 30.08C146.24 31.64 149.24 32.55 152.1 32.81ZM192.72 29.69C203.14 48.44 209.39 61.2 211.47 67.97C208.87 68.49 206.27 69.66 203.66 71.48C199.76 60.29 193.77 47.79 185.69 33.98C187.78 32.94 190.12 31.51 192.72 29.69ZM295.7 26.56C295.44 30.47 295.31 35.16 295.31 40.63L295.31 57.03C295.31 60.68 295.44 66.15 295.7 73.44L250 73.44C250.26 69.27 250.39 64.97 250.39 60.55L250.39 41.41C250.39 35.68 250.26 30.73 250 26.56ZM239.06 82.81L306.25 82.81L306.25 43.36C306.25 41.02 306.12 37.89 305.86 33.98L314.45 33.98C314.19 37.63 314.06 40.76 314.06 43.36L314.06 83.98C314.06 86.59 314.19 90.36 314.45 95.31L306.25 95.31L306.25 88.67L231.25 88.67C231.51 85.81 231.64 82.29 231.64 78.13L231.64 44.14C231.64 40.76 231.51 37.5 231.25 34.38L239.06 34.38ZM297.27 10.55C302.99 10.55 308.59 10.42 314.06 10.16L314.06 17.19C308.59 16.93 302.99 16.8 297.27 16.8L251.56 16.8C245.05 16.8 238.67 16.93 232.42 17.19L232.42 10.16C238.67 10.42 245.05 10.55 251.56 10.55ZM269.53 67.19L269.53 52.73L257.42 52.73L257.42 67.19ZM269.53 46.48L269.53 32.42L257.42 32.42L257.42 46.48ZM288.28 67.19L288.28 52.73L276.56 52.73L276.56 67.19ZM288.28 46.48L288.28 32.42L276.56 32.42L276.56 46.48ZM379.15 68.36C370.56 75.13 362.61 80.47 355.32 84.38C348.03 88.28 341.78 91.54 336.57 94.14C334.49 91.54 332.54 89.19 330.71 87.11C343.47 82.94 353.56 78.52 360.99 73.83C368.41 69.14 373.68 65.1 376.81 61.72C375.77 59.9 374.72 58.33 373.68 57.03C365.61 62.76 358.45 67.32 352.2 70.7C345.95 74.09 341 76.43 337.35 77.73C335.53 75.13 333.58 72.92 331.49 71.09C341.91 67.97 350.18 64.58 356.3 60.94C362.42 57.29 366.78 54.3 369.38 51.95C368.34 50.65 367.17 49.22 365.87 47.66C361.7 50 357.21 52.28 352.39 54.49C347.57 56.71 342.43 58.98 336.96 61.33C335.4 58.72 333.58 56.12 331.49 53.52C342.17 50.91 350.37 48.18 356.1 45.31C361.83 42.45 366 39.58 368.6 36.72L363.13 36.72C359.49 36.72 355.19 36.85 350.24 37.11L350.24 30.08C355.19 30.34 359.49 30.47 363.13 30.47L389.7 30.47C393.08 30.47 397.25 30.34 402.2 30.08L402.2 37.11C397.25 36.85 393.08 36.72 389.7 36.72L379.15 36.72C376.81 38.8 374.2 41.15 371.34 43.75C373.42 45.57 375.37 47.46 377.2 49.41C379.02 51.37 380.97 54.04 383.06 57.42C386.18 55.86 389.7 53.71 393.6 50.98C397.51 48.24 401.03 44.79 404.15 40.63C408.06 44.27 410.66 46.74 411.96 48.05C408.84 49.35 406.1 50.65 403.76 51.95C401.42 53.26 399.46 54.69 397.9 56.25C400.24 64.06 403.24 69.66 406.88 73.05C410.53 76.43 415.61 79.69 422.12 82.81C419.52 84.64 417.17 87.11 415.09 90.23C407.8 85.55 402.46 80.66 399.07 75.59C395.69 70.51 393.34 65.23 392.04 59.77C389.96 61.07 387.87 62.24 385.79 63.28C387.09 70.31 387.68 76.17 387.55 80.86C387.42 85.55 385.47 89.13 381.69 91.6C377.91 94.08 373.42 95.7 368.21 96.48C367.17 93.1 366 90.1 364.7 87.5C369.12 87.5 372.64 87.11 375.24 86.33C377.85 85.55 379.35 83.59 379.74 80.47C380.13 77.34 379.93 73.31 379.15 68.36ZM377.98 3.52C378.5 6.12 379.67 10.03 381.49 15.23L417.43 15.23C417.17 19.4 417.04 22.79 417.04 25.39C417.04 27.73 417.17 30.73 417.43 34.38L409.23 34.38L409.23 21.48L341.26 21.48L341.26 36.33L333.06 36.33C333.32 32.16 333.45 28.52 333.45 25.39C333.45 22.01 333.32 18.62 333.06 15.23L372.12 15.23C371.08 11.85 369.91 8.85 368.6 6.25C371.99 5.47 375.11 4.56 377.98 3.52Z";
 const VISITOR_COOKIE_NAME = "pg_visitor";
 const WEB_ACCOUNT_COOKIE_NAME = "pg_web_account";
 const USER_SESSION_COOKIE_NAME = "pg_user_session";
@@ -6592,6 +6596,7 @@ function normalizeRequestedOrderItems(payload) {
     const quantity = Object.prototype.hasOwnProperty.call(rawItem || {}, "quantity")
       ? normalizeRequestedOrderItemQuantity(rawItem.quantity)
       : 1;
+    if (quantity === 0) return;
     const nextQuantity = (quantitiesByJobId.get(jobId) || 0) + quantity;
     if (nextQuantity > 99) {
       throw createHttpError(400, "同款数量需在 1 到 99 之间。");
@@ -6607,8 +6612,8 @@ function normalizeRequestedOrderItems(payload) {
 
 function normalizeRequestedOrderItemQuantity(value) {
   const quantity = Number(value);
-  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
-    throw createHttpError(400, "同款数量需在 1 到 99 之间。");
+  if (!Number.isInteger(quantity) || quantity < 0 || quantity > 99) {
+    throw createHttpError(400, "同款数量需在 0 到 99 之间。");
   }
   return quantity;
 }
@@ -10897,40 +10902,49 @@ async function createPublicPreview(jobId, bytes) {
 function createPublicPreviewWatermark(width, height) {
   const safeWidth = Math.max(1, Math.round(width || PUBLIC_PREVIEW_MAX_EDGE));
   const safeHeight = Math.max(1, Math.round(height || PUBLIC_PREVIEW_MAX_EDGE));
-  const barHeight = Math.max(64, Math.floor(safeHeight * 0.09));
-  const labelFontSize = Math.max(22, Math.floor(safeWidth * 0.028));
+  const barHeight = Math.max(72, Math.floor(safeHeight * 0.11));
+  const labelFontSize = Math.max(28, Math.floor(safeWidth * 0.04));
   const labelX = Math.max(24, Math.floor(safeWidth * 0.035));
   const labelY = safeHeight - Math.max(22, Math.floor(barHeight * 0.36));
-  const patternFontSize = Math.max(22, Math.floor(safeWidth * 0.036));
-  const patternWidth = Math.max(240, Math.floor(safeWidth * 0.26));
-  const patternHeight = Math.max(160, Math.floor(safeHeight * 0.2));
+  const patternFontSize = Math.max(20, Math.floor(safeWidth * 0.032));
+  const patternWidth = Math.max(220, Math.floor(safeWidth * 0.23));
+  const patternHeight = Math.max(140, Math.floor(safeHeight * 0.17));
+  const watermarkOutlineScale = patternFontSize / PUBLIC_PREVIEW_WATERMARK_OUTLINE_FONT_SIZE;
+  const watermarkOutlineAdvance = PUBLIC_PREVIEW_WATERMARK_OUTLINE_ADVANCE * watermarkOutlineScale;
+  const watermarkOutlineY = Math.floor(patternHeight * 0.6) - PUBLIC_PREVIEW_WATERMARK_OUTLINE_BASELINE * watermarkOutlineScale;
+  const watermarkOutlineOffsets = [-watermarkOutlineAdvance, 0, watermarkOutlineAdvance, watermarkOutlineAdvance * 2];
+  const labelOutlineScale = labelFontSize / PUBLIC_PREVIEW_WATERMARK_OUTLINE_FONT_SIZE;
+  const labelOutlineY = labelY - PUBLIC_PREVIEW_WATERMARK_OUTLINE_BASELINE * labelOutlineScale;
+  const watermarkOutlinePaths = watermarkOutlineOffsets.map((offset) => `
+    <path
+      d="${PUBLIC_PREVIEW_WATERMARK_OUTLINE_PATH}"
+      transform="translate(${offset} ${watermarkOutlineY}) scale(${watermarkOutlineScale})"
+      fill="#ffffff"
+      fill-opacity="0.13"
+      stroke="#101114"
+      stroke-opacity="0.1"
+      stroke-width="${1 / watermarkOutlineScale}"
+    />
+  `).join("");
 
   return Buffer.from(`
     <svg width="${safeWidth}" height="${safeHeight}" viewBox="0 0 ${safeWidth} ${safeHeight}" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <pattern id="preview-diagonal-pattern" patternUnits="userSpaceOnUse" width="${patternWidth}" height="${patternHeight}" patternTransform="rotate(-28)">
-          <text
-            x="0"
-            y="${Math.floor(patternHeight * 0.6)}"
-            fill="#ffffff"
-            fill-opacity="0.12"
-            font-size="${patternFontSize}"
-            font-family="Arial, sans-serif"
-            letter-spacing="2"
-          >${PUBLIC_PREVIEW_WATERMARK_TEXT}</text>
+          ${watermarkOutlinePaths}
         </pattern>
       </defs>
       <rect x="0" y="0" width="${safeWidth}" height="${safeHeight}" fill="url(#preview-diagonal-pattern)" />
-      <rect x="0" y="${Math.max(0, safeHeight - barHeight)}" width="${safeWidth}" height="${barHeight}" fill="#08080a" fill-opacity="0.62" />
-      <text
-        x="${labelX}"
-        y="${labelY}"
+      <rect x="0" y="${Math.max(0, safeHeight - barHeight)}" width="${safeWidth}" height="${barHeight}" fill="#08080a" fill-opacity="0.82" />
+      <path
+        d="${PUBLIC_PREVIEW_WATERMARK_OUTLINE_PATH}"
+        transform="translate(${labelX} ${labelOutlineY}) scale(${labelOutlineScale})"
         fill="#ffffff"
-        fill-opacity="0.92"
-        font-size="${labelFontSize}"
-        font-family="Arial, sans-serif"
-        letter-spacing="1.5"
-      >${PUBLIC_PREVIEW_WATERMARK_TEXT}</text>
+        fill-opacity="1"
+        stroke="#08080a"
+        stroke-opacity="0.52"
+        stroke-width="${1.5 / labelOutlineScale}"
+      />
     </svg>
   `);
 }

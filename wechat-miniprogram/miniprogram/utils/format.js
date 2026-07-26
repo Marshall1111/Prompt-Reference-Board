@@ -43,7 +43,7 @@ function sessionStatusLabel(status) {
 function clampQuantity(value) {
   var next = Number(value);
   if (!Number.isFinite(next)) return 1;
-  return Math.min(99, Math.max(1, Math.round(next)));
+  return Math.min(99, Math.max(0, Math.round(next)));
 }
 
 function calculateAmount(itemCount, config) {

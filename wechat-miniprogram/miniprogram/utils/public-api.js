@@ -50,6 +50,22 @@ function getRequestCookieHeader() {
   return cookie ? cookie : "";
 }
 
+function getCookieValue(name) {
+  var prefix = String(name || "") + "=";
+  var cookies = getRequestCookieHeader().split(";");
+  var index = 0;
+
+  for (index = 0; index < cookies.length; index += 1) {
+    var item = String(cookies[index] || "").trim();
+    if (item.indexOf(prefix) === 0) return item.slice(prefix.length);
+  }
+  return "";
+}
+
+function getAccountCacheKey() {
+  return getCookieValue(WEB_ACCOUNT_COOKIE_NAME);
+}
+
 function mergeHeaders(headers) {
   var next = headers ? Object.assign({}, headers) : {};
   var cookie = getRequestCookieHeader();
@@ -322,6 +338,7 @@ module.exports = {
   createTraceId: createTraceId,
   downloadFile: downloadFile,
   ensureMiniProgramLogin: ensureMiniProgramLogin,
+  getAccountCacheKey: getAccountCacheKey,
   getApiBaseUrl: getApiBaseUrl,
   initializeGuestAccount: initializeGuestAccount,
   loginWithEmail: loginWithEmail,

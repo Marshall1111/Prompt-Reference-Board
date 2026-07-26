@@ -5,6 +5,7 @@ const STORAGE_KEYS = {
   "fridge-magnet": "petpaint.fridge.session-id",
   latestManualOrder: "petpaint.fridge.latest-order"
 };
+const ORDER_CACHE_KEY_PREFIX = "petpaint.orders.cache.";
 
 function getSessionStorageKey(experienceType) {
   return STORAGE_KEYS[experienceType] || STORAGE_KEYS["draw-card"];
@@ -206,6 +207,56 @@ function fetchCoinPurchases() {
   return publicApi.request({ path: "/api/coin-purchases" });
 }
 
+function getOrdersCacheStorageKey() {
+  var accountId = String(publicApi.getAccountCacheKey() || "").trim();
+  return accountId ? ORDER_CACHE_KEY_PREFIX + accountId : "";
+}
+
+function readOrdersCache() {
+  var cacheKey = getOrdersCacheStorageKey();
+  if (!cacheKey) return null;
+  try {
+    var cached = wx.getStorageSync(cacheKey);
+    if (!cached || !Array.isArray(cached.orders) || !Array.isArray(cached.purchases)) return null;
+    return cached;
+  } catch (error) {
+    return null;
+  }
+}
+
+function saveOrdersCache(cached) {
+  var cacheKey = getOrdersCacheStorageKey();
+  if (!cacheKey) return;
+  try {
+    wx.setStorageSync(cacheKey, cached);
+  } catch (error) {}
+}
+
+function prefetchOrdersCache() {
+  var cached = readOrdersCache() || {
+    orders: [],
+    purchases: [],
+    orderConfig: null,
+    cachedAt: 0
+  };
+
+  return Promise.all([
+    fetchMyOrders("fridge").then(function (payload) {
+      cached.orders = payload && payload.orders || [];
+      cached.orderConfig = payload && payload.config || null;
+      cached.cachedAt = Date.now();
+      saveOrdersCache(cached);
+      return payload;
+    }).catch(function () { return null; }),
+    fetchCoinPurchases().then(function (payload) {
+      cached.purchases = payload && payload.purchases || [];
+      cached.cachedAt = Date.now();
+      saveOrdersCache(cached);
+      return payload;
+    }).catch(function () { return null; })
+  ]);
+}
+
 function loginWithEmail(email, password) {
   return publicApi.loginWithEmail(email, password);
 }
@@ -378,6 +429,8 @@ module.exports = {
   logout: logout,
   payCoinPurchase: payCoinPurchase,
   payOrder: payOrder,
+  prefetchOrdersCache: prefetchOrdersCache,
+  readOrdersCache: readOrdersCache,
   readLatestManualOrder: readLatestManualOrder,
   readSessionId: readSessionId,
   redeemInviteCode: redeemInviteCode,
@@ -385,5 +438,6 @@ module.exports = {
   requestEmailCode: requestEmailCode,
   resetPasswordWithEmail: resetPasswordWithEmail,
   saveSessionId: saveSessionId,
+  saveOrdersCache: saveOrdersCache,
   unlikeJob: unlikeJob
 };

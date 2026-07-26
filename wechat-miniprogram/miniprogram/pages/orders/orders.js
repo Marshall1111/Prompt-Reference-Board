@@ -8,11 +8,22 @@ Page({
     listItems: [],
     orderConfig: null,
     isLoading: true,
+    hasCachedOrders: false,
     errorMessage: ""
   },
 
   onShow: function () {
-    this.loadOrders();
+    var restored = this.restoreCachedOrders();
+    if (!restored) {
+      this.setData({
+        orders: [],
+        listItems: [],
+        orderConfig: null,
+        hasCachedOrders: false,
+        errorMessage: ""
+      });
+    }
+    this.loadOrders({ hasCachedOrders: restored });
   },
 
   onPullDownRefresh: function () {
@@ -21,31 +32,85 @@ Page({
     });
   },
 
-  loadOrders: function () {
+  loadOrders: function (options) {
     var self = this;
-    this.setData({ isLoading: true });
-    return Promise.all([
-      publicExperience.fetchMyOrders("fridge"),
-      publicExperience.fetchCoinPurchases()
-    ]).then(function (results) {
-      var payload = results[0] || {};
-      var purchasePayload = results[1] || {};
-      var orders = (payload.orders || []).map(normalizeOrder);
-      var purchases = (purchasePayload.purchases || []).map(normalizeCoinPurchase);
-      self.setData({
-        orders: orders,
-        listItems: orders.concat(purchases).sort(function (left, right) {
-          return Date.parse(String(right.createdAt || "")) - Date.parse(String(left.createdAt || ""));
-        }),
-        orderConfig: payload.config || null,
-        errorMessage: ""
-      });
-    }).catch(function (error) {
-      self.setData({
-        errorMessage: (error && error.message) || "读取订单失败。"
-      });
-    }).finally(function () {
+    var nextOptions = options || {};
+    var hasCachedOrders = Object.prototype.hasOwnProperty.call(nextOptions, "hasCachedOrders")
+      ? Boolean(nextOptions.hasCachedOrders)
+      : Boolean(this.data.hasCachedOrders);
+    var cached = publicExperience.readOrdersCache() || {
+      orders: [],
+      purchases: [],
+      orderConfig: null,
+      cachedAt: 0
+    };
+    var pendingRequests = 2;
+    var hasSuccessfulResponse = false;
+    var firstError = null;
+
+    function applyLatestCache() {
+      cached.cachedAt = Date.now();
+      publicExperience.saveOrdersCache(cached);
+      hasSuccessfulResponse = true;
+      self.applyOrderData(cached, true);
       self.setData({ isLoading: false });
+    }
+
+    function finishRequest(error) {
+      if (error && !firstError) firstError = error;
+      pendingRequests -= 1;
+      if (pendingRequests > 0) return;
+      if (!hasSuccessfulResponse && !hasCachedOrders) {
+        self.setData({
+          errorMessage: (firstError && firstError.message) || "读取订单失败。"
+        });
+      }
+      self.setData({ isLoading: false });
+    }
+
+    this.setData({
+      isLoading: !hasCachedOrders,
+      errorMessage: ""
+    });
+    return Promise.all([
+      publicExperience.fetchMyOrders("fridge").then(function (payload) {
+        cached.orders = payload && payload.orders || [];
+        cached.orderConfig = payload && payload.config || null;
+        applyLatestCache();
+      }).catch(function (error) {
+        firstError = firstError || error;
+      }).then(function () {
+        finishRequest();
+      }),
+      publicExperience.fetchCoinPurchases().then(function (payload) {
+        cached.purchases = payload && payload.purchases || [];
+        applyLatestCache();
+      }).catch(function (error) {
+        firstError = firstError || error;
+      }).then(function () {
+        finishRequest();
+      })
+    ]);
+  },
+
+  restoreCachedOrders: function () {
+    var cached = publicExperience.readOrdersCache();
+    if (!cached) return false;
+    this.applyOrderData(cached, true);
+    return true;
+  },
+
+  applyOrderData: function (cached, hasCachedOrders) {
+    var orders = (cached.orders || []).map(normalizeOrder);
+    var purchases = (cached.purchases || []).map(normalizeCoinPurchase);
+    this.setData({
+      orders: orders,
+      listItems: orders.concat(purchases).sort(function (left, right) {
+        return Date.parse(String(right.createdAt || "")) - Date.parse(String(left.createdAt || ""));
+      }),
+      orderConfig: cached.orderConfig || null,
+      hasCachedOrders: Boolean(hasCachedOrders),
+      errorMessage: ""
     });
   },
 
@@ -79,14 +144,6 @@ Page({
         });
       }
     });
-  },
-
-  goFridge: function () {
-    if (getCurrentPages().length > 1) {
-      wx.navigateBack();
-      return;
-    }
-    wx.reLaunch({ url: "/pages/draw/draw" });
   }
 });
 

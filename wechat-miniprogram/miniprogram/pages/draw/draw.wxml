@@ -28,7 +28,7 @@
       <view class="main-column">
         <view class="upload-panel">
           <view bindtap="chooseImage" class="upload-box {{referencePreviewUrl ? 'has-image' : ''}}">
-            <image class="upload-preview" mode="aspectFill" src="{{referencePreviewUrl}}" wx:if="{{referencePreviewUrl}}" />
+            <image class="upload-preview" mode="aspectFit" src="{{referencePreviewUrl}}" wx:if="{{referencePreviewUrl}}" />
             <view class="upload-empty" wx:else>
               <text class="upload-icon">+</text>
               <text class="upload-title">上传 1 张图片</text>
@@ -41,10 +41,8 @@
             <button bindtap="startDefault" class="primary-button draw-random-button" disabled="{{isSubmitting}}">
               {{isSubmitting ? '任务启动中' : (isDrawCard ? '随机抽卡' : startButtonText)}}
             </button>
-            <button bindtap="openLatestSession" class="secondary-button" disabled="{{isSubmitting}}" wx:if="{{isDrawCard}}">最近生成</button>
             <button bindtap="clearImage" class="secondary-button" disabled="{{!referencePreviewUrl || isSubmitting}}" wx:if="{{!isDrawCard}}">换张图片</button>
           </view>
-          <button bindtap="clearImage" class="draw-change-photo" disabled="{{!referencePreviewUrl || isSubmitting}}" wx:if="{{isDrawCard && referencePreviewUrl}}">换照片</button>
         </view>
 
         <view class="notice error" wx:if="{{errorMessage}}">{{errorMessage}}</view>
@@ -57,7 +55,7 @@
 
           <view class="result-grid" wx:if="{{displayItems.length}}">
             <view wx:for="{{displayItems}}" wx:key="jobId" class="result-card {{item.canLike ? '' : 'is-pending'}}">
-              <view bindtap="previewResult" class="result-media" data-url="{{item.imageUrl}}" wx:if="{{item.imageUrl}}">
+              <view bindtap="previewResult" class="result-media" data-url="{{item.imageUrl}}" data-jobid="{{item.jobId}}" wx:if="{{item.imageUrl}}">
                 <image mode="widthFix" src="{{item.imageUrl}}" />
               </view>
               <view class="result-placeholder" wx:else>
@@ -85,7 +83,7 @@
         </view>
 
         <scroll-view class="draw-card-clip-strip" scroll-x="true" show-scrollbar="false" wx:if="{{isDrawCard && clipItems.length}}">
-          <view wx:for="{{clipItems}}" wx:key="jobId" bindtap="previewClip" class="draw-card-clip-thumbnail" data-url="{{item.imageUrl || item.thumbnailUrl}}">
+          <view wx:for="{{clipItems}}" wx:key="jobId" bindtap="previewClip" class="draw-card-clip-thumbnail" data-url="{{item.imageUrl || item.thumbnailUrl}}" data-jobid="{{item.jobId}}">
             <image class="draw-card-clip-image" mode="aspectFill" src="{{item.thumbnailUrl || item.imageUrl}}" />
             <view class="draw-card-acrylic-shine"></view>
             <view class="magnet-corner top-left"></view>
@@ -97,7 +95,7 @@
 
         <view class="clip-list" wx:if="{{!isDrawCard && clipItems.length}}">
           <view wx:for="{{clipItems}}" wx:key="jobId" class="clip-item">
-            <view bindtap="previewClip" class="clip-magnet-frame" data-url="{{item.imageUrl || item.thumbnailUrl}}">
+            <view bindtap="previewClip" class="clip-magnet-frame" data-url="{{item.imageUrl || item.thumbnailUrl}}" data-jobid="{{item.jobId}}">
               <image class="clip-image" mode="aspectFill" src="{{item.thumbnailUrl || item.imageUrl}}" />
               <view class="magnet-corner top-left"></view>
               <view class="magnet-corner top-right"></view>
@@ -148,6 +146,75 @@
     </view>
   </view>
 
+  <view bindtap="closeImagePreview" class="image-preview-mask" wx:if="{{showImagePreview}}">
+    <view catchtap="stopTap" class="image-preview-panel">
+      <image class="image-preview-image" mode="aspectFit" src="{{previewImageUrl}}" show-menu-by-longpress="{{previewIsOriginal}}" />
+      <view class="image-preview-actions">
+        <button bindtap="closeImagePreview" class="image-preview-back" disabled="{{isPreviewOriginalLoading}}">返回</button>
+        <button bindtap="downloadPreviewOriginal" class="image-preview-download" loading="{{isPreviewOriginalLoading}}" disabled="{{isPreviewOriginalLoading || !previewJobId}}">下载原图</button>
+      </view>
+      <text class="image-preview-tip" wx:if="{{previewNeedsLongPress}}">请长按图片保存原图</text>
+    </view>
+  </view>
+
+  <view bindtap="closeOriginalDownloadUnlock" class="original-unlock-mask" wx:if="{{showOriginalDownloadUnlock}}">
+    <view catchtap="stopTap" class="original-unlock-card">
+      <text class="original-unlock-title">解锁原图下载</text>
+      <text class="original-unlock-text">购买币累计满 20 元，或完成任意冰箱贴定制订单支付后，即可下载本账户下的全部原图，无需额外消耗币。</text>
+      <view class="original-unlock-actions">
+        <button bindtap="openOriginalUnlockCoinPurchase" class="primary-button">购买币</button>
+        <button bindtap="openOriginalUnlockOrder" class="secondary-button">选图定制</button>
+      </view>
+      <button bindtap="closeOriginalDownloadUnlock" class="original-unlock-dismiss">暂不解锁</button>
+    </view>
+  </view>
+
+  <view class="orders-overlay" wx:if="{{showOrdersOverlay}}">
+    <view class="orders-overlay-content">
+      <button bindtap="closeOrdersOverlay" class="secondary-button orders-overlay-back">返回</button>
+      <view class="orders-overlay-header">
+        <text class="orders-overlay-kicker">My orders</text>
+        <text class="orders-overlay-title">我的订单</text>
+        <text class="orders-overlay-subtitle">查看你的冰箱贴订单、购买币记录与处理状态。</text>
+      </view>
+
+      <view class="orders-overlay-note" wx:if="{{isOrdersOverlayLoading}}">正在读取订单列表…</view>
+      <view class="orders-overlay-note error" wx:if="{{ordersOverlayError}}">{{ordersOverlayError}}</view>
+      <view class="orders-overlay-note" wx:if="{{!isOrdersOverlayLoading && !ordersOverlayError && !orderOverlayItems.length}}">你还没有冰箱贴订单或购买币记录。</view>
+
+      <view class="orders-overlay-list" wx:if="{{orderOverlayItems.length}}">
+        <view wx:for="{{orderOverlayItems}}" wx:key="key" class="orders-overlay-card {{item.type === 'coin_purchase' ? 'coin-purchase-card' : ''}}">
+          <block wx:if="{{item.type === 'coin_purchase'}}">
+            <view class="orders-overlay-card-row">
+              <view class="orders-overlay-cover coin">币</view>
+              <view class="orders-overlay-summary">
+                <text class="orders-overlay-price">购买 {{item.coinCount}} 币</text>
+                <text class="orders-overlay-no">购买单号 {{item.purchaseNo}}</text>
+                <text class="orders-overlay-status {{item.statusClass}}">{{item.statusText}}</text>
+              </view>
+            </view>
+            <text class="orders-overlay-amount">{{item.amountText}}</text>
+          </block>
+          <block wx:else>
+            <view class="orders-overlay-card-row">
+              <image class="orders-overlay-cover" mode="aspectFill" src="{{item.imageUrl}}" wx:if="{{item.imageUrl}}" />
+              <view class="orders-overlay-cover empty" wx:else>冰箱贴</view>
+              <view class="orders-overlay-summary">
+                <text class="orders-overlay-price">{{item.totalText}}</text>
+                <text class="orders-overlay-no">订单号 {{item.orderNo}}</text>
+                <text class="orders-overlay-status {{item.statusClass}}">{{item.statusText}}</text>
+              </view>
+            </view>
+            <view class="orders-overlay-actions">
+              <button bindtap="openOverlayOrder" class="orders-overlay-detail" data-id="{{item.id}}">查看详情</button>
+              <button bindtap="cancelOverlayOrder" class="orders-overlay-cancel" data-id="{{item.id}}" wx:if="{{item.canCancel}}">取消订单</button>
+            </view>
+          </block>
+        </view>
+      </view>
+    </view>
+  </view>
+
   <view bindtap="closeUserMenu" class="draw-user-menu-dismiss" wx:if="{{showUserMenu}}"></view>
 
   <view class="modal-mask" wx:if="{{showDrawConfig}}">
@@ -190,23 +257,23 @@
     </view>
   </view>
 
-  <view class="modal-mask" wx:if="{{showOrderModal}}">
-    <view class="modal-card large">
+  <view class="modal-mask order-modal-mask" wx:if="{{showOrderModal}}">
+    <view class="modal-card large order-modal-card">
       <text class="modal-title">填写收货信息</text>
       <view class="order-summary">
-        <text>已选 {{orderItems.length}} 款，共 {{orderAmount.itemCount}} 只</text>
+        <text>已选 {{orderSelectedImageCount}} 款，共 {{orderAmount.itemCount}} 只</text>
         <text>单价 {{orderUnitPriceText}} / 只</text>
         <text>邮费 {{orderShippingText}}</text>
         <text class="order-total">合计 {{orderAmountText}}</text>
       </view>
       <scroll-view class="order-scroll" scroll-y>
-        <view class="order-item" wx:for="{{orderItems}}" wx:key="jobId">
+        <view class="order-item {{item.quantity === 0 ? 'is-not-selected' : ''}}" wx:for="{{orderItems}}" wx:key="jobId">
           <image class="order-image" mode="aspectFill" src="{{item.thumbnailUrl || item.imageUrl}}" />
           <view class="order-item-body">
             <text>{{item.styleName || '冰箱贴'}}</text>
             <text class="muted">{{item.subtotalText}}</text>
             <view class="stepper">
-              <button bindtap="decreaseQuantity" data-jobid="{{item.jobId}}" disabled="{{item.quantity <= 1}}">-</button>
+              <button bindtap="decreaseQuantity" data-jobid="{{item.jobId}}" disabled="{{item.quantity <= 0}}">-</button>
               <text>{{item.quantity}}</text>
               <button bindtap="increaseQuantity" data-jobid="{{item.jobId}}">+</button>
             </view>
@@ -222,7 +289,7 @@
       <view class="notice error" wx:if="{{orderError}}">{{orderError}}</view>
       <view class="modal-actions">
         <button bindtap="closeOrderModal" class="secondary-button">取消</button>
-        <button bindtap="submitOrder" class="primary-button" loading="{{isCreatingOrder}}" disabled="{{isCreatingOrder}}">提交订单</button>
+        <button bindtap="submitOrder" class="primary-button" loading="{{isCreatingOrder}}" disabled="{{isCreatingOrder || !orderAmount.itemCount}}">提交订单</button>
       </view>
     </view>
   </view>
@@ -280,11 +347,11 @@
       <button bindtap="closeCoinInfo" class="modal-close-button" aria-label="关闭">×</button>
       <text class="modal-eyebrow">My coins</text>
       <text class="modal-title">我的币</text>
-      <text class="coin-info-balance">当前剩余 <text>{{visitorState && visitorState.account ? visitorState.account.coinBalance : '--'}}</text> 币</text>
-      <text class="modal-note">已购币剩余可抵扣额度：{{coinPurchaseDiscountText}}</text>
+      <text class="coin-info-balance">可用币：<text>{{visitorState && visitorState.account ? visitorState.account.coinBalance : '--'}}</text> 币</text>
+      <text class="modal-note">冰箱贴优惠券：{{coinPurchaseDiscountText}}</text>
       <view class="coin-info-benefits">
-        <view><text>•</text><text>成功购买 1 元币，可获得 1 元冰箱贴优惠额度。</text></view>
-        <view><text>•</text><text>每枚冰箱贴最多抵扣 15 元；同一订单可按数量累计抵扣。</text></view>
+        <view><text>•</text><text>购买币后，购买金额会自动变成等额的冰箱贴优惠券。</text></view>
+        <view><text>•</text><text>下单时自动抵扣，每枚冰箱贴最多优惠 15 元；购买多枚可叠加使用。</text></view>
         <view><text>•</text><text>冰箱贴订单支付成功后，按抵扣后实付金额赠送等额币。</text></view>
         <view><text>•</text><text>邀请新用户完成首笔冰箱贴订单支付，可获得 5 币。</text></view>
       </view>
@@ -296,6 +363,36 @@
       <text class="field-label">邀请码</text>
       <input bindinput="onInviteInput" class="form-input" placeholder="输入邀请码" value="{{inviteCode}}" />
       <button bindtap="redeemInvite" class="primary-button coin-redeem-button" disabled="{{!inviteCode}}">兑换邀请码</button>
+    </view>
+  </view>
+
+  <view bindtap="closeCoinPurchase" class="modal-mask coin-purchase-mask" wx:if="{{showCoinPurchase}}">
+    <view catchtap="stopTap" class="modal-card large coin-purchase-modal">
+      <button bindtap="closeCoinPurchase" class="modal-close-button" disabled="{{isCoinPurchaseBusy}}" aria-label="关闭">×</button>
+      <text class="modal-eyebrow">Buy coins</text>
+      <text class="modal-title">购买币</text>
+      <text class="coin-purchase-intro">1 元 = 1 币。成功购买的金额可抵扣冰箱贴商品金额，每枚冰箱贴最多抵扣 15 元；累计成功购买满 20 元可解锁账户下全部原图下载。</text>
+
+      <view class="coin-purchase-presets">
+        <button bindtap="selectCoinPurchaseCount" class="coin-purchase-preset" data-count="10" disabled="{{isCoinPurchaseBusy}}">10 币</button>
+        <button bindtap="selectCoinPurchaseCount" class="coin-purchase-preset" data-count="20" disabled="{{isCoinPurchaseBusy}}">20 币</button>
+        <button bindtap="selectCoinPurchaseCount" class="coin-purchase-preset" data-count="40" disabled="{{isCoinPurchaseBusy}}">40 币</button>
+        <button bindtap="selectCoinPurchaseCount" class="coin-purchase-preset" data-count="100" disabled="{{isCoinPurchaseBusy}}">100 币</button>
+      </view>
+
+      <view class="coin-purchase-field">
+        <text>购买数量（1–1000 币）</text>
+        <input bindinput="onCoinPurchaseCountInput" class="coin-purchase-input" disabled="{{isCoinPurchaseBusy}}" maxlength="4" type="number" value="{{coinPurchaseCount}}" />
+      </view>
+      <text class="coin-purchase-payable">应付 <text>{{coinPurchaseAmountText}}</text></text>
+      <text class="coin-purchase-discount-note">购买 {{coinPurchaseCount}} 币后，自动获得 {{coinPurchaseCount}} 元实体冰箱贴优惠券，首枚定制仅需 {{coinPurchaseFirstMagnetPriceYuan}} 元。（每枚冰箱贴优惠上限 15 元）</text>
+      <text class="coin-purchase-note">赠送币和邀请码兑换币不参与冰箱贴优惠抵扣。</text>
+      <text class="coin-purchase-error" wx:if="{{coinPurchaseError}}">{{coinPurchaseError}}</text>
+
+      <view class="coin-purchase-actions">
+        <button bindtap="closeCoinPurchase" class="coin-purchase-cancel" disabled="{{isCoinPurchaseBusy}}">取消</button>
+        <button bindtap="submitCoinPurchase" class="coin-purchase-pay" disabled="{{isCoinPurchaseBusy || !coinPurchaseCount}}" loading="{{isCoinPurchaseBusy}}">{{isCoinPurchaseBusy ? '处理中' : ('支付 ' + coinPurchaseAmountText)}}</button>
+      </view>
     </view>
   </view>
 </view>

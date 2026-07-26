@@ -4,7 +4,6 @@
       <text class="kicker">My orders</text>
       <text class="title">我的订单</text>
       <text class="subtitle">查看你的冰箱贴订单、购买币记录与处理状态。</text>
-      <button bindtap="goFridge" class="orders-home-button"><text>⌂</text><text>返回主页</text></button>
     </view>
 
     <view class="orders-note" wx:if="{{isLoading}}">正在读取订单列表…</view>

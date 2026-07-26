@@ -47,7 +47,6 @@
   line-height: 1.65;
 }
 
-.orders-home-button,
 .order-detail-button,
 .order-cancel-button {
   box-sizing: border-box;
@@ -64,17 +63,9 @@
   font-weight: 900;
 }
 
-.orders-home-button::after,
 .order-detail-button::after,
 .order-cancel-button::after {
   border: 0;
-}
-
-.orders-home-button {
-  min-height: 82rpx;
-  margin-top: 38rpx;
-  padding: 0 28rpx;
-  font-size: 28rpx;
 }
 
 .orders-note {

@@ -1,4 +1,5 @@
 const publicExperience = require("./public-experience");
+const publicApi = require("./public-api");
 const format = require("./format");
 
 const SUBJECT_OPTIONS = [
@@ -58,6 +59,13 @@ function createExperiencePage(config) {
       session: null,
       displayItems: [],
       clipItems: [],
+      showImagePreview: false,
+      previewImageUrl: "",
+      previewJobId: "",
+      previewIsOriginal: false,
+      previewNeedsLongPress: false,
+      isPreviewOriginalLoading: false,
+      showOriginalDownloadUnlock: false,
       inviteCode: "",
       errorMessage: "",
       isSubmitting: false,
@@ -79,6 +87,7 @@ function createExperiencePage(config) {
       },
       orderQuantities: {},
       orderItems: [],
+      orderSelectedImageCount: 0,
       orderAmount: format.calculateAmount(0, null),
       orderAmountText: "¥0.00",
       orderUnitPriceText: "¥0.00",
@@ -87,6 +96,16 @@ function createExperiencePage(config) {
       isCreatingOrder: false,
       showAccountModal: false,
       showCoinInfo: false,
+      showCoinPurchase: false,
+      coinPurchaseCount: 20,
+      coinPurchaseAmountText: "¥20.00",
+      coinPurchaseFirstMagnetPriceYuan: "5",
+      coinPurchaseError: "",
+      isCoinPurchaseBusy: false,
+      showOrdersOverlay: false,
+      orderOverlayItems: [],
+      isOrdersOverlayLoading: false,
+      ordersOverlayError: "",
       showUserMenu: false,
       isAccountRegistered: false,
       accountDisplayInitial: "登录",
@@ -156,6 +175,7 @@ function createExperiencePage(config) {
         return null;
       }).then(function () {
         self.incomingReferralToken = "";
+        if (isDrawCard) self.prefetchOrdersCache();
         return Promise.all([
           self.refreshPublicState(),
           isDrawCard ? self.loadStyles() : Promise.resolve()
@@ -190,6 +210,7 @@ function createExperiencePage(config) {
           accountDisplayInitial: isAccountRegistered ? (accountName.slice(0, 1) || "我") : "登录",
           accountAvatarUrl: String(account.wechatAvatarUrl || "").trim(),
           coinPurchaseDiscountText: format.formatCurrencyCents(Math.max(0, Number(visitorState && visitorState.coinPurchaseDiscount && visitorState.coinPurchaseDiscount.availableCents || 0))),
+          coinPurchaseFirstMagnetPriceYuan: formatFirstMagnetPriceYuan(self.data.coinPurchaseCount, results[1]),
           errorMessage: ""
         });
         self.rebuildOrderSummary();
@@ -258,7 +279,95 @@ function createExperiencePage(config) {
     },
 
     openOrders: function () {
-      wx.navigateTo({ url: "/pages/orders/orders" });
+      this.setData({ showUserMenu: false, showOrdersOverlay: true });
+      this.loadOrdersOverlay();
+    },
+
+    closeOrdersOverlay: function () {
+      this.setData({ showOrdersOverlay: false });
+    },
+
+    loadOrdersOverlay: function () {
+      var self = this;
+      var cached = publicExperience.readOrdersCache();
+      var hasCachedOrders = Boolean(cached);
+      var nextCache = cached || { orders: [], purchases: [], orderConfig: null, cachedAt: 0 };
+      var pendingRequests = 2;
+      var hasSuccessfulResponse = false;
+      var firstError = null;
+
+      function applyLatestCache() {
+        nextCache.cachedAt = Date.now();
+        publicExperience.saveOrdersCache(nextCache);
+        hasSuccessfulResponse = true;
+        self.applyOrdersOverlay(nextCache);
+        self.setData({ isOrdersOverlayLoading: false });
+      }
+
+      function finishRequest() {
+        pendingRequests -= 1;
+        if (pendingRequests > 0) return;
+        if (!hasSuccessfulResponse && !hasCachedOrders) {
+          self.setData({ ordersOverlayError: (firstError && firstError.message) || "读取订单失败。" });
+        }
+        self.setData({ isOrdersOverlayLoading: false });
+      }
+
+      if (hasCachedOrders) this.applyOrdersOverlay(nextCache);
+      this.setData({ isOrdersOverlayLoading: !hasCachedOrders, ordersOverlayError: "" });
+      Promise.all([
+        publicExperience.fetchMyOrders("fridge").then(function (payload) {
+          nextCache.orders = payload && payload.orders || [];
+          nextCache.orderConfig = payload && payload.config || null;
+          applyLatestCache();
+        }).catch(function (error) {
+          firstError = firstError || error;
+        }).then(finishRequest),
+        publicExperience.fetchCoinPurchases().then(function (payload) {
+          nextCache.purchases = payload && payload.purchases || [];
+          applyLatestCache();
+        }).catch(function (error) {
+          firstError = firstError || error;
+        }).then(finishRequest)
+      ]);
+    },
+
+    applyOrdersOverlay: function (cached) {
+      var orders = (cached.orders || []).map(normalizeOverlayOrder);
+      var purchases = (cached.purchases || []).map(normalizeOverlayCoinPurchase);
+      this.setData({
+        orderOverlayItems: orders.concat(purchases).sort(function (left, right) {
+          return Date.parse(String(right.createdAt || "")) - Date.parse(String(left.createdAt || ""));
+        }),
+        ordersOverlayError: ""
+      });
+    },
+
+    openOverlayOrder: function (event) {
+      var orderId = event.currentTarget.dataset.id;
+      if (!orderId) return;
+      wx.navigateTo({ url: "/pages/order-detail/order-detail?id=" + encodeURIComponent(orderId) });
+    },
+
+    cancelOverlayOrder: function (event) {
+      var self = this;
+      var orderId = event.currentTarget.dataset.id;
+      if (!orderId) return;
+      wx.showModal({
+        title: "取消订单",
+        content: "确认取消这个未付款订单吗？",
+        confirmText: "取消订单",
+        confirmColor: "#9f2418",
+        success: function (result) {
+          if (!result.confirm) return;
+          publicExperience.deleteOrder(orderId).then(function () {
+            wx.showToast({ title: "已取消", icon: "success" });
+            self.loadOrdersOverlay();
+          }).catch(function (error) {
+            wx.showToast({ title: (error && error.message) || "取消失败", icon: "none" });
+          });
+        }
+      });
     },
 
     openLatestSession: function () {
@@ -274,6 +383,10 @@ function createExperiencePage(config) {
       }).catch(function (error) {
         self.setData({ errorMessage: (error && error.message) || "读取最近生成失败，请稍后重试。" });
       });
+    },
+
+    prefetchOrdersCache: function () {
+      return publicExperience.prefetchOrdersCache();
     },
 
     openDrawConfig: function () {
@@ -469,28 +582,104 @@ function createExperiencePage(config) {
 
     previewResult: function (event) {
       var url = event.currentTarget.dataset.url;
-      var urls = this.data.displayItems.map(function (item) {
-        return item.imageUrl;
-      }).filter(Boolean);
-
-      if (!url) return;
-      wx.previewImage({
-        current: url,
-        urls: urls.length ? urls : [url]
-      });
+      this.previewRemoteImage(url, event.currentTarget.dataset.jobid);
     },
 
     previewClip: function (event) {
       var url = event.currentTarget.dataset.url;
-      var urls = this.data.clipItems.map(function (item) {
-        return item.imageUrl || item.thumbnailUrl;
-      }).filter(Boolean);
+      this.previewRemoteImage(url, event.currentTarget.dataset.jobid);
+    },
 
-      if (!url) return;
-      wx.previewImage({
-        current: url,
-        urls: urls.length ? urls : [url]
+    previewRemoteImage: function (url, jobId) {
+      var self = this;
+      var imageUrl = String(url || "").trim();
+      if (!imageUrl || this.isPreviewingRemoteImage) return;
+      this.isPreviewingRemoteImage = true;
+      wx.showLoading({ title: "正在打开预览", mask: true });
+      publicApi.downloadFile(imageUrl).then(function (tempFilePath) {
+        wx.hideLoading();
+        self.setData({
+          showImagePreview: true,
+          previewImageUrl: tempFilePath,
+          previewJobId: String(jobId || ""),
+          previewIsOriginal: false,
+          previewNeedsLongPress: false,
+          isPreviewOriginalLoading: false
+        });
+      }).catch(function (error) {
+        wx.hideLoading();
+        wx.showToast({
+          title: (error && error.message) || "图片加载失败，请重试",
+          icon: "none"
+        });
+      }).finally(function () {
+        self.isPreviewingRemoteImage = false;
       });
+    },
+
+    closeImagePreview: function () {
+      if (this.data.isPreviewOriginalLoading) return;
+      this.setData({
+        showImagePreview: false,
+        previewImageUrl: "",
+        previewJobId: "",
+        previewIsOriginal: false,
+        previewNeedsLongPress: false
+      });
+    },
+
+    downloadPreviewOriginal: function () {
+      var self = this;
+      var jobId = String(this.data.previewJobId || "");
+      var visitorState = this.data.visitorState || {};
+      var account = visitorState.account || {};
+
+      if (!jobId || this.data.isPreviewOriginalLoading) return;
+      if (!account.canRedeemOriginalDownloads) {
+        this.setData({ showOriginalDownloadUnlock: true });
+        return;
+      }
+
+      this.setData({ isPreviewOriginalLoading: true });
+      wx.showLoading({ title: "正在加载原图", mask: true });
+      publicExperience.downloadClipOriginal(jobId).then(function (tempFilePath) {
+        return saveImageToAlbum(tempFilePath).then(function () {
+          wx.hideLoading();
+          wx.showToast({ title: "原图已保存到相册", icon: "success" });
+          return self.refreshPublicState();
+        }).catch(function () {
+          wx.hideLoading();
+          self.setData({
+            previewImageUrl: tempFilePath,
+            previewIsOriginal: true,
+            previewNeedsLongPress: true
+          });
+        });
+      }).catch(function (error) {
+        wx.hideLoading();
+        var message = String(error && error.message || "");
+        if (message.indexOf("购买币累计满 20 元") !== -1) {
+          self.setData({ showOriginalDownloadUnlock: true });
+          return;
+        }
+        wx.showToast({ title: message || "原图加载失败，请重试", icon: "none" });
+      }).finally(function () {
+        self.setData({ isPreviewOriginalLoading: false });
+      });
+    },
+
+    closeOriginalDownloadUnlock: function () {
+      this.setData({ showOriginalDownloadUnlock: false });
+    },
+
+    openOriginalUnlockCoinPurchase: function () {
+      this.setData({ showOriginalDownloadUnlock: false });
+      this.openCoinPurchase();
+    },
+
+    openOriginalUnlockOrder: function () {
+      this.setData({ showOriginalDownloadUnlock: false, showImagePreview: false });
+      this.openOrderModal();
     },
 
     downloadClipOriginal: function (event) {
@@ -783,15 +972,47 @@ function createExperiencePage(config) {
     },
 
     openCoinPurchase: function () {
-      var self = this;
-      this.setData({ showCoinInfo: false });
-      wx.showActionSheet({
-        itemList: ["购买 10 币", "购买 20 币", "购买 40 币", "购买 100 币"],
-        success: function (result) {
-          var options = [10, 20, 40, 100];
-          purchaseCoins(self, options[Number(result.tapIndex || 0)] || 20);
-        }
+      this.setData({
+        showCoinInfo: false,
+        showCoinPurchase: true,
+        coinPurchaseCount: 20,
+        coinPurchaseAmountText: format.formatCurrencyCents(2000),
+        coinPurchaseFirstMagnetPriceYuan: formatFirstMagnetPriceYuan(20, this.data.orderConfig),
+        coinPurchaseError: ""
       });
+    },
+
+    closeCoinPurchase: function () {
+      if (this.data.isCoinPurchaseBusy) return;
+      this.setData({ showCoinPurchase: false, coinPurchaseError: "" });
+    },
+
+    selectCoinPurchaseCount: function (event) {
+      this.updateCoinPurchaseCount(event.currentTarget.dataset.count);
+    },
+
+    onCoinPurchaseCountInput: function (event) {
+      this.updateCoinPurchaseCount(event.detail.value);
+    },
+
+    updateCoinPurchaseCount: function (value) {
+      var rawValue = String(value === undefined || value === null ? "" : value).replace(/[^0-9]/g, "");
+      var count = rawValue ? Math.min(1000, Number(rawValue)) : 0;
+      this.setData({
+        coinPurchaseCount: count || "",
+        coinPurchaseAmountText: format.formatCurrencyCents(count * 100),
+        coinPurchaseFirstMagnetPriceYuan: formatFirstMagnetPriceYuan(count, this.data.orderConfig),
+        coinPurchaseError: ""
+      });
+    },
+
+    submitCoinPurchase: function () {
+      var coinCount = Number(this.data.coinPurchaseCount || 0);
+      if (!Number.isInteger(coinCount) || coinCount < 1 || coinCount > 1000) {
+        this.setData({ coinPurchaseError: "请输入 1–1000 之间的购币数量。" });
+        return;
+      }
+      purchaseCoins(this, coinCount);
     },
 
     openOrderModal: function () {
@@ -828,7 +1049,8 @@ function createExperiencePage(config) {
 
     setQuantity: function (jobId, delta) {
       var current = Object.assign({}, this.data.orderQuantities);
-      current[jobId] = format.clampQuantity(Number(current[jobId] || 1) + delta);
+      var existingQuantity = Object.prototype.hasOwnProperty.call(current, jobId) ? Number(current[jobId]) : 1;
+      current[jobId] = format.clampQuantity(existingQuantity + delta);
       this.setData({ orderQuantities: current });
       this.rebuildOrderSummary();
     },
@@ -836,17 +1058,21 @@ function createExperiencePage(config) {
     rebuildOrderSummary: function () {
       var quantities = this.data.orderQuantities || {};
       var orderItems = this.data.clipItems.map(function (item) {
-        var quantity = format.clampQuantity(quantities[item.jobId] || 1);
+        var quantity = Object.prototype.hasOwnProperty.call(quantities, item.jobId)
+          ? format.clampQuantity(quantities[item.jobId])
+          : 1;
         return Object.assign({}, item, {
           quantity: quantity,
           subtotalText: format.formatCurrencyCents(Number(this.data.orderConfig && this.data.orderConfig.unitPriceCents || 0) * quantity)
         });
       }, this);
       var totalCount = orderItems.reduce(function (sum, item) { return sum + item.quantity; }, 0);
+      var selectedImageCount = orderItems.filter(function (item) { return item.quantity > 0; }).length;
       var amount = format.calculateAmount(totalCount, this.data.orderConfig);
 
       this.setData({
         orderItems: orderItems,
+        orderSelectedImageCount: selectedImageCount,
         orderAmount: amount,
         orderAmountText: format.formatCurrencyCents(amount.totalCents),
         orderUnitPriceText: format.formatCurrencyCents(amount.unitPriceCents),
@@ -859,6 +1085,10 @@ function createExperiencePage(config) {
       var form = this.data.orderForm;
 
       if (this.data.isCreatingOrder) return;
+      if (!this.data.orderAmount || Number(this.data.orderAmount.itemCount || 0) < 1) {
+        this.setData({ orderError: "请至少选择 1 张图片定制。" });
+        return;
+      }
       this.setData({
         isCreatingOrder: true,
         orderError: ""
@@ -866,7 +1096,9 @@ function createExperiencePage(config) {
 
       publicExperience.createOrder({
           experienceType: isDrawCard ? "draw-card" : "fridge-magnet",
-        items: this.data.orderItems.map(function (item) {
+        items: this.data.orderItems.filter(function (item) {
+          return Number(item.quantity || 0) > 0;
+        }).map(function (item) {
           return {
             jobId: item.jobId,
             quantity: item.quantity
@@ -946,6 +1178,56 @@ function createExperiencePage(config) {
       }
       return true;
     }
+  };
+}
+
+function formatFirstMagnetPriceYuan(coinCount, orderConfig) {
+  var unitPriceCents = Math.max(0, Number(orderConfig && orderConfig.unitPriceCents || 2000));
+  var discountCents = Math.min(unitPriceCents, 1500, Math.max(0, Number(coinCount || 0)) * 100);
+  var priceYuan = (unitPriceCents - discountCents) / 100;
+  return Number.isInteger(priceYuan) ? String(priceYuan) : priceYuan.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function normalizeOverlayOrder(order) {
+  var firstItem = order && order.items && order.items[0] || null;
+  var imageUrl = publicApi.toAbsoluteUrl(firstItem && (firstItem.thumbnailUrl || firstItem.imageUrl) || "");
+  return {
+    id: order.id,
+    key: "order:" + order.id,
+    type: "order",
+    imageUrl: imageUrl,
+    orderNo: order.orderNo,
+    totalText: format.formatCurrencyCents(order.totalCents),
+    createdAt: order.createdAt,
+    statusText: order.orderStatus === "pending_payment" && order.lastPaymentChannel === "manual_collection" ? "待确认收款" : format.orderStatusLabel(order.orderStatus),
+    statusClass: order.orderStatus,
+    canCancel: order.orderStatus === "pending_payment"
+  };
+}
+
+function normalizeOverlayCoinPurchase(purchase) {
+  var status = getOverlayCoinPurchaseStatus(purchase);
+  return {
+    id: purchase.id,
+    key: "coin-purchase:" + purchase.id,
+    type: "coin_purchase",
+    coinCount: Math.max(0, Number(purchase.coinCount || 0)),
+    amountText: format.formatCurrencyCents(purchase.amountCents),
+    purchaseNo: String(purchase.purchaseNo || "--"),
+    createdAt: purchase.createdAt,
+    statusText: status.label,
+    statusClass: status.className
+  };
+}
+
+function getOverlayCoinPurchaseStatus(purchase) {
+  if (purchase && purchase.status === "paid") return { label: "已支付", className: "paid" };
+  if (purchase && (purchase.status === "cancelled" || (purchase.expiresAt && Date.parse(purchase.expiresAt) <= Date.now()))) {
+    return { label: "已过期", className: "cancelled" };
+  }
+  return {
+    label: purchase && purchase.channel === "manual_collection" ? "待确认收款" : "待付款",
+    className: "pending_payment"
   };
 }
 
@@ -1070,7 +1352,7 @@ function settleMiniProgramPayment(created) {
 }
 
 function purchaseCoins(page, coinCount) {
-  wx.showLoading({ title: "正在创建购买单", mask: true });
+  page.setData({ isCoinPurchaseBusy: true, coinPurchaseError: "" });
   publicExperience.createCoinPurchase(coinCount).then(function (created) {
     var purchase = created && created.purchase;
     var initialPayment = created && created.payment;
@@ -1082,12 +1364,13 @@ function purchaseCoins(page, coinCount) {
       return requestMiniProgramPayment(payload && payload.payment);
     });
   }).then(function () {
-    wx.hideLoading();
     wx.showToast({ title: "支付完成，币已到账", icon: "success" });
+    page.setData({ showCoinPurchase: false, coinPurchaseError: "" });
     return page.refreshPublicState();
   }).catch(function (error) {
-    wx.hideLoading();
-    page.setData({ errorMessage: (error && error.message) || "购买币失败，请稍后重试。" });
+    page.setData({ coinPurchaseError: (error && error.message) || "购买币失败，请稍后重试。" });
+  }).finally(function () {
+    page.setData({ isCoinPurchaseBusy: false });
   });
 }
 
