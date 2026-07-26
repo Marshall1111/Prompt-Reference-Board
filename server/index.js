@@ -1088,7 +1088,8 @@ app.post("/api/auth/miniprogram/profile", requireWebAccount, upload.single("avat
     const allowedAvatarTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
     if (!nickname) throw createHttpError(400, "请填写昵称。");
     const useDefaultAvatar = String(req.body?.useDefaultAvatar || "").toLowerCase() === "true";
-    if (!avatar && !useDefaultAvatar) {
+    const keepExistingAvatar = String(req.body?.keepExistingAvatar || "").toLowerCase() === "true";
+    if (!avatar && !useDefaultAvatar && !keepExistingAvatar) {
       throw createHttpError(400, "请选择头像或使用默认头像。");
     }
     if (avatar && !allowedAvatarTypes.has(String(avatar.mimetype || ""))) {
@@ -1096,7 +1097,8 @@ app.post("/api/auth/miniprogram/profile", requireWebAccount, upload.single("avat
     }
     if (avatar && avatar.size > 3 * 1024 * 1024) throw createHttpError(400, "头像请控制在 3MB 以内。");
 
-    let avatarUrl = "/account-avatars/default-avatar.svg";
+    let avatarUrl = keepExistingAvatar ? String(req.webAccount.wechatAvatarUrl || "") : "/account-avatars/default-avatar.svg";
+    if (!avatarUrl) avatarUrl = "/account-avatars/default-avatar.svg";
     if (avatar) {
       const filename = `${randomUUID()}.${extensionForMime(avatar.mimetype)}`;
       await mkdir(accountAvatarPublicRoot, { recursive: true });
@@ -6979,6 +6981,10 @@ function toPublicCommerceAccount(account) {
     username: account.username || account.wechatNickname || "微信用户",
     defaultWechatNickname: buildDefaultWechatNickname(account.id),
     hasWechatProfile: Boolean(account.wechatNickname && account.wechatAvatarUrl),
+    usesDefaultWechatProfile: Boolean(
+      /^小画家用户\d{8}$/.test(String(account.wechatNickname || "")) &&
+      avatarUrl === "/account-avatars/default-avatar.svg"
+    ),
     wechatAvatarUrl: localAvatarUrl || (avatarUrl ? `/api/public/account-avatars/${encodeURIComponent(account.id)}` : ""),
     email: account.email || "",
     accountStatus: account.accountStatus || "active",

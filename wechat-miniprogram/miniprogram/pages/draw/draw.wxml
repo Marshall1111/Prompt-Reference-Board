@@ -18,6 +18,7 @@
           </view>
           <view class="draw-user-menu" wx:if="{{showUserMenu}}">
             <button bindtap="openOrdersFromUserMenu" class="draw-user-menu-button">我的订单</button>
+            <button bindtap="openProfileSettingsFromUserMenu" class="draw-user-menu-button">用户信息</button>
             <button bindtap="logoutAccount" class="draw-user-menu-button" disabled="{{isLoggingOut}}">{{isLoggingOut ? '正在退出' : '退出登录'}}</button>
           </view>
         </view>
@@ -325,17 +326,16 @@
 
   <view class="modal-mask profile-setup-mask" wx:if="{{showProfileSetup}}">
     <view class="modal-card profile-setup-modal">
-      <text class="modal-title">完善你的资料</text>
-      <text class="modal-note">选择头像并填写昵称，用于展示你的账户信息。</text>
+      <text class="modal-title">{{profileEditorMode === 'settings' ? '用户信息' : '使用微信资料'}}</text>
+      <text class="modal-note">{{profileEditorMode === 'settings' ? '点击头像或昵称可修改你的账户信息。' : '点击头像后选择“用微信头像”；点击昵称输入框后选择“用微信昵称”。'}}</text>
       <button class="profile-avatar-picker" open-type="chooseAvatar" bindchooseavatar="onProfileAvatarChosen" disabled="{{isSavingProfile}}">
-        <image wx:if="{{profileAvatarTempUrl}}" class="profile-avatar-preview" mode="aspectFill" src="{{profileAvatarTempUrl}}" />
-        <image wx:else class="profile-avatar-preview" mode="aspectFill" src="{{profileDefaultAvatarUrl}}" />
-        <text class="profile-avatar-action">{{profileAvatarTempUrl ? '更换头像' : '选择头像'}}</text>
+        <image class="profile-avatar-preview" mode="aspectFill" src="{{profileAvatarPreviewUrl}}" />
+        <text class="profile-avatar-action">{{profileAvatarMode === 'default' ? '点击使用微信头像' : '更换头像'}}</text>
       </button>
-      <input bindinput="onProfileNicknameInput" class="form-input full" type="nickname" maxlength="80" placeholder="填写昵称" value="{{profileNickname}}" disabled="{{isSavingProfile}}" />
+      <input bindinput="onProfileNicknameInput" class="form-input full" type="nickname" maxlength="80" placeholder="点击后选择“用微信昵称”" value="{{profileNickname}}" disabled="{{isSavingProfile}}" />
       <view class="notice error" wx:if="{{profileError}}">{{profileError}}</view>
       <view class="modal-actions vertical">
-        <button bindtap="submitProfileSetup" class="primary-button" loading="{{isSavingProfile}}" disabled="{{isSavingProfile}}">保存并开始使用</button>
+        <button bindtap="submitProfileSetup" class="primary-button" loading="{{isSavingProfile}}" disabled="{{isSavingProfile}}">{{profileEditorMode === 'settings' ? '保存修改' : '保存微信资料'}}</button>
       </view>
     </view>
   </view>

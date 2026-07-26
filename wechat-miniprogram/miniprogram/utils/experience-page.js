@@ -11,8 +11,6 @@ const SUBJECT_OPTIONS = [
 const DRAW_COUNT_OPTIONS = [1, 2, 4];
 const MAX_STYLE_SELECTION = 6;
 const REFERENCE_UPLOAD_QUALITY = 72;
-const DEFAULT_PROFILE_NICKNAME = "小画家用户00000000";
-
 function readInviteToken(inviteUrl) {
   var match = String(inviteUrl || "").match(/[?&]invite=([^&#]+)/);
   if (!match) return "";
@@ -97,9 +95,12 @@ function createExperiencePage(config) {
       isCreatingOrder: false,
       showAccountModal: false,
       showProfileSetup: false,
-      profileNickname: DEFAULT_PROFILE_NICKNAME,
+      profileEditorMode: "onboarding",
+      profileNickname: "",
       profileAvatarTempUrl: "",
       profileDefaultAvatarUrl: publicApi.toAbsoluteUrl("/account-avatars/default-avatar.svg"),
+      profileAvatarPreviewUrl: publicApi.toAbsoluteUrl("/account-avatars/default-avatar.svg"),
+      profileAvatarMode: "default",
       profileError: "",
       isSavingProfile: false,
       showCoinInfo: false,
@@ -700,7 +701,15 @@ function createExperiencePage(config) {
     },
 
     openOriginalUnlockCoinPurchase: function () {
-      this.setData({ showOriginalDownloadUnlock: false });
+      this.setData({
+        showOriginalDownloadUnlock: false,
+        showImagePreview: false,
+        previewImageUrl: "",
+        previewJobId: "",
+        previewIsOriginal: false,
+        previewNeedsLongPress: false,
+        isPreviewOriginalLoading: false
+      });
       this.openCoinPurchase();
     },
 
@@ -816,13 +825,29 @@ function createExperiencePage(config) {
 
     openProfileSetupIfNeeded: function () {
       var account = this.data.visitorState && this.data.visitorState.account ? this.data.visitorState.account : {};
-      if (!this.data.isAccountRegistered || account.hasWechatProfile) return;
+      if (!this.data.isAccountRegistered || (account.hasWechatProfile && !account.usesDefaultWechatProfile)) return;
       this.setData({
         showProfileSetup: true,
-        profileNickname: String(account.username || "").trim() === "微信用户"
-          ? String(account.defaultWechatNickname || DEFAULT_PROFILE_NICKNAME)
-          : String(account.username || "").trim(),
+        profileNickname: "",
         profileAvatarTempUrl: "",
+        profileAvatarPreviewUrl: this.data.profileDefaultAvatarUrl,
+        profileAvatarMode: "default",
+        profileEditorMode: "onboarding",
+        profileError: ""
+      });
+    },
+
+    openProfileSettings: function () {
+      var account = this.data.visitorState && this.data.visitorState.account ? this.data.visitorState.account : {};
+      var currentAvatarUrl = String(this.data.accountAvatarUrl || "").trim();
+      var usesDefaultAvatar = currentAvatarUrl.indexOf("/account-avatars/default-avatar.svg") !== -1;
+      this.setData({
+        showProfileSetup: true,
+        profileEditorMode: "settings",
+        profileNickname: String(account.username || "").trim() === "微信用户" ? "" : String(account.username || "").trim(),
+        profileAvatarTempUrl: "",
+        profileAvatarPreviewUrl: currentAvatarUrl || this.data.profileDefaultAvatarUrl,
+        profileAvatarMode: usesDefaultAvatar || !currentAvatarUrl ? "default" : "existing",
         profileError: ""
       });
     },
@@ -877,6 +902,11 @@ function createExperiencePage(config) {
     openOrdersFromUserMenu: function () {
       this.setData({ showUserMenu: false });
       this.openOrders();
+    },
+
+    openProfileSettingsFromUserMenu: function () {
+      this.setData({ showUserMenu: false });
+      this.openProfileSettings();
     },
 
     logoutAccount: function () {
@@ -1011,7 +1041,12 @@ function createExperiencePage(config) {
     onProfileAvatarChosen: function (event) {
       var avatarUrl = String(event && event.detail && event.detail.avatarUrl || "").trim();
       if (!avatarUrl) return;
-      this.setData({ profileAvatarTempUrl: avatarUrl, profileError: "" });
+      this.setData({
+        profileAvatarTempUrl: avatarUrl,
+        profileAvatarPreviewUrl: avatarUrl,
+        profileAvatarMode: "custom",
+        profileError: ""
+      });
     },
 
     onProfileNicknameInput: function (event) {
@@ -1023,11 +1058,20 @@ function createExperiencePage(config) {
 
     submitProfileSetup: function () {
       var self = this;
-      var nickname = String(this.data.profileNickname || "").trim() || DEFAULT_PROFILE_NICKNAME;
+      var nickname = String(this.data.profileNickname || "").trim();
       var avatarFilePath = String(this.data.profileAvatarTempUrl || "").trim();
 
+      if (!nickname) {
+        this.setData({ profileError: "请点击昵称输入框，选择“用微信昵称”。" });
+        return;
+      }
+      if (this.data.profileEditorMode === "onboarding" && this.data.profileAvatarMode === "default") {
+        this.setData({ profileError: "请点击头像，选择“用微信头像”。" });
+        return;
+      }
+
       this.setData({ isSavingProfile: true, profileError: "" });
-      publicExperience.updateMiniProgramProfile(nickname, avatarFilePath, !avatarFilePath).then(function () {
+      publicExperience.updateMiniProgramProfile(nickname, avatarFilePath, this.data.profileAvatarMode).then(function () {
         return self.refreshPublicState();
       }).then(function () {
         self.setData({ showProfileSetup: false, profileAvatarTempUrl: "" });

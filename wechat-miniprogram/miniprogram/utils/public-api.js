@@ -243,15 +243,16 @@ function loginWithMiniProgram(inviteToken) {
   });
 }
 
-function updateMiniProgramProfile(nickname, avatarFilePath, useDefaultAvatar) {
-  if (!avatarFilePath && useDefaultAvatar) {
+function updateMiniProgramProfile(nickname, avatarFilePath, avatarMode) {
+  if (!avatarFilePath) {
     return request({
       path: "/api/auth/miniprogram/profile",
       method: "POST",
       header: { "Content-Type": "application/json" },
       data: {
         nickname: String(nickname || "").trim(),
-        useDefaultAvatar: "true"
+        useDefaultAvatar: avatarMode === "default" ? "true" : "false",
+        keepExistingAvatar: avatarMode === "existing" ? "true" : "false"
       }
     });
   }
@@ -261,7 +262,8 @@ function updateMiniProgramProfile(nickname, avatarFilePath, useDefaultAvatar) {
     name: "avatar",
     formData: {
       nickname: String(nickname || "").trim(),
-      useDefaultAvatar: useDefaultAvatar ? "true" : "false"
+      useDefaultAvatar: "false",
+      keepExistingAvatar: "false"
     }
   });
 }

@@ -285,8 +285,8 @@ function loginWithMiniProgram(inviteToken) {
   return publicApi.loginWithMiniProgram(inviteToken);
 }
 
-function updateMiniProgramProfile(nickname, avatarFilePath, useDefaultAvatar) {
-  return publicApi.updateMiniProgramProfile(nickname, avatarFilePath, useDefaultAvatar);
+function updateMiniProgramProfile(nickname, avatarFilePath, avatarMode) {
+  return publicApi.updateMiniProgramProfile(nickname, avatarFilePath, avatarMode);
 }
 
 function fetchOrder(orderId, token) {
