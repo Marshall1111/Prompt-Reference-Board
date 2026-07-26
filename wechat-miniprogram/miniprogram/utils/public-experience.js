@@ -285,6 +285,10 @@ function loginWithMiniProgram(inviteToken) {
   return publicApi.loginWithMiniProgram(inviteToken);
 }
 
+function updateMiniProgramProfile(nickname, avatarFilePath, useDefaultAvatar) {
+  return publicApi.updateMiniProgramProfile(nickname, avatarFilePath, useDefaultAvatar);
+}
+
 function fetchOrder(orderId, token) {
   var query = token ? "?token=" + encodeURIComponent(token) : "";
   return publicApi.request({
@@ -439,5 +443,6 @@ module.exports = {
   resetPasswordWithEmail: resetPasswordWithEmail,
   saveSessionId: saveSessionId,
   saveOrdersCache: saveOrdersCache,
+  updateMiniProgramProfile: updateMiniProgramProfile,
   unlikeJob: unlikeJob
 };

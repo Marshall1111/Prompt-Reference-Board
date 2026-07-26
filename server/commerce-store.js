@@ -899,9 +899,11 @@ export function createCommerceStore({ dbPath }) {
       if (account) {
         db.prepare(`
           UPDATE commerce_accounts
-          SET wechat_nickname = ?, wechat_avatar_url = ?, registered_at = COALESCE(registered_at, ?), last_login_at = ?, updated_at = ?
+          SET wechat_nickname = CASE WHEN ? <> '' THEN ? ELSE wechat_nickname END,
+              wechat_avatar_url = CASE WHEN ? <> '' THEN ? ELSE wechat_avatar_url END,
+              registered_at = COALESCE(registered_at, ?), last_login_at = ?, updated_at = ?
           WHERE id = ?
-        `).run(normalizedNickname, normalizedAvatarUrl, now, now, now, account.id);
+        `).run(normalizedNickname, normalizedNickname, normalizedAvatarUrl, normalizedAvatarUrl, now, now, now, account.id);
         account = readAccount(account.id);
       } else {
         const guestAccount = readAccount(guestAccountId);
@@ -935,6 +937,22 @@ export function createCommerceStore({ dbPath }) {
       linkVisitor(account.id, visitorId);
       return readAccount(account.id);
     });
+  }
+
+  function updateWechatProfile(accountId, { nickname = "", avatarUrl = "" } = {}) {
+    const account = readAccount(accountId);
+    if (!account) throw new Error("账户不存在。");
+    const normalizedNickname = String(nickname || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 80);
+    const normalizedAvatarUrl = String(avatarUrl || "").trim().slice(0, 500);
+    if (!normalizedNickname) throw new Error("请填写昵称。");
+    if (!normalizedAvatarUrl) throw new Error("请选择头像。");
+
+    db.prepare(`
+      UPDATE commerce_accounts
+      SET wechat_nickname = ?, wechat_avatar_url = ?, updated_at = ?
+      WHERE id = ?
+    `).run(normalizedNickname, normalizedAvatarUrl, nowIso(), account.id);
+    return readAccount(account.id);
   }
 
   function createOrGetBrowserAccount({ visitorId, signupCredits = 5, signupBeans = 10 }) {
@@ -1514,6 +1532,7 @@ export function createCommerceStore({ dbPath }) {
     recordAccountLogin,
     setAccountStatus,
     updateAccountPassword,
+    updateWechatProfile,
     upgradeGuestAccount
   };
 }

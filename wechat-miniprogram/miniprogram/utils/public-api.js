@@ -243,6 +243,29 @@ function loginWithMiniProgram(inviteToken) {
   });
 }
 
+function updateMiniProgramProfile(nickname, avatarFilePath, useDefaultAvatar) {
+  if (!avatarFilePath && useDefaultAvatar) {
+    return request({
+      path: "/api/auth/miniprogram/profile",
+      method: "POST",
+      header: { "Content-Type": "application/json" },
+      data: {
+        nickname: String(nickname || "").trim(),
+        useDefaultAvatar: "true"
+      }
+    });
+  }
+  return uploadFile({
+    path: "/api/auth/miniprogram/profile",
+    filePath: String(avatarFilePath || ""),
+    name: "avatar",
+    formData: {
+      nickname: String(nickname || "").trim(),
+      useDefaultAvatar: useDefaultAvatar ? "true" : "false"
+    }
+  });
+}
+
 function requestEmailCode(email, purpose) {
   return request({
     path: "/api/auth/email-code",
@@ -311,10 +334,7 @@ function initializeGuestAccount() {
 }
 
 function ensureMiniProgramLogin(inviteToken) {
-  return request({ path: "/api/account" }).then(function (state) {
-    if (state && state.authenticated) return state;
-    return loginWithMiniProgram(inviteToken);
-  });
+  return request({ path: "/api/account" });
 }
 
 function formatNetworkError(error, apiName, url) {
@@ -349,5 +369,6 @@ module.exports = {
   request: request,
   resetPasswordWithEmail: resetPasswordWithEmail,
   toAbsoluteUrl: toAbsoluteUrl,
+  updateMiniProgramProfile: updateMiniProgramProfile,
   uploadFile: uploadFile
 };

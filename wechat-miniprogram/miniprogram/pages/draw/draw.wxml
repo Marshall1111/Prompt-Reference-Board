@@ -313,31 +313,29 @@
 
   <view class="modal-mask" wx:if="{{showAccountModal}}">
     <view class="modal-card large account-modal">
-      <text class="modal-title">账号登录</text>
-      <text class="modal-note">可使用微信账号或已有邮箱账户登录；邮箱注册后可在网页和小程序使用同一邮箱账户。小程序内微信支付需切换为微信登录。</text>
-
-      <view class="auth-tabs">
-        <button bindtap="setAuthMode" class="auth-tab {{authMode === 'login' ? 'active' : ''}}" data-mode="login">邮箱登录</button>
-        <button bindtap="setAuthMode" class="auth-tab {{authMode === 'register' ? 'active' : ''}}" data-mode="register">邮箱注册</button>
-        <button bindtap="setAuthMode" class="auth-tab {{authMode === 'reset' ? 'active' : ''}}" data-mode="reset">找回密码</button>
-      </view>
-
-      <view class="form-grid auth-form">
-        <input bindinput="onAuthFieldInput" class="form-input full" data-field="email" placeholder="邮箱" type="text" value="{{authForm.email}}" />
-        <input bindinput="onAuthFieldInput" class="form-input full" data-field="username" placeholder="用户名（2–32 个字符）" wx:if="{{authMode === 'register'}}" value="{{authForm.username}}" />
-        <input bindinput="onAuthFieldInput" class="form-input full" data-field="password" password placeholder="{{authMode === 'reset' ? '新密码（至少 8 位）' : '密码（至少 8 位）'}}" value="{{authForm.password}}" />
-        <view class="auth-code-row" wx:if="{{authMode !== 'login'}}">
-          <input bindinput="onAuthFieldInput" class="form-input" data-field="code" maxlength="6" placeholder="邮箱验证码" value="{{authForm.code}}" />
-          <button bindtap="sendAuthCode" class="secondary-button" disabled="{{authBusy}}">获取验证码</button>
-        </view>
-      </view>
-
+      <text class="modal-title">微信授权登录</text>
+      <text class="modal-note">授权后可同步你账户下的生成结果、卡夹和订单，并在账户按钮展示微信头像。</text>
       <view class="notice error" wx:if="{{authError}}">{{authError}}</view>
       <view class="notice success" wx:if="{{authMessage}}">{{authMessage}}</view>
       <view class="modal-actions vertical">
-        <button bindtap="submitEmailAuth" class="primary-button" loading="{{authBusy}}" disabled="{{authBusy}}">{{authMode === 'login' ? '邮箱登录' : (authMode === 'register' ? '注册邮箱账户' : '更新密码')}}</button>
-        <button bindtap="loginWithWechat" class="secondary-button" disabled="{{authBusy}}">微信登录</button>
-        <button bindtap="closeAccountModal" class="secondary-button" disabled="{{authBusy}}">取消</button>
+        <button bindtap="loginWithWechat" class="primary-button" loading="{{authBusy}}" disabled="{{authBusy}}">授权微信登录</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal-mask profile-setup-mask" wx:if="{{showProfileSetup}}">
+    <view class="modal-card profile-setup-modal">
+      <text class="modal-title">完善你的资料</text>
+      <text class="modal-note">选择头像并填写昵称，用于展示你的账户信息。</text>
+      <button class="profile-avatar-picker" open-type="chooseAvatar" bindchooseavatar="onProfileAvatarChosen" disabled="{{isSavingProfile}}">
+        <image wx:if="{{profileAvatarTempUrl}}" class="profile-avatar-preview" mode="aspectFill" src="{{profileAvatarTempUrl}}" />
+        <image wx:else class="profile-avatar-preview" mode="aspectFill" src="{{profileDefaultAvatarUrl}}" />
+        <text class="profile-avatar-action">{{profileAvatarTempUrl ? '更换头像' : '选择头像'}}</text>
+      </button>
+      <input bindinput="onProfileNicknameInput" class="form-input full" type="nickname" maxlength="80" placeholder="填写昵称" value="{{profileNickname}}" disabled="{{isSavingProfile}}" />
+      <view class="notice error" wx:if="{{profileError}}">{{profileError}}</view>
+      <view class="modal-actions vertical">
+        <button bindtap="submitProfileSetup" class="primary-button" loading="{{isSavingProfile}}" disabled="{{isSavingProfile}}">保存并开始使用</button>
       </view>
     </view>
   </view>

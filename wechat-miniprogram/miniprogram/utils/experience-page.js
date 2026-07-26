@@ -11,6 +11,7 @@ const SUBJECT_OPTIONS = [
 const DRAW_COUNT_OPTIONS = [1, 2, 4];
 const MAX_STYLE_SELECTION = 6;
 const REFERENCE_UPLOAD_QUALITY = 72;
+const DEFAULT_PROFILE_NICKNAME = "小画家用户00000000";
 
 function readInviteToken(inviteUrl) {
   var match = String(inviteUrl || "").match(/[?&]invite=([^&#]+)/);
@@ -95,6 +96,12 @@ function createExperiencePage(config) {
       orderError: "",
       isCreatingOrder: false,
       showAccountModal: false,
+      showProfileSetup: false,
+      profileNickname: DEFAULT_PROFILE_NICKNAME,
+      profileAvatarTempUrl: "",
+      profileDefaultAvatarUrl: publicApi.toAbsoluteUrl("/account-avatars/default-avatar.svg"),
+      profileError: "",
+      isSavingProfile: false,
       showCoinInfo: false,
       showCoinPurchase: false,
       coinPurchaseCount: 20,
@@ -141,6 +148,10 @@ function createExperiencePage(config) {
 
     onShow: function () {
       if (!this.data.isLoading) {
+        if (!this.data.isAccountRegistered) {
+          this.setData({ showAccountModal: true });
+          return;
+        }
         this.refreshPublicState();
         if (this.data.session && !publicExperience.isTerminalStatus(this.data.session.status)) {
           this.startPolling(this.data.session.sessionId);
@@ -158,6 +169,10 @@ function createExperiencePage(config) {
 
     onPullDownRefresh: function () {
       var self = this;
+      if (!this.data.isAccountRegistered) {
+        wx.stopPullDownRefresh();
+        return;
+      }
       this.refreshPublicState().finally(function () {
         wx.stopPullDownRefresh();
         if (self.data.session && !publicExperience.isTerminalStatus(self.data.session.status)) {
@@ -168,20 +183,31 @@ function createExperiencePage(config) {
 
     loadInitialState: function () {
       var self = this;
+      var isAuthenticated = false;
       this.setData({ isLoading: true });
 
-      publicExperience.ensureMiniProgramLogin(this.incomingReferralToken).catch(function (error) {
-        self.setData({ errorMessage: (error && error.message) || "微信登录失败，请稍后重试。" });
-        return null;
-      }).then(function () {
+      publicExperience.ensureMiniProgramLogin(this.incomingReferralToken).then(function (accountState) {
         self.incomingReferralToken = "";
+        isAuthenticated = Boolean(accountState && accountState.authenticated);
+        if (!isAuthenticated) {
+          self.setData({
+            showAccountModal: true,
+            visitorState: null,
+            session: null,
+            displayItems: [],
+            clipItems: []
+          });
+          return isDrawCard ? self.loadStyles() : Promise.resolve();
+        }
         if (isDrawCard) self.prefetchOrdersCache();
         return Promise.all([
           self.refreshPublicState(),
           isDrawCard ? self.loadStyles() : Promise.resolve()
         ]);
       }).then(function () {
-        return self.restoreSession();
+        return isAuthenticated ? self.restoreSession() : null;
+      }).then(function () {
+        if (isAuthenticated) self.openProfileSetupIfNeeded();
       }).catch(function (error) {
         self.setData({
           errorMessage: (error && error.message) || "页面加载失败，请稍后再试。"
@@ -191,12 +217,13 @@ function createExperiencePage(config) {
       });
     },
 
-    refreshPublicState: function () {
+    refreshPublicState: function (options) {
       var self = this;
+      var skipClipItems = Boolean(options && options.skipClipItems);
       return Promise.all([
         publicExperience.fetchVisitorState().catch(function () { return null; }),
         publicExperience.fetchOrderConfig().catch(function () { return null; }),
-        publicExperience.fetchClipItems(experienceType).catch(function () { return []; })
+        skipClipItems ? Promise.resolve([]) : publicExperience.fetchClipItems(experienceType).catch(function () { return []; })
       ]).then(function (results) {
         var visitorState = results[0];
         var account = visitorState && visitorState.account ? visitorState.account : {};
@@ -208,7 +235,7 @@ function createExperiencePage(config) {
           clipItems: results[2],
           isAccountRegistered: isAccountRegistered,
           accountDisplayInitial: isAccountRegistered ? (accountName.slice(0, 1) || "我") : "登录",
-          accountAvatarUrl: String(account.wechatAvatarUrl || "").trim(),
+          accountAvatarUrl: publicApi.toAbsoluteUrl(account.wechatAvatarUrl || ""),
           coinPurchaseDiscountText: format.formatCurrencyCents(Math.max(0, Number(visitorState && visitorState.coinPurchaseDiscount && visitorState.coinPurchaseDiscount.availableCents || 0))),
           coinPurchaseFirstMagnetPriceYuan: formatFirstMagnetPriceYuan(self.data.coinPurchaseCount, results[1]),
           errorMessage: ""
@@ -787,6 +814,19 @@ function createExperiencePage(config) {
       });
     },
 
+    openProfileSetupIfNeeded: function () {
+      var account = this.data.visitorState && this.data.visitorState.account ? this.data.visitorState.account : {};
+      if (!this.data.isAccountRegistered || account.hasWechatProfile) return;
+      this.setData({
+        showProfileSetup: true,
+        profileNickname: String(account.username || "").trim() === "微信用户"
+          ? String(account.defaultWechatNickname || DEFAULT_PROFILE_NICKNAME)
+          : String(account.username || "").trim(),
+        profileAvatarTempUrl: "",
+        profileError: ""
+      });
+    },
+
     openCoinInfo: function () {
       this.setData({ showCoinInfo: true, showUserMenu: false });
       this.prepareReferralShare();
@@ -842,14 +882,26 @@ function createExperiencePage(config) {
     logoutAccount: function () {
       var self = this;
       if (this.data.isLoggingOut) return;
-      this.setData({ isLoggingOut: true });
+      this.stopPolling();
+      publicExperience.clearSessionId(experienceType);
+      this.setData({
+        isLoggingOut: true,
+        session: null,
+        displayItems: [],
+        clipItems: [],
+        showImagePreview: false,
+        previewImageUrl: "",
+        previewJobId: "",
+        phase: "idle",
+        showUserMenu: false,
+        visitorState: null,
+        isAccountRegistered: false,
+        accountDisplayInitial: "登录",
+        accountAvatarUrl: ""
+      });
       publicExperience.logout().then(function () {
-        return publicExperience.initializeGuestAccount();
-      }).then(function () {
-        return self.refreshPublicState();
-      }).then(function () {
         self.setData({
-          showUserMenu: false,
+          showAccountModal: true,
           referralSharePath: "",
           referralError: ""
         });
@@ -956,13 +1008,65 @@ function createExperiencePage(config) {
       });
     },
 
+    onProfileAvatarChosen: function (event) {
+      var avatarUrl = String(event && event.detail && event.detail.avatarUrl || "").trim();
+      if (!avatarUrl) return;
+      this.setData({ profileAvatarTempUrl: avatarUrl, profileError: "" });
+    },
+
+    onProfileNicknameInput: function (event) {
+      this.setData({
+        profileNickname: String(event && event.detail && event.detail.value || "").slice(0, 80),
+        profileError: ""
+      });
+    },
+
+    submitProfileSetup: function () {
+      var self = this;
+      var nickname = String(this.data.profileNickname || "").trim() || DEFAULT_PROFILE_NICKNAME;
+      var avatarFilePath = String(this.data.profileAvatarTempUrl || "").trim();
+
+      this.setData({ isSavingProfile: true, profileError: "" });
+      publicExperience.updateMiniProgramProfile(nickname, avatarFilePath, !avatarFilePath).then(function () {
+        return self.refreshPublicState();
+      }).then(function () {
+        self.setData({ showProfileSetup: false, profileAvatarTempUrl: "" });
+        wx.showToast({ title: "资料已保存", icon: "success" });
+      }).catch(function (error) {
+        self.setData({ profileError: (error && error.message) || "资料保存失败，请稍后重试。" });
+      }).finally(function () {
+        self.setData({ isSavingProfile: false });
+      });
+    },
+
     loginWithWechat: function () {
       var self = this;
-      this.setData({ authBusy: true, authError: "", authMessage: "" });
+      this.stopPolling();
+      publicExperience.clearSessionId(experienceType);
+      this.setData({
+        session: null,
+        displayItems: [],
+        clipItems: [],
+        showImagePreview: false,
+        previewImageUrl: "",
+        previewJobId: "",
+        phase: "idle",
+        showUserMenu: false,
+        visitorState: null,
+        isAccountRegistered: false,
+        accountAvatarUrl: "",
+        accountDisplayInitial: "登录",
+        authBusy: true,
+        authError: "",
+        authMessage: ""
+      });
       publicExperience.loginWithMiniProgram().then(function () {
         self.setData({ showAccountModal: false });
         return self.refreshPublicState();
       }).then(function () {
+        return self.restoreSession();
+      }).then(function () {
+        self.openProfileSetupIfNeeded();
         wx.showToast({ title: "微信登录成功", icon: "success" });
       }).catch(function (error) {
         self.setData({ authError: (error && error.message) || "微信登录失败，请稍后重试。" });

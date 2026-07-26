@@ -37,6 +37,7 @@ const orderDbPath = path.join(rootDir, "data", "orders.sqlite");
 const storageBackupRoot = path.join(rootDir, "data", "storage-backups");
 const storageExportTempRoot = path.join(rootDir, "data", "storage-export-temp");
 const orderAssetPublicRoot = path.join(rootDir, "public", "order-assets");
+const accountAvatarPublicRoot = path.join(rootDir, "public", "account-avatars");
 const orderOriginalArchiveRoot = path.join(rootDir, "data", "order-original-downloads");
 const previewRoot = path.join(rootDir, "public", "style-previews");
 const generatedImageRoot = path.join(rootDir, "data", "private-generated-images");
@@ -874,6 +875,23 @@ app.get("/api/account", (req, res) => {
   });
 });
 
+app.get("/api/public/account-avatars/:accountId", async (req, res, next) => {
+  try {
+    const account = commerceStore.readAccount(String(req.params.accountId || "").trim());
+    const avatarUrl = String(account?.wechatAvatarUrl || "").trim();
+    if (!account || !isTrustedWechatAvatarUrl(avatarUrl)) {
+      throw createHttpError(404, "微信头像不存在。");
+    }
+
+    const avatar = await fetchTrustedWechatAvatar(avatarUrl);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.type(avatar.contentType).send(avatar.bytes);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/auth/me", requireWebAccount, (req, res) => {
   res.json({ authenticated: Boolean(req.userSession), account: toPublicCommerceAccount(req.webAccount) });
 });
@@ -1023,19 +1041,21 @@ app.post("/api/auth/login", async (req, res, next) => {
   }
 });
 
-app.post("/api/auth/miniprogram/login", requireWebAccount, async (req, res, next) => {
+app.post("/api/auth/miniprogram/login", async (req, res, next) => {
   try {
     const code = String(req.body?.code || "").trim();
     if (!code) throw createHttpError(400, "缺少小程序登录凭证，请重试。");
     const identity = await fetchWechatMiniProgramIdentity(code);
+    const nickname = String(req.body?.nickname || "").trim();
+    const requestedAvatarUrl = String(req.body?.avatarUrl || "").trim();
+    const avatarUrl = isTrustedWechatAvatarUrl(requestedAvatarUrl) ? requestedAvatarUrl : "";
     const existingAccount = commerceStore.readAccountByOpenId(identity.openId);
-    const guestAccount = req.webAccount?.isRegistered ? null : req.webAccount;
     const account = commerceStore.createOrGetWebAccount({
       openId: identity.openId,
       visitorId: req.visitorId,
-      guestAccountId: guestAccount?.channel === "browser_guest" ? guestAccount.id : "",
-      nickname: identity.nickname,
-      avatarUrl: identity.avatarUrl,
+      guestAccountId: "",
+      nickname,
+      avatarUrl,
       signupCredits: WEB_SIGNUP_CREDITS,
       signupBeans: WEB_SIGNUP_BEANS
     });
@@ -1055,6 +1075,40 @@ app.post("/api/auth/miniprogram/login", requireWebAccount, async (req, res, next
     clearWebAccountCookie(req, res);
     setUserSessionCookie(req, res, session.id);
     res.json({ authenticated: true, account: toPublicCommerceAccount(account) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/auth/miniprogram/profile", requireWebAccount, upload.single("avatar"), async (req, res, next) => {
+  try {
+    assertRegisteredAccount(req);
+    const nickname = String(req.body?.nickname || "").trim();
+    const avatar = req.file;
+    const allowedAvatarTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+    if (!nickname) throw createHttpError(400, "请填写昵称。");
+    const useDefaultAvatar = String(req.body?.useDefaultAvatar || "").toLowerCase() === "true";
+    if (!avatar && !useDefaultAvatar) {
+      throw createHttpError(400, "请选择头像或使用默认头像。");
+    }
+    if (avatar && !allowedAvatarTypes.has(String(avatar.mimetype || ""))) {
+      throw createHttpError(400, "请选择 JPG、PNG 或 WebP 格式的头像。");
+    }
+    if (avatar && avatar.size > 3 * 1024 * 1024) throw createHttpError(400, "头像请控制在 3MB 以内。");
+
+    let avatarUrl = "/account-avatars/default-avatar.svg";
+    if (avatar) {
+      const filename = `${randomUUID()}.${extensionForMime(avatar.mimetype)}`;
+      await mkdir(accountAvatarPublicRoot, { recursive: true });
+      await writeFile(path.join(accountAvatarPublicRoot, filename), avatar.buffer);
+      avatarUrl = `/account-avatars/${filename}`;
+    }
+    const account = commerceStore.updateWechatProfile(req.webAccount.id, {
+      nickname,
+      avatarUrl
+    });
+    req.webAccount = account;
+    res.json({ account: toPublicCommerceAccount(account) });
   } catch (error) {
     next(error);
   }
@@ -3993,6 +4047,10 @@ async function webAccountSessionMiddleware(req, res, next) {
     const accountId = cookies[WEB_ACCOUNT_COOKIE_NAME];
     req.webAccount = isSafeAccountId(accountId) ? commerceStore.readAccount(accountId) : null;
     if (!req.webAccount) {
+      // 小程序只使用微信账户，不为未授权用户创建或保留访客账户。
+      const isMiniProgramRequest = String(req.get("X-PetPaint-Client") || "").toLowerCase() === "miniprogram";
+      const isPublicAvatarRequest = req.path.startsWith("/api/public/account-avatars/") || req.path.startsWith("/account-avatars/");
+      if (isMiniProgramRequest || isPublicAvatarRequest) return next();
       const settings = await readAppSettings();
       req.webAccount = commerceStore.createOrGetBrowserAccount({
         visitorId: req.visitorId,
@@ -6719,6 +6777,53 @@ async function fetchWechatMiniProgramIdentity(code) {
   return { openId, nickname: "微信用户", avatarUrl: "" };
 }
 
+function isTrustedWechatAvatarUrl(value) {
+  try {
+    const url = new URL(String(value || "").trim());
+    const hostname = url.hostname.toLowerCase();
+    return url.protocol === "https:" && (hostname === "qlogo.cn" || hostname.endsWith(".qlogo.cn"));
+  } catch {
+    return false;
+  }
+}
+
+async function fetchTrustedWechatAvatar(avatarUrl) {
+  const allowedContentTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+  const maxBytes = 3 * 1024 * 1024;
+  let currentUrl = String(avatarUrl || "").trim();
+
+  for (let redirectCount = 0; redirectCount < 4; redirectCount += 1) {
+    if (!isTrustedWechatAvatarUrl(currentUrl)) throw createHttpError(400, "微信头像地址无效。");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    let response;
+    try {
+      response = await fetch(currentUrl, { redirect: "manual", signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get("location");
+      if (!location) throw createHttpError(502, "微信头像跳转失败。");
+      currentUrl = new URL(location, currentUrl).toString();
+      continue;
+    }
+    if (!response.ok) throw createHttpError(502, "微信头像加载失败。");
+
+    const contentType = String(response.headers.get("content-type") || "").split(";", 1)[0].trim().toLowerCase();
+    const contentLength = Number(response.headers.get("content-length") || 0);
+    if (!allowedContentTypes.has(contentType) || (contentLength && contentLength > maxBytes)) {
+      throw createHttpError(502, "微信头像格式无效。");
+    }
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (!bytes.length || bytes.length > maxBytes) throw createHttpError(502, "微信头像文件无效。");
+    return { contentType, bytes };
+  }
+
+  throw createHttpError(502, "微信头像跳转次数过多。");
+}
+
 function normalizeShippingCarrierCode(value) {
   const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
   if (!normalized) return "";
@@ -6865,12 +6970,16 @@ function assertRegisteredAccount(req) {
 
 function toPublicCommerceAccount(account) {
   if (!account) return null;
+  const avatarUrl = String(account.wechatAvatarUrl || "").trim();
+  const localAvatarUrl = /^\/account-avatars\/(?:[0-9a-f-]+\.(?:jpg|png|webp)|default-avatar\.svg)$/i.test(avatarUrl) ? avatarUrl : "";
   return {
     id: account.id,
     isGuest: !account.isRegistered,
     isRegistered: Boolean(account.isRegistered),
     username: account.username || account.wechatNickname || "微信用户",
-    wechatAvatarUrl: account.wechatAvatarUrl || "",
+    defaultWechatNickname: buildDefaultWechatNickname(account.id),
+    hasWechatProfile: Boolean(account.wechatNickname && account.wechatAvatarUrl),
+    wechatAvatarUrl: localAvatarUrl || (avatarUrl ? `/api/public/account-avatars/${encodeURIComponent(account.id)}` : ""),
     email: account.email || "",
     accountStatus: account.accountStatus || "active",
     coinBalance: Math.max(0, Number(account.coinBalance ?? account.creditBalance ?? 0)),
@@ -6878,6 +6987,12 @@ function toPublicCommerceAccount(account) {
     canRedeemOriginalDownloads: commerceStore.hasOriginalImageDownloadAccess(account.id),
     createdAt: account.createdAt || null
   };
+}
+
+function buildDefaultWechatNickname(accountId) {
+  const compactId = String(accountId || "").replace(/[^0-9a-f]/gi, "").slice(-10);
+  const serial = Number.parseInt(compactId || "0", 16) % 100000000;
+  return `小画家用户${String(serial).padStart(8, "0")}`;
 }
 
 function toPublicCreditLedger(entry) {
