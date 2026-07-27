@@ -5,6 +5,16 @@
   max-width: calc(100vw - 64rpx);
 }
 
+.profile-setup-actions {
+  flex-wrap: nowrap;
+}
+
+.profile-setup-actions .secondary-button,
+.profile-setup-actions .primary-button {
+  flex: 1 1 0;
+  width: 0;
+}
+
 .profile-setup-mask {
   align-items: center;
   padding: 32rpx;

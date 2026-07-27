@@ -3211,6 +3211,17 @@ app.get("/api/admin/users/:id/clip-items/:jobId/download-original", requireAdmin
   }
 });
 
+app.delete("/api/admin/users/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const account = commerceStore.readAccount(req.params.id);
+    if (!account?.isRegistered) throw createHttpError(404, "用户不存在。");
+    const result = await permanentlyDeleteAdminUser(account);
+    res.json({ deleted: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.patch("/api/admin/users/:id/status", requireAdmin, (req, res, next) => {
   try {
     const current = commerceStore.readAccount(req.params.id);
@@ -6976,14 +6987,15 @@ function toPublicCommerceAccount(account) {
   if (!account) return null;
   const avatarUrl = String(account.wechatAvatarUrl || "").trim();
   const localAvatarUrl = /^\/account-avatars\/(?:[0-9a-f-]+\.(?:jpg|png|webp)|default-avatar\.svg)$/i.test(avatarUrl) ? avatarUrl : "";
+  const defaultNickname = buildDefaultWechatNickname(account.id);
   return {
     id: account.id,
     isGuest: !account.isRegistered,
     isRegistered: Boolean(account.isRegistered),
-    username: account.username || account.wechatNickname || "微信用户",
-    defaultWechatNickname: buildDefaultWechatNickname(account.id),
+    username: account.username || account.wechatNickname || defaultNickname,
+    defaultWechatNickname: defaultNickname,
     hasWechatProfile: Boolean(account.wechatNickname && account.wechatAvatarUrl),
-    wechatAvatarUrl: localAvatarUrl || (avatarUrl ? `/api/public/account-avatars/${encodeURIComponent(account.id)}` : ""),
+    wechatAvatarUrl: localAvatarUrl || (avatarUrl ? `/api/public/account-avatars/${encodeURIComponent(account.id)}` : "/account-avatars/default-avatar.svg"),
     email: account.email || "",
     accountStatus: account.accountStatus || "active",
     coinBalance: Math.max(0, Number(account.coinBalance ?? account.creditBalance ?? 0)),
@@ -8077,6 +8089,105 @@ function isAdminUserClipItem(accountId, job, visitorIds = null) {
       job.isLiked &&
       (String(job.ownerAccountId || "") ? String(job.ownerAccountId) === String(accountId) : ownedVisitorIds.has(job.ownerVisitorId))
   );
+}
+
+async function permanentlyDeleteAdminUser(account) {
+  const accountId = String(account?.id || "");
+  if (!accountId || !account?.isRegistered) throw createHttpError(404, "用户不存在。");
+
+  const visitorIds = [...new Set(commerceStore.listVisitorIds(accountId))];
+  const ownedVisitorIds = new Set(visitorIds);
+  const ownsRecord = (record) => {
+    const ownerAccountId = String(record?.ownerAccountId || "");
+    return ownerAccountId ? ownerAccountId === accountId : ownedVisitorIds.has(String(record?.ownerVisitorId || ""));
+  };
+  const [jobs, drawCardSessions, bodyBookSessions, visitSessions] = await Promise.all([
+    listImageJobs(),
+    listDrawCardSessions(),
+    listBodyBookSessions(),
+    listVisitSessions()
+  ]);
+  const ownedJobs = jobs.filter(ownsRecord);
+  const ownedDrawCardSessions = drawCardSessions.filter(ownsRecord);
+  const ownedBodyBookSessions = bodyBookSessions.filter(ownsRecord);
+  const ownedVisitSessions = visitSessions.filter((session) => ownedVisitorIds.has(String(session?.visitorId || "")));
+  const orderIds = orderStore.deleteOrdersForAccount({ accountId, visitorIds });
+
+  await Promise.all(orderIds.map(async (orderId) => {
+    if (!isSafeImageJobId(orderId)) return;
+    await Promise.all([
+      rm(path.join(orderAssetPublicRoot, orderId), { recursive: true, force: true }),
+      rm(path.join(orderOriginalArchiveRoot, orderId), { recursive: true, force: true })
+    ]);
+  }));
+
+  await Promise.all(ownedJobs.map(async (job) => {
+    const current = await readImageJob(job.jobId);
+    if (!current) return;
+    if (["queued", "running"].includes(current.status)) {
+      activeImageJobs.get(current.jobId)?.abortController?.abort?.();
+      await saveImageJob({
+        ...current,
+        status: "cancelled",
+        message: "用户账户已删除，任务已停止。",
+        updatedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString()
+      });
+    }
+    await deleteImageJob(current);
+  }));
+
+  await Promise.all([
+    ...ownedDrawCardSessions.map((session) => rm(getDrawCardSessionPath(session.sessionId), { force: true })),
+    ...ownedBodyBookSessions.flatMap((session) => [
+      rm(getBodyBookSessionPath(session.sessionId), { force: true }),
+      rm(path.join(bodyBookSessionRoot, session.sessionId), { recursive: true, force: true })
+    ]),
+    ...ownedVisitSessions.map((session) => rm(getVisitSessionPath(session.sessionId), { force: true })),
+    ...visitorIds.map((visitorId) => deleteVisitorStateArtifacts(visitorId)),
+    deleteTemporaryReferencesForVisitors(ownedVisitorIds),
+    deleteAccountAvatarFile(account.wechatAvatarUrl)
+  ]);
+
+  const deleted = commerceStore.permanentlyDeleteRegisteredAccount(accountId);
+  if (!deleted) throw createHttpError(404, "用户不存在。");
+  return {
+    deletedOrderCount: orderIds.length,
+    deletedImageCount: ownedJobs.length,
+    deletedProjectCount: ownedDrawCardSessions.length + ownedBodyBookSessions.length
+  };
+}
+
+async function deleteVisitorStateArtifacts(visitorId) {
+  if (!isSafeVisitorId(visitorId)) return;
+  await mkdir(visitorStateRoot, { recursive: true });
+  const prefix = `${visitorId}.`;
+  const entries = await readdir(visitorStateRoot, { withFileTypes: true });
+  await Promise.all(entries
+    .filter((entry) => entry.isFile() && entry.name.startsWith(prefix))
+    .map((entry) => rm(path.join(visitorStateRoot, entry.name), { force: true })));
+}
+
+async function deleteTemporaryReferencesForVisitors(visitorIds) {
+  if (!visitorIds?.size) return;
+  await mkdir(tempReferenceRoot, { recursive: true });
+  const entries = await readdir(tempReferenceRoot, { withFileTypes: true });
+  await Promise.all(entries.filter((entry) => entry.isDirectory()).map(async (entry) => {
+    try {
+      const metadata = JSON.parse(await readFile(path.join(tempReferenceRoot, entry.name, "metadata.json"), "utf-8"));
+      if (visitorIds.has(String(metadata?.ownerVisitorId || ""))) {
+        await rm(path.join(tempReferenceRoot, entry.name), { recursive: true, force: true });
+      }
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }));
+}
+
+async function deleteAccountAvatarFile(avatarUrl) {
+  const match = String(avatarUrl || "").match(/^\/account-avatars\/([0-9a-f-]+\.(?:jpg|png|webp))$/i);
+  if (!match) return;
+  await rm(path.join(accountAvatarPublicRoot, match[1]), { force: true });
 }
 
 function toPublicDrawCardStyle(style) {

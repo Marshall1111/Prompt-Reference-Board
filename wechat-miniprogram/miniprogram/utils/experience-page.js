@@ -61,9 +61,12 @@ function createExperiencePage(config) {
       showImagePreview: false,
       previewImageUrl: "",
       previewJobId: "",
+      previewIsClip: false,
+      previewIsLiked: false,
       previewIsOriginal: false,
       previewNeedsLongPress: false,
       isPreviewOriginalLoading: false,
+      isPreviewClipUpdating: false,
       showOriginalDownloadUnlock: false,
       inviteCode: "",
       errorMessage: "",
@@ -95,7 +98,7 @@ function createExperiencePage(config) {
       isCreatingOrder: false,
       showAccountModal: false,
       showProfileSetup: false,
-      profileEditorMode: "onboarding",
+      profileEditorMode: "settings",
       profileNickname: "小画家00000000",
       profileAvatarTempUrl: "",
       profileDefaultAvatarUrl: publicApi.toAbsoluteUrl("/account-avatars/default-avatar.svg"),
@@ -209,8 +212,6 @@ function createExperiencePage(config) {
         ]);
       }).then(function () {
         return isAuthenticated ? self.restoreSession() : null;
-      }).then(function () {
-        if (isAuthenticated) self.openProfileSetupIfNeeded();
       }).catch(function (error) {
         self.setData({
           errorMessage: (error && error.message) || "页面加载失败，请稍后再试。"
@@ -673,17 +674,20 @@ function createExperiencePage(config) {
 
     previewResult: function (event) {
       var url = event.currentTarget.dataset.url;
-      this.previewRemoteImage(url, event.currentTarget.dataset.jobid);
+      this.previewRemoteImage(url, event.currentTarget.dataset.jobid, false);
     },
 
     previewClip: function (event) {
       var url = event.currentTarget.dataset.url;
-      this.previewRemoteImage(url, event.currentTarget.dataset.jobid);
+      this.previewRemoteImage(url, event.currentTarget.dataset.jobid, true);
     },
 
-    previewRemoteImage: function (url, jobId) {
+    previewRemoteImage: function (url, jobId, isClip) {
       var self = this;
       var imageUrl = String(url || "").trim();
+      var displayItem = this.data.displayItems.filter(function (item) {
+        return String(item.jobId || "") === String(jobId || "");
+      })[0];
       if (!imageUrl || this.isPreviewingRemoteImage) return;
       this.isPreviewingRemoteImage = true;
       wx.showLoading({ title: "正在打开预览", mask: true });
@@ -693,9 +697,12 @@ function createExperiencePage(config) {
           showImagePreview: true,
           previewImageUrl: tempFilePath,
           previewJobId: String(jobId || ""),
+          previewIsClip: Boolean(isClip),
+          previewIsLiked: Boolean(isClip || (displayItem && displayItem.isLiked)),
           previewIsOriginal: false,
           previewNeedsLongPress: false,
-          isPreviewOriginalLoading: false
+          isPreviewOriginalLoading: false,
+          isPreviewClipUpdating: false
         });
       }).catch(function (error) {
         wx.hideLoading();
@@ -709,13 +716,16 @@ function createExperiencePage(config) {
     },
 
     closeImagePreview: function () {
-      if (this.data.isPreviewOriginalLoading) return;
+      if (this.data.isPreviewOriginalLoading || this.data.isPreviewClipUpdating) return;
       this.setData({
         showImagePreview: false,
         previewImageUrl: "",
         previewJobId: "",
+        previewIsClip: false,
+        previewIsLiked: false,
         previewIsOriginal: false,
-        previewNeedsLongPress: false
+        previewNeedsLongPress: false,
+        isPreviewClipUpdating: false
       });
     },
 
@@ -792,6 +802,35 @@ function createExperiencePage(config) {
         return;
       }
       downloadClipOriginalToAlbum(self, jobId);
+    },
+
+    togglePreviewClip: function () {
+      var self = this;
+      var jobId = String(this.data.previewJobId || "");
+      var isLiked = Boolean(this.data.previewIsLiked);
+      if (!jobId || this.data.isPreviewClipUpdating) return;
+
+      this.setData({ isPreviewClipUpdating: true });
+      (isLiked ? publicExperience.unlikeJob(jobId) : publicExperience.likeJob(jobId)).then(function () {
+        self.markLiked(jobId, !isLiked);
+        return publicExperience.fetchClipItems(experienceType);
+      }).then(function (items) {
+        self.setData({
+          clipItems: items,
+          errorMessage: "",
+          previewIsClip: !isLiked,
+          previewIsLiked: !isLiked
+        });
+        self.rebuildOrderSummary();
+        wx.showToast({ title: isLiked ? "已移出卡夹" : "已加入卡夹", icon: "success" });
+      }).catch(function (error) {
+        wx.showToast({
+          title: (error && error.message) || (isLiked ? "移出失败，请稍后再试。" : "加入失败，请稍后再试。"),
+          icon: "none"
+        });
+      }).finally(function () {
+        self.setData({ isPreviewClipUpdating: false });
+      });
     },
 
     addToClip: function (event) {
@@ -886,20 +925,6 @@ function createExperiencePage(config) {
       });
     },
 
-    openProfileSetupIfNeeded: function () {
-      var account = this.data.visitorState && this.data.visitorState.account ? this.data.visitorState.account : {};
-      if (!this.data.isAccountRegistered || account.hasWechatProfile) return;
-      this.setData({
-        showProfileSetup: true,
-        profileNickname: String(account.defaultWechatNickname || "小画家00000000"),
-        profileAvatarTempUrl: "",
-        profileAvatarPreviewUrl: this.data.profileDefaultAvatarUrl,
-        profileAvatarMode: "default",
-        profileEditorMode: "onboarding",
-        profileError: ""
-      });
-    },
-
     openProfileSettings: function () {
       var account = this.data.visitorState && this.data.visitorState.account ? this.data.visitorState.account : {};
       var currentAvatarUrl = String(this.data.accountAvatarUrl || "").trim();
@@ -907,12 +932,19 @@ function createExperiencePage(config) {
       this.setData({
         showProfileSetup: true,
         profileEditorMode: "settings",
-        profileNickname: String(account.username || "").trim() === "微信用户"
-          ? String(account.defaultWechatNickname || "小画家00000000")
-          : String(account.username || "").trim(),
+        profileNickname: String(account.username || account.defaultWechatNickname || "小画家00000000").trim(),
         profileAvatarTempUrl: "",
         profileAvatarPreviewUrl: currentAvatarUrl || this.data.profileDefaultAvatarUrl,
         profileAvatarMode: usesDefaultAvatar || !currentAvatarUrl ? "default" : "existing",
+        profileError: ""
+      });
+    },
+
+    closeProfileSettings: function () {
+      if (this.data.isSavingProfile) return;
+      this.setData({
+        showProfileSetup: false,
+        profileAvatarTempUrl: "",
         profileError: ""
       });
     },
@@ -1168,7 +1200,6 @@ function createExperiencePage(config) {
       }).then(function () {
         return self.restoreSession();
       }).then(function () {
-        self.openProfileSetupIfNeeded();
         wx.showToast({ title: "微信登录成功", icon: "success" });
       }).catch(function (error) {
         self.setData({ authError: (error && error.message) || "微信登录失败，请稍后重试。" });

@@ -641,6 +641,26 @@ export function createOrderStore({ dbPath }) {
     return rows.map((row) => mapOrderRow(row));
   }
 
+  function deleteOrdersForAccount({ accountId, visitorIds = [] } = {}) {
+    const safeAccountId = String(accountId || "").trim();
+    if (!safeAccountId) throw new Error("缺少账户标识。");
+    const safeVisitorIds = [...new Set((Array.isArray(visitorIds) ? visitorIds : []).map((value) => String(value || "").trim()).filter(Boolean))];
+    const conditions = ["account_id = ?"];
+    const values = [safeAccountId];
+    if (safeVisitorIds.length) {
+      conditions.push(`visitor_id IN (${safeVisitorIds.map(() => "?").join(", ")})`);
+      values.push(...safeVisitorIds);
+    }
+    const where = conditions.join(" OR ");
+    const orderIds = db.prepare(`SELECT id FROM orders WHERE ${where}`).all(...values).map((row) => String(row.id || "")).filter(Boolean);
+    if (!orderIds.length) return [];
+
+    withTransaction(db, () => {
+      db.prepare(`DELETE FROM orders WHERE ${where}`).run(...values);
+    });
+    return orderIds;
+  }
+
   function listMerchantCommissionSummary({ merchantId = "", startDate = "", endDate = "", fallbackCommissionRateByMerchantId = {} } = {}) {
     expireUnpaidOrders();
 
@@ -759,6 +779,7 @@ export function createOrderStore({ dbPath }) {
     appendPaymentEvent,
     backfillMissingCommissionSnapshots,
     createOrder,
+    deleteOrdersForAccount,
     expireUnpaidOrders,
     listOrders,
     listOrdersForExport,

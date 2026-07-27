@@ -7147,6 +7147,13 @@ async function fetchAdminUser(userId) {
   return payload;
 }
 
+async function deleteAdminUser(userId) {
+  const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, { method: "DELETE" });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "删除用户失败。");
+  return payload;
+}
+
 async function fetchAdminUserClipItems(userId) {
   const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/clip-items`);
   const payload = await response.json();
@@ -8156,6 +8163,7 @@ function UserAdminPage({ onOpenClip }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [delta, setDelta] = useState("");
   const [remark, setRemark] = useState("");
   const [currency, setCurrency] = useState("coin");
@@ -8215,6 +8223,24 @@ function UserAdminPage({ onOpenClip }) {
       await load();
     } catch (nextError) {
       setError(nextError.message || "调整余额失败。");
+    }
+  }
+
+  async function deleteUser() {
+    if (!selected || isDeleting) return;
+    const name = detail?.user?.username || selected.username || "该用户";
+    if (!window.confirm(`确定永久删除“${name}”吗？\n\n该操作会删除账户资料、余额流水、订单、支付记录、生成图片、卡夹和项目记录，且无法恢复。该用户下次进入将作为新用户。`)) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteAdminUser(selected.id);
+      setSelected(null);
+      setDetail(null);
+      await load({ page });
+    } catch (nextError) {
+      setError(nextError.message || "删除用户失败。");
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -8283,7 +8309,7 @@ function UserAdminPage({ onOpenClip }) {
           <section className="prompt-modal order-admin-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="用户详情">
             <div className="modal-head"><div><p className="eyebrow">User detail</p><h2>{detail?.user?.username || selected.username}</h2></div><button className="icon-button" onClick={() => setSelected(null)} type="button"><X size={18} /></button></div>
             <p className="storage-note">{detail?.user?.email || selected.email} · {detail?.user?.coinBalance ?? selected.coinBalance} 币 / {detail?.user?.beanBalance ?? selected.beanBalance} 豆豆 · 关联访客 {detail?.user?.visitorCount ?? selected.visitorCount}</p>
-            <div className="task-actions"><button className={detail?.user?.status === "disabled" ? "secondary-button" : "danger-button"} onClick={() => updateStatus(detail?.user?.status === "disabled" ? "active" : "disabled")} type="button">{detail?.user?.status === "disabled" ? "恢复用户" : "禁用用户"}</button></div>
+            <div className="task-actions"><button className={detail?.user?.status === "disabled" ? "secondary-button" : "danger-button"} disabled={isDeleting} onClick={() => updateStatus(detail?.user?.status === "disabled" ? "active" : "disabled")} type="button">{detail?.user?.status === "disabled" ? "恢复用户" : "禁用用户"}</button><button className="danger-button" disabled={isDeleting} onClick={deleteUser} type="button">{isDeleting ? "正在永久删除..." : "永久删除用户"}</button></div>
             <div className="draw-card-order-form"><label className="field-label">币种<select onChange={(event) => setCurrency(event.target.value)} value={currency}><option value="coin">币</option><option value="bean">豆豆</option></select></label><label className="field-label">调整余额（正数增加、负数扣减）<input onChange={(event) => setDelta(event.target.value)} type="number" value={delta} /></label><label className="field-label">调整备注<textarea onChange={(event) => setRemark(event.target.value)} rows="2" value={remark} /></label><button className="secondary-button" disabled={!Number(delta) || !remark.trim()} onClick={adjustWallet} type="button">保存余额调整</button></div>
             <h3>币流水</h3><div className="task-list">{(detail?.ledger || []).slice(0, 20).map((item) => <div className="task-meta-row" key={item.id}><strong>{item.delta > 0 ? "+" : ""}{item.delta} 币</strong><span>{item.reason}{item.note ? `：${item.note}` : ""}</span><span>{formatDateTime(item.createdAt)}</span></div>)}</div>
             <h3>豆豆流水</h3><div className="task-list">{(detail?.beanLedger || []).slice(0, 20).map((item) => <div className="task-meta-row" key={item.id}><strong>{item.delta > 0 ? "+" : ""}{item.delta} 豆豆</strong><span>{item.reason}{item.note ? `：${item.note}` : ""}</span><span>{formatDateTime(item.createdAt)}</span></div>)}</div>

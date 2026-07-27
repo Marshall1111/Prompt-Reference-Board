@@ -830,6 +830,26 @@ export function createCommerceStore({ dbPath }) {
       .filter(Boolean);
   }
 
+  function permanentlyDeleteRegisteredAccount(accountId) {
+    const account = readAccount(accountId);
+    if (!account?.isRegistered) return null;
+    const visitorIds = listVisitorIds(account.id);
+
+    withTransaction(db, () => {
+      // Referral rows can point at both the deleted user and other users. Remove
+      // them first so a referrer's link is no longer retained by RESTRICT.
+      db.prepare("DELETE FROM commerce_referrals WHERE invitee_account_id = ? OR referrer_account_id = ?")
+        .run(account.id, account.id);
+      if (account.email) {
+        db.prepare("DELETE FROM commerce_email_verifications WHERE email = ?")
+          .run(String(account.email).trim().toLowerCase());
+      }
+      db.prepare("DELETE FROM commerce_accounts WHERE id = ?").run(account.id);
+    });
+
+    return { account, visitorIds };
+  }
+
   function appendLedger(accountId, delta, { reason, referenceType, referenceId, note = "" } = {}) {
     const account = readAccount(accountId);
     if (!account) throw new Error("账户不存在。");
@@ -1507,6 +1527,7 @@ export function createCommerceStore({ dbPath }) {
     adjustCredits,
     adjustBeans,
     deleteUserSession,
+    permanentlyDeleteRegisteredAccount,
     grantCredits,
     grantBeans,
     getBodyBookDiscountSummary,

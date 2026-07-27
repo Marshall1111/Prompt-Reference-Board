@@ -64,9 +64,7 @@
               </view>
               <view class="result-meta">
                 <text>{{item.styleName}}</text>
-                <button bindtap="removeFromClip" class="mini-danger" data-jobid="{{item.jobId}}" wx:if="{{item.isLiked}}">{{pocketRemoveLabel}}</button>
-                <button bindtap="addToClip" class="mini-primary" data-jobid="{{item.jobId}}" wx:elif="{{item.canLike}}">{{pocketAddLabel}}</button>
-                <text class="status-chip" wx:else>{{item.statusLabel}}</text>
+                <text class="status-chip">{{item.statusLabel}}</text>
               </view>
             </view>
           </view>
@@ -150,8 +148,9 @@
     <view catchtap="stopTap" class="image-preview-panel">
       <image class="image-preview-image" mode="aspectFit" src="{{previewImageUrl}}" show-menu-by-longpress="{{previewIsOriginal}}" />
       <view class="image-preview-actions">
-        <button bindtap="closeImagePreview" class="image-preview-back" disabled="{{isPreviewOriginalLoading}}">返回</button>
-        <button bindtap="downloadPreviewOriginal" class="image-preview-download" loading="{{isPreviewOriginalLoading}}" disabled="{{isPreviewOriginalLoading || !previewJobId}}">下载原图</button>
+        <button bindtap="closeImagePreview" class="image-preview-back" disabled="{{isPreviewOriginalLoading || isPreviewClipUpdating}}">返回</button>
+        <button bindtap="togglePreviewClip" class="image-preview-clip" loading="{{isPreviewClipUpdating}}" disabled="{{isPreviewOriginalLoading || isPreviewClipUpdating || !previewJobId}}">{{previewIsLiked ? '移出卡夹' : '加入卡夹'}}</button>
+        <button bindtap="downloadPreviewOriginal" class="image-preview-download" loading="{{isPreviewOriginalLoading}}" disabled="{{isPreviewOriginalLoading || isPreviewClipUpdating || !previewJobId}}">下载原图</button>
       </view>
       <text class="image-preview-tip" wx:if="{{previewNeedsLongPress}}">请长按图片保存原图</text>
     </view>
@@ -317,7 +316,7 @@
   <view class="modal-mask" wx:if="{{showAccountModal}}">
     <view class="modal-card large account-modal">
       <text class="modal-title">微信登录</text>
-      <text class="modal-note">用于识别你的微信账户并同步生成结果、卡夹和订单。头像和昵称将在下一步由你单独选择使用。</text>
+      <text class="modal-note">用于识别你的微信账户并同步生成结果、卡夹和订单。登录后可在“用户信息”中自行设置头像和昵称。</text>
       <view class="notice error" wx:if="{{authError}}">{{authError}}</view>
       <view class="notice success" wx:if="{{authMessage}}">{{authMessage}}</view>
       <view class="modal-actions vertical">
@@ -328,7 +327,7 @@
 
   <view class="modal-mask profile-setup-mask" wx:if="{{showProfileSetup}}">
     <view class="modal-card profile-setup-modal">
-      <text class="modal-title">{{profileEditorMode === 'settings' ? '用户信息' : '完善资料'}}</text>
+      <text class="modal-title">用户信息</text>
       <text class="modal-note">默认头像和昵称已为你准备好，点击头像或昵称可自行修改。</text>
       <button class="profile-avatar-picker" open-type="chooseAvatar" bindchooseavatar="onProfileAvatarChosen" disabled="{{isSavingProfile}}">
         <image class="profile-avatar-preview" mode="aspectFill" src="{{profileAvatarPreviewUrl}}" />
@@ -336,8 +335,9 @@
       </button>
       <input bindinput="onProfileNicknameInput" class="form-input full" type="nickname" maxlength="80" placeholder="昵称" value="{{profileNickname}}" disabled="{{isSavingProfile}}" />
       <view class="notice error" wx:if="{{profileError}}">{{profileError}}</view>
-      <view class="modal-actions vertical">
-        <button bindtap="submitProfileSetup" class="primary-button" loading="{{isSavingProfile}}" disabled="{{isSavingProfile}}">{{profileEditorMode === 'settings' ? '保存修改' : '保存并开始使用'}}</button>
+      <view class="modal-actions profile-setup-actions">
+        <button bindtap="closeProfileSettings" class="secondary-button" disabled="{{isSavingProfile}}">取消</button>
+        <button bindtap="submitProfileSetup" class="primary-button" loading="{{isSavingProfile}}" disabled="{{isSavingProfile}}">保存修改</button>
       </view>
     </view>
   </view>
