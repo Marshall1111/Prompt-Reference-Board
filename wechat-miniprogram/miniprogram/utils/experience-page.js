@@ -56,6 +56,7 @@ function createExperiencePage(config) {
       visitorState: null,
       orderConfig: null,
       session: null,
+      isSessionInProgress: false,
       displayItems: [],
       clipItems: [],
       showImagePreview: false,
@@ -71,6 +72,7 @@ function createExperiencePage(config) {
       inviteCode: "",
       errorMessage: "",
       isSubmitting: false,
+      isDiscardConfirming: false,
       isLoading: true,
       showDrawConfig: false,
       showStylePicker: false,
@@ -200,6 +202,7 @@ function createExperiencePage(config) {
             showAccountModal: true,
             visitorState: null,
             session: null,
+            isSessionInProgress: false,
             displayItems: [],
             clipItems: []
           });
@@ -482,6 +485,7 @@ function createExperiencePage(config) {
     },
 
     openDrawConfig: function () {
+      if (this.data.isSessionInProgress || this.data.isSubmitting) return;
       if (!this.ensureImageReady()) return;
       this.setData({
         showDrawConfig: true,
@@ -520,6 +524,7 @@ function createExperiencePage(config) {
     },
 
     openStylePicker: function () {
+      if (this.data.isSessionInProgress || this.data.isSubmitting) return;
       if (!this.ensureImageReady()) return;
       if (!this.data.styles.length) {
         this.loadStyles();
@@ -573,6 +578,7 @@ function createExperiencePage(config) {
     },
 
     startDefault: function () {
+      if (this.data.isSessionInProgress || this.data.isSubmitting) return;
       if (!this.ensureImageReady()) return;
       if (isDrawCard) {
         this.openDrawConfig();
@@ -581,13 +587,34 @@ function createExperiencePage(config) {
       this.startSession({});
     },
 
-    startSession: function (options) {
+    startSession: function (options, skipDiscardConfirm) {
       var self = this;
       var nextOptions = options || {};
       var estimatedCost = estimateCost(experienceType, nextOptions);
 
       if (!this.ensureImageReady()) return;
-      if (this.data.isSubmitting) return;
+      if (this.data.isSubmitting || this.data.isSessionInProgress || this.data.isDiscardConfirming) return;
+
+      var hasUncollectedResults = this.data.displayItems.some(function (item) {
+        return item.result && !item.isLiked;
+      });
+      if (hasUncollectedResults && !skipDiscardConfirm) {
+        this.setData({ isDiscardConfirming: true });
+        wx.showModal({
+          title: "开始新一轮生成？",
+          content: "上一轮未加入卡夹的图片将被清空，有喜欢的图片请先加入卡夹。",
+          confirmText: "确定开始",
+          cancelText: "暂不开始",
+          success: function (result) {
+            self.setData({ isDiscardConfirming: false });
+            if (result.confirm) self.startSession(nextOptions, true);
+          },
+          fail: function () {
+            self.setData({ isDiscardConfirming: false });
+          }
+        });
+        return;
+      }
 
       if (this.data.visitorState && Number(this.data.visitorState.quotaRemaining || 0) < estimatedCost) {
         this.setData({
@@ -603,6 +630,7 @@ function createExperiencePage(config) {
         phaseLabel: "正在提交",
         errorMessage: "",
         session: null,
+        isSessionInProgress: true,
         displayItems: []
       });
 
@@ -620,6 +648,7 @@ function createExperiencePage(config) {
         self.setData({
           phase: "error",
           phaseLabel: "没有顺利开始",
+          isSessionInProgress: false,
           errorMessage: (error && error.message) || "任务启动失败，请稍后再试。"
         });
       }).finally(function () {
@@ -665,6 +694,7 @@ function createExperiencePage(config) {
 
       this.setData({
         session: session,
+        isSessionInProgress: !publicExperience.isTerminalStatus(session.status),
         displayItems: displayItems,
         phase: phase,
         phaseLabel: label,
@@ -1014,6 +1044,7 @@ function createExperiencePage(config) {
       this.setData({
         isLoggingOut: true,
         session: null,
+        isSessionInProgress: false,
         displayItems: [],
         clipItems: [],
         showImagePreview: false,
@@ -1179,6 +1210,7 @@ function createExperiencePage(config) {
       publicExperience.clearSessionId(experienceType);
       this.setData({
         session: null,
+        isSessionInProgress: false,
         displayItems: [],
         clipItems: [],
         showImagePreview: false,

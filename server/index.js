@@ -58,7 +58,7 @@ const BODY_BOOK_MAX_REFERENCE_COUNT = 3;
 const FRIDGE_MAGNET_GROUP_NAME = "冰箱贴";
 const DRAW_CARD_DEFAULT_SIZE = "1024x1536";
 const STYLE_GROUP_SIZE_OPTIONS = new Set(["1024x1536", "1536x1024", "1024x1024", "1024x1365", "1365x1024"]);
-const DRAW_CARD_WAITING_MESSAGE = "总计需要约 5 分钟，请耐心等待。";
+const DRAW_CARD_WAITING_MESSAGE = "总计需要约 5 分钟。无需保持当前页面开启，可切到后台，稍后回来查看结果。";
 const DRAW_CARD_SUCCESS_MESSAGE = "结果已准备好。";
 const DRAW_CARD_FAILURE_MESSAGE = "这一轮未能顺利完成，请重新开始。";
 const DRAW_CARD_PARTIAL_MESSAGE = "部分结果已准备好，仅扣除成功生成的币。";
@@ -275,7 +275,7 @@ const PUBLIC_EXPERIENCE_CONFIGS = {
     experienceType: "fridge-magnet",
     label: "冰箱贴",
     styleGroupName: FRIDGE_MAGNET_GROUP_NAME,
-    waitingMessage: "美图值得等待",
+    waitingMessage: "美图正在制作，无需保持当前页面开启，可切到后台，稍后回来查看结果。",
     successMessage: "冰箱贴结果已准备好。",
     failureMessage: "这一轮冰箱贴未能顺利完成，请重新开始。",
     partialMessage: "部分冰箱贴已准备好，本轮未扣次数。",

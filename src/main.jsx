@@ -158,8 +158,8 @@ const DRAW_CARD_EXPERIENCE_CONFIG = {
   titleKicker: "",
   title: "AI小画家",
   subtitle: "上传照片，一键制作AI小画冰箱贴",
-  waitingLines: ["总计需要约 5 分钟，请耐心等待。", "请保持当前页面开启，结果会在完成后自动出现。", "正在制作 AI 小画，请耐心等待。"],
-  waitingFallback: "总计需要约 5 分钟，请耐心等待。",
+  waitingLines: ["总计需要约 5 分钟，请耐心等待。", "无需保持当前页面开启，可切到后台，稍后回来查看结果。", "正在制作 AI 小画，你可以稍后回来查看。"],
+  waitingFallback: "生成已提交，无需保持当前页面开启，可切到后台，稍后回来查看结果。",
   startButtonIdle: "试试手气",
   startButtonLoading: "任务启动中",
   resultsKicker: "Collection",
@@ -198,8 +198,8 @@ const FRIDGE_MAGNET_EXPERIENCE_CONFIG = {
   titleKicker: "Fridge magnet studio",
   title: "上传一张照片，生成一组冰箱贴。",
   subtitle: "系统会基于同一张图批量产出多种冰箱贴效果，完成后统一查看、收藏和下单。",
-  waitingLines: ["预计共需要2~3分钟", "美图值得等待", "不妨放下手机，抱抱身边的人"],
-  waitingFallback: "请保持当前页面开启，整组冰箱贴完成后会一次性揭晓。",
+  waitingLines: ["预计共需要2~3分钟", "美图值得等待", "无需保持当前页面开启，可切到后台，稍后回来查看结果。"],
+  waitingFallback: "生成已提交，无需保持当前页面开启，可切到后台，稍后回来查看结果。",
   startButtonIdle: "开始制作",
   startButtonLoading: "制作开启中",
   resultsKicker: "Magnet board",
@@ -2514,6 +2514,7 @@ function DrawCardCheckoutPage() {
   const [coinPurchaseDiscount, setCoinPurchaseDiscount] = useState({ availableCents: 0 });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const pendingCheckoutRef = useRef(false);
+  const hasInitializedDefaultSelectionRef = useRef(false);
 
   useEffect(() => {
     let isActive = true;
@@ -2522,6 +2523,10 @@ function DrawCardCheckoutPage() {
         if (!isActive) return;
         const items = Array.isArray(clipPayload?.items) ? clipPayload.items : [];
         setClipItems(items);
+        if (!hasInitializedDefaultSelectionRef.current) {
+          setSelectedJobIds(items[0]?.jobId ? [items[0].jobId] : []);
+          hasInitializedDefaultSelectionRef.current = true;
+        }
         setOrderConfig(config || null);
         setAccount(accountPayload?.account || null);
         setCoinPurchaseDiscount(accountPayload?.coinPurchaseDiscount || { availableCents: 0 });
@@ -3359,7 +3364,7 @@ function PublicExperiencePage({ config }) {
   }
 
   async function openStylePicker() {
-    if (isSubmitting || isRestoringSessionReference) return;
+    if (isGenerationInProgress || isSubmitting || isRestoringSessionReference) return;
     const needsCurrentSessionReference = Boolean(sessionId && referenceSessionId !== sessionId);
     if (!referenceFile || needsCurrentSessionReference) {
       if (experienceType !== "draw-card" || !sessionId) {
@@ -3697,6 +3702,7 @@ function PublicExperiencePage({ config }) {
   const succeededCount = Number(session?.summary?.succeeded ?? displayItems.filter((item) => item.status === "succeeded").length);
   const totalCount = Number(session?.summary?.total ?? displayItems.length);
   const currentSessionStatus = String(session?.status || "");
+  const isGenerationInProgress = currentSessionStatus === "running" || currentSessionStatus === "queued";
 
   const resultsHeading = currentSessionStatus === "running" || currentSessionStatus === "queued"
     ? `已生成 ${succeededCount} / ${totalCount || "--"} 张结果`
@@ -3739,10 +3745,12 @@ function PublicExperiencePage({ config }) {
   }
 
   function requestPhotoChange() {
+    if (isGenerationInProgress) return;
     setShowPhotoChangeConfirm(true);
   }
 
   function returnToHome() {
+    if (isGenerationInProgress) return;
     // 保留当前会话与生成结果，用户可随时通过“最近生成”重新打开。
     setPhase("idle");
     setError("");
@@ -4622,15 +4630,15 @@ function PublicExperiencePage({ config }) {
                 })}
               </div>
               <div className={`draw-card-results-actions${isDrawCardExperience ? " has-style-picker" : ""}`}>
-                <button className="draw-card-secondary draw-card-results-restart draw-card-results-return" onClick={returnToHome} type="button">
+                <button className="draw-card-secondary draw-card-results-restart draw-card-results-return" disabled={isGenerationInProgress} onClick={returnToHome} type="button">
                   <ArrowLeft size={18} />
                   <span>返回</span>
                 </button>
-                {isDrawCardExperience ? <button className="draw-card-secondary draw-card-results-restart draw-card-results-change-style" disabled={isRestoringSessionReference} onClick={openStylePicker} type="button">
+                {isDrawCardExperience ? <button className="draw-card-secondary draw-card-results-restart draw-card-results-change-style" disabled={isGenerationInProgress || isRestoringSessionReference} onClick={openStylePicker} type="button">
                   <Sparkles size={18} />
                   <span>{isRestoringSessionReference ? "读取中" : "换风格"}</span>
                 </button> : null}
-                <button className="draw-card-secondary draw-card-results-restart draw-card-results-new-photo" onClick={requestPhotoChange} type="button">
+                <button className="draw-card-secondary draw-card-results-restart draw-card-results-new-photo" disabled={isGenerationInProgress} onClick={requestPhotoChange} type="button">
                   <RefreshCw size={18} />
                   <span>换照片</span>
                 </button>

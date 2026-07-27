@@ -37,9 +37,9 @@
           </view>
 
           <view class="action-row {{isDrawCard ? 'draw-home-actions' : ''}}">
-            <button bindtap="openStylePicker" class="secondary-button" disabled="{{isSubmitting}}" wx:if="{{isDrawCard}}">选择风格</button>
-            <button bindtap="startDefault" class="primary-button draw-random-button" disabled="{{isSubmitting}}">
-              {{isSubmitting ? '任务启动中' : (isDrawCard ? '随机抽卡' : startButtonText)}}
+            <button bindtap="openStylePicker" class="secondary-button" disabled="{{isSubmitting || isSessionInProgress}}" wx:if="{{isDrawCard}}">选择风格</button>
+            <button bindtap="startDefault" class="primary-button draw-random-button" disabled="{{isSubmitting || isSessionInProgress}}">
+              {{isSubmitting ? '任务启动中' : (isSessionInProgress ? '正在生成中' : (isDrawCard ? '随机抽卡' : startButtonText))}}
             </button>
             <button bindtap="clearImage" class="secondary-button" disabled="{{!referencePreviewUrl || isSubmitting}}" wx:if="{{!isDrawCard}}">换张图片</button>
           </view>
