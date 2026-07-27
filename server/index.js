@@ -6789,7 +6789,7 @@ async function fetchWechatMiniProgramIdentity(code) {
   if (!response.ok || payload.errcode || !openId) {
     throw createHttpError(502, payload.errmsg || "小程序微信登录失败，请稍后重试。");
   }
-  return { openId, nickname: "微信用户", avatarUrl: "" };
+  return { openId, nickname: "", avatarUrl: "" };
 }
 
 function isTrustedWechatAvatarUrl(value) {
@@ -6992,7 +6992,7 @@ function toPublicCommerceAccount(account) {
     id: account.id,
     isGuest: !account.isRegistered,
     isRegistered: Boolean(account.isRegistered),
-    username: account.username || account.wechatNickname || defaultNickname,
+    username: getAccountDisplayName(account, defaultNickname),
     defaultWechatNickname: defaultNickname,
     hasWechatProfile: Boolean(account.wechatNickname && account.wechatAvatarUrl),
     wechatAvatarUrl: localAvatarUrl || (avatarUrl ? `/api/public/account-avatars/${encodeURIComponent(account.id)}` : "/account-avatars/default-avatar.svg"),
@@ -7009,6 +7009,15 @@ function buildDefaultWechatNickname(accountId) {
   const compactId = String(accountId || "").replace(/[^0-9a-f]/gi, "").slice(-10);
   const serial = Number.parseInt(compactId || "0", 16) % 100000000;
   return `小画家${String(serial).padStart(8, "0")}`;
+}
+
+function getAccountDisplayName(account, defaultNickname = "") {
+  if (!account) return "";
+  const username = String(account?.username || "").trim();
+  if (username && username !== "微信用户") return username;
+  const wechatNickname = String(account?.wechatNickname || "").trim();
+  if (wechatNickname && wechatNickname !== "微信用户") return wechatNickname;
+  return defaultNickname || buildDefaultWechatNickname(account?.id);
 }
 
 function toPublicCreditLedger(entry) {
@@ -7028,7 +7037,7 @@ function toPublicCreditLedger(entry) {
 function toPublicAdminUser(account) {
   return {
     id: account.id,
-    username: account.username || account.wechatNickname || "微信用户",
+    username: getAccountDisplayName(account),
     email: account.email || "",
     status: account.accountStatus || "active",
     coinBalance: Number(account.coinBalance ?? account.creditBalance ?? 0),
@@ -7274,7 +7283,7 @@ function listAdminOrderRecords({ merchantId = "", orderStatus = "", orderType = 
       if (orderStatus && purchaseStatus !== orderStatus) return;
       if (!isWithinAdminOrderDateRange(intent.createdAt, startDate, endDate)) return;
       const account = commerceStore.readAccount(intent.accountId);
-      const accountName = String(account?.username || account?.wechatNickname || account?.email || account?.id || "用户");
+      const accountName = String(getAccountDisplayName(account) || account?.email || account?.id || "用户");
       const purchaseNo = String(intent.metadata?.purchaseNo || intent.outTradeNo || intent.id);
       const purchaseQuantity = Math.max(0, Number(intent.kind === "coin_purchase" ? intent.metadata?.coinCount : intent.metadata?.beanCount) || Number(intent.creditAmount || 0));
       if (searchText && ![purchaseNo, intent.outTradeNo, accountName, intent.accountId].some((value) => String(value || "").toLocaleLowerCase().includes(searchText))) return;
