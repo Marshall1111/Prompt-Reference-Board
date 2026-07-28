@@ -186,7 +186,7 @@
       "印刷，"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1784009080663/cover.png",
     "imageUpdatedAt": "2026-07-14T06:04:47.244Z",
@@ -245,7 +245,7 @@
     "tags": [
       "潮流海报"
     ],
-    "subjectType": "both",
+    "subjectType": "pet",
     "drawCardEnabled": true,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1782538907748/cover.png",
@@ -326,7 +326,7 @@
       "粗线条简笔"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1782658589405/cover.png",
     "imageUpdatedAt": "2026-06-28T14:56:39.911Z",
@@ -386,7 +386,7 @@
       "美式卡通"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 10,
     "image": "/style-previews/style_1782539050463/cover.png",
     "imageUpdatedAt": "2026-06-27T05:45:06.904Z",
@@ -406,7 +406,7 @@
       "稚拙撞色扁平幼态风"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1782986654936/cover.png",
     "imageUpdatedAt": "2026-07-02T10:08:35.400Z",
@@ -426,7 +426,7 @@
       "森系水彩"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1782658718166/cover.png",
     "imageUpdatedAt": "2026-06-28T14:58:43.788Z",
@@ -446,7 +446,7 @@
       "困倦炸毛丧系Q版风"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 10,
     "image": "/style-previews/style_1782988633141/cover.png",
     "imageUpdatedAt": "2026-07-02T10:37:23.943Z",
@@ -466,7 +466,7 @@
       "奶油糖果Q版夸张涂鸦风"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 20,
     "image": "/style-previews/style_1782988594530/cover.png",
     "imageUpdatedAt": "2026-07-02T10:36:45.610Z",
@@ -486,7 +486,7 @@
       "方块扁平冷淡厌世风"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1782988682798/cover.png",
     "imageUpdatedAt": "2026-07-02T10:38:20.364Z",
@@ -506,7 +506,7 @@
       "潦草复古慵懒漫画风"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1782988554790/cover.png",
     "imageUpdatedAt": "2026-07-02T10:36:06.685Z",
@@ -526,7 +526,7 @@
       "时装涂鸦厌世大头风"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 10,
     "image": "/style-previews/style_1782986548843/cover.png",
     "imageUpdatedAt": "2026-07-02T10:02:41.437Z",
@@ -690,7 +690,7 @@
       "复古，扁平，动画人像"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1782538975049/cover.png",
     "imageUpdatedAt": "2026-06-27T05:43:29.172Z",
@@ -750,7 +750,7 @@
       "丑萌，手绘，随意"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 20,
     "image": "/style-previews/style_1779179574408/cover.png",
     "imageUpdatedAt": null,
@@ -850,7 +850,7 @@
       "潮流，海报，人物"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 20,
     "image": "/style-previews/style_1779762562660/cover.jpg",
     "imageUpdatedAt": null,
@@ -867,11 +867,10 @@
     "id": "style_1779961220177",
     "title": "Plog手写注释",
     "tags": [
-      "Plog",
-      "日常"
+      "Plog，日常"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1779961220177/cover.jpg",
     "imageUpdatedAt": null,
@@ -911,7 +910,7 @@
       "剪纸，旅行，可爱"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 50,
     "image": "/style-previews/style_1779845065374/cover.png",
     "imageUpdatedAt": null,
@@ -931,7 +930,7 @@
       "剪纸，简约"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 50,
     "image": "/style-previews/style_1779844966340/cover.png",
     "imageUpdatedAt": null,
@@ -968,13 +967,10 @@
     "id": "style_1779180072956",
     "title": "可爱Plog涂鸦",
     "tags": [
-      "Plog",
-      "可爱",
-      "涂鸦",
-      "剪贴"
+      "Plog，可爱，涂鸦，剪贴"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1779180072956/cover.jpg",
     "imageUpdatedAt": null,
@@ -991,13 +987,10 @@
     "id": "style_1779179914765",
     "title": "装饰民俗童书",
     "tags": [
-      "儿童",
-      "插画",
-      "可爱",
-      "卡通"
+      "儿童，插画，可爱，卡通"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1779179914765/cover.jpg",
     "imageUpdatedAt": null,
@@ -1035,12 +1028,10 @@
     "id": "style_1779179828722",
     "title": "英伦童书卡通",
     "tags": [
-      "手绘",
-      "插画",
-      "卡通"
+      "手绘，插画，卡通"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1779179828722/cover.png",
     "imageUpdatedAt": null,
@@ -1060,7 +1051,7 @@
       "卡通"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1779179773582/cover.jpg",
     "imageUpdatedAt": null,
@@ -1193,7 +1184,7 @@
       "手绘，儿童，可爱，随意，宠物"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/style-previews/clay/cover.jpg",
     "imageUpdatedAt": null,
@@ -1253,7 +1244,7 @@
       "艺术肖像海报"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 20,
     "image": "/style-previews/style_1780359396127/cover.jpg",
     "imageUpdatedAt": null,
@@ -1273,7 +1264,7 @@
       "手绘，蜡笔，儿童，宠物，可爱"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 18,
     "image": "/style-previews/cyberpunk/cover.jpg",
     "imageUpdatedAt": null,
@@ -1293,7 +1284,7 @@
       "丑萌，插画，宠物"
     ],
     "subjectType": "pet",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 20,
     "image": "/style-previews/pixel/cover.jpg",
     "imageUpdatedAt": null,
