@@ -4617,7 +4617,6 @@ function PublicExperiencePage({ config }) {
                               >
                                 <div className="draw-card-style-card-media">
                                   <StylePreviewImage alt={style.name || "风格示意图"} className="draw-card-style-card-image" previewImage={previewImage} previewImageUpdatedAt={previewImageUpdatedAt} style={style} />
-                                  <span className="draw-card-style-card-subject">{SUBJECT_TYPE_LABELS[style.subjectType] || SUBJECT_TYPE_LABELS.both}</span>
                                   {isSelected ? <span className="draw-card-style-card-check"><Check size={14} /></span> : null}
                                 </div>
                                 <span className="draw-card-style-card-name">{style.name || style.id}</span>
