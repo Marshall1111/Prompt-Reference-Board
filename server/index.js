@@ -2879,6 +2879,55 @@ app.get("/api/image-jobs/:jobId", requireAdmin, async (req, res) => {
   }
 });
 
+app.post("/api/image-jobs/:jobId/style-preview", requireAdmin, async (req, res) => {
+  try {
+    const variant = String(req.body?.variant || "").trim();
+    if (!getStyleVariantImageFields(variant)) {
+      return res.status(400).json({ message: "请选择要替换的人物或宠物效果图。" });
+    }
+
+    const [job, styles] = await Promise.all([readImageJob(req.params.jobId), readStyles()]);
+    if (!job) return res.status(404).json({ message: "生图任务不存在。" });
+    if (String(job.status || "") !== "succeeded" || !job.result?.imageUrl) {
+      return res.status(409).json({ message: "只有已完成且有生成结果的任务可以替换效果图。" });
+    }
+
+    const matchedStyles = findStylesMatchingJobPrompt(styles, job.prompt);
+    if (matchedStyles.length !== 1) {
+      return res.status(409).json({ message: matchedStyles.length ? "匹配到多个同提示词风格，无法确定替换目标。" : "当前任务的提示词未匹配到图库风格。" });
+    }
+
+    const sourceFile = await resolveJobImageFile(job);
+    if (!sourceFile) return res.status(404).json({ message: "任务原图不存在，无法替换效果图。" });
+
+    const mimeType = mimeForExtension(path.extname(sourceFile).toLowerCase());
+    if (!mimeType) return res.status(400).json({ message: "任务图片格式不受支持。" });
+
+    const style = matchedStyles[0];
+    await saveStyleVariantImage(style, variant, await readFile(sourceFile), mimeType);
+    await saveStyles(styles);
+
+    const galleryImage = await getWebGalleryImage(style);
+    res.json({
+      style: {
+        id: style.id,
+        title: formatStyleName(style),
+        subjectType: style.subjectType,
+        galleryImage,
+        personGalleryImage: String(style.personThumbnailImage || style.personImage || galleryImage || ""),
+        petGalleryImage: String(style.petThumbnailImage || style.petImage || galleryImage || "")
+      },
+      variant
+    });
+  } catch (error) {
+    if (error.message === "UNSUPPORTED_IMAGE_TYPE") {
+      return res.status(400).json({ message: "任务图片格式不受支持。" });
+    }
+    console.error(error);
+    return res.status(error.status || 500).json({ message: error.publicMessage || "替换风格效果图失败。" });
+  }
+});
+
 app.delete("/api/image-jobs/:jobId", requireAdmin, async (req, res) => {
   try {
     const job = await readImageJob(req.params.jobId);
@@ -3774,18 +3823,32 @@ app.post("/api/styles/:id/image", requireAdmin, upload.single("image"), async (r
     if (!style) return res.status(404).json({ message: "风格不存在。" });
     if (!req.file) return res.status(400).json({ message: "请选择一张图片。" });
 
-    const ext = extensionForMime(req.file.mimetype);
-    const dir = path.join(previewRoot, style.id);
-    await mkdir(dir, { recursive: true });
-    const filename = `cover.${ext}`;
-    await writeFile(path.join(dir, filename), req.file.buffer);
+    const variant = String(req.body?.variant || "").trim();
+    const variantField = variant ? getStyleVariantImageFields(variant) : null;
+    if (variant && !variantField) return res.status(400).json({ message: "图片主体类型无效。" });
 
-    style.image = `/style-previews/${style.id}/${filename}`;
-    style.imageUpdatedAt = new Date().toISOString();
+    if (variantField) {
+      await saveStyleVariantImage(style, variant, req.file.buffer, req.file.mimetype);
+    } else {
+      const ext = extensionForMime(req.file.mimetype);
+      const dir = path.join(previewRoot, style.id);
+      await mkdir(dir, { recursive: true });
+      const filename = `cover.${ext}`;
+      await writeFile(path.join(dir, filename), req.file.buffer);
+      const imageUrl = `/style-previews/${style.id}/${filename}`;
+      const updatedAt = new Date().toISOString();
+      style.image = imageUrl;
+      style.imageUpdatedAt = updatedAt;
+    }
     await saveStyles(styles);
+    const galleryImage = await getWebGalleryImage(style);
     res.json({
       ...style,
-      galleryImage: await getWebGalleryImage(style)
+      galleryImage,
+      personGalleryImage: String(style.personThumbnailImage || style.personImage || galleryImage || style.image || ""),
+      personImageUpdatedAt: style.personImageUpdatedAt || style.imageUpdatedAt || null,
+      petGalleryImage: String(style.petThumbnailImage || style.petImage || galleryImage || style.image || ""),
+      petImageUpdatedAt: style.petImageUpdatedAt || style.imageUpdatedAt || null
     });
   } catch (error) {
     if (error.message === "UNSUPPORTED_IMAGE_TYPE") {
@@ -3857,19 +3920,37 @@ app.listen(port, () => {
 async function readStyles() {
   const styles = JSON.parse(await readFile(dataPath, "utf-8"));
   return Promise.all(
-    styles.map(async (style) => ({
-      id: style.id,
-      title: normalizeStyleTitle(style.title, style.tags?.join(" / ") || style.label || style.id),
-      tags: normalizeTags(style.tags?.length ? style.tags : [style.label, style.description]),
-      subjectType: normalizeStyleSubjectType(style.subjectType, style),
-      drawCardEnabled: normalizeDrawCardEnabled(style.drawCardEnabled, true),
-      drawCardWeight: normalizeDrawCardWeight(style.drawCardWeight),
-      image: style.image || "/style-previews/default/cover.svg",
-      imageUpdatedAt: style.imageUpdatedAt || null,
-      galleryImage: await getWebGalleryImage(style),
-      prompt: String(style.prompt || ""),
-      useStyleImageAsReference: Boolean(style.useStyleImageAsReference)
-    }))
+    styles.map(async (style) => {
+      const image = style.image || "/style-previews/default/cover.svg";
+      const subjectType = normalizeStyleSubjectType(style.subjectType, style);
+      const legacyUniversalImage = subjectType === SUBJECT_BOTH && image !== "/style-previews/default/cover.svg" ? image : "";
+      const personImage = String(style.personImage || legacyUniversalImage);
+      const petImage = String(style.petImage || legacyUniversalImage);
+      const personThumbnailImage = String(style.personThumbnailImage || "");
+      const petThumbnailImage = String(style.petThumbnailImage || "");
+      const galleryImage = await getWebGalleryImage(style);
+      return {
+        id: style.id,
+        title: normalizeStyleTitle(style.title, style.tags?.join(" / ") || style.label || style.id),
+        tags: normalizeTags(style.tags?.length ? style.tags : [style.label, style.description]),
+        subjectType,
+        drawCardEnabled: normalizeDrawCardEnabled(style.drawCardEnabled, true),
+        drawCardWeight: normalizeDrawCardWeight(style.drawCardWeight),
+        image,
+        imageUpdatedAt: style.imageUpdatedAt || null,
+        galleryImage,
+        personImage,
+        personImageUpdatedAt: style.personImageUpdatedAt || (personImage ? style.imageUpdatedAt || null : null),
+        personThumbnailImage,
+        personGalleryImage: String(personThumbnailImage || (personImage === image ? galleryImage : personImage) || galleryImage || image),
+        petImage,
+        petImageUpdatedAt: style.petImageUpdatedAt || (petImage ? style.imageUpdatedAt || null : null),
+        petThumbnailImage,
+        petGalleryImage: String(petThumbnailImage || (petImage === image ? galleryImage : petImage) || galleryImage || image),
+        prompt: String(style.prompt || ""),
+        useStyleImageAsReference: Boolean(style.useStyleImageAsReference)
+      };
+    })
   );
 }
 
@@ -8200,6 +8281,7 @@ async function deleteAccountAvatarFile(avatarUrl) {
 }
 
 function toPublicDrawCardStyle(style) {
+  const galleryImage = String(style?.galleryImage || style?.image || "");
   return {
     id: String(style?.id || ""),
     title: normalizeStyleTitle(style?.title, formatStyleName(style)),
@@ -8207,8 +8289,12 @@ function toPublicDrawCardStyle(style) {
     tags: Array.isArray(style?.tags) ? style.tags.filter(Boolean) : [],
     subjectType: normalizeStyleSubjectType(style?.subjectType, style),
     image: String(style?.image || ""),
-    galleryImage: String(style?.galleryImage || style?.image || ""),
-    imageUpdatedAt: style?.imageUpdatedAt || null
+    galleryImage,
+    imageUpdatedAt: style?.imageUpdatedAt || null,
+    personGalleryImage: String(style?.personGalleryImage || style?.personImage || galleryImage),
+    personImageUpdatedAt: style?.personImageUpdatedAt || style?.imageUpdatedAt || null,
+    petGalleryImage: String(style?.petGalleryImage || style?.petImage || galleryImage),
+    petImageUpdatedAt: style?.petImageUpdatedAt || style?.imageUpdatedAt || null
   };
 }
 
@@ -10925,7 +11011,15 @@ async function queryImageJobs(options = {}) {
   const search = normalizeImageJobSearch(options.search);
   const date = normalizeImageJobQueryDate(options.date);
   const likedOnly = normalizeBooleanQuery(options.likedOnly);
-  const jobs = await listImageJobs();
+  const [jobs, styles] = await Promise.all([listImageJobs(), readStyles()]);
+  const stylesByPrompt = new Map();
+  styles.forEach((style) => {
+    const key = normalizeStylePromptMatchKey(style.prompt);
+    if (!key) return;
+    const matches = stylesByPrompt.get(key) || [];
+    matches.push(style);
+    stylesByPrompt.set(key, matches);
+  });
   const filteredJobs = jobs
     .filter((job) => matchesImageJobStatus(job, status))
     .filter((job) => matchesImageJobLikedOnly(job, likedOnly))
@@ -10937,11 +11031,34 @@ async function queryImageJobs(options = {}) {
   const safePage = Math.min(page, totalPages);
   const start = (safePage - 1) * limit;
   return {
-    jobs: filteredJobs.slice(start, start + limit).map(toPublicImageJob),
+    jobs: filteredJobs.slice(start, start + limit).map((job) => {
+      const matches = stylesByPrompt.get(normalizeStylePromptMatchKey(job.prompt)) || [];
+      const matchedStyle = matches.length === 1 ? matches[0] : null;
+      return {
+        ...toPublicImageJob(job),
+        stylePreviewMatch: matchedStyle
+          ? {
+              id: String(matchedStyle.id || ""),
+              name: formatStyleName(matchedStyle),
+              subjectType: normalizeStyleSubjectType(matchedStyle.subjectType, matchedStyle)
+            }
+          : null
+      };
+    }),
     total,
     page: safePage,
     limit
   };
+}
+
+function normalizeStylePromptMatchKey(value) {
+  return String(value || "").replace(/\r\n?/g, "\n").trim();
+}
+
+function findStylesMatchingJobPrompt(styles, prompt) {
+  const key = normalizeStylePromptMatchKey(prompt);
+  if (!key) return [];
+  return (Array.isArray(styles) ? styles : []).filter((style) => normalizeStylePromptMatchKey(style.prompt) === key);
 }
 
 async function deleteImageJob(job) {
@@ -12080,6 +12197,12 @@ async function saveStyles(styles) {
     drawCardWeight: normalizeDrawCardWeight(style?.drawCardWeight),
     image: String(style?.image || "/style-previews/default/cover.svg").trim() || "/style-previews/default/cover.svg",
     imageUpdatedAt: style?.imageUpdatedAt || null,
+    personImage: String(style?.personImage || "").trim(),
+    personImageUpdatedAt: style?.personImageUpdatedAt || null,
+    personThumbnailImage: String(style?.personThumbnailImage || "").trim(),
+    petImage: String(style?.petImage || "").trim(),
+    petImageUpdatedAt: style?.petImageUpdatedAt || null,
+    petThumbnailImage: String(style?.petThumbnailImage || "").trim(),
     prompt: String(style?.prompt || ""),
     useStyleImageAsReference: Boolean(style?.useStyleImageAsReference)
   }));
@@ -12160,6 +12283,54 @@ async function getWebGalleryImage(style) {
   }
 
   return originalImage;
+}
+
+function getStyleVariantImageFields(variant) {
+  const fields = {
+    person: {
+      image: "personImage",
+      updatedAt: "personImageUpdatedAt",
+      thumbnailImage: "personThumbnailImage",
+      filename: "cover-person"
+    },
+    pet: {
+      image: "petImage",
+      updatedAt: "petImageUpdatedAt",
+      thumbnailImage: "petThumbnailImage",
+      filename: "cover-pet"
+    }
+  };
+  return fields[String(variant || "").trim()] || null;
+}
+
+async function saveStyleVariantImage(style, variant, bytes, mimeType) {
+  const fields = getStyleVariantImageFields(variant);
+  if (!fields) throw new Error("UNSUPPORTED_IMAGE_TYPE");
+
+  const ext = extensionForMime(mimeType);
+  const styleId = String(style?.id || "").trim();
+  if (!styleId || !bytes?.length) throw new Error("UNSUPPORTED_IMAGE_TYPE");
+
+  const dir = path.join(previewRoot, styleId);
+  const filename = `${fields.filename}.${ext}`;
+  const imageUrl = `/style-previews/${styleId}/${filename}`;
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, filename), bytes);
+
+  const thumbnail = mimeType === "image/svg+xml"
+    ? null
+    : await createImageThumbnail({
+        buffer: bytes,
+        outputRoot: dir,
+        outputName: `${fields.filename}-thumbnail`,
+        urlPrefix: `/style-previews/${styleId}`,
+        maxEdge: RESULT_THUMBNAIL_MAX_EDGE
+      });
+  const updatedAt = new Date().toISOString();
+  style[fields.image] = imageUrl;
+  style[fields.updatedAt] = updatedAt;
+  style[fields.thumbnailImage] = String(thumbnail?.url || imageUrl);
+  return style;
 }
 
 async function shouldCompressMiniImage(sourcePath, targetPath) {

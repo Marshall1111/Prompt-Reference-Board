@@ -695,6 +695,12 @@ function AdminApp({ navigate, route }) {
     return styles.filter((style) => `${style.title || ""} ${style.tags.join(" ")} ${style.prompt}`.toLowerCase().includes(keyword));
   }, [query, styles]);
 
+  async function reloadStyles() {
+    const nextStyles = await refreshStyles();
+    setStyles(nextStyles);
+    return nextStyles;
+  }
+
   async function copyPrompt(style) {
     await copyText(style.prompt);
     setCopiedId(style.id);
@@ -734,9 +740,10 @@ function AdminApp({ navigate, route }) {
     setStyles((current) => current.filter((style) => style.id !== styleId));
   }
 
-  async function uploadStyleImage(styleId, file) {
+  async function uploadStyleImage(styleId, file, variant = "") {
     const formData = new FormData();
     formData.append("image", file);
+    if (variant) formData.append("variant", variant);
     const response = await fetch(`/api/styles/${styleId}/image`, {
       method: "POST",
       body: formData
@@ -899,6 +906,7 @@ function AdminApp({ navigate, route }) {
             onCreateStyle={createStyle}
             onDeleteStyle={deleteStyle}
             onGenerate={setActiveGenerator}
+            onRefreshStyles={reloadStyles}
             onReorderStyles={reorderVisibleStyles}
             onStyleChange={updateStyle}
             onUploadImage={uploadStyleImage}
@@ -906,7 +914,7 @@ function AdminApp({ navigate, route }) {
             styles={filteredStyles}
           />
         ) : route === "admin-tasks" ? (
-          <ImageJobsPage />
+          <ImageJobsPage onStylePreviewReplaced={reloadStyles} />
         ) : route === "admin-orders" ? (
           <OrderAdminPage
             initialOrders={orders}
@@ -964,6 +972,7 @@ function AdminApp({ navigate, route }) {
             onCreateStyle={createStyle}
             onDeleteStyle={deleteStyle}
             onGenerate={setActiveGenerator}
+            onRefreshStyles={reloadStyles}
             onReorderStyles={reorderVisibleStyles}
             onStyleChange={updateStyle}
             onUploadImage={uploadStyleImage}
@@ -3076,6 +3085,7 @@ function PublicExperiencePage({ config }) {
   const [manualPaymentCardUrl, setManualPaymentCardUrl] = useState("");
   const [visitTrackingReady, setVisitTrackingReady] = useState(false);
   const [stylePickerStyles, setStylePickerStyles] = useState([]);
+  const [stylePickerSubjectTab, setStylePickerSubjectTab] = useState("person");
   const [selectedStyleIds, setSelectedStyleIds] = useState([]);
   const [stylePickerError, setStylePickerError] = useState("");
   const [isLoadingStylePicker, setIsLoadingStylePicker] = useState(false);
@@ -3518,7 +3528,6 @@ function PublicExperiencePage({ config }) {
 
   useEffect(() => {
     if (!referenceFile) {
-      if (referencePreviewUrl) URL.revokeObjectURL(referencePreviewUrl);
       setReferencePreviewUrl("");
       return undefined;
     }
@@ -3526,7 +3535,7 @@ function PublicExperiencePage({ config }) {
     const nextPreviewUrl = URL.createObjectURL(referenceFile);
     setReferencePreviewUrl(nextPreviewUrl);
     return () => URL.revokeObjectURL(nextPreviewUrl);
-  }, [referenceFile, referencePreviewUrl]);
+  }, [referenceFile]);
 
   useEffect(() => {
     let isActive = true;
@@ -3694,6 +3703,17 @@ function PublicExperiencePage({ config }) {
     const styleById = new Map(stylePickerStyles.map((style) => [style.id, style]));
     return selectedStyleIds.map((styleId) => styleById.get(styleId)).filter(Boolean);
   }, [selectedStyleIds, stylePickerStyles]);
+
+  const stylePickerStylesBySubject = useMemo(() => ({
+    person: stylePickerStyles.filter((style) => {
+      const subjectType = String(style.subjectType || "both");
+      return subjectType === "both" || subjectType === "person";
+    }),
+    pet: stylePickerStyles.filter((style) => {
+      const subjectType = String(style.subjectType || "both");
+      return subjectType === "both" || subjectType === "pet";
+    })
+  }), [stylePickerStyles]);
 
   const isDrawCardExperience = experienceType === "draw-card";
   const canStart = Boolean(referenceFile) && !isSubmitting;
@@ -4551,27 +4571,64 @@ function PublicExperiencePage({ config }) {
 
               {stylePickerError ? <p className="error-note draw-card-inline-error">{stylePickerError}</p> : null}
               {isLoadingStylePicker ? <p className="storage-note">正在加载可选风格…</p> : null}
-              {!isLoadingStylePicker && !stylePickerStyles.length ? <p className="empty-note">当前没有可选的抽卡风格。</p> : null}
-
-              <div className="draw-card-style-grid" aria-label="可选抽卡风格">
-                {stylePickerStyles.map((style) => {
-                  const isSelected = selectedStyleIds.includes(style.id);
-                  return (
-                    <button
-                      className={`draw-card-style-card ${isSelected ? "is-selected" : ""}`}
-                      key={style.id}
-                      onClick={() => toggleSelectedStyle(style.id)}
-                      type="button"
-                    >
-                      <div className="draw-card-style-card-media">
-                        <StylePreviewImage alt={style.name || "风格示意图"} className="draw-card-style-card-image" style={style} />
-                        <span className="draw-card-style-card-subject">{SUBJECT_TYPE_LABELS[style.subjectType] || SUBJECT_TYPE_LABELS.both}</span>
-                        {isSelected ? <span className="draw-card-style-card-check"><Check size={14} /></span> : null}
-                      </div>
-                      <span className="draw-card-style-card-name">{style.name || style.id}</span>
-                    </button>
-                  );
-                })}
+              <div className="draw-card-style-picker-tabs" role="tablist" aria-label="风格主体">
+                {[{ value: "person", label: "人物" }, { value: "pet", label: "宠物" }].map((tab) => (
+                  <button
+                    aria-controls={`draw-card-style-panel-${tab.value}`}
+                    aria-selected={stylePickerSubjectTab === tab.value}
+                    className={`draw-card-style-picker-tab ${stylePickerSubjectTab === tab.value ? "is-active" : ""}`}
+                    id={`draw-card-style-tab-${tab.value}`}
+                    key={tab.value}
+                    onClick={() => setStylePickerSubjectTab(tab.value)}
+                    role="tab"
+                    type="button"
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <div className="draw-card-style-slider" aria-live="polite">
+                <div className={`draw-card-style-slider-track ${stylePickerSubjectTab === "pet" ? "is-showing-pet" : "is-showing-person"}`}>
+                  {[{ value: "person", label: "人物" }, { value: "pet", label: "宠物" }].map((tab) => {
+                    const isActive = stylePickerSubjectTab === tab.value;
+                    const styles = stylePickerStylesBySubject[tab.value];
+                    return (
+                      <section
+                        aria-hidden={!isActive}
+                        aria-labelledby={`draw-card-style-tab-${tab.value}`}
+                        className="draw-card-style-tab-panel"
+                        id={`draw-card-style-panel-${tab.value}`}
+                        key={tab.value}
+                        role="tabpanel"
+                      >
+                        {!isLoadingStylePicker && !styles.length ? <p className="empty-note">当前没有可选的{tab.label}或通用风格。</p> : null}
+                        <div className="draw-card-style-grid" aria-label={`可选${tab.label}风格`}>
+                          {styles.map((style) => {
+                            const isSelected = selectedStyleIds.includes(style.id);
+                            const previewImage = tab.value === "pet" ? style.petGalleryImage : style.personGalleryImage;
+                            const previewImageUpdatedAt = tab.value === "pet" ? style.petImageUpdatedAt : style.personImageUpdatedAt;
+                            return (
+                              <button
+                                className={`draw-card-style-card ${isSelected ? "is-selected" : ""}`}
+                                key={`${tab.value}-${style.id}`}
+                                onClick={() => toggleSelectedStyle(style.id)}
+                                tabIndex={isActive ? 0 : -1}
+                                type="button"
+                              >
+                                <div className="draw-card-style-card-media">
+                                  <StylePreviewImage alt={style.name || "风格示意图"} className="draw-card-style-card-image" previewImage={previewImage} previewImageUpdatedAt={previewImageUpdatedAt} style={style} />
+                                  <span className="draw-card-style-card-subject">{SUBJECT_TYPE_LABELS[style.subjectType] || SUBJECT_TYPE_LABELS.both}</span>
+                                  {isSelected ? <span className="draw-card-style-card-check"><Check size={14} /></span> : null}
+                                </div>
+                                <span className="draw-card-style-card-name">{style.name || style.id}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    );
+                  })}
+                </div>
               </div>
             </section>
           </div>
@@ -4996,12 +5053,13 @@ function getStyleDisplayName(style) {
   return String(style?.title || style?.name || style?.tags?.join("、") || style?.id || "").trim();
 }
 
-function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onReorderStyles, onStyleChange, onUploadImage, onViewPrompt, styles }) {
+function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles, onReorderStyles, onStyleChange, onUploadImage, onViewPrompt, styles }) {
   const [drafts, setDrafts] = useState({});
   const [savingId, setSavingId] = useState("");
   const [draggingId, setDraggingId] = useState("");
   const [editingId, setEditingId] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState("");
+  const hasRefreshedStyles = useRef(false);
   const { visibleItems, canLoadMore, sentinelRef, loadMore } = useProgressiveItems(styles, {
     initialCount: GALLERY_INITIAL_BATCH,
     step: GALLERY_BATCH_STEP
@@ -5015,6 +5073,12 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onReorderStyles
     [editingId, styles]
   );
   const activeDraft = activeEditingStyle ? drafts[activeEditingStyle.id] || createStyleDraft(activeEditingStyle) : null;
+
+  useEffect(() => {
+    if (hasRefreshedStyles.current) return;
+    hasRefreshedStyles.current = true;
+    void onRefreshStyles?.();
+  }, [onRefreshStyles]);
 
   useEffect(() => {
     setDrafts(Object.fromEntries(styles.map((style) => [style.id, createStyleDraft(style)])));
@@ -5052,11 +5116,11 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onReorderStyles
     }
   }
 
-  async function handleFile(style, file) {
+  async function handleFile(style, file, variant = "") {
     if (!file) return;
     setSavingId(style.id);
     try {
-      await onUploadImage(style.id, file);
+      await onUploadImage(style.id, file, variant);
     } finally {
       setSavingId("");
     }
@@ -5128,6 +5192,7 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onReorderStyles
                 </div>
                 <div className="card-actions gallery-actions">
                   <button
+                    aria-label="编辑风格"
                     aria-expanded={isEditing}
                     className="copy-button"
                     onClick={() => setEditingId(style.id)}
@@ -5136,11 +5201,11 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onReorderStyles
                     <Pencil size={18} />
                     <span>编辑</span>
                   </button>
-                  <button className="secondary-button" onClick={() => onViewPrompt(style)} type="button">
+                  <button aria-label="查看提示词" className="secondary-button" onClick={() => onViewPrompt(style)} type="button">
                     <Eye size={18} />
                     <span>查看提示词</span>
                   </button>
-                  <button className="generate-button" onClick={() => onGenerate(style)} type="button">
+                  <button aria-label="AI 生图" className="generate-button" onClick={() => onGenerate(style)} type="button">
                     <Sparkles size={18} />
                     <span>AI 生图</span>
                   </button>
@@ -5173,10 +5238,28 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onReorderStyles
               </div>
             </div>
             <div className="style-editor-preview">
-              <div className="image-frame">
-                <StylePreviewImage alt={`${getStyleDisplayName(activeEditingStyle)}示例图`} style={activeEditingStyle} />
-              </div>
-              <p className="storage-note">图片保存在 public/style-previews/{activeEditingStyle.id}/cover.*，标题、标签、适用主体、抽卡开关、抽卡权重和提示词保存在 data/styles.json。</p>
+              {activeDraft.subjectType === "both" ? <>
+                <div className="style-editor-variant-previews">
+                  <div className="style-editor-variant-preview">
+                    <strong>人物效果图</strong>
+                    {activeEditingStyle.personImage ? <div className="image-frame"><StylePreviewImage alt={`${getStyleDisplayName(activeEditingStyle)}人物效果图`} previewImage={activeEditingStyle.personGalleryImage || activeEditingStyle.personImage} previewImageUpdatedAt={activeEditingStyle.personImageUpdatedAt} style={activeEditingStyle} /></div> : <div className="style-editor-image-placeholder">尚未上传人物效果图</div>}
+                  </div>
+                  <div className="style-editor-variant-preview">
+                    <strong>宠物效果图</strong>
+                    {activeEditingStyle.petImage ? <div className="image-frame"><StylePreviewImage alt={`${getStyleDisplayName(activeEditingStyle)}宠物效果图`} previewImage={activeEditingStyle.petGalleryImage || activeEditingStyle.petImage} previewImageUpdatedAt={activeEditingStyle.petImageUpdatedAt} style={activeEditingStyle} /></div> : <div className="style-editor-image-placeholder">尚未上传宠物效果图</div>}
+                  </div>
+                </div>
+                <div className="style-editor-variant-upload-actions">
+                  <label className="secondary-button file-button"><ImageUp size={18} /><span>{activeEditingStyle.personImage ? "替换人物效果图" : "上传人物效果图"}</span><input accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => handleFile(activeEditingStyle, event.target.files?.[0], "person")} type="file" /></label>
+                  <label className="secondary-button file-button"><ImageUp size={18} /><span>{activeEditingStyle.petImage ? "替换宠物效果图" : "上传宠物效果图"}</span><input accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => handleFile(activeEditingStyle, event.target.files?.[0], "pet")} type="file" /></label>
+                </div>
+                <p className="storage-note">通用风格必须分别上传人物和宠物效果图；公共抽卡页会按当前标签展示对应缩略图。</p>
+              </> : <>
+                <div className="image-frame">
+                  <StylePreviewImage alt={`${getStyleDisplayName(activeEditingStyle)}示例图`} style={activeEditingStyle} />
+                </div>
+                <p className="storage-note">图片保存在 public/style-previews/{activeEditingStyle.id}/cover.*，标题、标签、适用主体、抽卡开关、抽卡权重和提示词保存在 data/styles.json。</p>
+              </>}
             </div>
             <div className="manage-body style-editor-fields">
               <label className="field-label">
@@ -5246,12 +5329,12 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onReorderStyles
               <button className="secondary-button" onClick={() => setEditingId("")} type="button">
                 关闭
               </button>
-              <label className="secondary-button file-button">
+              {activeDraft.subjectType !== "both" ? <label className="secondary-button file-button">
                 <ImageUp size={18} />
                 <span>替换图片</span>
                 <input accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => handleFile(activeEditingStyle, event.target.files?.[0])} type="file" />
-              </label>
-              <button className="copy-button" disabled={savingId === activeEditingStyle.id} onClick={() => saveStyle(activeEditingStyle)} type="button">
+              </label> : null}
+              <button className="copy-button" disabled={savingId === activeEditingStyle.id || (activeDraft.subjectType === "both" && (!activeEditingStyle.personImage || !activeEditingStyle.petImage))} onClick={() => saveStyle(activeEditingStyle)} type="button">
                 <Save size={18} />
                 <span>{savingId === activeEditingStyle.id ? "保存中" : "保存"}</span>
               </button>
@@ -5303,19 +5386,22 @@ function useProgressiveItems(items, { initialCount, step }) {
   };
 }
 
-function StylePreviewImage({ alt, className = "", preferOriginal = false, style }) {
+function StylePreviewImage({ alt, className = "", preferOriginal = false, previewImage = "", previewImageUpdatedAt = null, style }) {
+  const image = previewImage || style?.image;
+  const galleryImage = previewImage || style?.galleryImage;
+  const imageUpdatedAt = previewImageUpdatedAt || style?.imageUpdatedAt;
   const candidates = (preferOriginal
-    ? [style?.image, style?.galleryImage]
-    : [style?.galleryImage, style?.image]
+    ? [image, galleryImage]
+    : [galleryImage, image]
   )
-    .map((item) => cacheBust(item, style?.imageUpdatedAt))
+    .map((item) => cacheBust(item, imageUpdatedAt))
     .filter(Boolean)
     .filter((item, index, list) => list.indexOf(item) === index);
   const [candidateIndex, setCandidateIndex] = useState(0);
 
   useEffect(() => {
     setCandidateIndex(0);
-  }, [preferOriginal, style?.galleryImage, style?.id, style?.image, style?.imageUpdatedAt]);
+  }, [galleryImage, image, imageUpdatedAt, preferOriginal, style?.id]);
 
   const src = candidates[candidateIndex] || "";
 
@@ -5839,7 +5925,7 @@ async function prepareReferenceForUpload(reference) {
   }
 }
 
-function ImageJobsPage() {
+function ImageJobsPage({ onStylePreviewReplaced }) {
   const [jobs, setJobs] = useState([]);
   const [jobTotal, setJobTotal] = useState(0);
   const [jobQuery, setJobQuery] = useState(DEFAULT_IMAGE_JOB_QUERY);
@@ -5848,8 +5934,10 @@ function ImageJobsPage() {
   const [likedOnlyInput, setLikedOnlyInput] = useState(DEFAULT_IMAGE_JOB_QUERY.likedOnly);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [editingJob, setEditingJob] = useState(null);
   const [updatingClipJobId, setUpdatingClipJobId] = useState("");
+  const [replacingStylePreviewKey, setReplacingStylePreviewKey] = useState("");
   const queryRef = useRef(DEFAULT_IMAGE_JOB_QUERY);
 
   function syncQueryState(requestQuery, payload) {
@@ -5915,13 +6003,33 @@ function ImageJobsPage() {
       if (queryRef.current.likedOnly && job.isLiked) {
         await loadDashboard(queryRef.current, { showLoading: false });
       } else {
-        setJobs((current) => current.map((item) => (item.jobId === job.jobId ? nextJob : item)));
+        setJobs((current) => current.map((item) => (item.jobId === job.jobId ? { ...nextJob, stylePreviewMatch: item.stylePreviewMatch } : item)));
       }
       setError("");
     } catch (nextError) {
       setError(nextError.message);
     } finally {
       setUpdatingClipJobId("");
+    }
+  }
+
+  async function replaceStylePreview(job, variant) {
+    if (!job?.jobId || !job?.stylePreviewMatch) return;
+
+    const replacementKey = `${job.jobId}:${variant}`;
+    const variantLabel = variant === "pet" ? "宠物" : "人物";
+    setReplacingStylePreviewKey(replacementKey);
+    setError("");
+    setNotice("");
+    try {
+      await replaceImageJobStylePreview(job.jobId, variant);
+      await onStylePreviewReplaced?.();
+      await loadDashboard(queryRef.current, { showLoading: false });
+      setNotice(`已用当前任务图片替换“${job.stylePreviewMatch.name}”的${variantLabel}效果图。`);
+    } catch (nextError) {
+      setError(nextError.message || "替换风格效果图失败。");
+    } finally {
+      setReplacingStylePreviewKey("");
     }
   }
 
@@ -6041,12 +6149,14 @@ function ImageJobsPage() {
       </div>
 
       {error && <p className="error-note">{error}</p>}
+      {notice && <p className="success-note">{notice}</p>}
       {!isLoading && !jobs.length && <p className="empty-note">还没有符合条件的生图任务。</p>}
 
       <div className="task-list">
         {jobs.map((job) => {
           const imageSource = job.result?.previewUrl || job.result?.thumbnailUrl || job.result?.imageDataUrl || job.result?.imageUrl;
           const providerDiagnostics = formatImageJobProviderDiagnostics(job);
+          const stylePreviewMatch = job.stylePreviewMatch;
           return (
             <article className={`task-card ${job.isLiked ? "is-liked" : ""}`} key={job.jobId}>
               <div className={`task-status ${job.status}`}>{statusLabel(job.status)}</div>
@@ -6067,6 +6177,7 @@ function ImageJobsPage() {
                   {job.totalTokens ? <span>{job.totalTokens} tokens</span> : null}
                 </div>
                 <p className="task-prompt">{job.prompt || "未记录提示词"}</p>
+                {stylePreviewMatch ? <p className="storage-note task-style-match-note">提示词匹配图库风格：<strong>{stylePreviewMatch.name}</strong></p> : null}
                 <p className="storage-note">
                   {job.message || statusLabel(job.status)}
                   {job.referenceCount ? `，参考图 ${job.referenceCount} 张` : ""}
@@ -6087,6 +6198,16 @@ function ImageJobsPage() {
                   <Download size={18} />
                   <span>下载</span>
                 </button>
+                {stylePreviewMatch ? <>
+                  <button className="secondary-button" disabled={!job.result?.imageUrl || Boolean(replacingStylePreviewKey)} onClick={() => replaceStylePreview(job, "person")} type="button">
+                    {replacingStylePreviewKey === `${job.jobId}:person` ? <LoaderCircle className="spin" size={18} /> : <ImageUp size={18} />}
+                    <span>{replacingStylePreviewKey === `${job.jobId}:person` ? "替换中" : "替换人物效果"}</span>
+                  </button>
+                  <button className="secondary-button" disabled={!job.result?.imageUrl || Boolean(replacingStylePreviewKey)} onClick={() => replaceStylePreview(job, "pet")} type="button">
+                    {replacingStylePreviewKey === `${job.jobId}:pet` ? <LoaderCircle className="spin" size={18} /> : <ImageUp size={18} />}
+                    <span>{replacingStylePreviewKey === `${job.jobId}:pet` ? "替换中" : "替换宠物效果"}</span>
+                  </button>
+                </> : null}
                 <button className={job.isLiked ? "secondary-button" : "copy-button"} disabled={updatingClipJobId === job.jobId} onClick={() => toggleClip(job)} type="button">
                   {updatingClipJobId === job.jobId ? <LoaderCircle className="spin" size={18} /> : job.isLiked ? <X size={18} /> : <Sparkles size={18} />}
                   <span>{updatingClipJobId === job.jobId ? "处理中" : job.isLiked ? "移出卡夹" : "加入卡夹"}</span>
@@ -7561,6 +7682,17 @@ async function refreshImageJobs(params = {}) {
   const response = await fetch(`/api/image-jobs${suffix}`);
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取生图任务列表失败。");
+  return payload;
+}
+
+async function replaceImageJobStylePreview(jobId, variant) {
+  const response = await fetch(`/api/image-jobs/${encodeURIComponent(jobId)}/style-preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ variant })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.message || "替换风格效果图失败。");
   return payload;
 }
 
