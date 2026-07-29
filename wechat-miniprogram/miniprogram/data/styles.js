@@ -133,7 +133,7 @@ const styles = [
       "印刷，"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/images-small/style_1784009080663.jpg",
     "prompt": "正向主提示词（Prompt）\n \n将输入图像重制为一张正宗的Riso孔版印刷艺术海报，仅限使用经典Riso色盘中最多4种油墨颜色：荧光粉、红、黄、青蓝、钴蓝、黑、森林绿，高光区域保留空白纸本色不上油墨，粗犷扁平纯色块，无照片级写实细节。\n半色调45°网点：暗部大点(10-18像素)、中间调中点(5-9像素)、亮部小点(1-4像素)，亮部无网点，仅用网点明暗塑造体积，分色叠印，图层1-3像素套准错位偏移，不规则飞溅白色高光，带有纸张肌理、油墨斑驳漏印、复古扫描柔化质感。\n构图居中，主体占画幅60%-70%，轻微暗角压暗边缘，粗粝手工印刷质感，拒绝数字平滑渲染。\n主体保留原有形象特征，边缘手撕毛边剪纸拼贴质感，白色轮廓描边，无黑边。背景提取画面主色调匹配Riso专色，冷暖色调对应撞色底色，背景可做纯色、双色渐变、几何色块分割。主体使用2-3种高饱和对比专色，色彩半透明叠印混色。\n添加装饰元素：大小错落星星圆点、几何图形、波浪弧线、手绘箭头涂鸦、简笔小图标、手撕纸质英文标签、序号印章文字、撕纸边缘、胶带拼贴肌理；元素分散布局共8-15个，四周点缀平衡构图，空白处散点填充，不拥挤。\n版式随机：极简纯色底/几何分色块底/多层撕纸拼贴底/散点装饰底；边角添加一段手写粗体英文主副标题，禁止中文。\n强烈半色调网点，1-2像素色层错位，油墨颗粒质感，纸张底纹，边缘磨损做旧，现代拼贴波普复古风，视觉焦点集中，适合艺术海报。\n \n反向负面提示词（Negative Prompt）\n \n不要均匀网点、不要杂乱散点、不要平滑渐变、不要干净数码渲染、不要完美套准对齐、不要超过4种颜色、不要无纸张纹理、不要水印、不要文字中文、不要黑色轮廓描边、不要写实照片细节、不要高清精致、不要光滑数字质感、不要过度密集元素。",
@@ -174,7 +174,7 @@ const styles = [
     "tags": [
       "潮流海报"
     ],
-    "subjectType": "both",
+    "subjectType": "pet",
     "drawCardEnabled": true,
     "drawCardWeight": 100,
     "image": "/images-small/style_1782538907748.jpg",
@@ -231,7 +231,7 @@ const styles = [
       "粗线条简笔"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/images-small/style_1782658589405.jpg",
     "prompt": "原图转为插画\n整体画风：手绘儿童简笔画，极简造型，无刻意修饰\n线条规范：粗黑外轮廓，手绘线条粗糙质感\n背景基底：细腻颗粒纸质纹理背景",
@@ -273,7 +273,7 @@ const styles = [
       "美式卡通"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 10,
     "image": "/images-small/style_1782539050463.jpg",
     "prompt": "Transform this photo into a vintage retro American cartoon illustration in the exact\nstyle of 1970s-1990s nostalgic children's book art. Solid warm textured background with grainy printed paper texture.\nStyle details: playful and charming aesthetic, thick bold black outlines, flat vibrant colors, limited color palette, clean vector-like shapes with slight hand-drawn warmth. Add rosy red circular cheeks on the subject, simple black dot eyes, and an expressive joyful smile.\nExaggerate features slightly for cuteness while keeping the original likeness recognizable.\nMain subject should be stylized as a cute waist-up character, wearing the original clothing reinterpreted in flat cartoon style. both in vintage style.",
@@ -287,7 +287,7 @@ const styles = [
       "稚拙撞色扁平幼态风"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/images-small/style_1782986654936.jpg",
     "prompt": "上传真人照片作为唯一身份参考，保留本人脸型、五官比例、眼型、鼻嘴特征、发型轮廓与气质识别度，转化为稚拙怪萌手绘插画头像。半身正面居中，超大头、细脖子、身体极简。五官必须幼态扁平：眼睛很大，眼白明显，虹膜画成整块浅蓝、蓝绿或青蓝色圆形/椭圆色块，中心只有一个很小的深色瞳孔，可有极少量小高光，但不要真实虹膜纹理，不要玻璃感；眼神发懵、空空的、轻微震惊。小鼻子、小嘴，脸颊大片腮红。头发必须是蓬松的大色块涂抹，不画细发丝，可用蓝、粉、黄、绿、橙高明度撞色。整体为粉蜡笔、马克笔、丙烯干刷质感，白底留白，少量星星和随手涂鸦，画面天真、怪异、松散、有艺术感。",
@@ -301,7 +301,7 @@ const styles = [
       "森系水彩"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/images-small/style_1782658718166.jpg",
     "prompt": "原图转为插画\n整体画风：韩系软萌手绘涂鸦插画，画面风格统一，温柔干净治愈\n线条上色：细黑手绘线条，低饱和柔和配色，彩铅+淡水彩通透肌理\n造型优化：轻微Q版可爱化，脸部圆润，表情柔和，五官朝向、肢体动作不变\n背景处理：点缀小爱心、小花、星星、贴纸、手写小字",
@@ -315,7 +315,7 @@ const styles = [
       "困倦炸毛丧系Q版风"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 10,
     "image": "/images-small/style_1782988633141.jpg",
     "prompt": "上传真人照片作为唯一身份参考，保留人物脸型、五官比例、眼型、鼻子、嘴巴、发型轮廓和个人气质，但完全转化为凌乱手绘怪可爱Q版漫画头像。人物超大头、细脖子、小身体，半身居中，姿态慵懒无力，可抓头发、趴桌、坐着发呆。重点表现无奈困倦的半睁死鱼眼、下垂眼皮、大片眼白、小瞳孔、微张小嘴、呆滞厌世表情，脸颊淡粉红晕。头发必须极度蓬松炸毛、黑色乱线缠绕、大量飞线和毛躁碎发，像刚睡醒没梳头。服装宽松黑色或白色T恤。画风为粗黑手绘线稿、草稿感、马克笔平涂、低饱和黑白灰配色，少量淡粉肤色，白底或简单房间/书桌背景，可加入小黑猫/小狗趴在头顶、Zzz、气泡、手写符号。整体邋遢、疲惫、无奈、怪萌、有个性",
@@ -329,7 +329,7 @@ const styles = [
       "奶油糖果Q版夸张涂鸦风"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 20,
     "image": "/images-small/style_1782988594530.jpg",
     "prompt": "上传照片作为唯一参考，保留脸型、五官比例、眼型、鼻嘴特征、发型轮廓和气质，不复制参考图角色。转成奶油糖果色Q版怪可爱漫画头像：超大头、细身体、粗黑手绘线稿、平涂大色块、低细节、无写实质感。表情必须夸张（可适当夸张局部特征，比如特别大的眼睛，特别厚的嘴唇，或者特别大的耳朵，突出某一部分特征，显著明显夸张的表达），可半睁死鱼眼、呆滞失焦、嫌弃厌世、震惊圆眼，大笑或嘟厚嘴唇，强化腮红和眼下阴影。背景用浅奶油色，加入星星、爱心、十字、云朵、小怪物、滴落涂鸦贴纸。\n禁止写实、3D、厚涂、彩铅细笔触。",
@@ -343,7 +343,7 @@ const styles = [
       "方块扁平冷淡厌世风"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/images-small/style_1782988682798.jpg",
     "prompt": "以上传真人照片为唯一身份参考，保留本人脸型、五官比例、发型轮廓和气质，但必须转化为参考图同款扁平怪可爱漫画头像。正面半身居中，超大方块头、短细脖、小身体，脸部像方块切面，比例夸张。五官横向压扁：半睁死鱼眼、斜视、大片眼白，瞳孔只能是极小黑点；平直粗眉，小鼻子，小嘴，表情冷淡、厌世、发懵、拽。脸颊必须有大片粉红块状腮红和斑驳红点。头发画成厚重蓬松的大色块，边缘有少量飞线，不画真实发丝。粗黑线稿、马克笔平涂、低饱和复古色、米黄色纸张颗粒背景。禁止素描感、水彩感、写实比例、长脖子、精致日漫、柔美可爱。",
@@ -357,7 +357,7 @@ const styles = [
       "潦草复古慵懒漫画风"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/images-small/style_1782988554790.jpg",
     "prompt": "上传照片作为唯一身份参考，保留角色脸型、五官比例、眼型、鼻子、嘴巴、发型轮廓和个人气质，转化为凌乱手绘怪可爱漫画风。人物大头、细脖子、瘦小身体，姿态慵懒随意。重点表现半睁眼、斜眼、厌世感、坏笑、漫不经心的夸张表情，脸颊红晕明显。头发必须蓬松炸毛、凌乱毛躁，有大量飞线和乱线。画风为粗黑草稿线稿、随手涂鸦感、铅笔飞线、纸张扫描质感，淡彩水彩+轻马克笔上色，低饱和复古配色。米白纸张背景，整体慵懒、邋遢、怪可爱、有个性。\n反向提示词：不要韩系精致，不要日漫萌妹，不要3D，不要写实，不要干净线稿，不要高饱和，不要复杂背景，不要甜美公主风，不要整齐头发，不要过度美化，不要网红脸。",
@@ -371,7 +371,7 @@ const styles = [
       "时装涂鸦厌世大头风"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 10,
     "image": "/images-small/style_1782986548843.jpg",
     "prompt": "上传真人照片作为唯一身份参考，保留本人脸型、五官比例、眼型、鼻子嘴巴特征、发型轮廓和整体气质，不照搬参考图人物。将人物转化为夸张怪可爱手绘时装插画头像，超大头、短细脖、小身体，脸部留白大、五官简化。眼睛必须半睁、斜视、无奈、厌世或漫不经心，眼型拉长，黑色眼珠扁平，不要圆萌大眼；嘴巴很小，可轻微撇嘴、嘟嘴或冷淡表情。头发用大块粗笔刷涂抹，边缘有凌乱飞线、手抖线、毛躁感。粗黑手绘线稿，马克笔平涂，大色块服装，黑白为主，点缀明亮黄色、红色、青色配饰，粉红块状腮红。白底留白，纸张扫描感，线条随意、潦草、时髦、怪萌、有艺术感。",
@@ -487,7 +487,7 @@ const styles = [
       "复古，扁平，动画人像"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/images-small/style_1782538975049.jpg",
     "prompt": "【任务】把用户上传真实人像转成复古扁平动画人像，像90s/early-2000s TV anime截帧。人物占画面75–90%。\n\t\n【参考】真实照片作identity source，保留本人2–5个识别锚点：脸型轮廓、发型轮廓、头部角度、眉眼气质、嘴部状态、肤色深浅印象、眼镜/耳饰/帽子/衣领等。风格参考只学retro flat anime：粗黑轮廓、黑色豆形瞳孔、平涂色块、清晰硬边阴影、高饱和纯色背景，不复制已有角色。\n\t\n【主体】必须像上传照片本人。眼睛简化成黑色豆形/椭圆瞳孔，眼白干净，无虹膜和高光。眉毛负责情绪，可压低、上挑、不对称，表达困、冷、拽、紧张、委屈或呆萌。鼻子只用1–2根细线+一块明显鼻侧阴影。嘴巴小而克制，保留照片中的微笑、抿嘴、撇嘴或微张状态。\n\t\n【构图】极近裁切，背景只保留纯色空间。\n\t\n【风格】retro anime, flat cel animation, bold outline, solid color blocks, subtle rosy-peach skin, hard-edged shadows, awkward cute, graphic, nostalgic。\n\t\n【色彩光影】肤色不要红色滤镜，要淡粉桃色、浅peach pink、light salmon peach，整体干净明亮。脸部必须有2–4块明显硬边阴影，颜色用暖灰褐、粉褐、淡紫灰、dusty beige-pink、muted mauve。阴影放在鼻侧、眼下、脸颊、嘴下、下巴、脖子侧面，必须比肤色更深，边缘锐利，不要柔光渐变。背景用钴蓝/橙/热粉/绿色/黑色高饱和纯色。\n\t\n【限制】避免写实、3D、半写实二次元、红色滤镜、整脸泛红、深红皮肤、阴影太弱、柔和渐变、复杂虹膜、眼睛高光、厚涂、真实皮肤纹理、复杂背景、全身、Q版、过度装饰、改变本人核心脸型和发型。",
@@ -529,7 +529,7 @@ const styles = [
       "丑萌，手绘，随意"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 20,
     "image": "/images-small/style_1779179574408.jpg",
     "prompt": "把这 张照片改成画风笨拙又搞笑的涂鸦风插画 。 特点： - 营造出像是用平价马克笔、蜡笔随手画出来的潦草速写质感- 线条杂乱随性，充满孩子气画风- 透视扭曲失衡，整体构图比例不协调- 脸部五官稍作夸张处理，打造滑稽喜感, 眼睛俏皮可爱 额外添加元素：- 简约漫画风背景（结合参考照片联想绘制即可）- 添上无意义的乱涂线条、细碎随性的小细节- 保留上色不均、涂色出界、明显的笔触痕迹 整体风格：- 透着敷衍潦草、毫无用心去画的随性感- 切勿画得太过精致完整- 沙雕搞笑的表情包趣味画风- 贴合网络轻松趣味的氛围 禁止要求：- 不要画得写实- 不要刻画得太过精致细腻- 不要做出专业规整的绘画效果。",
@@ -599,7 +599,7 @@ const styles = [
       "潮流，海报，人物"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 20,
     "image": "/images-small/style_1779762562660.jpg",
     "prompt": "将上传人物照片转化为一张完整的潮流角色海报。\n重点不是写实述原，而是提炼人物识别特征并进行角色化重构。保留原人物的发型、脸型气质、表情、穿搭颜色、姿势、鞋子和重要配饰，让人能看出原人物特点，但人物不能写实。\n人物风格要求：\n夸张潮流角色，街头少年感，松弛、自信、张扬，数字厚涂海报风格。\n人物比例要求：\n头部略大，但不要Q版;\n脖子稍长；\n躯干较小；\n身体瘦长；\n四胶明显拉长；\n手臂细长，手肘有明显折角；\n手腕纤细；\n手掌略大；\n手指细长，有明确关节和姿势;\n腿部细长，滕盖有清晰转折；\n脚踝纤细；\n鞋子必须明显放大，鞋底厚重，有潮流玩具感。\n如果人物没有穿鞋，或者穿拖鞋、凉鞋、赤脚:\n脚部也要图形化和夸张化处理。\n脚趾数量正确，脚掌结构清楚，脚蹀纤细，脚部轮廓有几何感和设计感。\n脚掌可以略微放大，脚趾结构清楚，脚背、脚踝和脚掌比例有设计感。\n脚部要像图形化角色设计，不要写实脚部，也不要出成模糊脚、畸形脚、多脚趾或粘连脚趾、\n人物形态要求：\n身体不要接近真实人类比例。\n四肢要有几何感、折线感和长条色块感。\n手肘、膝盖、手腕、脚踝都要有明确结构。\n关节可以夸张，但结构必须可信。\n人物姿态要松弛自然，可以蹲坐、半蹲、坐在地面、伸手比耶、张开手臂、侧身看镜头等。\n不要僵硬站姿。\n手部要求：\n手是画面重点之一。\n手指要细长、灵活、有清晰关节。\n手势要自然、有设计感、有街头感。\n如果是比耶手势，食指和中指要清楚分开，其他手指自然弯曲。\n不要多指，不要少指，不要粘连手指，不要模糊手，不要畸形手。\n五官处理:\n五官必须图形化、简化、夸张。\n不要真实皮肤纹理，不要真实眼球高光，不要真实肖像感。\n眉毛、眼睛、鼻子、嘴巴用设计感线条和人色块概括。\n表情可以比原照片更夸张、更自信、更有性格。\n背景处理：\n背景也必须和人物统一风格，不能写实。\n将原照片中的山、水、帐篷、石头、街景、房间、家具、物品等全部重构成图形化色块、厚涂笔触、拼贴碎片、涂鸦线条、半透明几何图形和抽象海报元素\n背景可以参考原照片的场景结构，但必须被压平、简化、符号化、海报化。\n不要出现人物风格化们背景写实的割裂感。\n画面海报感：\n画面不能只是白底人物。\n加入符合场景的涂鸦文字、手写标记、箭头、贴纸、胶带、粗糙笔刷、抽象符号和拼贴块。\n涂鸦文字要少量点缀，可以使用 FREE、VIBE、DAILY、CHILL、PLAY、SUMMER、WLD、GOOD VIBE，也可以加入中文短词如出街、松弛感、今日状态、自由一点。\n文字不要遮挡脸部和手势，不要变成正式标题，不要乱码\n整体风格：\nmodern urban charactor poster,\nstylized streetwear character design,\nexaggerated proportions , \nlong thin limbs,\nangular joints,\noversized shoes,\ngraphic facial features,\nexpressive hands,\nlong fingers,\ndigital gouache painting,\nrough brush strokes,\nblocky color shapes,\nloose  painterly edges,\nabstract poster background,\ncollage elements,\ngraffiti lines,\nhandwritten notes,\nurban art zine style,\nfashion editorial poster,\nlow saturation color palette ,\noff-white background,\nstrong poster composition\n最终效果：\n一张高级潮流人物海报。\n人物关节清楚、四肢修长、手指有细节、鞋子夸张、姿态松弛、表情有性格\n背景也要统一成厚涂、拼贴、涂鸦、图形化的海报语言。\n负面提示词：\n不要写实人物，不要真实肖像,不要正常真人比例，不要圆润Q版，不要儿童卡通，不要二次元动漫，不要3D渲染，不要蜘料感，不要真实皮肤纹理，不要真实眼球高光。\n不要短粗四肢，不要正常鞋子大小，不要僵硬站姿，不要无关节感，不要关节模糊，不要手指糊掉，不要多手指，不要少手指，不要粘连手指，不要畸形手。\n不要写实背景，不要真实照片背景，不要人物插画但背景写实的割裂感，不要复杂写实山水，不要真实摄影光影，不要正式广告标题，不要乱码文字，不要水印，不要logo。",
@@ -610,11 +610,10 @@ const styles = [
     "sort": 43,
     "title": "Plog手写注释",
     "tags": [
-      "Plog",
-      "日常"
+      "Plog，日常"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/images-small/style_1779961220177.jpg",
     "prompt": "请观察照片中的元素，并为每个元素添加有意义的手绘注释。 \n【画面里的东西】 把照片里的物品简单列出来（比如：冰美式、面包、窗边、阳光） \n【画法要求】 ・用白色细线，像手绘笔一样 ・一笔画风格，线条随意一点，不要太工整 ・沿着物体边缘轻轻描一圈轮廓 ・适当加箭头 / 虚线，引导视线 【文字风格】 ・中文手写感，偏口语一点 ・句子要短，像随手写的 ・语气像日常碎碎念 / 小情绪 【\n内容怎么写】 ・饮品 → 味道 / 温度 / 当下感觉（例：冰冰的，好清爽） ・食物 → 口感 / 好不好吃（例：软软的，有点惊喜） ・环境 → 氛围（例：有点安静，很适合发呆） ・整体 → 一句总结（例：今天也算被治愈了） \n【小装饰】 ・可以加一点点：热气、小星星、爱心、简单表情（比如：:)） ・不要太多，留一点空白更好看 \n【整体感觉】 ・像小红书日常分享 / 随手记录 ・自然、不用太精致，有点松弛感",
@@ -642,7 +641,7 @@ const styles = [
       "剪纸，旅行，可爱"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 50,
     "image": "/images-small/style_1779845065374.jpg",
     "prompt": "转绘成异想天开的可爱旅行立体模型，萌萌的剪纸艺术风格，层叠的手工纸纹理，3D剪贴簿美学，微缩场景，柔和的粉彩色调，温馨的灯光，细致的建筑，蓬松的纸云，风格化的树木和街道，迷人的手工纸板剪裁效果，微妙的阴影深度，梦幻般的氛围，高度精细的构图，电影般的画面感，温馨的旅行日记氛围，柔和的哑光色彩，极其简洁的构图，人物周围可爱的贴纸式白色轮廓，故事书美学，旅行摄影与手工纸艺的融合，竖构图，极其精细的纹理，温暖的怀旧氛围，Instagram风格的可爱美学，吉卜力工作室风格的可爱，移轴摄影般的微缩感，高级纸质立体模型艺术风格独特，细节丰富，8K分辨率",
@@ -656,7 +655,7 @@ const styles = [
       "剪纸，简约"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 50,
     "image": "/images-small/style_1779844966340.jpg",
     "prompt": "将上传图片转换为温暖、极简的杂志剪纸拼贴风插画。\n\t\n保持主体在画面中的位置、姿势、表情、服装和整体概念与上传图片一致。将人物重新诠释为可爱的简化韩系角色，拥有柔和圆润的比例、极简五官、轻松的小微笑，以及分层纸剪影轮廓。\n\t\n风格：手工感编辑拼贴、扁平纸张层次、柔和 pastel 纸张纹理、撕纸边缘、细微纸张阴影、干净黑色涂鸦点缀、手账 scrapbook 氛围、现代韩系杂志设计、简单可爱的构图、大面积干净白色留白。\n\t\n构图：竖版 3:4。保持主体位置与上传图片一致。画面通透、稀疏、不拥挤。\n\t\n只添加少量相关拼贴小道具：纸条、小爱心、植物、咖啡杯、窗户、胶带、简单涂鸦图标。\n\t\n在留白处添加一个优雅的手写英文标题，例如 “Soft little moment” 或 “Take a small break”。\n\t\n氛围：平静、舒适、温暖、可爱、柔和编辑感。\n\t\n避免：真实照片感、动漫风、水彩、3D 黏土、复杂背景、拥挤拼贴、深色、强硬阴影、凌乱或难以辨认的文字。",
@@ -681,13 +680,10 @@ const styles = [
     "sort": 48,
     "title": "可爱Plog涂鸦",
     "tags": [
-      "Plog",
-      "可爱",
-      "涂鸦",
-      "剪贴"
+      "Plog，可爱，涂鸦，剪贴"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/images-small/style_1779180072956.jpg",
     "prompt": "在图片中的动物、食物和人物和有趣的元素周围用粗糙手绘描边，并点缀可爱的手写涂鸦和剪贴风格的注释（英文），还有俏皮的白色马克笔画、爱心、星星、蛋糕、笑脸和小型食物等图标，营造出一种可爱的Instagram氛围，8K画质。",
@@ -698,13 +694,10 @@ const styles = [
     "sort": 49,
     "title": "装饰民俗童书",
     "tags": [
-      "儿童",
-      "插画",
-      "可爱",
-      "卡通"
+      "儿童，插画，可爱，卡通"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/images-small/style_1779179914765.jpg",
     "prompt": "Please transform the entire image into a single Decorative Folk Flat Illustration with Doodle elements. Use a bold and playful color palette, completely different from the original image. Simplify all details into clean, flat shapes with a handmade, slightly imperfect feel, as if drawn on a sheet of white paper. The overall style should look cute, childlike, and whimsical.",
@@ -730,12 +723,10 @@ const styles = [
     "sort": 51,
     "title": "英伦童书卡通",
     "tags": [
-      "手绘",
-      "插画",
-      "卡通"
+      "手绘，插画，卡通"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/images-small/style_1779179828722.jpg",
     "prompt": "Transform the subject from the uploaded image into a character in the style of Charlie and Lola (children’s cartoon). Match the official cartoon look — thin sketchy outlines, flat colors, childlike proportions, playful hand-drawn charm, and simple textures. Retain the subject’s original clothing, hairstyle, facial features, accessories, skin tone, pose, and expression - but reinterpret them as if they belong in the Charlie and Lola world.Clothing should be simplified into flat shapes and bright colors, while keeping the overall outfit recognizable. Background: plain white or transparent to keep the focus on the character.» Negative Prompt: «No realistic shading, no detailed rendering, no anime or manga style, no 3D modeling, no photographic textures.",
@@ -749,7 +740,7 @@ const styles = [
       "卡通"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/images-small/style_1779179773582.jpg",
     "prompt": "把照片生成いらすとや风格的图片。",
@@ -846,7 +837,7 @@ const styles = [
       "手绘，儿童，可爱，随意，宠物"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
     "image": "/images-small/clay.jpg",
     "prompt": "把这张照片改成韩式稚拙扁平插画风格，保留场景里的物体和大致布局，粗糙抖动的黑色间断手绘轮廓，去掉照片里的光影、透视和细节纹理，全部改成纯色平涂。采用高饱和的红/黄/绿/白调色块，边缘圆润，整体背景用亮蓝色，左右两侧留出纯蓝色的背景，物体简化成简单的几何形状，整体是可爱的童趣感，上部手写文案“How are you today?”下部拼贴手写文案“Let the wind carry your worries away.”",
@@ -888,7 +879,7 @@ const styles = [
       "艺术肖像海报"
     ],
     "subjectType": "person",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 20,
     "image": "/images-small/style_1780359396127.jpg",
     "prompt": "参考图一的视觉风格、色彩气质与印刷质感，保留图二真实照片中主体的面部神态、五官比例、表情特征、发型轮廓、身体姿态与主体识别度，将其转换为一张艺术印刷海报。\n整体采用：\nretro art poster、editorial portrait poster、grain printed texture、risograph-inspired photo treatment、screen print grain、vintage magazine cover aesthetic、stylized photographic poster 风格。\n无任何文字，主体保持清晰可识别，\n必须保留原照片中的真实面部神态、眼神方向、嘴部表情、头部角度、发型轮廓和身体姿态。\n在构图上可以进行轻微艺术化调整：\n增加更干净的背景留白，\n强化主体与背景之间的色彩对比，\n让画面更像一张独立杂志封面或艺术展览海报。\n但整体仍需基于原始照片的核心构图关系\n而是保留照片骨架和主体真实感，\n在照片基础上进行艺术化平面处理：\n轻微色块化、\n轻微边缘简化、\n轻微轮廓强化、\n轻微印刷套色偏移、\n局部半调网点、\n粗颗粒纸张纹理、\n复古印刷噪点、\n高饱和复古印刷色调，\n可使用 bright red、warm yellow、deep cobalt blue、vivid green、soft pink、cream white…\n整体鲜明、快乐、图形化，\n背景纯色、浅色留白或简洁色面，\n画面质感：\ncoarse paper grain、\nrisograph grain、\nscreen printing texture、\nhalftone dots、\nslight ink bleeding、\nslight color misregistration、\nvintage print noise、\nscanned magazine texture。\n应该像真实照片经过艺术印刷与复古杂志处理，\n最终画面气质像：\n复古艺术杂志封面、\n独立影像海报、\n带有印刷颗粒的时尚肖像摄影、\n轻微图形化处理的真实照片。",
@@ -902,7 +893,7 @@ const styles = [
       "手绘，蜡笔，儿童，宠物，可爱"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 18,
     "image": "/images-small/cyberpunk.jpg",
     "prompt": "现在你是幼儿园小孩，请把整张图片用蜡笔画出来！不要模仿任何已有动漫、IP、艺术家风格！不要有太多的细节，复杂的地方可以一笔带过，带一点笨拙的感觉，颜色可以大胆一点，有些地方可以用完全不一样的颜色，但像草莓这种有固定颜色的一定要用那个颜色，并且要有一种画在白纸上的感觉。可以在空白处或者物品上面叠涂加点五颜六色的点缀，蜡笔的笔触可以不一致，像真实蜡笔一样可以有蜡笔屑，也可以有叠涂后稍微凸起来的效果，或者颜色蹭上去的感觉，构图不要太成熟，可以稍微无逻辑，线条随意不能笔直，比例不用一模一样，不要有照着图片画的感觉，也不能有大人帮忙画的感觉，稍微丑不拉几也可以，要的就是好奇怪但有点治愈这种丑萌丑萌的感觉～",
@@ -916,7 +907,7 @@ const styles = [
       "丑萌，插画，宠物"
     ],
     "subjectType": "pet",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 20,
     "image": "/images-small/pixel.jpg",
     "prompt": "Turn this photo into indie cartoon illustration, neo-naive pop style, ugly cute characters, very thin black outlines, flat vibrant high-saturation colors, hand-drawn imperfect lines, lo-fi doodle aesthetic，quirky and absurd humor, exaggerated expressions, slightly grotesque but cute, minimal background,contemporary street art vibe, anti-polished illustration style.",
