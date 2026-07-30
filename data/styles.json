@@ -120,6 +120,26 @@
     "useStyleImageAsReference": false
   },
   {
+    "id": "style_1785406579480",
+    "title": "肌理风格插画",
+    "tags": [
+      "插画"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-07-30T10:16:19.480Z",
+    "personImage": "/style-previews/style_1785406579480/cover-person.png",
+    "personImageUpdatedAt": "2026-07-30T10:17:13.316Z",
+    "personThumbnailImage": "/style-previews/style_1785406579480/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1785406579480/cover-pet.png",
+    "petImageUpdatedAt": "2026-07-30T10:16:31.386Z",
+    "petThumbnailImage": "/style-previews/style_1785406579480/cover-pet-thumbnail.webp",
+    "prompt": "肌理感风格插画，丝网印刷风格，颗粒肌理，夸张、扁平化处理，带有撞色、格纹、涂鸦式纹理画面，搭配复古风的标签，条形码、促销贴纸等，还原了画面细节；纯扁平插画，超简约构图，颗粒纹理，平涂，超高清，蓝色背景，Octane渲染，64K高清画质，下方用流动的毛笔手绘粗字体：“Warm little memories”（纤细的笔画，笔画拉丝，灵动的曲线，有质感），质感，肌理感，艺术抽象，诗意的，高级，杰作，极具视觉冲击力，获奖作品，大师级配色，大师级排版，高细节，高级感，超高清，布局协调。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1779180012171",
     "title": "奶油粗笔Q版",
     "tags": [
