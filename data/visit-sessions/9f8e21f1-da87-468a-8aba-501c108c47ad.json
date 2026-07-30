@@ -6,10 +6,10 @@
   "sourceMerchantId": "",
   "sourceMerchantName": "",
   "startedAt": "2026-07-29T03:29:18.283Z",
-  "lastHeartbeatAt": "2026-07-29T03:29:48.266Z",
-  "endedAt": null,
-  "durationSeconds": null,
-  "status": "active",
+  "lastHeartbeatAt": "2026-07-29T03:30:48.264Z",
+  "endedAt": "2026-07-29T03:30:49.951Z",
+  "durationSeconds": 92,
+  "status": "ended",
   "createdAt": "2026-07-29T03:29:18.283Z",
-  "updatedAt": "2026-07-29T03:29:48.266Z"
+  "updatedAt": "2026-07-29T03:30:49.951Z"
 }

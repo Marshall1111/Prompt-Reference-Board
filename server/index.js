@@ -12215,7 +12215,7 @@ async function syncMiniProgram(styles) {
   await mkdir(miniImageRoot, { recursive: true });
   const miniStyles = await Promise.all(
     styles.map(async (style, index) => {
-      const miniImage = await ensureMiniImage(style);
+      const miniImage = await ensureMiniImage(style, getStyleGalleryImage(style));
       return {
         id: style.id,
         sort: index,
@@ -12234,8 +12234,8 @@ async function syncMiniProgram(styles) {
   await writeFile(miniDataPath, js, "utf-8");
 }
 
-async function ensureMiniImage(style) {
-  const previewPath = getPreviewFilePath(style.image);
+async function ensureMiniImage(style, image = style.image) {
+  const previewPath = getPreviewFilePath(image);
   if (!previewPath) {
     await deleteMiniImage(style.id);
     return "";
@@ -12268,7 +12268,14 @@ async function ensureMiniImage(style) {
 
 async function getWebGalleryImage(style) {
   const safeId = String(style?.id || "").trim();
-  const originalImage = String(style?.image || "").trim() || "/style-previews/default/cover.svg";
+  const originalImage = getStyleGalleryImage(style);
+
+  // For universal styles with a distinct person effect image, its generated
+  // thumbnail is already the smallest gallery asset. Legacy universal styles
+  // without one keep using the existing mini-image cache below.
+  if (hasDistinctPersonGalleryImage(style)) {
+    return originalImage;
+  }
 
   if (!safeId) {
     return originalImage;
@@ -12283,6 +12290,20 @@ async function getWebGalleryImage(style) {
   }
 
   return originalImage;
+}
+
+function getStyleGalleryImage(style) {
+  const image = hasDistinctPersonGalleryImage(style)
+    ? style?.personThumbnailImage || style?.personImage || style?.image
+    : style?.image;
+  return String(image || "").trim() || "/style-previews/default/cover.svg";
+}
+
+function hasDistinctPersonGalleryImage(style) {
+  if (normalizeStyleSubjectType(style?.subjectType, style) !== SUBJECT_BOTH) return false;
+  const personImage = String(style?.personImage || "").trim();
+  const image = String(style?.image || "").trim();
+  return Boolean(personImage && personImage !== image);
 }
 
 function getStyleVariantImageFields(variant) {

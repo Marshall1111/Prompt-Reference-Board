@@ -1,5 +1,25 @@
 [
   {
+    "id": "style_1785372196300",
+    "title": "波普红底插画",
+    "tags": [
+      "波普风"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-07-30T00:43:16.300Z",
+    "personImage": "/style-previews/style_1785372196300/cover-person.png",
+    "personImageUpdatedAt": "2026-07-30T00:43:58.353Z",
+    "personThumbnailImage": "/style-previews/style_1785372196300/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1785372196300/cover-pet.png",
+    "petImageUpdatedAt": "2026-07-30T00:50:02.244Z",
+    "petThumbnailImage": "/style-previews/style_1785372196300/cover-pet-thumbnail.webp",
+    "prompt": "矢量平面插画，半色调网点印刷纹理，波普艺术风格，复古漫画书艺术，怀旧儿童绘本插画，网点印刷风格，图形设计，可爱俏皮，清晰线条，点状纹理，粗糙印刷质感，2D平面设计，无真实阴影，通过半色调网点密度表现阴影，有限色彩方案，鲜艳饱和色彩，有限色彩选择，无渐变，无复杂细节，简洁造型，高对比度，粗黑轮廓线，儿童绘本风格，怀旧195D‑60年代印刷艺术，画面无字，突出手绘质感，手工绘制不完善、不固定，整个画面背景为红色细腻颗粒纹理纸质质感，上方有适配画面的英文字母",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1784795803139",
     "title": "毕加索极简肖像",
     "tags": [
@@ -1395,6 +1415,26 @@
     "petImageUpdatedAt": "2026-07-15T00:32:03.642Z",
     "petThumbnailImage": "",
     "prompt": "【角色定位】\n高级东方视觉排版设计师、手写字体设计师与自然主义插画艺术指导\n \n【任务描述】\n根据用户输入的主题、标题或少量文字内容，生成一张现代白底、纸张质感、自然纯真的极简文字海报，重点呈现笨拙手写字体、清晰信息层级与轻量主题插画。\n \n【输入内容】\n图像输入：用户可输入主题、标题、短句、情绪关键词或少量必要信息；不需要提供大量文案，系统应主动控制文字数量。\n \n【执行流程】\n1.情绪与主题分析：分析输入主题中的自然感、纯真感、日常气息与安静情绪，提炼一个朴素、不夸张的视觉方向。\n2.文字筛选与层级建立：只保留主标题、1至2组短句和极少量必要信息；建立明显的信息层级，让主标题最醒目，辅助文字保持低存在感。\n3.手写排版与插画绘制：使用粗细变化明显但无墨迹效果的笨拙手写字体进行自然排布，搭配一处低饱和点缀色与笨拙主题插画，形成安静、留白、真实的纸面作品。\n \n【设计规范】\n整体风格：现代白底、自然纯真、极简文学海报、朴素手写感、笨拙真实、低设计痕迹、安静留白；整体像一个认真但不擅长画画和写字的人，在白纸上慢慢完成的手工作品。\n固定风格：色彩规则：背景为纯白或接近纯白；主文字为黑色或深炭黑；点缀色最多不超过2个，必须是低饱和色，例如淡蓝、浅绿、灰红、淡赭、浅黄；彩色面积必须很小，不可喧宾夺主。；线条/形状规则：禁止辅助线、网格、装饰框、装饰性下划线和刻意的几何构成；所有文字与插画线条都应自然、随意、略不稳定；插画线条可粗可细，但不能精致。；主字体规则：字体为粗糙但不带墨迹的手写字；重点表现不知下笔轻重的笨拙感，笔画粗细对比夸张且明显，部分笔画突然变粗或变细，字形结构略歪，大小不完全一致；避免蜡笔、书法飞白、墨水晕染、毛笔墨迹和过度艺术化效果。\n一张“AI小画冰箱贴”的海报，主题是“孩子的每一天都是成长的里程碑”，小字是“上传日常照片，制作专属艺术风格冰箱贴”",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1785371976741",
+    "title": "电商主图",
+    "tags": [
+      "电商主图"
+    ],
+    "subjectType": "person",
+    "drawCardEnabled": false,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1785371976741/cover.png",
+    "imageUpdatedAt": "2026-07-30T00:39:50.963Z",
+    "personImage": "/style-previews/style_1785371976741/cover.png",
+    "personImageUpdatedAt": "2026-07-30T00:39:50.963Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1785371976741/cover.png",
+    "petImageUpdatedAt": "2026-07-30T00:39:50.963Z",
+    "petThumbnailImage": "",
+    "prompt": "商业产品摄影，置于无边界的纯白背景中。正视图，平视视角。电影级3D渲染，极具立体感的影棚级柔和均匀布光。精准展现材质对比，保留：通透无瑕的玻璃 / 细腻的哑光塑料 / 具有迷人反光的金属。产品表面完美无瑕，无指纹、无灰尘。高光与暗部过渡自然，光影立体感极强。标签文字排版清晰锐利。极简主义，高级质感，符合顶级电商主图标准，8K分辨率，极致细节。",
     "useStyleImageAsReference": false
   }
 ]
