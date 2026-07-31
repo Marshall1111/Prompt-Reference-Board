@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowDown, ArrowLeft, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, QrCode, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, QrCode, RefreshCw, Save, Search, Settings, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import { createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
 import "./styles.css";
@@ -243,6 +243,7 @@ function readRoute() {
   if (pathname === "/draw/order") return "public-draw-checkout";
   if (pathname === "/fridge/orders") return "public-fridge-orders";
   if (pathname.startsWith("/fridge/orders/")) return "public-fridge-order";
+  if (pathname === "/fridge/magnet") return "public-fridge-product";
   if (pathname === "/book/orders") return "public-body-book-orders";
   if (pathname.startsWith("/book/orders/")) return "public-body-book-order";
   if (pathname === "/fridge") return "public-fridge";
@@ -275,6 +276,7 @@ function App() {
   useEffect(() => {
     const titleByRoute = {
       "public-fridge": "冰箱贴工作室",
+      "public-fridge-product": "照片冰箱贴 · 产品详情",
       "public-body-book": "宝宝的认知书",
       "public-draw-checkout": "选图定制",
       "public-fridge-order": "冰箱贴订单",
@@ -291,6 +293,7 @@ function App() {
     const pathByRoute = {
       "public-draw": "/",
       "public-fridge": "/fridge",
+      "public-fridge-product": "/fridge/magnet",
       "public-body-book": "/book",
       "public-draw-checkout": "/draw/order",
       "public-fridge-orders": "/fridge/orders",
@@ -330,6 +333,9 @@ function App() {
   }
   if (route === "public-fridge") {
     return <FridgeMagnetPage />;
+  }
+  if (route === "public-fridge-product") {
+    return <FridgeMagnetProductPage />;
   }
   if (route === "public-body-book") {
     return <BodyBookPage />;
@@ -1020,6 +1026,139 @@ function LuckDrawCardPage() {
 
 function FridgeMagnetPage() {
   return <PublicExperiencePage config={FRIDGE_MAGNET_EXPERIENCE_CONFIG} />;
+}
+
+const FRIDGE_MAGNET_PRODUCT_IMAGES = [
+  {
+    src: "/product/acrylic-magnet/magnet-front.png",
+    alt: "透明亚克力照片冰箱贴正面展示",
+    label: "正面展示"
+  },
+  {
+    src: "/product/acrylic-magnet/magnet-in-hand.png",
+    alt: "手持透明亚克力照片冰箱贴",
+    label: "手持尺寸感"
+  },
+  {
+    src: "/product/acrylic-magnet/magnet-on-fridge.png",
+    alt: "照片冰箱贴贴在冰箱门上的效果",
+    label: "冰箱展示"
+  },
+  {
+    src: "/product/acrylic-magnet/magnet-on-table.png",
+    alt: "照片冰箱贴桌面摆放展示",
+    label: "桌面摆放"
+  },
+  {
+    src: "/product/acrylic-magnet/magnet-keychain.png",
+    alt: "带挂绳的透明照片冰箱贴",
+    label: "可配挂绳"
+  }
+];
+
+function FridgeMagnetProductPage() {
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const activeImage = FRIDGE_MAGNET_PRODUCT_IMAGES[activeImageIndex] || FRIDGE_MAGNET_PRODUCT_IMAGES[0];
+
+  return (
+    <main className="magnet-product-page">
+      <header className="magnet-product-nav">
+        <a aria-label="返回冰箱贴工作室" className="magnet-product-brand" href="/fridge">
+          <span className="magnet-product-brand-mark">P</span>
+          <span>PetPaint</span>
+        </a>
+        <a className="magnet-product-nav-link" href="/fridge">去定制</a>
+      </header>
+
+      <section className="magnet-product-hero">
+        <div className="magnet-product-gallery" aria-label="产品图片预览">
+          <div className="magnet-product-main-image-wrap">
+            <img alt={activeImage.alt} className="magnet-product-main-image" src={activeImage.src} />
+            <span className="magnet-product-image-caption">{activeImage.label}</span>
+          </div>
+          <div className="magnet-product-thumbnails" role="list" aria-label="切换产品图片">
+            {FRIDGE_MAGNET_PRODUCT_IMAGES.map((image, index) => (
+              <button
+                aria-current={index === activeImageIndex ? "true" : undefined}
+                aria-label={`查看${image.label}`}
+                className={`magnet-product-thumbnail ${index === activeImageIndex ? "is-active" : ""}`}
+                key={image.src}
+                onClick={() => setActiveImageIndex(index)}
+                type="button"
+              >
+                <img alt="" src={image.src} />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="magnet-product-summary">
+          <p className="magnet-product-eyebrow">PHOTO MAGNET · MADE FOR EVERYDAY</p>
+          <h1>把喜欢的瞬间，<br />留在每天看得见的地方。</h1>
+          <p className="magnet-product-lead">一张照片，一块小小的透明冰箱贴。把人、宠物和那些值得反复想起的画面，变成生活里的温柔注脚。</p>
+
+          <div className="magnet-product-size-card">
+            <div>
+              <span>实物尺寸</span>
+              <strong>6 <small>cm</small> × 9 <small>cm</small></strong>
+            </div>
+            <svg aria-hidden="true" className="magnet-product-dimension" viewBox="0 0 154 118">
+              <path d="M36 14h80v91H36z" fill="none" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M36 7v14M116 7v14M36 11h80M26 14v91M19 14h14M19 105h14" fill="none" stroke="currentColor" strokeWidth="1.2" />
+              <text x="76" y="8" textAnchor="middle">6 cm</text>
+              <text x="14" y="62" textAnchor="middle" transform="rotate(-90 14 62)">9 cm</text>
+            </svg>
+          </div>
+
+          <ul className="magnet-product-feature-list">
+            <li><span>01</span><div><strong>透明亚克力框体</strong><p>清透边缘包住你的专属画面，轻盈又有存在感。</p></div></li>
+            <li><span>02</span><div><strong>四角金色固定点</strong><p>细节为画面加上一点精致感，展示更有层次。</p></div></li>
+            <li><span>03</span><div><strong>照片 / AI 小画均可定制</strong><p>上传喜欢的图片，生成后选中满意的那一张再下单。</p></div></li>
+          </ul>
+
+          <a className="magnet-product-cta" href="/fridge">
+            <span>立即开始定制</span>
+            <ArrowRight size={19} />
+          </a>
+          <p className="magnet-product-note">尺寸为框体外径：6 cm × 9 cm</p>
+        </div>
+      </section>
+
+      <section className="magnet-product-story">
+        <div className="magnet-product-story-copy">
+          <p className="magnet-product-eyebrow">ONE PHOTO, MANY MOMENTS</p>
+          <h2>不止贴在冰箱上，<br />也是随身的小小纪念。</h2>
+          <p>在厨房里做一枚每日可见的小惊喜；摆在桌面，给忙碌留一点快乐；也可以搭配挂绳，带着喜欢的画面一起出门。</p>
+        </div>
+        <div className="magnet-product-story-grid">
+          <figure className="magnet-product-story-image magnet-product-story-image-fridge">
+            <img alt="冰箱门场景中的照片冰箱贴" src="/product/acrylic-magnet/magnet-on-fridge.png" />
+            <figcaption>冰箱门上的每日相见</figcaption>
+          </figure>
+          <figure className="magnet-product-story-image magnet-product-story-image-keychain">
+            <img alt="搭配挂绳使用的照片冰箱贴" src="/product/acrylic-magnet/magnet-keychain.png" />
+            <figcaption>可搭配挂绳随身携带</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section className="magnet-product-specs" aria-label="商品规格">
+        <p className="magnet-product-eyebrow">PRODUCT DETAILS</p>
+        <h2>小小一块，装下大大的喜欢。</h2>
+        <dl>
+          <div><dt>产品名称</dt><dd>透明照片冰箱贴</dd></div>
+          <div><dt>产品尺寸</dt><dd>6 cm × 9 cm</dd></div>
+          <div><dt>画面内容</dt><dd>支持照片或 AI 小画定制</dd></div>
+          <div><dt>使用场景</dt><dd>冰箱、桌面展示、挂绳搭配</dd></div>
+        </dl>
+      </section>
+
+      <section className="magnet-product-final-cta">
+        <p>给一张喜欢的照片，一个每天都会看到的位置。</p>
+        <a href="/fridge">开始制作我的冰箱贴 <ArrowRight size={18} /></a>
+      </section>
+    </main>
+  );
 }
 
 function LegacyBodyBookPage() {
@@ -4335,6 +4474,9 @@ function PublicExperiencePage({ config }) {
 
             {experienceType === "draw-card" ? (
               <div className="draw-card-clip-order-row">
+                <button className="draw-card-clip-order draw-card-clip-order-prominent draw-card-clip-order-secondary" onClick={() => window.location.assign("/product/acrylic-magnet/detail/")} type="button">
+                  <span>商品详情</span>
+                </button>
                 <button className="draw-card-clip-order draw-card-clip-order-prominent" disabled={!clipItems.length || !orderConfig?.enabled} onClick={() => window.location.assign("/draw/order")} type="button">
                   <Sparkles size={16} />
                   <span>{orderConfig?.enabled ? "选图定制" : "定制暂未开放"}</span>
