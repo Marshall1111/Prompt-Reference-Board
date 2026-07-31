@@ -1,5 +1,85 @@
 [
   {
+    "id": "style_1785459846052",
+    "title": "花环印象肖像",
+    "tags": [
+      "花环印象肖像"
+    ],
+    "subjectType": "pet",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1785459846052/cover.png",
+    "imageUpdatedAt": "2026-07-31T01:04:15.607Z",
+    "personImage": "/style-previews/style_1785459846052/cover.png",
+    "personImageUpdatedAt": "2026-07-31T01:04:15.607Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1785459846052/cover.png",
+    "petImageUpdatedAt": "2026-07-31T01:04:15.607Z",
+    "petThumbnailImage": "",
+    "prompt": "以照片中宠物为主体，去掉原图中除了主体以外的背景物品，以印象派的艺术风格呈现，画面中是一只头戴花环的可爱小宠物，脸部表情俏皮又温顺，身上的毛发在光影的映照下闪烁着微光。花环由多种颜色的花朵精心编织而成，环绕在宠物的头上，增添了几分甜美与浪漫。整幅画运用了印象派丰富的色彩和轻快的笔触，色调柔和而温暖，超高的画质使得每一处细节都清晰可见，给人一种身临其境的感觉。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1785459681113",
+    "title": "来杯饮料",
+    "tags": [
+      "来杯饮料"
+    ],
+    "subjectType": "pet",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1785459681113/cover.png",
+    "imageUpdatedAt": "2026-07-31T01:01:34.456Z",
+    "personImage": "/style-previews/style_1785459681113/cover.png",
+    "personImageUpdatedAt": "2026-07-31T01:01:34.456Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1785459681113/cover.png",
+    "petImageUpdatedAt": "2026-07-31T01:01:34.456Z",
+    "petThumbnailImage": "",
+    "prompt": "将第1张图片变为冰箱写真,保持原图主体不变，去除所有配饰，一张具有INS风、复古格调的人像照片，以低像素、高噪点、胶片粗颗粒质感为视觉特点，融入动态美学与朦胧美学，展现出写意的前卫艺术感，细节丰富，是高级感满满的杰作。室内环境里主体站在冰箱边上，穿着白T，手中拿着一瓶饮料，利用饮料作为道具摆出姿势。整体画面呈现暗色调的柔和朦胧氛围，光影细腻，带有古早味和网感，且有些模糊，如同用手机随手拍下的快照，有着极其平凡无奇且刻意的平庸感，主体妆容自然，情绪氛围感强烈。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1785459610238",
+    "title": "飞天小萌宠",
+    "tags": [
+      "飞天小萌宠"
+    ],
+    "subjectType": "pet",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1785459610238/cover.png",
+    "imageUpdatedAt": "2026-07-31T01:00:39.457Z",
+    "personImage": "/style-previews/style_1785459610238/cover.png",
+    "personImageUpdatedAt": "2026-07-31T01:00:39.457Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1785459610238/cover-pet.png",
+    "petImageUpdatedAt": "2026-07-31T01:00:20.987Z",
+    "petThumbnailImage": "/style-previews/style_1785459610238/cover-pet-thumbnail.webp",
+    "prompt": "masterpiece, best quality, 8k, photorealistic, a cute pet, lying on its back, floating in the clear blue sky, paws tucked in, looking at the camera with a gentle expression, soft curly fur texture, bright natural daylight, simple solid blue background, cinematic composition, shallow depth of field, super cute, innocent, dreamy, whimsical",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1785459548348",
+    "title": "美式证件照",
+    "tags": [
+      "美式证件照"
+    ],
+    "subjectType": "pet",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1785459548348/cover.png",
+    "imageUpdatedAt": "2026-07-31T00:59:35.490Z",
+    "personImage": "/style-previews/style_1785459548348/cover.png",
+    "personImageUpdatedAt": "2026-07-31T00:59:35.490Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1785459548348/cover.png",
+    "petImageUpdatedAt": "2026-07-31T00:59:35.490Z",
+    "petThumbnailImage": "",
+    "prompt": "将宠物调整为端正坐姿，正对镜头，戴着棕色条纹领带，白色翻领领口，背景替换为深蓝色，保持美式证件照风格",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1785372196300",
     "title": "波普红底插画",
     "tags": [
