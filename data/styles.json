@@ -273,15 +273,15 @@
     "personImage": "/style-previews/style_1782658440886/cover.png",
     "personImageUpdatedAt": "2026-06-28T14:54:21.321Z",
     "personThumbnailImage": "",
-    "petImage": "/style-previews/style_1782658440886/cover.png",
-    "petImageUpdatedAt": "2026-06-28T14:54:21.321Z",
-    "petThumbnailImage": "",
+    "petImage": "/style-previews/style_1782658440886/cover-pet.png",
+    "petImageUpdatedAt": "2026-07-31T01:14:52.206Z",
+    "petThumbnailImage": "/style-previews/style_1782658440886/cover-pet-thumbnail.webp",
     "prompt": "原图转为插画\n整体画风：极简拙朴手绘插画，造型高度概括符号化，比例笨拙可爱，仅保留核心识别特征；复古丝网印刷肌理，随性松弛，不追求完美精致\n线条上色：深蓝色歪扭轮廓线，粗细不均、断续断线，带手绘自然抖动动感，刻意粗糙不工整；单色系平涂纯色，无渐变、阴影、明暗过渡，低饱和度色彩，正面平视无透视\n背景处理：暖调米白底色，主体居中，大面积留白，无多余装饰",
     "useStyleImageAsReference": false
   },
   {
     "id": "style_1782952965796",
-    "title": "留白极简宠物",
+    "title": "极简灵魂线条",
     "tags": [
       "极简宠物"
     ],
