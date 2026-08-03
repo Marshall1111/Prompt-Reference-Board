@@ -580,6 +580,26 @@
     "useStyleImageAsReference": false
   },
   {
+    "id": "style_1785736182781",
+    "title": "原始几何肖像",
+    "tags": [
+      "几何肖像"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 1,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-08-03T05:49:42.781Z",
+    "personImage": "/style-previews/style_1785736182781/cover-person.png",
+    "personImageUpdatedAt": "2026-08-03T05:50:34.598Z",
+    "personThumbnailImage": "/style-previews/style_1785736182781/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1785736182781/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-03T05:50:38.428Z",
+    "petThumbnailImage": "/style-previews/style_1785736182781/cover-pet-thumbnail.webp",
+    "prompt": "Primitive geometric portrait, neo-Cubist inspired face structure, bold black contour lines, smooth and clean shapes, high saturation colors, flat blocks, abstract symbolic eyes and facial elements, childlike distortion, influenced by primitive tribal art and outsider art, minimalist vector expressionism, modern totem aesthetics, simplified geometric forms, playful psychological expression, clean composition, strong visual identity, contemporary art poster style, refined and balanced design, no clutter, no texture noise",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1782988594530",
     "title": "奶油糖果头像",
     "tags": [
