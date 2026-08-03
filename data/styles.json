@@ -585,8 +585,8 @@
     "tags": [
       "几何肖像"
     ],
-    "subjectType": "both",
-    "drawCardEnabled": true,
+    "subjectType": "person",
+    "drawCardEnabled": false,
     "drawCardWeight": 1,
     "image": "/style-previews/default/cover.svg",
     "imageUpdatedAt": "2026-08-03T05:49:42.781Z",

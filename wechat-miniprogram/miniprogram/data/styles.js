@@ -412,10 +412,10 @@ const styles = [
     "tags": [
       "几何肖像"
     ],
-    "subjectType": "both",
-    "drawCardEnabled": true,
+    "subjectType": "person",
+    "drawCardEnabled": false,
     "drawCardWeight": 1,
-    "image": "/images-small/style_1785736182781.jpg",
+    "image": "/images-small/style_1785736182781.svg",
     "prompt": "Primitive geometric portrait, neo-Cubist inspired face structure, bold black contour lines, smooth and clean shapes, high saturation colors, flat blocks, abstract symbolic eyes and facial elements, childlike distortion, influenced by primitive tribal art and outsider art, minimalist vector expressionism, modern totem aesthetics, simplified geometric forms, playful psychological expression, clean composition, strong visual identity, contemporary art poster style, refined and balanced design, no clutter, no texture noise",
     "useStyleImageAsReference": false
   },
