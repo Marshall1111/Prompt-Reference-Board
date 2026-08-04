@@ -353,9 +353,9 @@
     "personImage": "/style-previews/style_1782987370930/cover.png",
     "personImageUpdatedAt": "2026-07-02T10:34:41.293Z",
     "personThumbnailImage": "",
-    "petImage": "/style-previews/style_1782987370930/cover.png",
-    "petImageUpdatedAt": "2026-07-02T10:34:41.293Z",
-    "petThumbnailImage": "",
+    "petImage": "/style-previews/style_1782987370930/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-04T02:34:05.401Z",
+    "petThumbnailImage": "/style-previews/style_1782987370930/cover-pet-thumbnail.webp",
     "prompt": "根据上传图片，提取3-5个最具辨识度的特征，重新设计为复古8-bit像素头像（主体居中，纯色背景）。主动抽象、夸张、Q版化，避免写实或1:1还原。\n像素风格：清晰像素块，黑色描边，大色块，强轮廓，极简五官，图标化。\n颜色：主体与背景高饱和撞色（背景色提取原画面中的主要颜色），避免固定配色。\n表情根据气质设计（呆萌/酷脸等），物品可不加人脸。\n禁止实景、3D、厚涂、插画感。输出高度抽象、像素感强的头像IP，非原图翻版。",
     "useStyleImageAsReference": false
   },
