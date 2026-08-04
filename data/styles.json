@@ -1050,7 +1050,7 @@
       "随意，手绘，丑萌，速写"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 30,
     "image": "/style-previews/style_1779179665778/cover.jpg",
     "imageUpdatedAt": null,
