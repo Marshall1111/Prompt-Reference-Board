@@ -373,9 +373,9 @@
     "personImage": "/style-previews/style_1784001089418/cover.png",
     "personImageUpdatedAt": "2026-07-14T03:52:05.405Z",
     "personThumbnailImage": "",
-    "petImage": "/style-previews/style_1784001089418/cover.png",
-    "petImageUpdatedAt": "2026-07-14T03:52:05.405Z",
-    "petThumbnailImage": "",
+    "petImage": "/style-previews/style_1784001089418/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-04T02:57:56.058Z",
+    "petThumbnailImage": "/style-previews/style_1784001089418/cover-pet-thumbnail.webp",
     "prompt": "根据上传的主体创建一张流行的 动漫艺术风格图片。使用 自信且略有变化的线条 以及使用扁平阴影形状的极简赛璐璐着色。使用 明亮、饱和的色彩 和干净的图形化光影。该风格的定义是夸张的卡通角色比例，具有极具表现力且简约的面部特征，从而实现巨大的情感表达范围，并配以高度多变的拉伸解剖结构。将环境转换为略微扭曲的空间，具有俏皮的透视变形和简化的物体。构图和基调应在一个完全风格化、非现实的世界中显得充满活力、生动且具有喜剧色彩。",
     "useStyleImageAsReference": false
   },
@@ -433,9 +433,9 @@
     "personImage": "/style-previews/style_1782782727369/cover.png",
     "personImageUpdatedAt": "2026-06-30T01:25:33.395Z",
     "personThumbnailImage": "",
-    "petImage": "/style-previews/style_1782782727369/cover.png",
-    "petImageUpdatedAt": "2026-06-30T01:25:33.395Z",
-    "petThumbnailImage": "",
+    "petImage": "/style-previews/style_1782782727369/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-04T02:58:08.845Z",
+    "petThumbnailImage": "/style-previews/style_1782782727369/cover-pet-thumbnail.webp",
     "prompt": "将图像转绘为源自90年代的Y2K像素风风格。保留原有人物和情境，但对其进行简化并重新构思，使用可爱小巧的8位像素字符进行呈现……大像素，有限4色。",
     "useStyleImageAsReference": false
   },
@@ -705,7 +705,7 @@
     "tags": [
       "kawaii插画"
     ],
-    "subjectType": "both",
+    "subjectType": "person",
     "drawCardEnabled": true,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1782952781294/cover.jpg",
@@ -945,7 +945,7 @@
   },
   {
     "id": "style_1779323084946",
-    "title": "宠物置换艺术图",
+    "title": "珍珠耳环宠物",
     "tags": [
       "艺术"
     ],

@@ -496,7 +496,7 @@ const styles = [
     "tags": [
       "kawaii插画"
     ],
-    "subjectType": "both",
+    "subjectType": "person",
     "drawCardEnabled": true,
     "drawCardWeight": 100,
     "image": "/images-small/style_1782952781294.jpg",
@@ -664,7 +664,7 @@ const styles = [
   {
     "id": "style_1779323084946",
     "sort": 47,
-    "title": "宠物置换艺术图",
+    "title": "珍珠耳环宠物",
     "tags": [
       "艺术"
     ],
