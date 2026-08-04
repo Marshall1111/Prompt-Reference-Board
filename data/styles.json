@@ -1,5 +1,25 @@
 [
   {
+    "id": "style_1785810130926",
+    "title": "萌趣漫画",
+    "tags": [
+      "萌趣漫画"
+    ],
+    "subjectType": "pet",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1785810130926/cover.png",
+    "imageUpdatedAt": "2026-08-04T02:22:18.993Z",
+    "personImage": "/style-previews/style_1785810130926/cover.png",
+    "personImageUpdatedAt": "2026-08-04T02:22:18.993Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1785810130926/cover.png",
+    "petImageUpdatedAt": "2026-08-04T02:22:18.993Z",
+    "petThumbnailImage": "",
+    "prompt": "Convert this photo to an exaggerated and funny Kiyoe-style:Exaggerate facial features and expressions to create a humorous effect, big head, small body. The nose is big and pointed, and the cheeks are plump and rosy. Using thick and round lines to outline characters, the overall color is bright and vivid. Retain the distinctive features of hair and clothing, but simplify details and a simple background.full subject in frame, centered composition, ample surrounding empty space, nothing cropped out",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1785459846052",
     "title": "花环印象肖像",
     "tags": [
