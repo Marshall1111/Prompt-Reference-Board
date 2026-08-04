@@ -160,6 +160,26 @@
     "useStyleImageAsReference": false
   },
   {
+    "id": "style_1779323084946",
+    "title": "珍珠耳环宠物",
+    "tags": [
+      "艺术"
+    ],
+    "subjectType": "pet",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1779323084946/cover.jpg",
+    "imageUpdatedAt": null,
+    "personImage": "",
+    "personImageUpdatedAt": null,
+    "personThumbnailImage": "",
+    "petImage": "",
+    "petImageUpdatedAt": null,
+    "petThumbnailImage": "",
+    "prompt": "以我上传的宠物照片为唯一外貌参考，严格保留宠物真实的品种、毛色花纹、脸型、耳朵、眼睛、鼻子和神态。\n\n创作一幅宠物版《戴珍珠耳环的少女》古典肖像：竖幅半身近景，身体背对镜头并轻微向右侧转约30度，只露出肩膀和上胸；头部自然回望镜头，脸部为柔和的三分之二侧面，颈部自然、不扭曲，头部保持水平、不歪头。眼神安静、略带好奇，嘴部自然闭合。\n\n服装简洁接近原作：深棕色或赭黄色宽松古典上衣，只露出肩颈和少量衣领；佩戴蓝色头巾，搭配明黄色长垂布，头巾包裹头部并自然避开宠物耳朵；只在靠近镜头的一侧耳边佩戴一枚大而圆润、具有柔和高光的珍珠耳坠。不要项链，不要复杂礼服，不要花朵，不要华丽首饰。\n\n明亮的黄色、青绿色、淡蓝灰色或暖米白色纯色背景，带细腻古典油画刷痕与低对比度渐变；整体明亮、干净、克制，不出现具体场景、花卉或抢眼装饰，宠物轮廓清晰。强烈但柔和的左上方侧光照亮脸部和珍珠；17世纪荷兰油画肖像质感，细腻厚涂笔触，沉静、简洁、庄重的博物馆肖像效果，竖幅 2:3，无文字、无签名、无水印。\n\n负面限制：正面证件照姿势，歪头，仰头，低头，身体正对镜头，脖子扭曲，复杂长裙，过多布料，珍珠项链，多个耳坠，花卉背景，华丽宫廷服，双耳同时佩戴耳环，人类身体，人类手脚，畸形五官，文字，签名，水印。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1779179958695",
     "title": "装饰民间插画",
     "tags": [
@@ -608,8 +628,8 @@
     "subjectType": "person",
     "drawCardEnabled": false,
     "drawCardWeight": 1,
-    "image": "/style-previews/default/cover.svg",
-    "imageUpdatedAt": "2026-08-03T05:49:42.781Z",
+    "image": "/style-previews/style_1785736182781/cover.png",
+    "imageUpdatedAt": "2026-08-04T04:35:13.834Z",
     "personImage": "/style-previews/style_1785736182781/cover-person.png",
     "personImageUpdatedAt": "2026-08-03T05:50:34.598Z",
     "personThumbnailImage": "/style-previews/style_1785736182781/cover-person-thumbnail.webp",
@@ -942,26 +962,6 @@
     "petThumbnailImage": "",
     "prompt": "将图片风格化为皮克斯动画风格，角色造型圆润可爱，光影层次分明，保留人物或宠物原有姿态和互动关系，画面明亮。",
     "useStyleImageAsReference": false
-  },
-  {
-    "id": "style_1779323084946",
-    "title": "珍珠耳环宠物",
-    "tags": [
-      "艺术"
-    ],
-    "subjectType": "pet",
-    "drawCardEnabled": true,
-    "drawCardWeight": 100,
-    "image": "/style-previews/style_1779323084946/cover.jpg",
-    "imageUpdatedAt": null,
-    "personImage": "",
-    "personImageUpdatedAt": null,
-    "personThumbnailImage": "",
-    "petImage": "",
-    "petImageUpdatedAt": null,
-    "petThumbnailImage": "",
-    "prompt": "把图一中的猫咪换成图二中的宠物",
-    "useStyleImageAsReference": true
   },
   {
     "id": "style_1779179444790",

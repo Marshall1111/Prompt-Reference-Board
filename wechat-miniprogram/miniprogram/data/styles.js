@@ -112,8 +112,22 @@ const styles = [
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1779179958695",
+    "id": "style_1779323084946",
     "sort": 8,
+    "title": "珍珠耳环宠物",
+    "tags": [
+      "艺术"
+    ],
+    "subjectType": "pet",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1779323084946.jpg",
+    "prompt": "以我上传的宠物照片为唯一外貌参考，严格保留宠物真实的品种、毛色花纹、脸型、耳朵、眼睛、鼻子和神态。\n\n创作一幅宠物版《戴珍珠耳环的少女》古典肖像：竖幅半身近景，身体背对镜头并轻微向右侧转约30度，只露出肩膀和上胸；头部自然回望镜头，脸部为柔和的三分之二侧面，颈部自然、不扭曲，头部保持水平、不歪头。眼神安静、略带好奇，嘴部自然闭合。\n\n服装简洁接近原作：深棕色或赭黄色宽松古典上衣，只露出肩颈和少量衣领；佩戴蓝色头巾，搭配明黄色长垂布，头巾包裹头部并自然避开宠物耳朵；只在靠近镜头的一侧耳边佩戴一枚大而圆润、具有柔和高光的珍珠耳坠。不要项链，不要复杂礼服，不要花朵，不要华丽首饰。\n\n明亮的黄色、青绿色、淡蓝灰色或暖米白色纯色背景，带细腻古典油画刷痕与低对比度渐变；整体明亮、干净、克制，不出现具体场景、花卉或抢眼装饰，宠物轮廓清晰。强烈但柔和的左上方侧光照亮脸部和珍珠；17世纪荷兰油画肖像质感，细腻厚涂笔触，沉静、简洁、庄重的博物馆肖像效果，竖幅 2:3，无文字、无签名、无水印。\n\n负面限制：正面证件照姿势，歪头，仰头，低头，身体正对镜头，脖子扭曲，复杂长裙，过多布料，珍珠项链，多个耳坠，花卉背景，华丽宫廷服，双耳同时佩戴耳环，人类身体，人类手脚，畸形五官，文字，签名，水印。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1779179958695",
+    "sort": 9,
     "title": "装饰民间插画",
     "tags": [
       "方形，平面插画"
@@ -127,7 +141,7 @@ const styles = [
   },
   {
     "id": "style_1782538556729",
-    "sort": 9,
+    "sort": 10,
     "title": "真实场景卡通拼贴",
     "tags": [
       "混搭插画风"
@@ -141,7 +155,7 @@ const styles = [
   },
   {
     "id": "style_1782657237052",
-    "sort": 10,
+    "sort": 11,
     "title": "绿线手绘涂鸦",
     "tags": [
       "涂鸦，插画"
@@ -155,7 +169,7 @@ const styles = [
   },
   {
     "id": "style_1785406579480",
-    "sort": 11,
+    "sort": 12,
     "title": "肌理风格插画",
     "tags": [
       "插画"
@@ -169,7 +183,7 @@ const styles = [
   },
   {
     "id": "style_1779180012171",
-    "sort": 12,
+    "sort": 13,
     "title": "奶油粗笔Q版",
     "tags": [
       "方形，可爱手绘"
@@ -183,7 +197,7 @@ const styles = [
   },
   {
     "id": "pencil",
-    "sort": 13,
+    "sort": 14,
     "title": "草稿涂鸦速写",
     "tags": [
       "涂鸦，速写，儿童，插画，宠物"
@@ -197,7 +211,7 @@ const styles = [
   },
   {
     "id": "style_1782658440886",
-    "sort": 14,
+    "sort": 15,
     "title": "拙朴丝印手绘",
     "tags": [
       "手绘速写"
@@ -211,7 +225,7 @@ const styles = [
   },
   {
     "id": "style_1782952965796",
-    "sort": 15,
+    "sort": 16,
     "title": "极简灵魂线条",
     "tags": [
       "极简宠物"
@@ -225,7 +239,7 @@ const styles = [
   },
   {
     "id": "style_1784009080663",
-    "sort": 16,
+    "sort": 17,
     "title": "Riso孔版印刷",
     "tags": [
       "印刷，"
@@ -239,7 +253,7 @@ const styles = [
   },
   {
     "id": "style_1782987370930",
-    "sort": 17,
+    "sort": 18,
     "title": "复古像素头像",
     "tags": [
       "复古8-bit像素"
@@ -253,7 +267,7 @@ const styles = [
   },
   {
     "id": "style_1784001089418",
-    "sort": 18,
+    "sort": 19,
     "title": "透视动漫艺术",
     "tags": [
       "动漫"
@@ -267,7 +281,7 @@ const styles = [
   },
   {
     "id": "style_1782538907748",
-    "sort": 19,
+    "sort": 20,
     "title": "Y2K街头封面",
     "tags": [
       "潮流海报"
@@ -281,7 +295,7 @@ const styles = [
   },
   {
     "id": "style_1782782682464",
-    "sort": 20,
+    "sort": 21,
     "title": "日式水墨速写",
     "tags": [
       "日式水墨"
@@ -295,7 +309,7 @@ const styles = [
   },
   {
     "id": "style_1782782727369",
-    "sort": 21,
+    "sort": 22,
     "title": "90年代像素角色",
     "tags": [
       "Y2K像素"
@@ -309,7 +323,7 @@ const styles = [
   },
   {
     "id": "style_1780884090064",
-    "sort": 22,
+    "sort": 23,
     "title": "复古蜡笔宠物",
     "tags": [
       "宠物，蜡笔"
@@ -323,7 +337,7 @@ const styles = [
   },
   {
     "id": "style_1782658589405",
-    "sort": 23,
+    "sort": 24,
     "title": "儿童粗线简笔",
     "tags": [
       "粗线条简笔"
@@ -337,7 +351,7 @@ const styles = [
   },
   {
     "id": "style_1783776698891",
-    "sort": 24,
+    "sort": 25,
     "title": "黑白单线贴纸",
     "tags": [
       "黑白单线人物贴纸"
@@ -351,7 +365,7 @@ const styles = [
   },
   {
     "id": "style_1780359249273",
-    "sort": 25,
+    "sort": 26,
     "title": "童趣治愈色块",
     "tags": [
       "治愈系插画"
@@ -365,7 +379,7 @@ const styles = [
   },
   {
     "id": "style_1782539050463",
-    "sort": 26,
+    "sort": 27,
     "title": "复古美式卡通",
     "tags": [
       "美式卡通"
@@ -379,7 +393,7 @@ const styles = [
   },
   {
     "id": "style_1782986654936",
-    "sort": 27,
+    "sort": 28,
     "title": "稚拙撞色头像",
     "tags": [
       "稚拙撞色扁平幼态风"
@@ -393,7 +407,7 @@ const styles = [
   },
   {
     "id": "style_1782658718166",
-    "sort": 28,
+    "sort": 29,
     "title": "韩系软萌水彩",
     "tags": [
       "森系水彩"
@@ -407,7 +421,7 @@ const styles = [
   },
   {
     "id": "style_1782988633141",
-    "sort": 29,
+    "sort": 30,
     "title": "困倦炸毛头像",
     "tags": [
       "困倦炸毛丧系Q版风"
@@ -421,7 +435,7 @@ const styles = [
   },
   {
     "id": "style_1785736182781",
-    "sort": 30,
+    "sort": 31,
     "title": "原始几何肖像",
     "tags": [
       "几何肖像"
@@ -429,13 +443,13 @@ const styles = [
     "subjectType": "person",
     "drawCardEnabled": false,
     "drawCardWeight": 1,
-    "image": "/images-small/style_1785736182781.svg",
+    "image": "/images-small/style_1785736182781.jpg",
     "prompt": "Primitive geometric portrait, neo-Cubist inspired face structure, bold black contour lines, smooth and clean shapes, high saturation colors, flat blocks, abstract symbolic eyes and facial elements, childlike distortion, influenced by primitive tribal art and outsider art, minimalist vector expressionism, modern totem aesthetics, simplified geometric forms, playful psychological expression, clean composition, strong visual identity, contemporary art poster style, refined and balanced design, no clutter, no texture noise",
     "useStyleImageAsReference": false
   },
   {
     "id": "style_1782988594530",
-    "sort": 31,
+    "sort": 32,
     "title": "奶油糖果头像",
     "tags": [
       "奶油糖果Q版夸张涂鸦风"
@@ -449,7 +463,7 @@ const styles = [
   },
   {
     "id": "style_1782988682798",
-    "sort": 32,
+    "sort": 33,
     "title": "方块冷脸头像",
     "tags": [
       "方块扁平冷淡厌世风"
@@ -463,7 +477,7 @@ const styles = [
   },
   {
     "id": "style_1782988554790",
-    "sort": 33,
+    "sort": 34,
     "title": "慵懒复古漫画",
     "tags": [
       "潦草复古慵懒漫画风"
@@ -477,7 +491,7 @@ const styles = [
   },
   {
     "id": "style_1782986548843",
-    "sort": 34,
+    "sort": 35,
     "title": "厌世时装大头",
     "tags": [
       "时装涂鸦厌世大头风"
@@ -491,7 +505,7 @@ const styles = [
   },
   {
     "id": "style_1782952781294",
-    "sort": 35,
+    "sort": 36,
     "title": "Kawaii糖果头像",
     "tags": [
       "kawaii插画"
@@ -505,7 +519,7 @@ const styles = [
   },
   {
     "id": "style_1782659145280",
-    "sort": 36,
+    "sort": 37,
     "title": "搞怪漫画海报",
     "tags": [
       "搞怪漫画涂鸦海报"
@@ -519,7 +533,7 @@ const styles = [
   },
   {
     "id": "style_1780214860370",
-    "sort": 37,
+    "sort": 38,
     "title": "厚涂宠物肖像",
     "tags": [
       "宠物，油画，厚涂，肖像"
@@ -533,7 +547,7 @@ const styles = [
   },
   {
     "id": "style_1780183870275",
-    "sort": 38,
+    "sort": 39,
     "title": "萌宠角色卡",
     "tags": [
       "宠物，角色卡"
@@ -547,7 +561,7 @@ const styles = [
   },
   {
     "id": "style_1780183785792",
-    "sort": 39,
+    "sort": 40,
     "title": "夸张水墨宠物",
     "tags": [
       "水墨肖像，宠物"
@@ -561,7 +575,7 @@ const styles = [
   },
   {
     "id": "style_1779944352617",
-    "sort": 40,
+    "sort": 41,
     "title": "潮流萌宠拼贴",
     "tags": [
       "潮流",
@@ -576,7 +590,7 @@ const styles = [
   },
   {
     "id": "style_1779931156452",
-    "sort": 41,
+    "sort": 42,
     "title": "莫奈宠物油画",
     "tags": [
       "莫奈",
@@ -593,7 +607,7 @@ const styles = [
   },
   {
     "id": "style_1782538975049",
-    "sort": 42,
+    "sort": 43,
     "title": "复古动画人像",
     "tags": [
       "复古，扁平，动画人像"
@@ -607,7 +621,7 @@ const styles = [
   },
   {
     "id": "style_1780636884368",
-    "sort": 43,
+    "sort": 44,
     "title": "旅行冰箱贴图标",
     "tags": [
       "异形，不带背景"
@@ -621,7 +635,7 @@ const styles = [
   },
   {
     "id": "style_1780636102242",
-    "sort": 44,
+    "sort": 45,
     "title": "地标冰箱贴图标",
     "tags": [
       "异形，带背景"
@@ -635,7 +649,7 @@ const styles = [
   },
   {
     "id": "style_1779179574408",
-    "sort": 45,
+    "sort": 46,
     "title": "丑萌马克笔涂鸦",
     "tags": [
       "丑萌，手绘，随意"
@@ -649,7 +663,7 @@ const styles = [
   },
   {
     "id": "style_1779181030715",
-    "sort": 46,
+    "sort": 47,
     "title": "皮克斯萌趣动画",
     "tags": [
       "皮克斯，可爱，动画，宠物，儿童"
@@ -660,20 +674,6 @@ const styles = [
     "image": "/images-small/style_1779181030715.jpg",
     "prompt": "将图片风格化为皮克斯动画风格，角色造型圆润可爱，光影层次分明，保留人物或宠物原有姿态和互动关系，画面明亮。",
     "useStyleImageAsReference": false
-  },
-  {
-    "id": "style_1779323084946",
-    "sort": 47,
-    "title": "珍珠耳环宠物",
-    "tags": [
-      "艺术"
-    ],
-    "subjectType": "pet",
-    "drawCardEnabled": true,
-    "drawCardWeight": 100,
-    "image": "/images-small/style_1779323084946.jpg",
-    "prompt": "把图一中的猫咪换成图二中的宠物",
-    "useStyleImageAsReference": true
   },
   {
     "id": "style_1779179444790",
