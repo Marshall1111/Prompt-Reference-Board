@@ -1,5 +1,45 @@
 [
   {
+    "id": "style_1785907876216",
+    "title": "鱼眼潮流合影",
+    "tags": [
+      "鱼眼潮流合影"
+    ],
+    "subjectType": "person",
+    "drawCardEnabled": false,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1785907876216/cover.jpg",
+    "imageUpdatedAt": "2026-08-05T05:31:27.977Z",
+    "personImage": "/style-previews/style_1785907876216/cover.jpg",
+    "personImageUpdatedAt": "2026-08-05T05:31:27.977Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1785907876216/cover.jpg",
+    "petImageUpdatedAt": "2026-08-05T05:31:27.977Z",
+    "petThumbnailImage": "",
+    "prompt": "参考图一的视觉风格与版式语言，保留图二中的主体人物 / 建筑 / 场景内容与基本构图关系，将其转换为一张 Y2K 韩系鱼眼镜头杂志海报。\n整体采用：\nfisheye lens photography、2000s Korean pop poster、retro digital camera aesthetic、bubble lens distortion、magazine cover composition 风格。\n画面中心形成一个巨大的圆形鱼眼空间，\n主体位于圆形镜头内部，\n边缘产生明显弯曲透视与空间拉伸，\n带轻微低像素感、CCD 数码相机质感、柔焦 glow、高曝光白边与塑料镜片反光。\n画面外围为深色包裹式边框，\n顶部加入同样设计风格超巨大弯曲英文标题字：\n“{TOKYO}”\n字体为：\n超宽压缩、Y2K 金属感、厚重拉伸、弧形排版、带白色发光描边，\n类似 2000s 韩国女团专辑封面字体。\n底部加入：\n城市特色列表 / 地名 / 时间 / 坐标 / slogan / 编号信息（内容可根据图自由发挥），\n采用橙色或白色窄体文字排版。\n画面加入：\n镜头眩光、\n星形高光 sparkle、\n轻微扫描纹理、\n旧数码照片噪点、\n塑料包装反光、\nDV 摄影机过曝感、\n边缘暗角、\n低保真锐化痕迹。\n整体气质像：\n2003 年韩国女团专辑封面、\nY2K 青春杂志、\n鱼眼 webcamera 自拍、\n旧互联网视觉、\n潮流城市宣传海报、\n低保真未来感编辑设计。\n主体保持清晰可识别，\n但整体空间具有强烈 fisheye distortion 与封面化设计感。",
+    "useStyleImageAsReference": true
+  },
+  {
+    "id": "style_1785907695667",
+    "title": "复古线稿插画",
+    "tags": [
+      "复古线稿插画"
+    ],
+    "subjectType": "pet",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1785907695667/cover.png",
+    "imageUpdatedAt": "2026-08-05T05:28:25.903Z",
+    "personImage": "/style-previews/style_1785907695667/cover.png",
+    "personImageUpdatedAt": "2026-08-05T05:28:25.903Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1785907695667/cover.png",
+    "petImageUpdatedAt": "2026-08-05T05:28:25.903Z",
+    "petThumbnailImage": "",
+    "prompt": "将图转换成复古美式插画，极简手绘涂鸦、将图中的动物保持姿势不变的情况下进行卡通漫画处理，不规则的复古红色手绘线稿，线条略带不规则手绘感，笨笨拙拙，不追求完美。五官高度概括，动作幅度夸张，佩戴墨镜，造型夸张可爱；干净背景，地面用半调网点表现地砖肌理，场景完整且复古潮流氛围浓厚，阴影填充黑色细小波点，配色为全部为复古红色，暖米白纸张、粗糙不规则描边、丝网印刷、半色调网点、油墨露白。\n海报排版：排版错落布局；画面最顶端:横跨画面的超大号粗体主标题「GOLDENDJ!」，不规则手写粗体，手绘pop体，字母高低错落，手工感，字母宽窄不统一，字形略微倾斜，字体自带粗糙颗粒磨损感，视觉冲击力强，整体风格为美式漫画的复古活力质感，氛围轻松潮流，兼具松弛感与年轻感。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1785810130926",
     "title": "萌趣漫画",
     "tags": [
