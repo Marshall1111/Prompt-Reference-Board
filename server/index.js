@@ -39,6 +39,7 @@ const storageExportTempRoot = path.join(rootDir, "data", "storage-export-temp");
 const orderAssetPublicRoot = path.join(rootDir, "public", "order-assets");
 const accountAvatarPublicRoot = path.join(rootDir, "public", "account-avatars");
 const orderOriginalArchiveRoot = path.join(rootDir, "data", "order-original-downloads");
+const bodyBookPrintBackCoverPath = path.join(rootDir, "public", "body-book-color-pages", "print-back-cover.jpg");
 const previewRoot = path.join(rootDir, "public", "style-previews");
 const generatedImageRoot = path.join(rootDir, "data", "private-generated-images");
 const generatedPreviewRoot = path.join(rootDir, "public", "generated-previews");
@@ -329,6 +330,9 @@ const activeImageJobs = new Map();
 const drawCardSessionSyncLocks = new Map();
 const bodyBookSessionSyncLocks = new Map();
 const orderOriginalBundleBuilds = new Map();
+const ORDER_ORIGINAL_BUNDLE_VERSION = "zip-v3-back-cover";
+const COLOR_BOOK_PRINT_BLEED_RATIO = 0.035;
+const COLOR_BOOK_PRINT_BUNDLE_VERSION = "color-bleed-v1";
 
 function nowMs() {
   return Date.now();
@@ -5425,7 +5429,27 @@ async function resolveArchivedOrderOriginalCandidates(order) {
 }
 
 function getOrderOriginalBundlePath(order) {
-  return path.join(orderOriginalArchiveRoot, `${path.basename(String(order?.id || "order"))}.zip`);
+  const orderId = path.basename(String(order?.id || "order"));
+  // A versioned path intentionally leaves previous downloads intact, while
+  // upgrading old tar-with-a-.zip-extension files and colour-book exports.
+  const suffix = isColorBookOrder(order)
+    ? `-${ORDER_ORIGINAL_BUNDLE_VERSION}-${COLOR_BOOK_PRINT_BUNDLE_VERSION}`
+    : `-${ORDER_ORIGINAL_BUNDLE_VERSION}`;
+  return path.join(orderOriginalArchiveRoot, `${orderId}${suffix}.zip`);
+}
+
+function isColorBookOrder(order) {
+  if (String(order?.experienceType || "") !== "body-book") return false;
+  if (String(order?.bodyBookThemeName || "").trim() === String(getBookTheme("color")?.name || "颜色认知书")) return true;
+  // Keep older colour-book orders working even when their theme name predates
+  // the order metadata field. Built-in object-page IDs are unique to this book.
+  return Array.isArray(order?.items) && order.items.some((item) =>
+    /^built-in:(?:red|orange|yellow|green|blue|purple|pink|black)-objects$/i.test(String(item?.jobId || ""))
+  );
+}
+
+function isBodyBookOrder(order) {
+  return String(order?.experienceType || "") === "body-book";
 }
 
 function queueOrderOriginalImageBundle(order) {
@@ -5489,6 +5513,7 @@ async function buildOrderOriginalImageBundle(order) {
   const folderPath = path.join(tempDir, folderName);
   const stagingZipPath = path.join(storageExportTempRoot, `order-originals-${bundleId}.zip`);
   const zipPath = getOrderOriginalBundlePath(order);
+  const applyColorBookPrintBleed = isColorBookOrder(order);
   await mkdir(folderPath, { recursive: true });
 
   const downloadedFiles = [];
@@ -5498,60 +5523,20 @@ async function buildOrderOriginalImageBundle(order) {
       const candidate = candidates[index];
 
       try {
-        if (candidate.sourceType === "archived") {
-          if (!(await fileExists(candidate.archivedFilePath))) {
-            throw createHttpError(404, "服务器未找到已归档的订单原图。");
-          }
-
-          const ext = path.extname(candidate.archivedFilePath).toLowerCase() || ".png";
-          const filename = `original-${String(downloadedFiles.length + 1).padStart(2, "0")}${ext}`;
-          const filePath = path.join(folderPath, filename);
-          await copyFile(candidate.archivedFilePath, filePath);
-          downloadedFiles.push(filePath);
-          continue;
+        const source = await readOrderOriginalCandidate(candidate);
+        const ext = applyColorBookPrintBleed
+          ? ".png"
+          : source.extension || extensionForContentType(candidate.mimeType) || ".png";
+        const filename = `original-${String(downloadedFiles.length + 1).padStart(2, "0")}${ext}`;
+        const filePath = path.join(folderPath, filename);
+        if (applyColorBookPrintBleed) {
+          await writeColorBookPrintBleedImage({ input: source.input, outputPath: filePath });
+        } else if (source.filePath) {
+          await copyFile(source.filePath, filePath);
+        } else {
+          await writeFile(filePath, source.input);
         }
-
-        if (candidate.sourceType === "stored") {
-          if (!(await fileExists(candidate.storedFilePath))) {
-            throw createHttpError(404, "服务器未找到认知书物品页原图。");
-          }
-
-          const ext = path.extname(candidate.storedFilePath).toLowerCase() || ".png";
-          const filename = `original-${String(downloadedFiles.length + 1).padStart(2, "0")}${ext}`;
-          const filePath = path.join(folderPath, filename);
-          await copyFile(candidate.storedFilePath, filePath);
-          downloadedFiles.push(filePath);
-          continue;
-        }
-
-        if (candidate.sourceType === "generated") {
-          if (!(await fileExists(candidate.generatedFilePath))) {
-            throw createHttpError(404, "服务器未找到已保存的生成原图。");
-          }
-
-          const ext = path.extname(candidate.generatedFilePath).toLowerCase() || extensionForContentType(candidate.mimeType) || ".png";
-          const filename = `original-${String(downloadedFiles.length + 1).padStart(2, "0")}${ext}`;
-          const filePath = path.join(folderPath, filename);
-          await copyFile(candidate.generatedFilePath, filePath);
-          downloadedFiles.push(filePath);
-          continue;
-        }
-
-        if (candidate.sourceType === "remote") {
-          const response = await fetch(candidate.remoteUrl);
-          if (!response.ok) {
-            throw createHttpError(response.status === 404 ? 404 : 502, `下载原图失败：${response.status}`);
-          }
-
-          const arrayBuffer = await response.arrayBuffer();
-          const contentType = String(response.headers.get("content-type") || "");
-          const ext = extensionForContentType(contentType) || extensionForRemoteUrl(candidate.remoteUrl) || ".png";
-          const filename = `original-${String(downloadedFiles.length + 1).padStart(2, "0")}${ext}`;
-          const filePath = path.join(folderPath, filename);
-          await writeFile(filePath, Buffer.from(arrayBuffer));
-          downloadedFiles.push(filePath);
-          continue;
-        }
+        downloadedFiles.push(filePath);
       } catch (error) {
         failedSources.push({
           sourceType: candidate.sourceType,
@@ -5563,6 +5548,18 @@ async function buildOrderOriginalImageBundle(order) {
 
     if (!downloadedFiles.length) {
       throw createHttpError(404, failedSources[0]?.message || "该历史订单关联的任务原图已被清理，当前无法下载。");
+    }
+
+    // Physical books always carry the same supplied QR-code back cover. It is
+    // added after all page originals so print operators can use it directly as
+    // the final page, without altering customer artwork or its preview.
+    if (isBodyBookOrder(order)) {
+      if (!(await fileExists(bodyBookPrintBackCoverPath))) {
+        throw createHttpError(500, "服务器未找到认知书固定封底文件。");
+      }
+      const backCoverPath = path.join(folderPath, `original-${String(downloadedFiles.length + 1).padStart(2, "0")}-封底.jpg`);
+      await copyFile(bodyBookPrintBackCoverPath, backCoverPath);
+      downloadedFiles.push(backCoverPath);
     }
 
     await createZipFromDirectory(tempDir, stagingZipPath);
@@ -5581,6 +5578,99 @@ async function buildOrderOriginalImageBundle(order) {
     await rm(tempDir, { recursive: true, force: true });
     await rm(stagingZipPath, { force: true });
   }
+}
+
+async function readOrderOriginalCandidate(candidate) {
+  if (candidate.sourceType === "archived" || candidate.sourceType === "stored" || candidate.sourceType === "generated") {
+    const filePath = candidate.sourceType === "archived"
+      ? candidate.archivedFilePath
+      : candidate.sourceType === "stored"
+        ? candidate.storedFilePath
+        : candidate.generatedFilePath;
+    if (!(await fileExists(filePath))) {
+      const label = candidate.sourceType === "stored" ? "认知书物品页原图" : "已保存的生成原图";
+      throw createHttpError(404, `服务器未找到${label}。`);
+    }
+    return { input: filePath, filePath, extension: path.extname(filePath).toLowerCase() };
+  }
+
+  if (candidate.sourceType === "remote") {
+    const response = await fetch(candidate.remoteUrl);
+    if (!response.ok) {
+      throw createHttpError(response.status === 404 ? 404 : 502, `下载原图失败：${response.status}`);
+    }
+    const contentType = String(response.headers.get("content-type") || "");
+    return {
+      input: Buffer.from(await response.arrayBuffer()),
+      filePath: "",
+      extension: extensionForContentType(contentType) || extensionForRemoteUrl(candidate.remoteUrl)
+    };
+  }
+
+  throw createHttpError(400, "不支持的订单原图来源。");
+}
+
+async function writeColorBookPrintBleedImage({ input, outputPath }) {
+  const sharp = await loadSharpModule();
+  if (!sharp) throw createHttpError(500, "服务器未安装印刷出血处理组件。");
+
+  const source = sharp(input, { animated: false });
+  const metadata = await source.metadata();
+  const width = Number(metadata.width || 0);
+  const height = Number(metadata.height || 0);
+  if (!width || !height) throw createHttpError(422, "无法读取认知书页面尺寸。");
+
+  const bleed = Math.max(1, Math.round(Math.min(width, height) * COLOR_BOOK_PRINT_BLEED_RATIO));
+  const background = await getPrintBleedBackgroundColor(sharp, input, width, height);
+  await sharp({
+    create: {
+      width: width + bleed * 2,
+      height: height + bleed * 2,
+      channels: 4,
+      background
+    }
+  })
+    .composite([{ input, left: bleed, top: bleed }])
+    .png()
+    .toFile(outputPath);
+}
+
+async function getPrintBleedBackgroundColor(sharp, input, width, height) {
+  const sampleSize = Math.max(8, Math.min(64, Math.floor(Math.min(width, height) * 0.06)));
+  const positions = [
+    { left: 0, top: 0 },
+    { left: width - sampleSize, top: 0 },
+    { left: 0, top: height - sampleSize },
+    { left: width - sampleSize, top: height - sampleSize }
+  ];
+  const samples = [];
+  for (const position of positions) {
+    const { data, info } = await sharp(input, { animated: false })
+      .extract({ ...position, width: sampleSize, height: sampleSize })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    for (let index = 0; index < data.length; index += info.channels) {
+      if (info.channels === 4 && data[index + 3] < 220) continue;
+      samples.push([data[index], data[index + 1], data[index + 2]]);
+    }
+  }
+  if (!samples.length) return { r: 255, g: 255, b: 255, alpha: 1 };
+
+  const bins = new Map();
+  for (const pixel of samples) {
+    const key = pixel.map((channel) => Math.round(channel / 16) * 16).join(",");
+    const group = bins.get(key) || [];
+    group.push(pixel);
+    bins.set(key, group);
+  }
+  const dominant = [...bins.values()].sort((left, right) => right.length - left.length)[0];
+  const median = (values) => values.slice().sort((left, right) => left - right)[Math.floor(values.length / 2)];
+  return {
+    r: median(dominant.map((pixel) => pixel[0])),
+    g: median(dominant.map((pixel) => pixel[1])),
+    b: median(dominant.map((pixel) => pixel[2])),
+    alpha: 1
+  };
 }
 
 async function streamOrderOriginalImageBundle(res, bundle) {
@@ -6356,7 +6446,19 @@ function toRelativeStoragePath(filePath) {
 }
 
 async function createZipFromDirectory(sourceDir, outputPath) {
-  await execFileAsync("tar", ["-a", "-c", "-f", outputPath, "-C", sourceDir, "."]);
+  // GNU tar's `-a` flag does not create a ZIP archive for a `.zip` filename;
+  // it silently writes a tar stream instead. Use Python's standard-library
+  // zipfile module so downloads are genuine ZIPs on both Windows and Linux.
+  const pythonCommand = process.platform === "win32" ? "python" : "python3";
+  const script = [
+    "import pathlib, sys, zipfile",
+    "source = pathlib.Path(sys.argv[1])",
+    "output = pathlib.Path(sys.argv[2])",
+    "with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:",
+    "    for file_path in sorted(path for path in source.rglob('*') if path.is_file()):",
+    "        archive.write(file_path, file_path.relative_to(source).as_posix())"
+  ].join("\n");
+  await execFileAsync(pythonCommand, ["-c", script, sourceDir, outputPath]);
 }
 
 function getZipBackupSidecarPath(zipFilePath) {
