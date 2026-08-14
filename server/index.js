@@ -5616,7 +5616,7 @@ async function readOrderOriginalCandidate(candidate) {
         ? candidate.storedFilePath
         : candidate.generatedFilePath;
     if (!(await fileExists(filePath))) {
-      const label = candidate.sourceType === "stored" ? "认知书物品页原图" : "已保存的生成原图";
+      const label = candidate.sourceType === "stored" ? "认知书内置认知页原图" : "已保存的生成原图";
       throw createHttpError(404, `服务器未找到${label}。`);
     }
     return { input: filePath, filePath, extension: path.extname(filePath).toLowerCase() };
@@ -9542,7 +9542,21 @@ function buildBodyBookPartPrompt(part, order, theme = getBookTheme("body")) {
   if (theme?.id === "color") return buildColorBookPartPrompt(part, order, theme);
   const profile = getBodyBookPromptProfile(theme);
   const visualDirection = getBodyBookPartVisualDirection(theme?.id, part?.conceptKey || part?.colorKey || part?.key);
-  return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual ${theme.name} learning card for ages 0-3. The sole learning concept is "${part.english} / ${part.chinese}". The image must attempt to render this heading exactly: "${part.chinese} ${part.english}". Include this short bilingual sentence exactly: "${part.copy}". Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: ${profile.cardScene}. Mandatory page-specific art direction: ${visualDirection} Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, ${profile.accents} accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching ${profile.icons}. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.`;
+  const concept = getBodyBookLearningConcept(part);
+  return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual ${theme.name} learning card for ages 0-3. The sole learning concept is "${concept.english} / ${concept.chinese}". The image must attempt to render this heading exactly: "${concept.chinese} ${concept.english}". Include this short bilingual sentence exactly: "${part.copy}". The terms "宝宝页", "Baby Page", "${concept.chinese}宝宝页", and "${concept.english} Baby" are internal production labels: never render them anywhere in the image, title, subtitle, or decorative text. Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: ${profile.cardScene}. Mandatory page-specific art direction: ${visualDirection} Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, ${profile.accents} accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching ${profile.icons}. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.`;
+}
+
+function getBodyBookLearningConcept(part) {
+  const chinese = String(part?.chinese || "")
+    .replace(/(?:宝宝页|物品页|预设页|认知页)$/u, "")
+    .trim();
+  const english = String(part?.english || "")
+    .replace(/\s+(?:Baby|Objects|Preset|Page)$/iu, "")
+    .trim();
+  return {
+    chinese: chinese || String(part?.chinese || "").trim(),
+    english: english || String(part?.english || "").trim()
+  };
 }
 
 function getBodyBookPartVisualDirection(themeId, partKey) {
@@ -9646,8 +9660,9 @@ function getBodyBookPartVisualDirection(themeId, partKey) {
 
 function buildColorBookPartPrompt(part, order, theme = getBookTheme("color")) {
   const details = getColorBookVisualDetails(part?.colorKey || part?.key);
-  const colorChinese = String(part?.chinese || "").replace(/宝宝页$/, "");
-  const colorEnglish = String(part?.english || "").replace(/ Baby$/, "");
+  const concept = getBodyBookLearningConcept(part);
+  const colorChinese = concept.chinese;
+  const colorEnglish = concept.english;
   return `Use the uploaded baby photo as the only identity reference. Strictly preserve the baby's facial features, age impression, skin tone, natural hair, and Asian baby appearance. Do not copy the reference clothing, pose, props, or background. Create one square 1:1 INNER PAGE (not a cover) for a 0-3-year-old bilingual color-learning picture book. The only learning concept is "${colorEnglish} / ${colorChinese}".
 
 Composition: make the baby the central half-body subject, recognizably the same child from the reference. Dress the baby in a clearly ${details.colorName} ${details.outfit} and a coordinated ${details.headwear}. The baby should naturally hold, touch, or look at one clear ${details.colorName} learning object. The requested color must be visually dominant and unmistakable.
@@ -10274,9 +10289,9 @@ function getBodyBookPageDefinitions(theme = getBookTheme("body"), layoutVersion 
           conceptKey: part.key,
           colorKey: resolved.id === "color" ? part.key : "",
           pageType: "baby",
-          chinese: `${part.chinese}宝宝页`,
-          english: `${part.english} Baby`,
-          title: `${part.chinese}宝宝页 ${part.english} Baby`,
+          chinese: part.chinese,
+          english: part.english,
+          title: `${part.chinese} ${part.english}`,
           order: babyOrder
         },
         {
@@ -10287,9 +10302,9 @@ function getBodyBookPageDefinitions(theme = getBookTheme("body"), layoutVersion 
           pageType: "objects",
           isBuiltIn: true,
           isRequired: true,
-          chinese: `${part.chinese}物品页`,
-          english: `${part.english} Objects`,
-          title: `${part.chinese}物品页 ${part.english} Objects`,
+          chinese: part.chinese,
+          english: part.english,
+          title: `${part.chinese}认知页 ${part.english}`,
           order: babyOrder + 1
         }
       ];
@@ -10377,17 +10392,23 @@ function createBodyBookPage(definition, theme, references, current = {}) {
   }
   const currentReferences = normalizeBodyBookReferences(current?.references, current?.reference);
   const pageReferences = currentReferences.length ? currentReferences : normalizeBodyBookReferences(references);
+  const concept = getBodyBookLearningConcept(definition);
   return {
     ...definition,
     ...current,
     key: definition.key,
+    chinese: concept.chinese,
+    english: concept.english,
     title: definition.title,
     order: definition.order,
     isRequired: Boolean(definition.isRequired),
     version: Math.max(0, Number(current?.version || 0)),
     jobId: String(current?.jobId || ""),
     status: String(current?.status || (current?.jobId ? "queued" : "not_started")),
-    prompt: normalizeBodyBookPrompt(current?.prompt, prompt),
+    // Automatic prompts are regenerated from the current safe template. This
+    // also repairs older projects that persisted internal page labels such as
+    // “汽车宝宝页 / Car Baby” before those labels were separated from content.
+    prompt: normalizeBodyBookPrompt(current?.hasCustomPrompt ? current?.prompt : prompt, prompt),
     hasCustomPrompt: Boolean(current?.hasCustomPrompt),
     references: pageReferences,
     reference: pageReferences[0] || null,
@@ -10561,7 +10582,7 @@ async function replaceBodyBookPageReference(session, pageKey, file, referenceInd
   const current = normalizeBodyBookSession(session);
   const page = current.pages.find((item) => item.key === String(pageKey || "").toLowerCase());
   if (!page) throw createHttpError(404, "找不到该认知书页面。");
-  if (page.isBuiltIn) throw createHttpError(409, "项目内置物品页不需要替换参考图。");
+  if (page.isBuiltIn) throw createHttpError(409, "项目内置认知页不需要替换参考图。");
   const references = [...normalizeBodyBookReferences(page.references, page.reference)];
   const isAppend = referenceIndex === null || referenceIndex === undefined || referenceIndex === "";
   const index = isAppend ? references.length : Number(referenceIndex);
