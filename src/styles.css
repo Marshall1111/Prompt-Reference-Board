@@ -7567,6 +7567,94 @@ textarea {
   color: #d70015;
 }
 
+.body-book-page .body-book-user-menu button:first-of-type {
+  color: var(--body-book-apple-blue);
+}
+
+.body-book-page .body-book-user-menu button:first-of-type:hover {
+  background: #f0f7ff;
+  color: var(--body-book-apple-blue);
+}
+
+.referral-page {
+  width: min(920px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0 56px;
+  color: #1d1d1f;
+}
+
+.referral-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.referral-header h1,
+.referral-panel h2,
+.referral-withdrawal h2 { margin: 0; }
+
+.referral-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #0071e3;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.referral-hero,
+.referral-panel,
+.referral-stat-grid article {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.035);
+}
+
+.referral-hero {
+  padding: 32px;
+  background: linear-gradient(135deg, #eaf4ff, #f8fbff 65%, #fff8df);
+}
+
+.referral-hero p { margin: 0 0 8px; color: #0071e3; font-size: 14px; font-weight: 600; }
+.referral-hero h2 { margin: 0; font-size: clamp(26px, 5vw, 38px); letter-spacing: -0.04em; }
+.referral-hero span { display: block; margin-top: 10px; color: #6e6e73; }
+
+.referral-panel { margin-top: 16px; padding: 24px; }
+.referral-panel h2 { font-size: 19px; }
+.referral-link-row { display: flex; gap: 10px; margin-top: 16px; }
+.referral-link-row input { min-width: 0; flex: 1; border: 1px solid #d2d2d7; border-radius: 10px; padding: 0 12px; color: #515154; }
+.referral-link-row .draw-card-primary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+
+.referral-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+.referral-stat-grid article { padding: 22px; }
+.referral-stat-grid span, .referral-stat-grid em { display: block; color: #6e6e73; font-size: 13px; font-style: normal; }
+.referral-stat-grid strong { display: block; margin: 9px 0 5px; font-size: 28px; letter-spacing: -0.03em; }
+.referral-stat-grid small { margin-left: 3px; color: #6e6e73; font-size: 14px; font-weight: 500; }
+
+.referral-withdrawal { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.referral-withdrawal p { margin: 7px 0 0; color: #6e6e73; }
+.referral-withdrawal .draw-card-secondary { flex: 0 0 auto; white-space: nowrap; }
+.referral-detail-list { margin-top: 12px; }
+.referral-detail-list article { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid #ececf0; }
+.referral-detail-list article:last-child { border-bottom: 0; }
+.referral-detail-list strong, .referral-detail-list small, .referral-detail-list time { display: block; }
+.referral-detail-list small, .referral-detail-list time { margin-top: 4px; color: #6e6e73; font-size: 12px; }
+.referral-detail-list time { flex: 0 0 auto; margin: 0; text-align: right; }
+.referral-loading { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 160px; color: #6e6e73; }
+
+@media (max-width: 640px) {
+  .referral-page { width: min(100% - 24px, 920px); padding-top: 18px; }
+  .referral-hero, .referral-panel { padding: 20px; }
+  .referral-stat-grid { grid-template-columns: 1fr; gap: 10px; }
+  .referral-withdrawal { display: block; }
+  .referral-withdrawal .draw-card-secondary { width: 100%; margin-top: 16px; }
+  .referral-link-row { flex-direction: column; }
+  .referral-link-row input { min-height: 42px; }
+  .referral-detail-list time { max-width: 92px; }
+}
+
 .body-book-page :is(.body-book-wallet-panel, .body-book-theme-card, .body-book-item, .body-book-library-cover, .body-book-order-list-item, .body-book-project-reference, .body-book-batch-row, .body-book-project-pages-head, .body-book-content-panel, .body-book-project-modal, .body-book-regenerate-panel, .body-book-library-panel, .body-book-lightbox-panel),
 .body-book-order-detail-page :is(.draw-observability-card, .draw-observability-metric, .draw-card-order-item) {
   border: 1px solid var(--body-book-apple-border);

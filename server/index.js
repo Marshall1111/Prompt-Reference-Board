@@ -336,6 +336,7 @@ const visitorRequestLog = new Map();
 const ipRequestLog = new Map();
 const orderStore = createOrderStore({ dbPath: orderDbPath });
 const commerceStore = createCommerceStore({ dbPath: orderDbPath });
+commerceStore.releaseCompletedReferralPayments();
 const merchantStore = createMerchantStore({ filePath: merchantDataPath });
 
 const app = express();
@@ -980,6 +981,21 @@ app.post("/api/referrals/link", requireWebAccount, (req, res, next) => {
     const inviteUrl = new URL(req.body?.target === "draw-card" ? "/" : "/book", getRequestOrigin(req));
     inviteUrl.searchParams.set("invite", referral.token);
     res.json({ inviteUrl: inviteUrl.toString() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/referrals/me", requireWebAccount, (req, res, next) => {
+  try {
+    assertRegisteredAccount(req);
+    const referral = commerceStore.getOrCreateReferralLink(req.webAccount.id);
+    const inviteUrl = new URL("/book", getRequestOrigin(req));
+    inviteUrl.searchParams.set("invite", referral.token);
+    res.json({
+      inviteUrl: inviteUrl.toString(),
+      ...commerceStore.getReferralSummary(req.webAccount.id)
+    });
   } catch (error) {
     next(error);
   }
@@ -3529,6 +3545,9 @@ app.patch("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
       confirmManualOrderPayment(order);
     }
     const updated = orderStore.updateOrder(req.params.orderId, patch);
+    if (updated?.fulfillmentStatus === "completed") {
+      commerceStore.releaseReferralPaymentForOrder(updated.id);
+    }
     if (order.experienceType === "body-book" && order.paymentStatus === "unpaid" && updated?.paymentStatus === "expired") {
       commerceStore.releaseBodyBookDiscountReservation(order.id);
     }
@@ -7356,6 +7375,8 @@ function toPublicCommerceAccount(account) {
     accountStatus: account.accountStatus || "active",
     coinBalance: Math.max(0, Number(account.coinBalance ?? account.creditBalance ?? 0)),
     beanBalance: Math.max(0, Number(account.beanBalance || 0)),
+    referralBalanceCents: Math.max(0, Number(account.referralBalanceCents || 0)),
+    referralPendingCents: Math.max(0, Number(account.referralPendingCents || 0)),
     canRedeemOriginalDownloads: commerceStore.hasOriginalImageDownloadAccess(account.id),
     createdAt: account.createdAt || null
   };

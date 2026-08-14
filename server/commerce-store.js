@@ -43,6 +43,8 @@ function mapAccount(row) {
     creditBalance: Number(row.credit_balance || 0),
     coinBalance: Number(row.credit_balance || 0),
     beanBalance: Number(row.bean_balance || 0),
+    referralBalanceCents: Number(row.referral_balance_cents || 0),
+    referralPendingCents: Number(row.referral_pending_cents || 0),
     originalDownloadsUnlockedAt: row.original_downloads_unlocked_at || null,
     email: String(row.email || ""),
     username: String(row.username || ""),
@@ -109,6 +111,8 @@ export function createCommerceStore({ dbPath }) {
       open_id TEXT NOT NULL,
       credit_balance INTEGER NOT NULL DEFAULT 0,
       bean_balance INTEGER NOT NULL DEFAULT 0,
+      referral_balance_cents INTEGER NOT NULL DEFAULT 0,
+      referral_pending_cents INTEGER NOT NULL DEFAULT 0,
       original_downloads_unlocked_at TEXT,
       wechat_nickname TEXT NOT NULL DEFAULT '',
       wechat_avatar_url TEXT NOT NULL DEFAULT '',
@@ -134,6 +138,8 @@ export function createCommerceStore({ dbPath }) {
       reference_type TEXT NOT NULL,
       reference_id TEXT NOT NULL,
       note TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'available',
+      available_at TEXT,
       created_at TEXT NOT NULL,
       UNIQUE(account_id, reference_type, reference_id),
       FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
@@ -144,6 +150,20 @@ export function createCommerceStore({ dbPath }) {
       account_id TEXT NOT NULL,
       delta INTEGER NOT NULL,
       balance_after INTEGER NOT NULL,
+      reason TEXT NOT NULL,
+      reference_type TEXT NOT NULL,
+      reference_id TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      UNIQUE(account_id, reference_type, reference_id),
+      FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS commerce_referral_ledger (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      delta_cents INTEGER NOT NULL,
+      balance_after_cents INTEGER NOT NULL,
       reason TEXT NOT NULL,
       reference_type TEXT NOT NULL,
       reference_id TEXT NOT NULL,
@@ -261,6 +281,7 @@ export function createCommerceStore({ dbPath }) {
       referral_token TEXT NOT NULL,
       captured_at TEXT NOT NULL,
       registered_at TEXT,
+      registration_rewarded_at TEXT,
       rewarded_payment_intent_id TEXT UNIQUE,
       rewarded_at TEXT,
       FOREIGN KEY (invitee_account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE,
@@ -275,6 +296,7 @@ export function createCommerceStore({ dbPath }) {
     CREATE INDEX IF NOT EXISTS idx_commerce_fridge_coin_discount_reservations_account ON commerce_fridge_coin_discount_reservations(account_id, status, expires_at);
     CREATE INDEX IF NOT EXISTS idx_commerce_credit_ledger_account ON commerce_credit_ledger(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_bean_ledger_account ON commerce_bean_ledger(account_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_commerce_referral_ledger_account ON commerce_referral_ledger(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_original_image_redemptions_order ON commerce_original_image_redemptions(source_order_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_user_sessions_account ON commerce_user_sessions(account_id, expires_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_email_verifications_lookup ON commerce_email_verifications(email, purpose, created_at DESC);
@@ -299,6 +321,8 @@ export function createCommerceStore({ dbPath }) {
   ensureAccountColumn("registered_at", "registered_at TEXT");
   ensureAccountColumn("last_login_at", "last_login_at TEXT");
   const addedBeanBalance = ensureAccountColumn("bean_balance", "bean_balance INTEGER NOT NULL DEFAULT 0");
+  ensureAccountColumn("referral_balance_cents", "referral_balance_cents INTEGER NOT NULL DEFAULT 0");
+  const addedReferralPendingBalance = ensureAccountColumn("referral_pending_cents", "referral_pending_cents INTEGER NOT NULL DEFAULT 0");
   const paymentIntentColumns = db.prepare("PRAGMA table_info(commerce_payment_intents)").all();
   if (!paymentIntentColumns.some((column) => String(column.name || "") === "user_deleted_at")) {
     db.exec("ALTER TABLE commerce_payment_intents ADD COLUMN user_deleted_at TEXT");
@@ -314,6 +338,46 @@ export function createCommerceStore({ dbPath }) {
     db.exec("ALTER TABLE commerce_referral_links ADD COLUMN short_code TEXT");
   }
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_commerce_referral_links_short_code_unique ON commerce_referral_links(short_code) WHERE short_code IS NOT NULL");
+  const referralColumns = db.prepare("PRAGMA table_info(commerce_referrals)").all();
+  const addedRegistrationRewardedAt = !referralColumns.some((column) => String(column.name || "") === "registration_rewarded_at");
+  if (addedRegistrationRewardedAt) {
+    db.exec("ALTER TABLE commerce_referrals ADD COLUMN registration_rewarded_at TEXT");
+    // Existing registrations predate the new programme and must not be rewarded retroactively.
+    db.exec("UPDATE commerce_referrals SET registration_rewarded_at = registered_at WHERE registered_at IS NOT NULL");
+  }
+  const referralLedgerColumns = db.prepare("PRAGMA table_info(commerce_referral_ledger)").all();
+  const addedReferralLedgerStatus = !referralLedgerColumns.some((column) => String(column.name || "") === "status");
+  if (addedReferralLedgerStatus) {
+    db.exec("ALTER TABLE commerce_referral_ledger ADD COLUMN status TEXT NOT NULL DEFAULT 'available'");
+    db.exec("ALTER TABLE commerce_referral_ledger ADD COLUMN available_at TEXT");
+    // Recommendation rewards created before the staged-release rule are moved
+    // into their correct state based on the associated order type/status.
+    db.exec(`
+      UPDATE commerce_referral_ledger
+      SET status = CASE
+        WHEN reference_type = 'payment_intent' AND EXISTS (
+          SELECT 1 FROM commerce_payment_intents p
+          WHERE p.id = commerce_referral_ledger.reference_id
+            AND p.kind IN ('physical_order', 'body_book_order')
+        ) THEN 'pending'
+        ELSE 'available'
+      END
+    `);
+    db.exec("UPDATE commerce_referral_ledger SET available_at = CASE WHEN status = 'available' THEN COALESCE(available_at, created_at) ELSE NULL END");
+  }
+  if (addedReferralPendingBalance || addedReferralLedgerStatus) {
+    db.exec(`
+      UPDATE commerce_accounts
+      SET referral_balance_cents = COALESCE((
+            SELECT SUM(delta_cents) FROM commerce_referral_ledger l
+            WHERE l.account_id = commerce_accounts.id AND l.status = 'available'
+          ), 0),
+          referral_pending_cents = COALESCE((
+            SELECT SUM(delta_cents) FROM commerce_referral_ledger l
+            WHERE l.account_id = commerce_accounts.id AND l.status = 'pending'
+          ), 0)
+    `);
+  }
 
   if (addedBeanBalance) {
     withTransaction(db, () => {
@@ -660,7 +724,27 @@ export function createCommerceStore({ dbPath }) {
       const registeredAt = String(referral.registered_at || nowIso());
       db.prepare("UPDATE commerce_referrals SET registered_at = ? WHERE invitee_account_id = ?")
         .run(registeredAt, account.id);
-      return { referrerAccountId: String(referral.referrer_account_id || ""), registeredAt };
+      const rewarded = db.prepare(`
+        UPDATE commerce_referrals
+        SET registration_rewarded_at = ?
+        WHERE invitee_account_id = ? AND registration_rewarded_at IS NULL
+      `).run(nowIso(), account.id);
+      const referrerAccountId = String(referral.referrer_account_id || "");
+      if (Number(rewarded.changes || 0) > 0) {
+        appendBeanLedger(referrerAccountId, 5, {
+          reason: "referral_registration_bean_reward",
+          referenceType: "referral_registration_bean",
+          referenceId: account.id,
+          note: "邀请新用户完成注册，奖励 5 个豆豆"
+        });
+        appendLedger(referrerAccountId, 5, {
+          reason: "referral_registration_coin_reward",
+          referenceType: "referral_registration_coin",
+          referenceId: account.id,
+          note: "邀请新用户完成注册，奖励 5 个普通币"
+        });
+      }
+      return { referrerAccountId, registeredAt, rewarded: Number(rewarded.changes || 0) > 0 };
     });
   }
 
@@ -914,6 +998,89 @@ export function createCommerceStore({ dbPath }) {
     };
   }
 
+  function appendReferralLedger(accountId, deltaCents, { reason, referenceType, referenceId, note = "", status = "available" } = {}) {
+    const account = readAccount(accountId);
+    if (!account) throw new Error("账户不存在。");
+    const existing = db.prepare(`
+      SELECT * FROM commerce_referral_ledger
+      WHERE account_id = ? AND reference_type = ? AND reference_id = ?
+    `).get(String(accountId), String(referenceType || ""), String(referenceId || ""));
+    if (existing) return { ledger: mapLedgerRow(existing), account };
+
+    const safeDelta = Math.trunc(Number(deltaCents || 0));
+    const safeStatus = status === "pending" ? "pending" : "available";
+    const currentBalance = safeStatus === "pending" ? account.referralPendingCents : account.referralBalanceCents;
+    const nextBalance = currentBalance + safeDelta;
+    if (nextBalance < 0) throw new Error("推荐币余额不足。");
+    const createdAt = nowIso();
+    db.prepare(`
+      INSERT INTO commerce_referral_ledger (
+        id, account_id, delta_cents, balance_after_cents, reason, reference_type, reference_id, note, status, available_at, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(randomUUID(), account.id, safeDelta, nextBalance, String(reason || ""), String(referenceType || ""), String(referenceId || ""), String(note || ""), safeStatus, safeStatus === "available" ? createdAt : null, createdAt);
+    db.prepare(safeStatus === "pending"
+      ? "UPDATE commerce_accounts SET referral_pending_cents = ?, updated_at = ? WHERE id = ?"
+      : "UPDATE commerce_accounts SET referral_balance_cents = ?, updated_at = ? WHERE id = ?")
+      .run(nextBalance, createdAt, account.id);
+    return { account: readAccount(account.id) };
+  }
+
+  function rewardReferralPayment(intent) {
+    const supportedKinds = new Set(["physical_order", "body_book_order", "coin_purchase", "bean_purchase"]);
+    if (!supportedKinds.has(String(intent?.kind || ""))) return null;
+    const rewardCents = Math.floor(Math.max(0, Number(intent?.amountCents || 0)) * 0.2);
+    if (rewardCents <= 0) return null;
+    const referral = readReferralByInviteeStatement.get(String(intent.accountId || ""));
+    if (!referral?.registered_at) return null;
+    return appendReferralLedger(String(referral.referrer_account_id || ""), rewardCents, {
+      reason: "referral_payment_reward",
+      referenceType: "payment_intent",
+      referenceId: intent.id,
+      note: `好友实付订单奖励 ${rewardCents} 分推荐币`,
+      // 虚拟币/豆豆购买在支付到账时即完成；实体商品须等订单标记为已完成。
+      status: ["physical_order", "body_book_order"].includes(String(intent.kind || "")) ? "pending" : "available"
+    });
+  }
+
+  function releaseReferralPaymentForOrder(orderId) {
+    const safeOrderId = String(orderId || "");
+    if (!safeOrderId) return 0;
+    return withTransaction(db, () => {
+      const rows = db.prepare(`
+        SELECT l.id, l.account_id, l.delta_cents
+        FROM commerce_referral_ledger l
+        INNER JOIN commerce_payment_intents p ON p.id = l.reference_id
+        WHERE l.reference_type = 'payment_intent'
+          AND l.status = 'pending'
+          AND p.target_order_id = ?
+      `).all(safeOrderId);
+      const releasedAt = nowIso();
+      rows.forEach((row) => {
+        const amount = Math.max(0, Number(row.delta_cents || 0));
+        db.prepare(`
+          UPDATE commerce_referral_ledger
+          SET status = 'available', available_at = ?
+          WHERE id = ? AND status = 'pending'
+        `).run(releasedAt, row.id);
+        db.prepare(`
+          UPDATE commerce_accounts
+          SET referral_pending_cents = MAX(0, referral_pending_cents - ?),
+              referral_balance_cents = referral_balance_cents + ?,
+              updated_at = ?
+          WHERE id = ?
+        `).run(amount, amount, releasedAt, row.account_id);
+      });
+      return rows.length;
+    });
+  }
+
+  function releaseCompletedReferralPayments() {
+    const completedOrderIds = db.prepare("SELECT id FROM orders WHERE fulfillment_status = 'completed'").all()
+      .map((row) => String(row.id || ""))
+      .filter(Boolean);
+    return completedOrderIds.reduce((total, orderId) => total + releaseReferralPaymentForOrder(orderId), 0);
+  }
+
   function createOrGetWebAccount({ openId, visitorId, guestAccountId = "", nickname = "", avatarUrl = "", signupCredits = 5, signupBeans = 10 }) {
     const normalizedOpenId = String(openId || "").trim();
     if (!normalizedOpenId) throw new Error("缺少微信用户标识。");
@@ -1131,24 +1298,6 @@ export function createCommerceStore({ dbPath }) {
         `).run(now, nowIso(), intent.targetOrderId);
         redeemPhysicalOrderOriginals(intent.accountId, intent.targetOrderId, now);
 
-        const referral = readReferralByInviteeStatement.get(intent.accountId);
-        if (referral?.registered_at && !referral.rewarded_payment_intent_id) {
-          const updated = db.prepare(`
-            UPDATE commerce_referrals
-            SET rewarded_payment_intent_id = ?, rewarded_at = ?
-            WHERE invitee_account_id = ?
-              AND registered_at IS NOT NULL
-              AND (rewarded_payment_intent_id IS NULL OR rewarded_payment_intent_id = '')
-          `).run(intent.id, now, intent.accountId);
-          if (Number(updated.changes || 0) > 0) {
-            appendLedger(String(referral.referrer_account_id || ""), 5, {
-              reason: "referral_first_fridge_order",
-              referenceType: "referral_payment_reward",
-              referenceId: intent.id,
-              note: "邀请新用户完成首笔冰箱贴订单支付"
-            });
-          }
-        }
       }
       if (intent.kind === "coin_purchase") {
         const coinCount = Math.max(0, Math.trunc(Number(intent.metadata?.coinCount || intent.amountCents / 100 || 0)));
@@ -1188,25 +1337,8 @@ export function createCommerceStore({ dbPath }) {
           WHERE order_id = ? AND status = 'reserved'
         `).run(now, nowIso(), intent.targetOrderId);
 
-        const referral = readReferralByInviteeStatement.get(intent.accountId);
-        if (referral?.registered_at && !referral.rewarded_payment_intent_id) {
-          const updated = db.prepare(`
-            UPDATE commerce_referrals
-            SET rewarded_payment_intent_id = ?, rewarded_at = ?
-            WHERE invitee_account_id = ?
-              AND registered_at IS NOT NULL
-              AND (rewarded_payment_intent_id IS NULL OR rewarded_payment_intent_id = '')
-          `).run(intent.id, now, intent.accountId);
-          if (Number(updated.changes || 0) > 0) {
-            appendBeanLedger(String(referral.referrer_account_id || ""), 10, {
-              reason: "referral_first_body_book_order",
-              referenceType: "referral_payment_reward",
-              referenceId: intent.id,
-              note: "邀请新用户完成首笔认知书实体书支付"
-            });
-          }
-        }
       }
+      rewardReferralPayment(intent);
       recordPaymentEvent({ paymentIntentId: intent.id, eventType: "payment_notify", eventId, success: true, payload, headers });
       return { intent: readPaymentIntent(intent.id), settledNow: true, account: readAccount(intent.accountId) };
     });
@@ -1403,6 +1535,61 @@ export function createCommerceStore({ dbPath }) {
     `).all(String(accountId || ""), safeLimit).map(mapLedgerRow);
   }
 
+  function getReferralSummary(accountId, limit = 100) {
+    const account = readAccount(accountId);
+    if (!account) throw new Error("账户不存在。");
+    const safeLimit = Math.min(Math.max(Math.trunc(Number(limit || 100)), 1), 200);
+    const registeredCount = Number(db.prepare(`
+      SELECT COUNT(*) AS total FROM commerce_referrals
+      WHERE referrer_account_id = ? AND registered_at IS NOT NULL
+    `).get(account.id)?.total || 0);
+    const beanTotal = Number(db.prepare(`
+      SELECT COALESCE(SUM(delta), 0) AS total FROM commerce_bean_ledger
+      WHERE account_id = ? AND reference_type = 'referral_registration_bean'
+    `).get(account.id)?.total || 0);
+    const coinTotal = Number(db.prepare(`
+      SELECT COALESCE(SUM(delta), 0) AS total FROM commerce_credit_ledger
+      WHERE account_id = ? AND reference_type = 'referral_registration_coin'
+    `).get(account.id)?.total || 0);
+    const referralTotalCents = Number(db.prepare(`
+      SELECT COALESCE(SUM(delta_cents), 0) AS total FROM commerce_referral_ledger
+      WHERE account_id = ?
+    `).get(account.id)?.total || 0);
+    const details = db.prepare(`
+      SELECT 'registration_bean' AS type, delta AS amount, 0 AS order_amount_cents, '' AS payment_kind, 'available' AS status, created_at
+      FROM commerce_bean_ledger
+      WHERE account_id = ? AND reference_type = 'referral_registration_bean'
+      UNION ALL
+      SELECT 'registration_coin' AS type, delta AS amount, 0 AS order_amount_cents, '' AS payment_kind, 'available' AS status, created_at
+      FROM commerce_credit_ledger
+      WHERE account_id = ? AND reference_type = 'referral_registration_coin'
+      UNION ALL
+      SELECT 'payment_referral' AS type, l.delta_cents AS amount, COALESCE(p.amount_cents, 0) AS order_amount_cents,
+        COALESCE(p.kind, '') AS payment_kind, l.status, l.created_at
+      FROM commerce_referral_ledger l
+      LEFT JOIN commerce_payment_intents p ON p.id = l.reference_id
+      WHERE l.account_id = ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `).all(account.id, account.id, account.id, safeLimit).map((row) => ({
+      type: String(row.type || ""),
+      amount: Number(row.amount || 0),
+      orderAmountCents: Number(row.order_amount_cents || 0),
+      paymentKind: String(row.payment_kind || ""),
+      status: String(row.status || "available"),
+      createdAt: row.created_at || null
+    }));
+    return {
+      registeredCount,
+      registrationBeanTotal: beanTotal,
+      registrationCoinTotal: coinTotal,
+      referralBalanceCents: Math.max(0, Number(account.referralBalanceCents || 0)),
+      referralPendingCents: Math.max(0, Number(account.referralPendingCents || 0)),
+      referralTotalCents: Math.max(0, referralTotalCents),
+      details
+    };
+  }
+
   function listPaymentIntents(accountId, limit = 100, { excludeUserDeleted = false } = {}) {
     const safeLimit = Math.min(Math.max(Math.trunc(Number(limit || 100)), 1), 500);
     const userDeletedCondition = excludeUserDeleted ? " AND (user_deleted_at IS NULL OR user_deleted_at = '')" : "";
@@ -1533,6 +1720,9 @@ export function createCommerceStore({ dbPath }) {
     getBodyBookDiscountSummary,
     getFridgeCoinDiscountSummary,
     getOrCreateReferralLink,
+    getReferralSummary,
+    releaseReferralPaymentForOrder,
+    releaseCompletedReferralPayments,
     hasOriginalImageDownloadAccess,
     hasPaidPhysicalOrder,
     isOriginalImageRedeemed,

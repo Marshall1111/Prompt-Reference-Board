@@ -280,6 +280,7 @@ function readRoute() {
   if (pathname === "/fridge/magnet") return "public-fridge-product";
   if (pathname === "/book/orders") return "public-body-book-orders";
   if (pathname.startsWith("/book/orders/")) return "public-body-book-order";
+  if (pathname === "/book/referrals") return "public-referrals";
   if (pathname === "/fridge") return "public-fridge";
   if (pathname === "/book") return "public-body-book";
   if (pathname === "/gallery") return "admin-gallery";
@@ -316,6 +317,7 @@ function App() {
       "public-fridge-order": "冰箱贴订单",
       "public-body-book-order": "宝宝的认知书",
       "public-body-book-orders": "宝宝的认知书",
+      "public-referrals": "我的邀请",
       "public-fridge-orders": "我的冰箱贴订单",
       "admin-api-providers": "API 配置",
       "admin-user-clip": "用户卡夹"
@@ -332,6 +334,7 @@ function App() {
       "public-draw-checkout": "/draw/order",
       "public-fridge-orders": "/fridge/orders",
       "public-body-book-orders": "/book/orders",
+      "public-referrals": "/book/referrals",
       "public-fridge-order": window.location.pathname,
       "public-body-book-order": window.location.pathname,
       "admin-gallery": "/gallery",
@@ -365,6 +368,9 @@ function App() {
   if (route === "public-body-book-orders") {
     return <BodyBookOrdersPage />;
   }
+  if (route === "public-referrals") {
+    return <ReferralPage />;
+  }
   if (route === "public-fridge") {
     return <FridgeMagnetPage />;
   }
@@ -376,6 +382,88 @@ function App() {
   }
 
   return <AdminApp navigate={navigate} route={route} />;
+}
+
+function ReferralPage() {
+  const [summary, setSummary] = useState(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const referralSource = new URLSearchParams(window.location.search).get("source") === "draw" ? "draw" : "book";
+  const isDrawReferralView = referralSource === "draw";
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/referrals/me")
+      .then(async (response) => {
+        const payload = await readAuthJsonResponse(response, { message: "读取邀请奖励失败。" });
+        if (!response.ok) throw new Error(payload.message || "读取邀请奖励失败。");
+        return payload;
+      })
+      .then((payload) => { if (active) setSummary(payload); })
+      .catch((nextError) => { if (active) setError(nextError.message || "读取邀请奖励失败。"); });
+    return () => { active = false; };
+  }, []);
+
+  async function copyValue(value, successMessage) {
+    try {
+      await copyText(value);
+      setNotice(successMessage);
+    } catch (nextError) {
+      setError(nextError.message || "复制失败，请手动复制。");
+    }
+  }
+
+  const detailLabel = (detail) => {
+    if (detail.type === "registration_bean") return `好友注册奖励 +${detail.amount} 豆豆`;
+    if (detail.type === "registration_coin") return `好友注册奖励 +${detail.amount} 币`;
+    const kind = {
+      physical_order: "冰箱贴订单",
+      body_book_order: "认知书实体书",
+      coin_purchase: "购买普通币",
+      bean_purchase: "购买豆豆"
+    }[detail.paymentKind] || "实付订单";
+    return `${kind}推荐奖励 +${formatCurrencyCents(detail.amount)}${detail.status === "pending" ? "（预发放）" : ""}`;
+  };
+  const visibleDetails = (summary?.details || []).filter((detail) =>
+    !((isDrawReferralView && detail.type === "registration_bean") || (!isDrawReferralView && detail.type === "registration_coin"))
+  );
+
+  return (
+    <main className="referral-page">
+      <header className="referral-header">
+        <a className="referral-back" href={isDrawReferralView ? "/" : "/book"}><ArrowLeft size={18} />返回{isDrawReferralView ? "抽卡" : "认知书"}</a>
+        <h1>我的邀请</h1>
+      </header>
+      {error ? <section className="referral-panel"><p className="error-note">{error}</p><a className="draw-card-primary" href="/book">返回主页登录</a></section> : null}
+      {!summary && !error ? <section className="referral-panel referral-loading"><LoaderCircle className="spin" size={24} />正在读取邀请奖励…</section> : null}
+      {summary ? <>
+        <section className="referral-hero">
+          <p>邀请好友，一起制作专属作品</p>
+          <h2>好友注册得 5 {isDrawReferralView ? "币" : "豆"}</h2>
+          <span>好友实付后先预发放推荐币，订单完成后才可提现</span>
+        </section>
+        <section className="referral-panel">
+          <h2>专属邀请链接</h2>
+          <div className="referral-link-row"><input readOnly value={summary.inviteUrl || ""} /><button className="draw-card-primary" onClick={() => copyValue(summary.inviteUrl, "邀请链接已复制，快去分享给朋友吧。")} type="button"><Clipboard size={16} />复制链接</button></div>
+          {notice ? <p className="success-note">{notice}</p> : null}
+        </section>
+        <section className="referral-stat-grid">
+          <article><span>已邀请注册</span><strong>{summary.registeredCount || 0}<small> 人</small></strong></article>
+          <article><span>注册奖励</span><strong>{isDrawReferralView ? summary.registrationCoinTotal || 0 : summary.registrationBeanTotal || 0}<small> {isDrawReferralView ? "币" : "豆"}</small></strong></article>
+          <article><span>可提现推荐币</span><strong>{formatCurrencyCents(summary.referralBalanceCents || 0)}</strong><em>累计 {formatCurrencyCents(summary.referralTotalCents || 0)}</em></article>
+          <article><span>预发放推荐币</span><strong>{formatCurrencyCents(summary.referralPendingCents || 0)}</strong><em>订单完成后可提现</em></article>
+        </section>
+        <section className="referral-panel referral-withdrawal">
+          <div><h2>推荐币提现</h2><p>{Number(summary.referralBalanceCents || 0) >= 2000 ? "可提现推荐币已达到 20 元，可联系客服提现。" : `可提现推荐币满 20 元可提现，还差 ${formatCurrencyCents(Math.max(0, 2000 - Number(summary.referralBalanceCents || 0)))}。`}</p></div>
+          <button className="draw-card-secondary" disabled={Number(summary.referralBalanceCents || 0) < 2000} onClick={() => copyValue(DEFAULT_CONTACT_WECHAT_ID, `客服微信 ${DEFAULT_CONTACT_WECHAT_ID} 已复制。`)} type="button">{Number(summary.referralBalanceCents || 0) >= 2000 ? "联系客服提现" : "未达提现门槛"}</button>
+        </section>
+        <section className="referral-panel">
+          <h2>奖励明细</h2>
+          {visibleDetails.length ? <div className="referral-detail-list">{visibleDetails.map((detail, index) => <article key={`${detail.type}-${detail.createdAt}-${index}`}><div><strong>{detailLabel(detail)}</strong>{detail.type === "payment_referral" ? <small>好友实付 {formatCurrencyCents(detail.orderAmountCents)}</small> : null}</div><time>{formatDateTime(detail.createdAt)}</time></article>)}</div> : <p className="storage-note">分享邀请链接后，奖励会显示在这里。</p>}
+        </section>
+      </> : null}
+    </main>
+  );
 }
 
 class AppErrorBoundary extends React.Component {
@@ -2368,7 +2456,7 @@ function BodyBookPage() {
         <div className="body-book-header-actions">
           <button className="draw-card-secondary body-book-header-orders" onClick={() => window.location.assign("/book/orders")} type="button"><ListTodo size={16} /><span>我的订单</span></button>
           <button className="draw-card-secondary body-book-header-balance" onClick={() => setShowBeanInfo(true)} type="button"><span>余额</span><strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong><span>豆</span></button>
-          <div className="body-book-user-area" ref={userMenuRef}><button aria-label={isBookAccountRegistered ? `账户：${bookAccountName}` : "登录或注册"} className={`draw-card-secondary body-book-account-button${isBookAccountRegistered ? " is-signed-in" : " is-guest"}`} onClick={() => isBookAccountRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)} title={isBookAccountRegistered ? bookAccountName : "登录 / 注册"} type="button">{isBookAccountRegistered && bookWechatAvatarUrl ? <img alt="" src={bookWechatAvatarUrl} /> : <span>{isBookAccountRegistered ? bookAccountName.slice(0, 1) : "登录"}</span>}</button>{showUserMenu && isBookAccountRegistered ? <div className="body-book-user-menu"><span className="body-book-user-menu-name">{bookAccountName}</span><button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}</div>
+          <div className="body-book-user-area" ref={userMenuRef}><button aria-label={isBookAccountRegistered ? `账户：${bookAccountName}` : "登录或注册"} className={`draw-card-secondary body-book-account-button${isBookAccountRegistered ? " is-signed-in" : " is-guest"}`} onClick={() => isBookAccountRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)} title={isBookAccountRegistered ? bookAccountName : "登录 / 注册"} type="button">{isBookAccountRegistered && bookWechatAvatarUrl ? <img alt="" src={bookWechatAvatarUrl} /> : <span>{isBookAccountRegistered ? bookAccountName.slice(0, 1) : "登录"}</span>}</button>{showUserMenu && isBookAccountRegistered ? <div className="body-book-user-menu"><span className="body-book-user-menu-name">{bookAccountName}</span><button onClick={() => window.location.assign("/book/referrals?source=book")} type="button">我的邀请</button><button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}</div>
         </div>
         {activeTheme ? <button className="body-book-home-link" disabled={busy} onClick={returnToBookHome} type="button"><ArrowLeft size={17} /><span>主页</span></button> : null}
       </header>
@@ -2401,8 +2489,8 @@ function BodyBookPage() {
 
       {historyTheme ? <div className="modal-backdrop" onClick={() => !busy && setHistoryTheme(null)} role="presentation"><section className="body-book-project-modal body-book-history-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择历史认知书工程"><button className="icon-button" disabled={busy} onClick={() => setHistoryTheme(null)} type="button"><X size={18} /></button><p className="body-book-kicker">Existing projects</p><h2>{historyTheme.name}已有历史工程</h2><p>请选择继续历史任务，或新建一本独立工程。</p><div className="body-book-history-list">{historyProjects.map((book) => <button key={book.sessionId} onClick={() => openProject(book.sessionId)} type="button">{book.thumbnail ? <img alt="工程缩略图" src={book.thumbnail} /> : <span className="body-book-history-placeholder">{book.theme?.name}</span>}<span><strong>{book.title}</strong><small>{formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></span></button>)}</div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={() => startNewDraft(historyTheme)} type="button">创建新的工程</button></div></section></div> : null}
 
-      {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀新获豆"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀新获豆</h2><p>邀请新用户注册，并完成首笔认知书实体书支付，即可获得 <strong>10 颗豆豆</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
-      {showBeanInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowBeanInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的豆豆"><button className="icon-button" onClick={() => setShowBeanInfo(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">My beans</p><h2>我的豆豆</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong> 豆</p><p className="body-book-bean-cost-note">已购豆豆剩余可抵扣额度：<strong>{formatCurrencyCents(Math.max(0, Number(beanPurchaseDiscount.availableCents || 0)))}</strong></p><p className="body-book-bean-cost-note">{billingEnabled ? "每张成功生成的图片消耗 1 个豆豆。" : "内测阶段，认知书暂不消耗豆豆。"}</p><ul className="body-book-bean-benefits"><li>成功购买 1 元豆豆，可获得 1 元认知书优惠额度。</li><li>认知书每单最多抵扣 40 元；赠送豆豆不参与抵扣。</li><li>认知书按实付金额赠豆，每实付满 1 元赠 1 豆。</li><li>邀请新用户完成首笔认知书订单，可获得 10 豆。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openBeanPurchase} type="button">购买豆豆</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); openReferral(); }} type="button">邀新获豆</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); setShowContactModal(true); }} type="button">联系客服</button></div><label className="body-book-wallet-field"><span>邀请码</span><input disabled={busy} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={busy || !inviteCode.trim()} onClick={redeemBookInvite} type="button">兑换邀请码</button></div></section></div> : null}
+      {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀请好友"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀请好友</h2><p>邀请新用户注册，即得 <strong>5 豆 + 5 币</strong>；好友每笔实付订单还可返你 <strong>20% 推荐币</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
+      {showBeanInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowBeanInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的豆豆"><button className="icon-button" onClick={() => setShowBeanInfo(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">My beans</p><h2>我的豆豆</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong> 豆</p><p className="body-book-bean-cost-note">已购豆豆剩余可抵扣额度：<strong>{formatCurrencyCents(Math.max(0, Number(beanPurchaseDiscount.availableCents || 0)))}</strong></p><p className="body-book-bean-cost-note">{billingEnabled ? "每张成功生成的图片消耗 1 个豆豆。" : "内测阶段，认知书暂不消耗豆豆。"}</p><ul className="body-book-bean-benefits"><li>成功购买 1 元豆豆，可获得 1 元认知书优惠额度。</li><li>认知书每单最多抵扣 40 元；赠送豆豆不参与抵扣。</li><li>认知书按实付金额赠豆，每实付满 1 元赠 1 豆。</li><li>邀请新用户注册可获得 5 豆和 5 币；好友每笔实付订单返 20% 推荐币。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openBeanPurchase} type="button">购买豆豆</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); openReferral(); }} type="button">邀请好友</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); setShowContactModal(true); }} type="button">联系客服</button></div><label className="body-book-wallet-field"><span>邀请码</span><input disabled={busy} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={busy || !inviteCode.trim()} onClick={redeemBookInvite} type="button">兑换邀请码</button></div></section></div> : null}
       {showBeanPurchase ? <BeanPurchaseModal beanCount={beanPurchaseCount} busy={beanPurchaseBusy} error={beanPurchaseError} onClose={() => !beanPurchaseBusy && setShowBeanPurchase(false)} onCountChange={setBeanPurchaseCount} onRestart={restartBeanPurchase} onRetry={() => prepareBeanPurchase(beanPurchase?.id)} onSubmit={submitBeanPurchase} payment={beanPurchasePayment} purchase={beanPurchase} /> : null}
       {showBookCheckout ? <div className="modal-backdrop" onClick={() => !bookOrderBusy && setShowBookCheckout(false)} role="presentation"><section className="body-book-project-modal body-book-checkout-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="下单认知书实体书"><button className="icon-button" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Print your book</p><h2>{bookOrderBlockReason ? "暂时无法下单" : "下单认知书实体书"}</h2>{bookOrderBlockReason ? <><div className="body-book-checkout-blocked"><AlertTriangle size={24} /><p>{bookOrderBlockReason}</p></div><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={() => setShowBookCheckout(false)} type="button">知道了</button></div></> : <><p>以下为将要印刷的全部页面，共 {bookPreviewPages.length} 页；成书时会自动插入对应的内置认知页，不含固定封底。</p><div className="body-book-checkout-preview" aria-label="成书预览">{bookPreviewPages.map((page, index) => <figure className="body-book-checkout-preview-item" key={`${page.key}-${index}`}><img alt={`${page.title} 成书预览`} decoding="async" loading="lazy" src={getBodyBookThumbnail(page)} /><figcaption><span>第 {index + 1} 页</span><strong>{page.title}</strong></figcaption></figure>)}</div><div className="draw-card-order-summary"><p>实体书 {formatCurrencyCents(bodyBookPricing.priceCents)}</p><p>邮费 {Number(bodyBookPricing.shippingFeeCents || 0) > 0 ? formatCurrencyCents(bodyBookPricing.shippingFeeCents) : "包邮"}</p>{bookOrderDiscountPreviewCents > 0 ? <p>豆豆优惠 -{formatCurrencyCents(bookOrderDiscountPreviewCents)}（每单最多抵扣 40 元）</p> : null}<strong>实付 {formatCurrencyCents(bookOrderPayablePreviewCents)}</strong></div><div className="draw-card-order-form"><label className="field-label">收件人<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={bookOrderForm.receiverName} /></label><label className="field-label">手机号<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverPhone: event.target.value }))} type="tel" value={bookOrderForm.receiverPhone} /></label><label className="field-label">收货地址<input onChange={(event) => setBookOrderForm((current) => ({ ...current, address: event.target.value, addressDetail: event.target.value }))} type="text" value={bookOrderForm.address || bookOrderForm.addressDetail || ""} /></label><label className="field-label">备注<textarea onChange={(event) => setBookOrderForm((current) => ({ ...current, remark: event.target.value }))} rows="2" value={bookOrderForm.remark} /></label></div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button">取消</button><button className="draw-card-primary" disabled={bookOrderBusy} onClick={submitBookOrder} type="button">{bookOrderBusy ? "创建订单中" : "确定"}</button></div></>}</section></div> : null}
       {showAuthModal ? <AuthModal onAuthenticated={async () => { setShowAuthModal(false); const nextVisitorState = await fetchVisitorState(); setVisitorState(nextVisitorState); setBookOrderForm((current) => fillOrderAddressFromSaved(current, nextVisitorState?.account)); await loadSavedBooks(); if (pendingReferralRef.current) { pendingReferralRef.current = false; await showReferralDialog(); } if (pendingBookCheckoutRef.current) { pendingBookCheckoutRef.current = false; setShowBookCheckout(true); } if (pendingBeanPurchaseRef.current) { pendingBeanPurchaseRef.current = false; openBeanPurchase(); } }} onClose={() => { pendingReferralRef.current = false; pendingBookCheckoutRef.current = false; pendingBeanPurchaseRef.current = false; setShowAuthModal(false); }} reloadOnLogin={false} /> : null}
@@ -4467,6 +4555,9 @@ function PublicExperiencePage({ config }) {
               <button onClick={() => window.location.assign("/fridge/orders")} role="menuitem" type="button">
                 我的订单
               </button>
+              <button onClick={() => window.location.assign("/book/referrals?source=draw")} role="menuitem" type="button">
+                我的邀请
+              </button>
               <button disabled={isLoggingOut} onClick={handleLogout} role="menuitem" type="button">
                 {isLoggingOut ? "正在退出" : "退出登录"}
               </button>
@@ -5035,8 +5126,8 @@ function PublicExperiencePage({ config }) {
         </div>
       ) : null}
 
-      {showCoinInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowCoinInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的币"><button className="icon-button" onClick={() => setShowCoinInfo(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><p className="draw-card-kicker">My coins</p><h2>我的币</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.coinBalance || 0 : "--"}</strong> 币</p><p className="body-book-bean-cost-note">已购币剩余可抵扣额度：<strong>{formatCurrencyCents(Math.max(0, Number(visitorState?.coinPurchaseDiscount?.availableCents || 0)))}</strong></p><ul className="body-book-bean-benefits"><li>成功购买 1 元币，可获得 1 元冰箱贴优惠额度。</li><li>每枚冰箱贴最多抵扣 15 元；同一订单可按数量累计抵扣。</li><li>冰箱贴订单支付成功后，按抵扣后实付金额赠送等额币。</li><li>邀请新用户完成首笔冰箱贴订单支付，可获得 5 币。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openCoinPurchase} type="button">购买币</button><button className="draw-card-secondary" onClick={() => { setShowCoinInfo(false); openReferral(); }} type="button">邀新获币</button></div><label className="body-book-wallet-field"><span>邀请码</span><input disabled={isSubmitting} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={isSubmitting || !inviteCode.trim()} onClick={async () => { try { setIsSubmitting(true); const payload = await redeemInviteCode(inviteCode); setVisitorState(payload); setInviteCode(""); setError(""); } catch (nextError) { setError(nextError.message || inviteErrorMessage); } finally { setIsSubmitting(false); } }} type="button">兑换邀请码</button></div></section></div> : null}
-      {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀新获币"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀新获币</h2><p>邀请新用户注册，并完成首笔冰箱贴订单支付，即可获得 <strong>5 币</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
+      {showCoinInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowCoinInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的币"><button className="icon-button" onClick={() => setShowCoinInfo(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><p className="draw-card-kicker">My coins</p><h2>我的币</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.coinBalance || 0 : "--"}</strong> 币</p><p className="body-book-bean-cost-note">已购币剩余可抵扣额度：<strong>{formatCurrencyCents(Math.max(0, Number(visitorState?.coinPurchaseDiscount?.availableCents || 0)))}</strong></p><ul className="body-book-bean-benefits"><li>成功购买 1 元币，可获得 1 元冰箱贴优惠额度。</li><li>每枚冰箱贴最多抵扣 15 元；同一订单可按数量累计抵扣。</li><li>冰箱贴订单支付成功后，按抵扣后实付金额赠送等额币。</li><li>邀请新用户注册可获得 5 豆和 5 币；好友每笔实付订单返 20% 推荐币。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openCoinPurchase} type="button">购买币</button><button className="draw-card-secondary" onClick={() => { setShowCoinInfo(false); openReferral(); }} type="button">邀请好友</button></div><label className="body-book-wallet-field"><span>邀请码</span><input disabled={isSubmitting} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={isSubmitting || !inviteCode.trim()} onClick={async () => { try { setIsSubmitting(true); const payload = await redeemInviteCode(inviteCode); setVisitorState(payload); setInviteCode(""); setError(""); } catch (nextError) { setError(nextError.message || inviteErrorMessage); } finally { setIsSubmitting(false); } }} type="button">兑换邀请码</button></div></section></div> : null}
+      {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀请好友"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀请好友</h2><p>邀请新用户注册，即得 <strong>5 豆 + 5 币</strong>；好友每笔实付订单还可返你 <strong>20% 推荐币</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
       {showCoinPurchase ? <CoinPurchaseModal coinCount={coinPurchaseCount} busy={coinPurchaseBusy} error={coinPurchaseError} payment={coinPurchasePayment} purchase={coinPurchase} onClose={() => setShowCoinPurchase(false)} onCountChange={setCoinPurchaseCount} onRestart={restartCoinPurchase} onRetry={() => prepareCoinPurchase(coinPurchase?.id)} onSubmit={submitCoinPurchase} /> : null}
 
       {showContactModal ? (
