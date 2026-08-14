@@ -2,15 +2,15 @@ const styles = [
   {
     "id": "style_1786669378144",
     "sort": 0,
-    "title": "新风格",
+    "title": "丝绒平涂肖像",
     "tags": [
-      "新风格"
+      "丝绒平涂肖像"
     ],
     "subjectType": "both",
-    "drawCardEnabled": true,
+    "drawCardEnabled": false,
     "drawCardWeight": 100,
-    "image": "/images-small/style_1786669378144.svg",
-    "prompt": "在这里填写这个风格对应的提示词。",
+    "image": "/images-small/style_1786669378144.jpg",
+    "prompt": "- Shift: freely move features up, down or further apart from where the photo\n  puts them.\n  The finished proportions must look visibly wrong when measured against the\n  photo. If it still reads as an accurate likeness, it has not gone far enough.\n\nSURFACE — texture, the defining feature: fill the subject with a heavy, dense\nstipple of fine dots, so densely packed and high in contrast that the surface\nreads as fuzzy and velvety at a glance, like velvet flocking or spray paint\nblasted through a stencil. The grain must eat into the subject's edges so every\nboundary reads as finely speckled and slightly ragged, never a clean vector\nline. The background, by contrast, must be perfectly smooth flat colour with\nabsolutely zero grain, noise or texture. That contrast between the fuzzy grainy\nsubject and the dead-smooth background is what defines this style and must be\nimmediately obvious.\nSURFACE — planes: every plane must be one single flat colour meeting the next\nplane at a hard edge. No continuous shading, no blending, no gradual tonal\ntransition across a form — where two areas differ in tone they must be two\nseparate planes with a visible boundary between them. Keep the stipple even and\nconsistent within each plane, never blotchy, mottled or dirty-looking.\n\nCOLOUR — five flat colours, assigned exactly like this:\n\n1. Background: one strong flat hue, smooth and even. Choose it deliberately and\n   vary it — do not default to blue. Pick whichever suits this particular\n   subject: ochre, mustard, burnt orange, oxblood, plum, forest green, olive,\n   deep teal, slate grey, near-black or cobalt.\n2. Hair and clothing: a darker shade from the same family as the background, so\n   they sit together quietly.\n3. Skin: one clear warm tone in only two flat steps — a light plane and one\n   darker shadow plane, with a hard edge between them. Never a muddy, greyish or\n   neutral beige.\n4. One light neutral, used only for small bright areas, never for the face.\n5. One saturated accent, used in a single small place.\n   Never set two fully saturated complementary colours against each other across\n   the two largest areas of the image.\n\nFRAMING: keep the entire subject inside the frame with clear breathing space\naround it — do not crop the head, and leave a visible margin of background on at\nleast two sides.\nDO NOT\n\n- Stylisation strength: no accurate facial proportions; no realistic likeness;\n  no timid or half-hearted stylisation.\n- Background: no grain, noise or texture in the background; no pale or\n  washed-out background.\n- Colour: no saturated colour clash between background and subject; no muddy or\n  greyish skin.\n- Rendering: no continuous or blended shading; no fine detail; no gradients; no\n  soft focus or blurring.\n- Wrong surface: no woolly felted look; no clean vector edges; no low-poly\n  triangulation; no outlines.\n- Output: no text; no watermark.",
     "useStyleImageAsReference": false
   },
   {
