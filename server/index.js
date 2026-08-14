@@ -40,6 +40,7 @@ const orderAssetPublicRoot = path.join(rootDir, "public", "order-assets");
 const accountAvatarPublicRoot = path.join(rootDir, "public", "account-avatars");
 const orderOriginalArchiveRoot = path.join(rootDir, "data", "order-original-downloads");
 const bodyBookPrintBackCoverPath = path.join(rootDir, "public", "body-book-color-pages", "print-back-cover.jpg");
+const bodyBookPresetPageRoot = path.join(rootDir, "public", "body-book-preset-pages");
 const previewRoot = path.join(rootDir, "public", "style-previews");
 const generatedImageRoot = path.join(rootDir, "data", "private-generated-images");
 const generatedPreviewRoot = path.join(rootDir, "public", "generated-previews");
@@ -166,6 +167,29 @@ const BODY_BOOK_PARTS = [
   { key: "tummy", chinese: "肚子", english: "Tummy", copy: "This is my tummy. 这是我的小肚子。" },
   { key: "knees", chinese: "膝盖", english: "Knees", copy: "My knees can bend. 我的小膝盖会弯曲。" }
 ];
+const PAIRED_PRESET_LAYOUT_VERSION = "paired-preset-v2";
+const LEGACY_BODY_BOOK_LAYOUT_VERSION = "legacy-v1";
+const PAIRED_PRESET_BOOK_PARTS = {
+  body: [
+    ["head", "头部", "Head", "This is my head. 这是我的头部。"],
+    ["eyes", "眼睛", "Eyes", "These are my eyes. 这是我的眼睛。"],
+    ["ears", "耳朵", "Ears", "These are my ears. 这是我的耳朵。"],
+    ["nose", "鼻子", "Nose", "This is my nose. 这是我的鼻子。"],
+    ["mouth", "嘴巴", "Mouth", "This is my mouth. 这是我的嘴巴。"],
+    ["hands", "手", "Hands", "These are my hands. 这是我的手。"],
+    ["feet", "脚", "Feet", "These are my feet. 这是我的脚。"],
+    ["tummy", "肚子", "Tummy", "This is my tummy. 这是我的小肚子。"]
+  ],
+  transport: [
+    ["car", "汽车", "Car"], ["bus", "公交车", "Bus"], ["train", "火车", "Train"], ["airplane", "飞机", "Airplane"],
+    ["boat", "小船", "Boat"], ["bicycle", "自行车", "Bicycle"], ["truck", "卡车", "Truck"], ["ambulance", "救护车", "Ambulance"]
+  ].map(([key, chinese, english]) => [key, chinese, english, `This is a ${english}. 这是一辆${chinese}。`]),
+  animal: [
+    ["cat", "小猫", "Cat"], ["dog", "小狗", "Dog"], ["rabbit", "兔子", "Rabbit"], ["horse", "马", "Horse"],
+    ["cow", "奶牛", "Cow"], ["duck", "小鸭", "Duck"], ["elephant", "大象", "Elephant"], ["lion", "狮子", "Lion"]
+  ].map(([key, chinese, english]) => [key, chinese, english, `Hello, ${english}! 你好，${chinese}！`])
+};
+const PAIRED_PRESET_BOOK_THEME_IDS = new Set(Object.keys(PAIRED_PRESET_BOOK_PARTS));
 const BOOK_THEME_DEFINITIONS = [
   { id: "body", name: "身体认知书", englishName: "My First Body", title: "我的第一本身体认知书", parts: BODY_BOOK_PARTS },
   { id: "career", name: "职业认知书", englishName: "My First Jobs", title: "我的第一本职业认知书", parts: [
@@ -229,7 +253,7 @@ const BODY_BOOK_PROMPT_PROFILES = {
   },
   transport: {
     coverScene: "the baby with six clearly separated photographs of real, full-size vehicles floating as clean cutouts on a white page; never use toy, miniature, ride-on, cartoon, illustrated, or CGI vehicles; no road scene or cluttered environment",
-    cardScene: "the baby shown safely with one clearly recognizable real, full-size requested vehicle; use a real-vehicle photograph as the main cutout, never a toy, miniature, ride-on, cartoon vehicle, or illustration",
+    cardScene: "the baby safely playing with one clearly recognizable child-safe toy version of the requested vehicle; never show the baby inside, riding, sitting in, or near any real full-size vehicle",
     accents: "soft primary colors, pale blue, and warm cream",
     icons: "small transport symbols and movement marks"
   },
@@ -2077,7 +2101,9 @@ app.get("/api/fridge-magnet/sessions/:sessionId", requireWebAccount, async (req,
 });
 
 app.get("/api/body-book/themes", requireWebAccount, (_req, res) => {
-  res.json({ themes: BOOK_THEME_DEFINITIONS.map(toPublicBookTheme), billingEnabled: BODY_BOOK_BILLING_ENABLED });
+  // Do not pass the formatter directly to Array.map: its index argument would
+  // otherwise be treated as a persisted layout version and expose legacy pages.
+  res.json({ themes: BOOK_THEME_DEFINITIONS.map((theme) => toPublicBookTheme(theme)), billingEnabled: BODY_BOOK_BILLING_ENABLED });
 });
 
 app.get("/api/body-book/projects", requireWebAccount, async (req, res) => {
@@ -2102,12 +2128,13 @@ app.post("/api/body-book/projects", requireWebAccount, upload.any(), async (req,
     if (files.some((file) => file.mimetype === "image/svg+xml")) throw createHttpError(400, "请上传 JPG、PNG 或 WebP 图片。");
     const theme = getBookTheme(req.body?.themeId);
     if (!theme) throw createHttpError(400, "请选择认知书主题。");
-    const contentKeys = parseBodyBookPageKeys(req.body?.contentKeys, theme);
-    const generationKeys = parseBodyBookPageKeys(req.body?.generationKeys, theme).filter((key) => contentKeys.includes(key));
-    const pagePrompts = parseBodyBookPagePrompts(req.body?.pagePrompts, theme);
+    const layoutVersion = getNewBodyBookLayoutVersion(theme);
+    const contentKeys = parseBodyBookPageKeys(req.body?.contentKeys, theme, layoutVersion);
+    const generationKeys = parseBodyBookPageKeys(req.body?.generationKeys, theme, layoutVersion).filter((key) => contentKeys.includes(key));
+    const pagePrompts = parseBodyBookPagePrompts(req.body?.pagePrompts, theme, layoutVersion);
     if (!contentKeys.length) throw createHttpError(400, "请至少选择一个认知书内容。");
     if (!generationKeys.length) throw createHttpError(400, "请选择至少一页进行生成。");
-    const generatedPageCount = generationKeys.filter((key) => !getBodyBookPageDefinition(theme, key)?.isBuiltIn).length;
+    const generatedPageCount = generationKeys.filter((key) => !getBodyBookPageDefinition(theme, key, layoutVersion)?.isBuiltIn).length;
     const currentAccount = commerceStore.readAccount(req.webAccount.id) || req.webAccount;
     if (BODY_BOOK_BILLING_ENABLED && Number(currentAccount.beanBalance || 0) < generatedPageCount) {
       throw createHttpError(409, `生成 ${generatedPageCount} 张图片需要 ${generatedPageCount} 个豆豆，当前豆豆不足。`);
@@ -2121,7 +2148,7 @@ app.post("/api/body-book/projects", requireWebAccount, upload.any(), async (req,
       if (current.length < BODY_BOOK_MAX_REFERENCE_COUNT) current.push(file);
       pageReferenceFiles.set(key, current);
     });
-    const project = await createBodyBookProject({ files: referenceFiles, pageReferenceFiles, pagePrompts, visitor, accountId: req.webAccount.id, theme, contentKeys, generationKeys });
+    const project = await createBodyBookProject({ files: referenceFiles, pageReferenceFiles, pagePrompts, visitor, accountId: req.webAccount.id, theme, layoutVersion, contentKeys, generationKeys });
     res.status(202).json(toPublicBodyBookSession(project));
   } catch (error) {
     console.error(error);
@@ -2147,7 +2174,7 @@ app.put("/api/body-book/projects/:sessionId/pages", requireWebAccount, async (re
     if (!session) throw createHttpError(404, "这本认知书工程不存在或已删除。");
     assertWebAccountOwnsBodyBookSession(req, session);
     const current = await synchronizeBodyBookSession(session);
-    const next = await updateBodyBookProjectPages(current, parseBodyBookPageKeys(req.body?.contentKeys, getBookTheme(current.themeId)));
+    const next = await updateBodyBookProjectPages(current, parseBodyBookPageKeys(req.body?.contentKeys, getBookTheme(current.themeId), current.layoutVersion));
     res.json(toPublicBodyBookSession(next));
   } catch (error) {
     console.error(error);
@@ -2216,7 +2243,7 @@ app.post("/api/body-book/projects/:sessionId/generate", requireWebAccount, async
     assertWebAccountOwnsBodyBookSession(req, session);
     const current = await synchronizeBodyBookSession(session);
     if (!current.references.length) throw createHttpError(409, "请先上传至少 1 张宝宝照片。");
-    const requestedKeys = parseBodyBookPageKeys(req.body?.pageKeys, getBookTheme(current.themeId));
+    const requestedKeys = parseBodyBookPageKeys(req.body?.pageKeys, getBookTheme(current.themeId), current.layoutVersion);
     const eligibleKeys = current.pages
       .filter((page) => requestedKeys.includes(page.key) && !page.isBuiltIn && !["queued", "running"].includes(page.status))
       .map((page) => page.key);
@@ -2225,7 +2252,7 @@ app.post("/api/body-book/projects/:sessionId/generate", requireWebAccount, async
     if (BODY_BOOK_BILLING_ENABLED && Number(currentAccount.beanBalance || 0) < eligibleKeys.length) {
       throw createHttpError(409, `生成 ${eligibleKeys.length} 张图片需要 ${eligibleKeys.length} 个豆豆，当前豆豆不足。`);
     }
-    const next = await generateBodyBookPages(current, eligibleKeys, parseBodyBookPagePrompts(req.body?.pagePrompts, getBookTheme(current.themeId)));
+    const next = await generateBodyBookPages(current, eligibleKeys, parseBodyBookPagePrompts(req.body?.pagePrompts, getBookTheme(current.themeId), current.layoutVersion));
     res.status(202).json(toPublicBodyBookSession(next));
   } catch (error) {
     console.error(error);
@@ -5410,9 +5437,10 @@ async function resolveArchivedOrderOriginalCandidates(order) {
       continue;
     }
 
-    // Colour-book object pages are shipped with the product rather than made by
-    // an image job. Older orders did not archive them, so recover the original
-    // image from the order asset (or built-in public asset) at download time.
+    // Built-in learning pages are shipped with the product rather than made by
+    // an image job. Older orders may not have archived them, so recover the
+    // original image from the order asset (or built-in public asset) at download
+    // time.
     if (String(order?.experienceType || "") !== "body-book" || !String(item?.jobId || "").startsWith("built-in:")) continue;
     const storedFilePath = resolvePublicAssetFilePath(item?.imageUrl);
     if (storedFilePath && await fileExists(storedFilePath)) {
@@ -5731,7 +5759,7 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
   assertWebAccountOwnsBodyBookSession(req, project);
   const current = await synchronizeBodyBookSession(project);
   const theme = getBookTheme(current.themeId) || getBookTheme("body");
-  const hasRequiredPageCount = current.pages.length === getBodyBookSelectionPageCount(theme);
+  const hasRequiredPageCount = current.pages.length === getBodyBookSelectionPageCount(theme, current.layoutVersion);
   const pages = getBodyBookPrintPages(current);
   const cover = pages.find((page) => page.key === "cover") || null;
   if (!hasRequiredPageCount || !cover || !pages.length || pages.some((page) => page.status !== "succeeded" || !page.result?.imageUrl || (!page.isBuiltIn && !page.jobId))) {
@@ -5966,6 +5994,9 @@ function resolvePublicAssetFilePath(assetUrl) {
   }
   if (value.startsWith("/body-book-color-pages/")) {
     return path.join(rootDir, "public", "body-book-color-pages", path.basename(value));
+  }
+  if (value.startsWith("/body-book-preset-pages/")) {
+    return path.join(bodyBookPresetPageRoot, path.basename(value));
   }
   return "";
 }
@@ -9479,14 +9510,19 @@ function getBookTheme(themeId) {
   return BOOK_THEME_DEFINITIONS.find((theme) => theme.id === String(themeId || "").trim().toLowerCase()) || null;
 }
 
-function toPublicBookTheme(theme) {
-  const pages = getBodyBookPageDefinitions(theme);
+function toPublicBookTheme(theme, layoutVersion = getNewBodyBookLayoutVersion(theme)) {
+  const pages = getBodyBookPageDefinitions(theme, layoutVersion);
   return {
     id: theme.id,
     name: theme.name,
     englishName: theme.englishName,
     title: theme.title,
     pageCount: getBodyBookPrintPageCount(theme),
+    // This is the product's fixed generation allowance, not the number of
+    // optional topics currently available in the picker. For example, the
+    // career theme exposes more topic choices but each physical book still
+    // contains exactly 17 generated pages.
+    generationPageCount: getBodyBookSelectionPageCount(theme, layoutVersion),
     contents: pages
   };
 }
@@ -9505,7 +9541,7 @@ function buildBodyBookCoverPrompt(theme = getBookTheme("body")) {
 function buildBodyBookPartPrompt(part, order, theme = getBookTheme("body")) {
   if (theme?.id === "color") return buildColorBookPartPrompt(part, order, theme);
   const profile = getBodyBookPromptProfile(theme);
-  const visualDirection = getBodyBookPartVisualDirection(theme?.id, part?.key);
+  const visualDirection = getBodyBookPartVisualDirection(theme?.id, part?.conceptKey || part?.colorKey || part?.key);
   return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual ${theme.name} learning card for ages 0-3. The sole learning concept is "${part.english} / ${part.chinese}". The image must attempt to render this heading exactly: "${part.chinese} ${part.english}". Include this short bilingual sentence exactly: "${part.copy}". Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: ${profile.cardScene}. Mandatory page-specific art direction: ${visualDirection} Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, ${profile.accents} accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching ${profile.icons}. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.`;
 }
 
@@ -9549,15 +9585,15 @@ function getBodyBookPartVisualDirection(themeId, partKey) {
       loving: "Dress the baby in a warm peach romper with a tiny heart patch; show a soft affectionate smile while hugging one small heart-shaped cushion, with two restrained heart doodles nearby."
     },
     transport: {
-      car: "Dress the baby in a soft red driving jacket and navy shorts; show the baby safely buckled into a rear child safety seat inside a real, full-size red parked car, with the real car body and steering wheel clearly visible. Never generate a toy, miniature, ride-on, or cartoon car.",
-      bus: "Dress the baby in a sunny-yellow travel romper and a tiny soft cap; show the baby safely seated in a real bus child seat by a window, with the real full-size bus exterior and window line clearly visible. Never generate a toy, miniature, or cartoon bus.",
-      train: "Dress the baby in blue-and-white conductor-inspired overalls and a soft conductor cap; show the baby safely seated beside a real train window, with a real full-size train carriage and wheels clearly visible as the main cutout. Never generate a toy or ride-on train.",
-      airplane: "Dress the baby in a sky-blue pilot-inspired romper and a soft aviator cap; show the baby safely seated in an airport stroller near a real full-size passenger airplane, with the aircraft fuselage, wing, and cockpit clearly visible. Never generate a toy or cartoon airplane.",
-      boat: "Dress the baby in a navy-and-white sailor romper and a soft sailor hat; show the baby safely seated with a life jacket in a real full-size boat, with the real hull and mast or cabin clearly visible. Never generate a toy boat.",
-      bicycle: "Dress the baby in a mint-green helmet and a sporty romper; show the baby securely seated in a child bicycle seat attached to a real adult bicycle, with the full-size bicycle frame and wheels clearly visible. Never generate a toy tricycle.",
-      truck: "Dress the baby in an orange utility vest over a cream romper and a soft cap; show the baby safely in a child safety seat beside a real full-size dump truck, with the cab and truck bed clearly visible. Never generate a toy truck.",
+      car: "Dress the baby in a soft red driving jacket, navy shorts, and a small matching driver cap; show a floor-seated pose joyfully playing with one red toy car. Never show any real full-size car, ride-on vehicle, or driving scene.",
+      bus: "Dress the baby in a sunny-yellow travel romper and a tiny soft cap; show a floor-seated pose pushing one yellow toy bus. Never show any real bus, ride-on vehicle, or bus interior.",
+      train: "Dress the baby in blue-and-white conductor-inspired overalls and a soft conductor cap; show a floor-seated pose connecting two small wooden toy train carriages. Never show any real train, railway station, or ride-on train.",
+      airplane: "Dress the baby in a sky-blue pilot-inspired romper and a soft aviator cap; show the baby holding and looking up at one small toy passenger airplane. Never show any real airplane, airport, stroller, or aircraft cabin.",
+      boat: "Dress the baby in a navy-and-white sailor romper and a soft sailor hat; show a seated pose floating one small toy sailboat in a shallow blue play-water tray. Never show any real boat, open water, or life jacket.",
+      bicycle: "Dress the baby in a mint-green helmet and a sporty romper; show a seated pose rolling one small toy bicycle across a simple play mat. Never show a real adult bicycle, child seat, or ride-on bicycle.",
+      truck: "Dress the baby in an orange utility vest over a cream romper and a soft cap; show a floor-seated pose loading two soft blocks into one toy dump truck. Never show any real full-size truck, construction site, or ride-on vehicle.",
       taxi: "Dress the baby in a bright-yellow city-travel jacket and a small matching cap; show the baby safely buckled into a rear child seat inside a real full-size yellow taxi, with the taxi body clearly visible. Never generate a toy or ride-on taxi.",
-      ambulance: "Dress the baby in a white-and-red helper romper with a tiny heart badge; show the baby safely seated in a child safety seat beside a real full-size ambulance, with the real vehicle body and emergency markings clearly visible. Never generate a toy ambulance.",
+      ambulance: "Dress the baby in a white-and-red helper romper with a tiny heart badge; show a floor-seated pose gently playing with one toy ambulance and a small toy bandage kit. Never show a real ambulance, hospital scene, or ride-on vehicle.",
       metro: "Dress the baby in a bright blue travel jacket and a soft cap; show the baby safely seated beside a real metro train window, with the full-size metro carriage, doors, and wheels clearly visible. Never generate a toy or illustrated metro.",
       ship: "Dress the baby in a navy sailor romper and a soft sailor hat; show the baby safely seated with a life jacket on a real full-size passenger ship deck, with the real hull and cabin clearly visible. Never generate a toy ship.",
       helicopter: "Dress the baby in a sky-blue pilot-inspired romper and a soft aviator cap; show the baby safely seated in an airport stroller near a real full-size helicopter, with real rotor blades, cockpit, and landing skids clearly visible. Never generate a toy or cartoon helicopter.",
@@ -10035,7 +10071,7 @@ function legacyToPublicBodyBookSession(session) {
   return {
     sessionId: current.sessionId,
     experienceType: current.experienceType,
-    theme: toPublicBookTheme(getBookTheme(current.themeId) || getBookTheme("body")),
+    theme: toPublicBookTheme(getBookTheme(current.themeId) || getBookTheme("body"), current.layoutVersion),
     stage: current.stage,
     status: current.status,
     message: current.message,
@@ -10064,7 +10100,7 @@ function legacyToPublicBodyBookLibraryItem(session) {
   return {
     sessionId: current.sessionId,
     savedAt: current.savedAt || null,
-    theme: toPublicBookTheme(theme),
+    theme: toPublicBookTheme(theme, current.layoutVersion),
     title: theme.englishName,
     cover: current.cover,
     cards: current.cards,
@@ -10203,16 +10239,40 @@ async function legacySynchronizeBodyBookSessionByJobId(jobId) {
 // Body-book projects use one selected-page collection. The declarations below
 // intentionally supersede the original fixed cover/cards workflow above while
 // keeping existing JSON files readable during the rollout.
-function getBodyBookPageDefinitions(theme = getBookTheme("body")) {
+function getNewBodyBookLayoutVersion(theme) {
+  return PAIRED_PRESET_BOOK_THEME_IDS.has(String(theme?.id || "").toLowerCase())
+    ? PAIRED_PRESET_LAYOUT_VERSION
+    : LEGACY_BODY_BOOK_LAYOUT_VERSION;
+}
+
+function getBodyBookLayoutVersion(theme, layoutVersion = "") {
+  if (layoutVersion === PAIRED_PRESET_LAYOUT_VERSION && PAIRED_PRESET_BOOK_THEME_IDS.has(String(theme?.id || "").toLowerCase())) {
+    return PAIRED_PRESET_LAYOUT_VERSION;
+  }
+  // Colour books shipped with this paired structure before layout versions were
+  // persisted, so retain their existing behaviour for every historical project.
+  if (String(theme?.id || "") === "color") return PAIRED_PRESET_LAYOUT_VERSION;
+  return LEGACY_BODY_BOOK_LAYOUT_VERSION;
+}
+
+function getPairedPresetBookParts(theme) {
+  return (PAIRED_PRESET_BOOK_PARTS[String(theme?.id || "").toLowerCase()] || [])
+    .map(([key, chinese, english, copy]) => ({ key, chinese, english, copy }));
+}
+
+function getBodyBookPageDefinitions(theme = getBookTheme("body"), layoutVersion = getNewBodyBookLayoutVersion(theme)) {
   const resolved = theme || getBookTheme("body");
-  if (resolved?.id === "color") {
-    const innerPages = (resolved.parts || []).flatMap((part, index) => {
+  const pairedLayout = getBodyBookLayoutVersion(resolved, layoutVersion) === PAIRED_PRESET_LAYOUT_VERSION;
+  if (resolved?.id === "color" || pairedLayout) {
+    const parts = resolved.id === "color" ? resolved.parts || [] : getPairedPresetBookParts(resolved);
+    const innerPages = parts.flatMap((part, index) => {
       const babyOrder = index * 2 + 1;
       return [
         {
           ...part,
           key: `${part.key}-baby`,
-          colorKey: part.key,
+          conceptKey: part.key,
+          colorKey: resolved.id === "color" ? part.key : "",
           pageType: "baby",
           chinese: `${part.chinese}宝宝页`,
           english: `${part.english} Baby`,
@@ -10222,7 +10282,8 @@ function getBodyBookPageDefinitions(theme = getBookTheme("body")) {
         {
           ...part,
           key: `${part.key}-objects`,
-          colorKey: part.key,
+          conceptKey: part.key,
+          colorKey: resolved.id === "color" ? part.key : "",
           pageType: "objects",
           isBuiltIn: true,
           isRequired: true,
@@ -10245,13 +10306,13 @@ function getBodyBookPageDefinitions(theme = getBookTheme("body")) {
   ];
 }
 
-function getBodyBookPageDefinition(theme, key) {
+function getBodyBookPageDefinition(theme, key, layoutVersion) {
   const normalizedKey = String(key || "").trim().toLowerCase();
-  return getBodyBookPageDefinitions(theme).find((page) => page.key === normalizedKey) || null;
+  return getBodyBookPageDefinitions(theme, layoutVersion).find((page) => page.key === normalizedKey) || null;
 }
 
-function getBodyBookSelectablePageDefinitions(theme) {
-  return getBodyBookPageDefinitions(theme)
+function getBodyBookSelectablePageDefinitions(theme, layoutVersion) {
+  return getBodyBookPageDefinitions(theme, layoutVersion)
     .filter((page) => !page.isBuiltIn && page.pageType !== "back-cover");
 }
 
@@ -10259,32 +10320,33 @@ function getBodyBookPrintPageCount(_theme) {
   return 17;
 }
 
-function getBodyBookSelectionPageCount(theme) {
-  return getBookTheme(theme?.id || theme)?.id === "color" ? 9 : 17;
+function getBodyBookSelectionPageCount(theme, layoutVersion) {
+  const resolved = getBookTheme(theme?.id || theme);
+  return getBodyBookLayoutVersion(resolved, layoutVersion) === PAIRED_PRESET_LAYOUT_VERSION ? 9 : 17;
 }
 
-function ensureBodyBookCoverKey(keys, theme) {
+function ensureBodyBookCoverKey(keys, theme, layoutVersion) {
   const selected = new Set(keys || []);
   selected.add("cover");
-  return getBodyBookSelectablePageDefinitions(theme).map((page) => page.key).filter((key) => selected.has(key));
+  return getBodyBookSelectablePageDefinitions(theme, layoutVersion).map((page) => page.key).filter((key) => selected.has(key));
 }
 
-function parseBodyBookPageKeys(value, theme) {
+function parseBodyBookPageKeys(value, theme, layoutVersion) {
   let keys = value;
   if (typeof value === "string") {
     try { keys = JSON.parse(value); } catch { keys = []; }
   }
   const requested = new Set(Array.isArray(keys) ? keys.map((key) => String(key || "").trim().toLowerCase()).filter(Boolean) : []);
-  return getBodyBookSelectablePageDefinitions(theme).map((page) => page.key).filter((key) => requested.has(key));
+  return getBodyBookSelectablePageDefinitions(theme, layoutVersion).map((page) => page.key).filter((key) => requested.has(key));
 }
 
-function parseBodyBookPagePrompts(value, theme) {
+function parseBodyBookPagePrompts(value, theme, layoutVersion) {
   let prompts = value;
   if (typeof value === "string") {
     try { prompts = JSON.parse(value); } catch { prompts = {}; }
   }
   if (!prompts || typeof prompts !== "object" || Array.isArray(prompts)) return {};
-  const validKeys = new Set(getBodyBookSelectablePageDefinitions(theme).map((page) => page.key));
+  const validKeys = new Set(getBodyBookSelectablePageDefinitions(theme, layoutVersion).map((page) => page.key));
   return Object.fromEntries(Object.entries(prompts)
     .filter(([key, prompt]) => validKeys.has(String(key).toLowerCase()) && typeof prompt === "string")
     .map(([key, prompt]) => [String(key).toLowerCase(), String(prompt).slice(0, 6000)]));
@@ -10294,7 +10356,7 @@ function createBodyBookPage(definition, theme, references, current = {}) {
   const prompt = definition.key === "cover"
     ? buildBodyBookCoverPrompt(theme)
     : definition.pageType === "objects"
-      ? buildColorObjectPagePrompt(definition)
+      ? buildBuiltInPresetBookPagePrompt(definition, theme)
       : buildBodyBookPartPrompt(definition, definition.order, theme);
   if (definition.isBuiltIn) {
     return {
@@ -10308,7 +10370,7 @@ function createBodyBookPage(definition, theme, references, current = {}) {
       prompt,
       hasCustomPrompt: false,
       reference: null,
-      result: getBuiltInColorBookPageResult(definition),
+      result: getBuiltInPresetBookPageResult(definition, theme),
       errorMessage: "",
       historyJobIds: []
     };
@@ -10335,11 +10397,18 @@ function createBodyBookPage(definition, theme, references, current = {}) {
   };
 }
 
-function getBuiltInColorBookPageResult(definition) {
+function getBuiltInPresetBookPageResult(definition, theme) {
   const isBackCover = definition?.pageType === "back-cover";
-  const filename = isBackCover ? "back-cover.svg" : `${definition?.colorKey || "red"}-objects.png`;
-  const imageUrl = `/body-book-color-pages/${filename}`;
-  const thumbnailUrl = isBackCover ? imageUrl : `/body-book-color-pages/thumbnails/${definition?.colorKey || "red"}-objects.webp`;
+  const isColorBook = String(theme?.id || "") === "color";
+  const filename = isBackCover ? "back-cover.svg" : `${definition?.conceptKey || definition?.colorKey || "red"}-objects.png`;
+  const imageUrl = isBackCover || isColorBook
+    ? `/body-book-color-pages/${filename}`
+    : `/body-book-preset-pages/${String(theme?.id || "body")}-${String(definition?.conceptKey || "item")}.png`;
+  const thumbnailUrl = isBackCover
+    ? imageUrl
+    : isColorBook
+      ? `/body-book-color-pages/thumbnails/${definition?.colorKey || "red"}-objects.webp`
+      : imageUrl;
   return {
     imageDataUrl: "",
     imageUrl,
@@ -10347,31 +10416,37 @@ function getBuiltInColorBookPageResult(definition) {
     thumbnailUrl,
     originalImageUrl: imageUrl,
     mimeType: isBackCover ? "image/svg+xml" : "image/png",
-    provider: "built-in-color-pages",
+    provider: isColorBook ? "built-in-color-pages" : "built-in-preset-pages",
     mode: "built-in"
   };
 }
 
-// Editable project pages deliberately exclude the colour-object artwork.  The
+function buildBuiltInPresetBookPagePrompt(definition, theme) {
+  if (String(theme?.id || "") === "color") return buildColorObjectPagePrompt(definition);
+  return `Built-in static preset page for ${theme?.name || "认知书"}: ${definition?.chinese || ""} / ${definition?.english || ""}.`;
+}
+
+// Editable project pages deliberately exclude paired preset artwork. The
 // artwork is supplied by the product and is inserted only in the print order.
 function getBodyBookPrintPages(session) {
   const theme = getBookTheme(session?.themeId) || getBookTheme("body");
+  const layoutVersion = getBodyBookLayoutVersion(theme, session?.layoutVersion);
   const projectPages = Array.isArray(session?.pages) ? session.pages : [];
   const byKey = new Map(projectPages.map((page) => [String(page?.key || "").toLowerCase(), page]));
   const reference = session?.reference && typeof session.reference === "object" ? session.reference : {};
   const references = normalizeBodyBookReferences(session?.references, reference);
 
-  if (theme.id !== "color") {
+  if (layoutVersion !== PAIRED_PRESET_LAYOUT_VERSION) {
     return projectPages
       .filter((page) => page.pageType !== "back-cover")
       .sort((left, right) => Number(left.order || 0) - Number(right.order || 0));
   }
 
-  return getBodyBookPageDefinitions(theme)
+  return getBodyBookPageDefinitions(theme, layoutVersion)
     .filter((definition) => definition.pageType !== "back-cover")
     .flatMap((definition) => {
       if (definition.pageType === "objects") {
-        const babyKey = `${definition.colorKey}-baby`;
+        const babyKey = `${definition.conceptKey || definition.colorKey}-baby`;
         return byKey.has(babyKey) ? [createBodyBookPage(definition, theme, references)] : [];
       }
       const existing = byKey.get(definition.key);
@@ -10379,12 +10454,12 @@ function getBodyBookPrintPages(session) {
     });
 }
 
-async function createBodyBookProject({ files, pageReferenceFiles = new Map(), pagePrompts = {}, visitor, accountId, theme, contentKeys, generationKeys }) {
+async function createBodyBookProject({ files, pageReferenceFiles = new Map(), pagePrompts = {}, visitor, accountId, theme, layoutVersion = getNewBodyBookLayoutVersion(theme), contentKeys, generationKeys }) {
   const sessionId = randomUUID();
   const now = new Date().toISOString();
   const references = await persistBodyBookReferences(sessionId, files, "reference");
   const reference = references[0];
-  const selectedKeys = ensureBodyBookCoverKey(parseBodyBookPageKeys(contentKeys, theme), theme);
+  const selectedKeys = ensureBodyBookCoverKey(parseBodyBookPageKeys(contentKeys, theme, layoutVersion), theme, layoutVersion);
   const pageReferences = new Map(await Promise.all(selectedKeys.map(async (key) => {
     const pageFiles = pageReferenceFiles.get(key);
     const pageReferences = pageFiles?.length
@@ -10397,6 +10472,7 @@ async function createBodyBookProject({ files, pageReferenceFiles = new Map(), pa
     sessionId,
     experienceType: "body-book",
     themeId: theme.id,
+    layoutVersion,
     ownerAccountId: String(accountId || ""),
     ownerVisitorId: String(visitor?.visitorId || ""),
     stage: "ready",
@@ -10411,7 +10487,7 @@ async function createBodyBookProject({ files, pageReferenceFiles = new Map(), pa
     chargedJobIds: [],
     billingError: "",
     pages: selectedKeys.map((key) => createBodyBookPage(
-      getBodyBookPageDefinition(theme, key),
+      getBodyBookPageDefinition(theme, key, layoutVersion),
       theme,
       pageReferences.get(key) || references,
       { prompt: pagePrompts[key], hasCustomPrompt: Boolean(String(pagePrompts[key] || "").trim()) }
@@ -10423,14 +10499,14 @@ async function createBodyBookProject({ files, pageReferenceFiles = new Map(), pa
 async function updateBodyBookProjectPages(session, contentKeys) {
   const current = normalizeBodyBookSession(session);
   const theme = getBookTheme(current.themeId) || getBookTheme("body");
-  const selectedKeys = ensureBodyBookCoverKey(parseBodyBookPageKeys(contentKeys, theme), theme);
+  const selectedKeys = ensureBodyBookCoverKey(parseBodyBookPageKeys(contentKeys, theme, current.layoutVersion), theme, current.layoutVersion);
   const selected = new Set(selectedKeys);
   const removed = current.pages.filter((page) => !selected.has(page.key));
   await discardBodyBookPages(removed);
   const byKey = new Map(current.pages.map((page) => [page.key, page]));
   return saveBodyBookSession({
     ...current,
-    pages: selectedKeys.map((key) => createBodyBookPage(getBodyBookPageDefinition(theme, key), theme, current.references, byKey.get(key))),
+    pages: selectedKeys.map((key) => createBodyBookPage(getBodyBookPageDefinition(theme, key, current.layoutVersion), theme, current.references, byKey.get(key))),
     updatedAt: new Date().toISOString(),
     message: "内容已更新，可继续生成。"
   });
@@ -10524,7 +10600,7 @@ async function deleteBodyBookPageReference(session, pageKey, referenceIndex) {
 async function generateBodyBookPages(session, pageKeys, pagePrompts = {}) {
   const current = normalizeBodyBookSession(session);
   const theme = getBookTheme(current.themeId) || getBookTheme("body");
-  const requested = new Set(parseBodyBookPageKeys(pageKeys, theme));
+  const requested = new Set(parseBodyBookPageKeys(pageKeys, theme, current.layoutVersion));
   const pages = current.pages.filter((page) => requested.has(page.key) && !page.isBuiltIn && !["queued", "running"].includes(page.status));
   if (!pages.length) return current;
   const { provider, providers } = await getBodyBookGenerationConfig();
@@ -10676,6 +10752,7 @@ async function synchronizeBodyBookSession(session) {
 
 function normalizeBodyBookSession(session) {
   const theme = getBookTheme(session?.themeId) || getBookTheme("body");
+  const layoutVersion = getBodyBookLayoutVersion(theme, session?.layoutVersion);
   const hasProjectPages = Array.isArray(session?.pages);
   const legacyItems = hasProjectPages ? session.pages : [session?.cover, ...(Array.isArray(session?.cards) ? session.cards : [])].filter(Boolean);
   const byKey = new Map(legacyItems.map((item) => [String(item?.key || "").toLowerCase(), item]));
@@ -10686,7 +10763,7 @@ function normalizeBodyBookSession(session) {
       if (legacyPage && !byKey.has(babyKey)) byKey.set(babyKey, { ...legacyPage, key: babyKey, colorKey: part.key, pageType: "baby" });
     }
   }
-  const selectedKeys = getBodyBookSelectablePageDefinitions(theme)
+  const selectedKeys = getBodyBookSelectablePageDefinitions(theme, layoutVersion)
     .map((page) => page.key)
     .filter((key) => byKey.has(key));
   const reference = session?.reference && typeof session.reference === "object" ? session.reference : {};
@@ -10696,6 +10773,7 @@ function normalizeBodyBookSession(session) {
     sessionId: String(session?.sessionId || ""),
     experienceType: "body-book",
     themeId: theme.id,
+    layoutVersion,
     ownerAccountId: String(session?.ownerAccountId || ""),
     ownerVisitorId: String(session?.ownerVisitorId || ""),
     stage: String(session?.stage || "ready"),
@@ -10710,7 +10788,7 @@ function normalizeBodyBookSession(session) {
     chargedJobIds: Array.isArray(session?.chargedJobIds) ? session.chargedJobIds.map(String).filter(Boolean) : [],
     refundedJobIds: Array.isArray(session?.refundedJobIds) ? session.refundedJobIds.map(String).filter(Boolean) : [],
     billingError: String(session?.billingError || ""),
-    pages: selectedKeys.map((key) => createBodyBookPage(getBodyBookPageDefinition(theme, key), theme, references, byKey.get(key)))
+    pages: selectedKeys.map((key) => createBodyBookPage(getBodyBookPageDefinition(theme, key, layoutVersion), theme, references, byKey.get(key)))
   };
 }
 
@@ -10720,7 +10798,11 @@ function toPublicBodyBookSession(session) {
     projectId: current.sessionId,
     sessionId: current.sessionId,
     experienceType: current.experienceType,
-    theme: toPublicBookTheme(getBookTheme(current.themeId) || getBookTheme("body")),
+    layoutVersion: current.layoutVersion,
+    // Use the project's persisted layout. New body/transport/animal books use
+    // paired-preset-v2, while existing projects must continue to expose their
+    // original legacy-v1 17 editable pages.
+    theme: toPublicBookTheme(getBookTheme(current.themeId) || getBookTheme("body"), current.layoutVersion),
     stage: current.stage,
     status: current.status,
     message: current.message,
@@ -10774,7 +10856,7 @@ function toPublicBodyBookLibraryItem(session) {
     sessionId: current.sessionId,
     savedAt: current.savedAt || null,
     updatedAt: current.updatedAt || null,
-    theme: toPublicBookTheme(theme),
+    theme: toPublicBookTheme(theme, current.layoutVersion),
     title: theme.name,
     thumbnail: thumbnailPage?.result?.thumbnailUrl || thumbnailPage?.result?.previewUrl || thumbnailPage?.result?.imageUrl || "",
     pages: current.pages,
