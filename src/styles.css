@@ -7666,6 +7666,152 @@ textarea {
   font-weight: 700;
 }
 
+.body-book-theme-effect {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  padding: 34px 0 60px;
+}
+
+.body-book-theme-effect-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.body-book-theme-effect-back {
+  align-self: start;
+}
+
+.body-book-theme-effect-head > div {
+  min-width: 0;
+}
+
+.body-book-theme-effect-head .body-book-kicker {
+  margin: 0 0 4px;
+}
+
+.body-book-theme-effect-head h2 {
+  margin: 0;
+  color: var(--body-book-apple-ink);
+  font-size: clamp(28px, 4vw, 42px);
+  letter-spacing: -0.04em;
+}
+
+.body-book-theme-effect-head p:not(.body-book-kicker) {
+  margin: 5px 0 0;
+  color: var(--body-book-apple-muted);
+  font-size: 14px;
+}
+
+.body-book-theme-effect-cost {
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: #e8f5ea;
+  color: #1d6a3d !important;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.body-book-theme-effect-copy {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 24px;
+  padding: 18px 20px;
+  border: 1px solid var(--body-book-apple-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.body-book-theme-effect-copy strong {
+  font-size: 16px;
+}
+
+.body-book-theme-effect-copy p {
+  max-width: 680px;
+  margin: 0;
+  color: var(--body-book-apple-muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.body-book-theme-effect-pages {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(16px, 3vw, 34px);
+  align-items: start;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.body-book-theme-effect-pages.count-2 {
+  max-width: 660px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.body-book-theme-effect-page {
+  margin: 0;
+}
+
+.body-book-theme-effect-image {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  border-radius: 19px;
+  background: #f5f5f7;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.11);
+}
+
+.body-book-theme-effect-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.body-book-theme-effect-image span {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(29, 29, 31, 0.78);
+  color: #fff !important;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.body-book-theme-effect-page figcaption {
+  display: grid;
+  gap: 3px;
+  padding: 10px 2px 0;
+}
+
+.body-book-theme-effect-page figcaption span {
+  color: var(--body-book-apple-muted);
+  font-size: 12px;
+}
+
+.body-book-theme-effect-page figcaption strong {
+  font-size: 14px;
+}
+
+.body-book-theme-effect-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.body-book-theme-effect-actions .draw-card-primary,
+.body-book-theme-effect-actions .draw-card-secondary {
+  min-width: 126px;
+  justify-content: center;
+}
+
 .body-book-page :is(.body-book-theme-index, .body-book-theme-card small, .body-book-item-meta span, .body-book-library-cover small, .body-book-reference-picker small, .body-book-page-prompt small, .body-book-page-reference, .body-book-history-list small) {
   color: var(--body-book-apple-muted);
 }
@@ -7826,6 +7972,14 @@ textarea {
   .body-book-page .body-book-theme-card { padding: 11px; }
   .body-book-order-detail-page .workspace { width: min(100% - 28px, 1120px); }
   .body-book-order-detail-page .draw-observability-grid { grid-template-columns: minmax(0, 1fr); }
+  .body-book-theme-effect { padding-top: 22px; }
+  .body-book-theme-effect-head { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
+  .body-book-theme-effect-head > div { grid-column: 1 / -1; grid-row: 2; }
+  .body-book-theme-effect-pages,
+  .body-book-theme-effect-pages.count-2 { grid-template-columns: minmax(0, 1fr); max-width: 360px; }
+  .body-book-theme-effect-actions { align-items: stretch; flex-direction: column-reverse; }
+  .body-book-theme-effect-actions .draw-card-primary,
+  .body-book-theme-effect-actions .draw-card-secondary { width: 100%; }
 }
 
 /* Header actions share one lower row: home left, account actions right. */
