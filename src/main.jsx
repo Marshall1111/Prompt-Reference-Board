@@ -7666,35 +7666,12 @@ function parseDownloadFilename(contentDisposition, fallback = "order-originals.z
   return fallback;
 }
 
-async function downloadAdminOrderOriginals(orderId) {
-  const response = await fetch(`/api/admin/orders/${orderId}/download-originals`, {
-    method: "POST"
-  });
-  const contentType = String(response.headers.get("content-type") || "");
-  if (!response.ok) {
-    if (contentType.includes("application/json")) {
-      const data = await response.json().catch(() => null);
-      throw new Error(data?.message || "下载原图失败。");
-    }
-    const text = await response.text().catch(() => "");
-    throw new Error(text || "下载原图失败。");
-  }
-
-  const filename = parseDownloadFilename(response.headers.get("content-disposition"), `order-${orderId}.zip`);
-  const blob = await response.blob();
-  const objectUrl = URL.createObjectURL(blob);
+function downloadAdminOrderOriginals(orderId) {
   const link = document.createElement("a");
-  link.href = objectUrl;
-  link.download = filename;
+  link.href = `/api/admin/orders/${encodeURIComponent(orderId)}/download-originals`;
   document.body.appendChild(link);
   link.click();
   link.remove();
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
-
-  return {
-    filename,
-    sizeBytes: blob.size
-  };
 }
 
 async function downloadAdminOrdersExport(params = {}) {
@@ -8876,8 +8853,8 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
     setError("");
     setDownloadStatus("");
     try {
-      const payload = await downloadAdminOrderOriginals(selectedOrder.id);
-      setDownloadStatus(`原图压缩包已开始下载：${payload.filename}`);
+      await downloadAdminOrderOriginals(selectedOrder.id);
+      setDownloadStatus("原图压缩包已开始下载。");
     } catch (nextError) {
       setError(nextError.message || "下载原图失败。");
     } finally {

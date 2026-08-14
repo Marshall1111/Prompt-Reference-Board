@@ -1,10 +1,10 @@
 ﻿import express from "express";
 import multer from "multer";
 import path from "node:path";
-import { createReadStream, existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createHash, createHmac, createPrivateKey, createPublicKey, createSign, createVerify, randomInt, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
-import { access, appendFile, copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { access, appendFile, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createOrderStore } from "./order-store.js";
@@ -328,7 +328,6 @@ const upload = multer({
 const activeImageJobs = new Map();
 const drawCardSessionSyncLocks = new Map();
 const bodyBookSessionSyncLocks = new Map();
-const orderOriginalBundleBuilds = new Map();
 
 function nowMs() {
   return Date.now();
@@ -1525,7 +1524,6 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
         success: true,
         payload: { coinDiscountCents, payableCents: 0 }
       });
-      queueOrderOriginalImageBundle(paidOrder);
       return res.status(201).json({
         order: toPublicOrder(paidOrder, { includeToken: true }),
         payment: { status: "already_paid", mode: "coin_discount", expiresAt: created.expiresAt }
@@ -1881,9 +1879,8 @@ app.post("/api/payments/wechat/notify", express.text({ type: "*/*" }), async (re
       if (!order || order.accountId !== intent.accountId || getOrderPayableCents(order) !== intent.amountCents) {
         throw createHttpError(400, "实物订单与支付单不匹配。");
       }
-      let paidOrder = order;
       if (order.paymentStatus !== "paid") {
-        paidOrder = orderStore.updateOrderAndAppendEvent(order.id, {
+        orderStore.updateOrderAndAppendEvent(order.id, {
           paymentStatus: "paid",
           lastPaymentError: "",
           wechatTransactionId: transactionId,
@@ -1896,7 +1893,6 @@ app.post("/api/payments/wechat/notify", express.text({ type: "*/*" }), async (re
           headers
         });
       }
-      queueOrderOriginalImageBundle(paidOrder);
     }
 
     res.json({ code: "SUCCESS", message: "成功" });
@@ -3392,20 +3388,23 @@ app.get("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
   }
 });
 
-async function handleAdminOrderOriginalDownload(req, res) {
+app.post("/api/admin/orders/:orderId/download-originals", requireAdmin, async (req, res) => {
   try {
     const order = orderStore.readOrderWithRelations(req.params.orderId);
     if (!order) return res.status(404).json({ message: "订单不存在。" });
-    const result = await ensureOrderOriginalImageBundle(order);
-    await streamOrderOriginalImageBundle(res, result);
+    const result = await buildOrderOriginalImageBundle(order);
+    res.download(result.zipPath, result.filename, async (error) => {
+      await Promise.all((result.cleanupPaths || []).map((targetPath) => rm(targetPath, { recursive: true, force: true })));
+      if (error && !res.headersSent) {
+        console.error(error);
+        res.status(500).json({ message: "下载原图失败。" });
+      }
+    });
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "下载原图失败。" });
   }
-}
-
-app.get("/api/admin/orders/:orderId/download-originals", requireAdmin, handleAdminOrderOriginalDownload);
-app.post("/api/admin/orders/:orderId/download-originals", requireAdmin, handleAdminOrderOriginalDownload);
+});
 
 app.patch("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
   try {
@@ -3501,7 +3500,6 @@ app.patch("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
     if (order.experienceType === "body-book" && order.paymentStatus === "unpaid" && updated?.paymentStatus === "expired") {
       commerceStore.releaseBodyBookDiscountReservation(order.id);
     }
-    queueOrderOriginalImageBundle(updated);
     res.json({ order: toPublicOrder(updated, { includePrivate: true }) });
   } catch (error) {
     console.error(error);
@@ -3514,7 +3512,6 @@ app.post("/api/admin/orders/:orderId/confirm-manual-payment", requireAdmin, asyn
     const order = orderStore.readOrderWithRelations(req.params.orderId);
     if (!order) return res.status(404).json({ message: "订单不存在。" });
     const updated = confirmManualOrderPayment(order);
-    queueOrderOriginalImageBundle(updated);
     res.json({ order: toPublicOrder(updated, { includePrivate: true }) });
   } catch (error) {
     console.error(error);
@@ -3914,9 +3911,6 @@ app.listen(port, () => {
   prepareImageJobStorage()
     .then(migrateLegacyGeneratedImages)
     .then(repairHistoricalCommissionSnapshots)
-    .then(() => {
-      void preparePendingShipmentOrderOriginalBundles();
-    })
     .then(readStyles)
     .then(syncMiniProgram)
     .then(() => console.log("Mini program files synced."))
@@ -5315,23 +5309,15 @@ function extensionForRemoteUrl(url) {
 
 async function resolveOrderOriginalCandidates(order) {
   const archivedCandidates = await resolveArchivedOrderOriginalCandidates(order);
-  const items = Array.isArray(order?.items)
-    ? order.items.slice().sort((left, right) => Number(left?.sortOrder || 0) - Number(right?.sortOrder || 0))
-    : [];
-  const archivedSortOrders = new Set(archivedCandidates.map((candidate) => Number(candidate.sortOrder)).filter(Number.isFinite));
-  const jobs = await Promise.all(items.map((item) => readImageJob(item.jobId)));
-  const candidates = [...archivedCandidates];
+  if (archivedCandidates.length) {
+    return archivedCandidates;
+  }
+
+  const jobs = await Promise.all((order.items || []).map((item) => readImageJob(item.jobId)));
+  const candidates = [];
   const seenKeys = new Set();
 
-  archivedCandidates.forEach((candidate) => {
-    if (candidate.sourceType === "archived") seenKeys.add(`archived:${candidate.archivedFilePath}`);
-    if (candidate.sourceType === "stored") seenKeys.add(`stored:${candidate.storedFilePath}`);
-  });
-
-  jobs.forEach((job, index) => {
-    const item = items[index];
-    const sortOrder = Number(item?.sortOrder ?? index);
-    if (archivedSortOrders.has(sortOrder)) return;
+  jobs.forEach((job) => {
     if (!job?.jobId) return;
 
     const generatedFilePath = path.join(generatedImageRoot, path.basename(String(job?.result?.imageUrl || "")));
@@ -5343,7 +5329,6 @@ async function resolveOrderOriginalCandidates(order) {
         candidates.push({
           sourceType: "generated",
           jobId: job.jobId,
-          sortOrder,
           generatedFilePath,
           mimeType: String(job?.result?.mimeType || "")
         });
@@ -5358,122 +5343,27 @@ async function resolveOrderOriginalCandidates(order) {
         candidates.push({
           sourceType: "remote",
           jobId: job.jobId,
-          sortOrder,
           remoteUrl
         });
       }
     }
   });
 
-  return candidates.sort((left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0));
+  return candidates;
 }
 
 async function resolveArchivedOrderOriginalCandidates(order) {
   const dir = path.join(orderOriginalArchiveRoot, String(order?.id || ""));
-  const entries = (await fileExists(dir))
-    ? await readdir(dir, { withFileTypes: true })
-    : [];
-  const originalEntries = entries.filter((entry) => entry.isFile());
-  const items = Array.isArray(order?.items)
-    ? order.items.slice().sort((left, right) => Number(left?.sortOrder || 0) - Number(right?.sortOrder || 0))
-    : [];
-
-  if (!items.length) {
-    return originalEntries
-      .sort((left, right) => left.name.localeCompare(right.name))
-      .map((entry, index) => ({
-        sourceType: "archived",
-        jobId: "",
-        sortOrder: index,
-        archivedFilePath: path.join(dir, entry.name)
-      }));
-  }
-
-  const archiveByPosition = new Map(originalEntries.map((entry) => [path.parse(entry.name).name, entry]));
-  const candidates = [];
-  for (let index = 0; index < items.length; index += 1) {
-    const item = items[index];
-    const sortOrder = Number(item?.sortOrder ?? index);
-    const archiveName = `original-${String(sortOrder + 1).padStart(2, "0")}`;
-    const archivedEntry = archiveByPosition.get(archiveName);
-    if (archivedEntry) {
-      candidates.push({
-        sourceType: "archived",
-        jobId: String(item?.jobId || ""),
-        sortOrder,
-        archivedFilePath: path.join(dir, archivedEntry.name)
-      });
-      continue;
-    }
-
-    // Colour-book object pages are shipped with the product rather than made by
-    // an image job. Older orders did not archive them, so recover the original
-    // image from the order asset (or built-in public asset) at download time.
-    if (String(order?.experienceType || "") !== "body-book" || !String(item?.jobId || "").startsWith("built-in:")) continue;
-    const storedFilePath = resolvePublicAssetFilePath(item?.imageUrl);
-    if (storedFilePath && await fileExists(storedFilePath)) {
-      candidates.push({
-        sourceType: "stored",
-        jobId: String(item.jobId),
-        sortOrder,
-        storedFilePath
-      });
-    }
-  }
-
-  return candidates;
-}
-
-function getOrderOriginalBundlePath(order) {
-  return path.join(orderOriginalArchiveRoot, `${path.basename(String(order?.id || "order"))}.zip`);
-}
-
-function queueOrderOriginalImageBundle(order) {
-  if (!order?.id || order.paymentStatus !== "paid" || order.fulfillmentStatus === "cancelled") return;
-  void ensureOrderOriginalImageBundle(order).catch((error) => {
-    console.error(`Failed to prepare original-image ZIP for order ${order.id}.`, error);
-  });
-}
-
-async function preparePendingShipmentOrderOriginalBundles() {
-  const limit = 100;
-  let page = 1;
-  let prepared = 0;
-  while (true) {
-    const result = orderStore.listOrders({ orderStatus: "pending_shipment", page, limit });
-    for (const order of result.items) {
-      try {
-        await ensureOrderOriginalImageBundle(order);
-        prepared += 1;
-      } catch (error) {
-        console.error(`Failed to prepare original-image ZIP for pending order ${order.id}.`, error);
-      }
-    }
-    if (page * limit >= result.total) break;
-    page += 1;
-  }
-  if (prepared > 0) console.log(`Prepared original-image ZIPs for ${prepared} pending-shipment orders.`);
-}
-
-async function ensureOrderOriginalImageBundle(order) {
-  const zipPath = getOrderOriginalBundlePath(order);
-  if (await fileExists(zipPath)) {
-    return { zipPath, filename: getOrderOriginalBundleFilename(order) };
-  }
-
-  const orderId = String(order?.id || "");
-  const activeBuild = orderOriginalBundleBuilds.get(orderId);
-  if (activeBuild) return activeBuild;
-
-  const build = buildOrderOriginalImageBundle(order)
-    .finally(() => orderOriginalBundleBuilds.delete(orderId));
-  orderOriginalBundleBuilds.set(orderId, build);
-  return build;
-}
-
-function getOrderOriginalBundleFilename(order) {
-  const folderName = sanitizeFilesystemSegment(`${order.orderNo}_${order.receiverName}_${order.receiverPhone}`, order.orderNo || "order");
-  return `${folderName}.zip`;
+  if (!(await fileExists(dir))) return [];
+  const entries = await readdir(dir, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile())
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .map((entry) => ({
+      sourceType: "archived",
+      jobId: "",
+      archivedFilePath: path.join(dir, entry.name)
+    }));
 }
 
 async function buildOrderOriginalImageBundle(order) {
@@ -5482,13 +5372,13 @@ async function buildOrderOriginalImageBundle(order) {
     throw createHttpError(404, "该历史订单关联的任务原图已被清理，当前无法下载。");
   }
 
-  const folderName = path.basename(getOrderOriginalBundleFilename(order), ".zip");
+  const folderName = sanitizeFilesystemSegment(`${order.orderNo}_${order.receiverName}_${order.receiverPhone}`, order.orderNo || "order");
   await mkdir(storageExportTempRoot, { recursive: true });
   const bundleId = randomUUID();
   const tempDir = path.join(storageExportTempRoot, `order-originals-${bundleId}`);
   const folderPath = path.join(tempDir, folderName);
-  const stagingZipPath = path.join(storageExportTempRoot, `order-originals-${bundleId}.zip`);
-  const zipPath = getOrderOriginalBundlePath(order);
+  const zipFilename = `${folderName}.zip`;
+  const zipPath = path.join(storageExportTempRoot, `order-originals-${bundleId}.zip`);
   await mkdir(folderPath, { recursive: true });
 
   const downloadedFiles = [];
@@ -5507,19 +5397,6 @@ async function buildOrderOriginalImageBundle(order) {
           const filename = `original-${String(downloadedFiles.length + 1).padStart(2, "0")}${ext}`;
           const filePath = path.join(folderPath, filename);
           await copyFile(candidate.archivedFilePath, filePath);
-          downloadedFiles.push(filePath);
-          continue;
-        }
-
-        if (candidate.sourceType === "stored") {
-          if (!(await fileExists(candidate.storedFilePath))) {
-            throw createHttpError(404, "服务器未找到认知书物品页原图。");
-          }
-
-          const ext = path.extname(candidate.storedFilePath).toLowerCase() || ".png";
-          const filename = `original-${String(downloadedFiles.length + 1).padStart(2, "0")}${ext}`;
-          const filePath = path.join(folderPath, filename);
-          await copyFile(candidate.storedFilePath, filePath);
           downloadedFiles.push(filePath);
           continue;
         }
@@ -5565,38 +5442,20 @@ async function buildOrderOriginalImageBundle(order) {
       throw createHttpError(404, failedSources[0]?.message || "该历史订单关联的任务原图已被清理，当前无法下载。");
     }
 
-    await createZipFromDirectory(tempDir, stagingZipPath);
-    await mkdir(path.dirname(zipPath), { recursive: true });
-    await rename(stagingZipPath, zipPath);
+    await createZipFromDirectory(tempDir, zipPath);
     return {
+      cleanupPaths: [tempDir, zipPath],
       downloadedCount: downloadedFiles.length,
       failedSources,
-      filename: getOrderOriginalBundleFilename(order),
+      filename: zipFilename,
       folderName,
       zipPath
     };
   } catch (error) {
-    throw error;
-  } finally {
     await rm(tempDir, { recursive: true, force: true });
-    await rm(stagingZipPath, { force: true });
+    await rm(zipPath, { force: true });
+    throw error;
   }
-}
-
-async function streamOrderOriginalImageBundle(res, bundle) {
-  const fileInfo = await stat(bundle.zipPath);
-  res.status(200);
-  res.setHeader("Content-Type", "application/zip");
-  res.setHeader("Content-Length", String(fileInfo.size));
-  res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(bundle.filename)}`);
-  res.setHeader("Cache-Control", "private, no-store");
-  const stream = createReadStream(bundle.zipPath);
-  stream.on("error", (error) => {
-    console.error(error);
-    if (!res.headersSent) res.status(500).json({ message: "读取原图压缩包失败。" });
-    else res.destroy(error);
-  });
-  stream.pipe(res);
 }
 
 async function buildStoredOrderItems({ orderId, requestedItems, likedJobById }) {
@@ -5790,7 +5649,6 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
       success: true,
       payload: { beanDiscountCents, payableCents: 0 }
     });
-    queueOrderOriginalImageBundle(paidOrder);
     return {
       order: toPublicOrder(paidOrder, { includeToken: true }),
       payment: { status: "already_paid", mode: "bean_discount", expiresAt: created.expiresAt }
@@ -8543,8 +8401,6 @@ async function resolveJobImageFile(job) {
     const fullPath = path.join(generatedImageRoot, filename);
     return (await fileExists(fullPath)) ? fullPath : "";
   }
-  const publicAssetPath = resolvePublicAssetFilePath(imageUrl);
-  if (publicAssetPath && await fileExists(publicAssetPath)) return publicAssetPath;
   return "";
 }
 
