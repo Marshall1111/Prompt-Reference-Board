@@ -1,5 +1,45 @@
 [
   {
+    "id": "style_1786945817977",
+    "title": "百日冰箱贴",
+    "tags": [
+      "冰箱贴"
+    ],
+    "subjectType": "person",
+    "drawCardEnabled": false,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1786945817977/cover.png",
+    "imageUpdatedAt": "2026-08-17T06:07:48.869Z",
+    "personImage": "/style-previews/style_1786945817977/cover-person.png",
+    "personImageUpdatedAt": "2026-08-17T06:06:43.193Z",
+    "personThumbnailImage": "/style-previews/style_1786945817977/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1786945817977/cover.png",
+    "petImageUpdatedAt": "2026-08-17T05:50:31.463Z",
+    "petThumbnailImage": "",
+    "prompt": "以我上传的照片为人物参考，提取宝宝的整体识别特征：发型轮廓、脸型、肤色、年龄感、服装颜色或代表性配饰、自然姿态与神态；不要精确还原真实五官，不追求真人肖像感。\n\n将宝宝转绘成一枚可用于制作冰箱贴的可爱百日纪念手绘贴纸。画面只生成一枚独立的异形冰箱贴，竖版构图，宝宝完整全身、居中。姿势符合约百日宝宝的自然状态：可以趴卧轻轻抬头、半躺、被柔软靠垫支撑坐着，或开心挥动小手；不要站立、扶站、奔跑或成人化动作。\n\n宝宝使用高度简化、抽象可爱的Q版五官：圆润脸型，小而简单的弧线眉毛，两个小黑点或短弧线眼睛，小圆点鼻子，极简小弧线嘴巴，可保留淡淡圆形腮红。不要真实眼球、睫毛、双眼皮、鼻梁、唇纹、牙齿、毛孔、皮肤纹理或复杂阴影。五官应像儿童绘本或手账贴纸里的简笔小人物，表情温柔、开心、有亲和力。\n\n整体为温暖治愈的儿童手账插画风格：圆润Q版比例，头部略大、身体小巧，细而略带不规则的深色手绘线稿，轻柔彩铅和蜡笔质感，奶油黄、浅杏色、淡粉色、浅蓝色、暖棕色等低饱和暖色配色，画面清新、柔软、有手作温度。\n\n人物外轮廓必须有一圈厚实、不规则、干净的暖白色模切边，像真实可裁切的贴纸或亚克力冰箱贴；白边外侧带非常轻微、柔和的浅灰投影。\n\n在宝宝右上方或右侧，清晰、准确地写出英文：\n“100 DAYS”\n使用圆润、可爱的手绘黑色字母。可搭配少量小皇冠、星星、爱心、数字“100”、小蛋糕、小鸭子、小熊或玩具积木点缀。文字必须完整、清晰、拼写正确，不能遮挡宝宝。\n\n背景必须是纯白色或极浅暖奶油白，干净留白。不要真实背景、不要相框、不要卡片边框、不要商品页面、不要手机界面、不要手持展示、不要多个贴纸、不要复杂场景、不要其他文字、不要日期、不要名字、不要Logo、不要水印、不要乱码。高清、边缘清楚，适合印刷和异形模切。\n\n负面提示词：photorealistic portrait, realistic facial features, detailed eyes, eyelashes, eyelids, iris, nose bridge, lips, teeth, skin pores, skin texture, realistic shading, adult pose, standing baby, walking baby, 3D render, anime, detailed facial rendering, watermark, extra text, misspelled text, multiple stickers, busy background",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1786945773680",
+    "title": "满月冰箱贴",
+    "tags": [
+      "冰箱贴"
+    ],
+    "subjectType": "person",
+    "drawCardEnabled": false,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1786945773680/cover.png",
+    "imageUpdatedAt": "2026-08-17T06:07:36.438Z",
+    "personImage": "/style-previews/style_1786945773680/cover-person.png",
+    "personImageUpdatedAt": "2026-08-17T06:07:00.454Z",
+    "personThumbnailImage": "/style-previews/style_1786945773680/cover-person-thumbnail.webp",
+    "petImage": "",
+    "petImageUpdatedAt": null,
+    "petThumbnailImage": "",
+    "prompt": "以我上传的照片为人物参考，提取宝宝的整体识别特征：发型轮廓、脸型、肤色、年龄感、襁褓或服装颜色、自然神态；不要精确还原真实五官，不追求真人肖像感。\n\n将宝宝转绘成一枚可用于制作冰箱贴的可爱满月纪念手绘贴纸。画面只生成一枚独立的异形冰箱贴，竖版构图，宝宝完整全身、居中。姿势必须符合约满月新生儿：安全自然的仰躺姿、襁褓包裹姿，或趴卧轻轻抬头姿；不要站立、坐立、扶站、奔跑或成人化动作。\n\n宝宝使用高度简化、抽象可爱的Q版五官：圆润脸型，小而简单的弧线眉毛，两个小黑点或短弧线眼睛，小圆点鼻子，极简小弧线嘴巴，可有淡淡圆形腮红。不要真实眼球、睫毛、双眼皮、鼻梁、唇纹、牙齿、毛孔、皮肤纹理或复杂阴影。五官应像儿童绘本或手账贴纸里的简笔小人物，表情温柔、安心、可爱。\n\n整体为温暖治愈的儿童手账插画风格：圆润Q版比例，头部略大、身体小巧，细而略带不规则的深色手绘线稿，轻柔彩铅和蜡笔质感，奶油黄、浅杏色、淡粉色、暖棕色、浅鹅黄等低饱和暖色配色，画面清新、柔软、有手作温度。\n\n人物外轮廓必须有一圈厚实、不规则、干净的暖白色模切边，像真实可裁切的贴纸或亚克力冰箱贴；白边外侧带非常轻微、柔和的浅灰投影。\n\n在宝宝右上方或右侧，清晰、准确地写出英文：\n“1 MONTH OLD”\n使用圆润、可爱的手绘黑色字母。可搭配少量月亮、小星星、小云朵、爱心、奶瓶、小熊或襁褓相关的小元素点缀。文字必须完整、清晰、拼写正确，不能遮挡宝宝。\n\n背景必须是纯白色或极浅暖奶油白，干净留白。不要真实背景、不要相框、不要卡片边框、不要商品页面、不要手机界面、不要手持展示、不要多个贴纸、不要复杂场景、不要其他文字、不要日期、不要名字、不要Logo、不要水印、不要乱码。高清、边缘清楚，适合印刷和异形模切。\n\n负面提示词：photorealistic portrait, realistic facial features, detailed eyes, eyelashes, eyelids, iris, nose bridge, lips, teeth, skin pores, skin texture, realistic shading, adult pose, standing baby, sitting unsupported, 3D render, anime, detailed facial rendering, watermark, extra text, misspelled text, multiple stickers, busy background",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1786945061992",
     "title": "周岁冰箱贴",
     "tags": [
@@ -8,8 +48,8 @@
     "subjectType": "person",
     "drawCardEnabled": false,
     "drawCardWeight": 100,
-    "image": "/style-previews/default/cover.svg",
-    "imageUpdatedAt": "2026-08-17T05:37:41.992Z",
+    "image": "/style-previews/style_1786945061992/cover.png",
+    "imageUpdatedAt": "2026-08-17T05:44:27.368Z",
     "personImage": "/style-previews/style_1786945061992/cover-person.png",
     "personImageUpdatedAt": "2026-08-17T05:37:48.938Z",
     "personThumbnailImage": "/style-previews/style_1786945061992/cover-person-thumbnail.webp",
