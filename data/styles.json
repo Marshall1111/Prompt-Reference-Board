@@ -1,5 +1,25 @@
 [
   {
+    "id": "style_1786942603080",
+    "title": "手账贴纸",
+    "tags": [
+      "手账贴纸"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-08-17T04:56:43.079Z",
+    "personImage": "/style-previews/style_1786942603080/cover-person.png",
+    "personImageUpdatedAt": "2026-08-17T04:57:38.641Z",
+    "personThumbnailImage": "/style-previews/style_1786942603080/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1786942603080/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-17T04:57:49.440Z",
+    "petThumbnailImage": "/style-previews/style_1786942603080/cover-pet-thumbnail.webp",
+    "prompt": "Create a complete image-to-image redraw from the supplied photo as one 2:3 vertical collectible travel memory sticker card.\n\nUse warm off-white uncoated paper with a continuous 4–5% outer margin. The upper 66–68% is one large, near-square, unframed scene illustration printed directly on the paper, with subtly rough edges. Do not use an outline, keyline, inner card, mat, rounded frame, or shadow around the illustration. Leave a shallow exposed-paper footer beneath it, centered with exactly three small English keywords shown once:\n“[KEYWORD 1] · [KEYWORD 2] · [KEYWORD 3]”\n\nThe lower 30–32% contains exactly six separate source-derived travel journaling stickers:\n1. [MAIN SUBJECT FRAGMENT]\n2. [PAIRED SUBJECT OR VARIATION]\n3. [ENVIRONMENTAL FORM]\n4. [STRUCTURAL OR ARCHITECTURAL FRAGMENT]\n5. [FUNCTIONAL OBJECT]\n6. [SMALL ATMOSPHERIC OR SCALE CUE]\n\nGive every sticker a thick, irregular warm-white hand-cut border and a subtle flat paper shadow. Make 2–3 stickers larger and the others smaller. Arrange them across the bottom area in calm, irregular, slightly staggered rows with generous negative space. Do not place stickers on the right side of the card.\n\nPreserve the main identification anchor from the source photo: [IDENTIFICATION ANCHOR]. Preserve its silhouette, proportion, position, relationship to the scene, and signature colors, but redraw it entirely in the same illustrated medium. Never retain a photorealistic patch.\n[OPTIONAL: Preserve this exact landmark text once in the main illustration: “[VERBATIM TEXT]”. Otherwise preserve no source text.]\n\nRebuild the source scene using 5–8 broad, low-saturation matte color families. The first read should be 3–6 oversized blunt shapes and quiet negative space, not visual detail. Expand the source-supported quiet field of [SKY / WATER / ROAD / WALL / SNOW / SAND / GROUND]. Simplify vegetation into 1–3 lumpy tonal masses, buildings and geology into flat planes, and people or animals into compact faceless silhouettes.\n\nUse a cohesive matte gouache, cut-paper, risograph, and screen-print visual language with fine, uniform paper grain. Use hand-cut, chalky, dry-brushed, slightly uneven edges; allow subtle pigment-density variation and soft print misregistration. Keep the mood observational, spacious, humane, slow, and lightly nostalgic. Use restrained source-derived colors with one or two accents, flat color shadows, and very little near-black.\n\nDo not add any title, caption, date, writing area, postal mark, address line, subtitle, additional readable text, watermark, or signature.\n\nNegative prompt: photorealistic, photographic patch, photo collage, realistic photography, watermark, signature, extra text, title, caption, date, writing area, postal marks, address lines, subtitle, frame, border, keyline, inner card, rounded frame, glossy 3D, smooth gradient, dramatic lighting, visible marker strokes, watercolor wash, painterly photo filter, oil painting, polished vector art, anime, clip art, detailed leaves, repeated textures, masonry detail, realistic anatomy, cluttered layout, unrelated objects, stickers on the right side, fewer than six stickers, more than six stickers.",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1786669378144",
     "title": "丝绒平涂肖像",
     "tags": [
