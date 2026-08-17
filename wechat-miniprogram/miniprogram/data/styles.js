@@ -1,7 +1,21 @@
 const styles = [
   {
-    "id": "style_1786942603080",
+    "id": "style_1786945061992",
     "sort": 0,
+    "title": "周岁冰箱贴",
+    "tags": [
+      "冰箱贴"
+    ],
+    "subjectType": "person",
+    "drawCardEnabled": false,
+    "drawCardWeight": 100,
+    "image": "/images-small/style_1786945061992.svg",
+    "prompt": "以我上传的照片为人物参考，提取人物的整体识别特征：发型轮廓、脸型、肤色、年龄感、服装颜色或代表性配饰、自然姿态与气质；不要精确还原真实五官，不要追求真人肖像感。\n\n将人物转绘成一枚可用于制作冰箱贴的可爱宝宝成长纪念手绘贴纸。画面只生成一枚独立的异形冰箱贴，竖版构图，人物完整全身、居中，姿势自然可爱，例如坐姿或扶着小玩具站立。\n\n人物使用高度简化、抽象可爱的 Q 版五官：圆润脸型，小而简单的弧线眉毛，两个小黑点或短弧线眼睛，小圆点鼻子，极简小弧线嘴巴；可保留淡淡圆形腮红。不要真实眼球、睫毛、双眼皮、鼻梁、唇纹、牙齿、毛孔、皮肤纹理或复杂阴影。五官应像儿童绘本或手账贴纸里的简笔小人物，表情温柔、开心、有亲和力。\n\n整体为温暖治愈的儿童手账插画风格：圆润 Q 版比例，头部略大、身体小巧，细而略带不规则的深色手绘线稿，轻柔彩铅与蜡笔质感，奶油黄、浅杏色、淡粉色、暖棕色等低饱和暖色配色，画面清新、柔软、有手作温度。\n\n人物外轮廓必须有一圈厚实、不规则、干净的暖白色模切边，像真实可裁切的贴纸或亚克力冰箱贴；白边外侧带非常轻微、柔和的浅灰投影。\n\n在人物右上方或右侧，清晰准确地写出英文：\n“1 YEAR OLD”\n使用圆润可爱的手绘黑色字母，可搭配少量小星星、爱心、短线光芒、小皇冠、数字“1”和小生日蛋糕点缀。文字必须完整清晰、拼写正确，不能遮挡人物。\n\n背景必须是纯白色或极浅暖奶油白，干净留白。不要真实背景、不要相框、不要卡片边框、不要商品页面、不要手机界面、不要手持展示、不要多个贴纸、不要复杂场景、不要其他文字、不要日期、不要名字、不要 Logo、不要水印、不要乱码。高清、边缘清楚，适合印刷和异形模切。\n\n负面提示词：photorealistic portrait, realistic facial features, detailed eyes, eyelashes, eyelids, iris, nose bridge, lips, teeth, skin pores, skin texture, realistic shading, 3D render, anime, detailed facial rendering, watermark, extra text, misspelled text, multiple stickers, busy background",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1786942603080",
+    "sort": 1,
     "title": "手账贴纸",
     "tags": [
       "手账贴纸"
@@ -15,7 +29,7 @@ const styles = [
   },
   {
     "id": "style_1786669378144",
-    "sort": 1,
+    "sort": 2,
     "title": "丝绒平涂肖像",
     "tags": [
       "丝绒平涂肖像"
@@ -29,7 +43,7 @@ const styles = [
   },
   {
     "id": "style_1785907876216",
-    "sort": 2,
+    "sort": 3,
     "title": "鱼眼潮流合影",
     "tags": [
       "鱼眼潮流合影"
@@ -43,7 +57,7 @@ const styles = [
   },
   {
     "id": "style_1785907695667",
-    "sort": 3,
+    "sort": 4,
     "title": "复古线稿插画",
     "tags": [
       "复古线稿插画"
@@ -57,7 +71,7 @@ const styles = [
   },
   {
     "id": "style_1785810130926",
-    "sort": 4,
+    "sort": 5,
     "title": "萌趣漫画",
     "tags": [
       "萌趣漫画"
@@ -71,7 +85,7 @@ const styles = [
   },
   {
     "id": "style_1785459846052",
-    "sort": 5,
+    "sort": 6,
     "title": "花环印象肖像",
     "tags": [
       "花环印象肖像"
@@ -85,7 +99,7 @@ const styles = [
   },
   {
     "id": "style_1785459681113",
-    "sort": 6,
+    "sort": 7,
     "title": "来杯饮料",
     "tags": [
       "来杯饮料"
@@ -99,7 +113,7 @@ const styles = [
   },
   {
     "id": "style_1785459610238",
-    "sort": 7,
+    "sort": 8,
     "title": "飞天小萌宠",
     "tags": [
       "飞天小萌宠"
@@ -113,7 +127,7 @@ const styles = [
   },
   {
     "id": "style_1785459548348",
-    "sort": 8,
+    "sort": 9,
     "title": "美式证件照",
     "tags": [
       "美式证件照"
@@ -127,7 +141,7 @@ const styles = [
   },
   {
     "id": "style_1785372196300",
-    "sort": 9,
+    "sort": 10,
     "title": "波普红底插画",
     "tags": [
       "波普风"
@@ -141,7 +155,7 @@ const styles = [
   },
   {
     "id": "style_1784795803139",
-    "sort": 10,
+    "sort": 11,
     "title": "毕加索极简肖像",
     "tags": [
       "毕加索"
@@ -155,7 +169,7 @@ const styles = [
   },
   {
     "id": "style_1782608242639",
-    "sort": 11,
+    "sort": 12,
     "title": "童趣剪纸插画",
     "tags": [
       "平面，剪纸，插画"
@@ -169,7 +183,7 @@ const styles = [
   },
   {
     "id": "style_1779323084946",
-    "sort": 12,
+    "sort": 13,
     "title": "珍珠耳环宠物",
     "tags": [
       "艺术"
@@ -183,7 +197,7 @@ const styles = [
   },
   {
     "id": "style_1779179958695",
-    "sort": 13,
+    "sort": 14,
     "title": "装饰民间插画",
     "tags": [
       "方形，平面插画"
@@ -197,7 +211,7 @@ const styles = [
   },
   {
     "id": "style_1782538556729",
-    "sort": 14,
+    "sort": 15,
     "title": "真实场景卡通拼贴",
     "tags": [
       "混搭插画风"
@@ -211,7 +225,7 @@ const styles = [
   },
   {
     "id": "style_1782657237052",
-    "sort": 15,
+    "sort": 16,
     "title": "绿线手绘涂鸦",
     "tags": [
       "涂鸦，插画"
@@ -225,7 +239,7 @@ const styles = [
   },
   {
     "id": "style_1785406579480",
-    "sort": 16,
+    "sort": 17,
     "title": "肌理风格插画",
     "tags": [
       "插画"
@@ -239,7 +253,7 @@ const styles = [
   },
   {
     "id": "style_1779180012171",
-    "sort": 17,
+    "sort": 18,
     "title": "奶油粗笔Q版",
     "tags": [
       "方形，可爱手绘"
@@ -253,7 +267,7 @@ const styles = [
   },
   {
     "id": "pencil",
-    "sort": 18,
+    "sort": 19,
     "title": "草稿涂鸦速写",
     "tags": [
       "涂鸦，速写，儿童，插画，宠物"
@@ -267,7 +281,7 @@ const styles = [
   },
   {
     "id": "style_1782658440886",
-    "sort": 19,
+    "sort": 20,
     "title": "拙朴丝印手绘",
     "tags": [
       "手绘速写"
@@ -281,7 +295,7 @@ const styles = [
   },
   {
     "id": "style_1782952965796",
-    "sort": 20,
+    "sort": 21,
     "title": "极简灵魂线条",
     "tags": [
       "极简宠物"
@@ -295,7 +309,7 @@ const styles = [
   },
   {
     "id": "style_1784009080663",
-    "sort": 21,
+    "sort": 22,
     "title": "Riso孔版印刷",
     "tags": [
       "印刷，"
@@ -309,7 +323,7 @@ const styles = [
   },
   {
     "id": "style_1782987370930",
-    "sort": 22,
+    "sort": 23,
     "title": "复古像素头像",
     "tags": [
       "复古8-bit像素"
@@ -323,7 +337,7 @@ const styles = [
   },
   {
     "id": "style_1784001089418",
-    "sort": 23,
+    "sort": 24,
     "title": "透视动漫艺术",
     "tags": [
       "动漫"
@@ -337,7 +351,7 @@ const styles = [
   },
   {
     "id": "style_1782538907748",
-    "sort": 24,
+    "sort": 25,
     "title": "Y2K街头封面",
     "tags": [
       "潮流海报"
@@ -351,7 +365,7 @@ const styles = [
   },
   {
     "id": "style_1782782682464",
-    "sort": 25,
+    "sort": 26,
     "title": "日式水墨速写",
     "tags": [
       "日式水墨"
@@ -365,7 +379,7 @@ const styles = [
   },
   {
     "id": "style_1782782727369",
-    "sort": 26,
+    "sort": 27,
     "title": "90年代像素角色",
     "tags": [
       "Y2K像素"
@@ -379,7 +393,7 @@ const styles = [
   },
   {
     "id": "style_1780884090064",
-    "sort": 27,
+    "sort": 28,
     "title": "复古蜡笔宠物",
     "tags": [
       "宠物，蜡笔"
@@ -393,7 +407,7 @@ const styles = [
   },
   {
     "id": "style_1782658589405",
-    "sort": 28,
+    "sort": 29,
     "title": "儿童粗线简笔",
     "tags": [
       "粗线条简笔"
@@ -407,7 +421,7 @@ const styles = [
   },
   {
     "id": "style_1783776698891",
-    "sort": 29,
+    "sort": 30,
     "title": "黑白单线贴纸",
     "tags": [
       "黑白单线人物贴纸"
@@ -421,7 +435,7 @@ const styles = [
   },
   {
     "id": "style_1780359249273",
-    "sort": 30,
+    "sort": 31,
     "title": "童趣治愈色块",
     "tags": [
       "治愈系插画"
@@ -435,7 +449,7 @@ const styles = [
   },
   {
     "id": "style_1782539050463",
-    "sort": 31,
+    "sort": 32,
     "title": "复古美式卡通",
     "tags": [
       "美式卡通"
@@ -449,7 +463,7 @@ const styles = [
   },
   {
     "id": "style_1782986654936",
-    "sort": 32,
+    "sort": 33,
     "title": "稚拙撞色头像",
     "tags": [
       "稚拙撞色扁平幼态风"
@@ -463,7 +477,7 @@ const styles = [
   },
   {
     "id": "style_1782658718166",
-    "sort": 33,
+    "sort": 34,
     "title": "韩系软萌水彩",
     "tags": [
       "森系水彩"
@@ -477,7 +491,7 @@ const styles = [
   },
   {
     "id": "style_1782988633141",
-    "sort": 34,
+    "sort": 35,
     "title": "困倦炸毛头像",
     "tags": [
       "困倦炸毛丧系Q版风"
@@ -491,7 +505,7 @@ const styles = [
   },
   {
     "id": "style_1785736182781",
-    "sort": 35,
+    "sort": 36,
     "title": "原始几何肖像",
     "tags": [
       "几何肖像"
@@ -505,7 +519,7 @@ const styles = [
   },
   {
     "id": "style_1782988594530",
-    "sort": 36,
+    "sort": 37,
     "title": "奶油糖果头像",
     "tags": [
       "奶油糖果Q版夸张涂鸦风"
@@ -519,7 +533,7 @@ const styles = [
   },
   {
     "id": "style_1782988682798",
-    "sort": 37,
+    "sort": 38,
     "title": "方块冷脸头像",
     "tags": [
       "方块扁平冷淡厌世风"
@@ -533,7 +547,7 @@ const styles = [
   },
   {
     "id": "style_1782988554790",
-    "sort": 38,
+    "sort": 39,
     "title": "慵懒复古漫画",
     "tags": [
       "潦草复古慵懒漫画风"
@@ -547,7 +561,7 @@ const styles = [
   },
   {
     "id": "style_1782986548843",
-    "sort": 39,
+    "sort": 40,
     "title": "厌世时装大头",
     "tags": [
       "时装涂鸦厌世大头风"
@@ -561,7 +575,7 @@ const styles = [
   },
   {
     "id": "style_1782952781294",
-    "sort": 40,
+    "sort": 41,
     "title": "Kawaii糖果头像",
     "tags": [
       "kawaii插画"
@@ -575,7 +589,7 @@ const styles = [
   },
   {
     "id": "style_1782659145280",
-    "sort": 41,
+    "sort": 42,
     "title": "搞怪漫画海报",
     "tags": [
       "搞怪漫画涂鸦海报"
@@ -589,7 +603,7 @@ const styles = [
   },
   {
     "id": "style_1780214860370",
-    "sort": 42,
+    "sort": 43,
     "title": "厚涂宠物肖像",
     "tags": [
       "宠物，油画，厚涂，肖像"
@@ -603,7 +617,7 @@ const styles = [
   },
   {
     "id": "style_1780183870275",
-    "sort": 43,
+    "sort": 44,
     "title": "萌宠角色卡",
     "tags": [
       "宠物，角色卡"
@@ -617,7 +631,7 @@ const styles = [
   },
   {
     "id": "style_1780183785792",
-    "sort": 44,
+    "sort": 45,
     "title": "夸张水墨宠物",
     "tags": [
       "水墨肖像，宠物"
@@ -631,7 +645,7 @@ const styles = [
   },
   {
     "id": "style_1779944352617",
-    "sort": 45,
+    "sort": 46,
     "title": "潮流萌宠拼贴",
     "tags": [
       "潮流",
@@ -646,7 +660,7 @@ const styles = [
   },
   {
     "id": "style_1779931156452",
-    "sort": 46,
+    "sort": 47,
     "title": "莫奈宠物油画",
     "tags": [
       "莫奈",
@@ -663,7 +677,7 @@ const styles = [
   },
   {
     "id": "style_1782538975049",
-    "sort": 47,
+    "sort": 48,
     "title": "复古动画人像",
     "tags": [
       "复古，扁平，动画人像"
@@ -677,7 +691,7 @@ const styles = [
   },
   {
     "id": "style_1780636884368",
-    "sort": 48,
+    "sort": 49,
     "title": "旅行冰箱贴图标",
     "tags": [
       "异形，不带背景"
@@ -691,7 +705,7 @@ const styles = [
   },
   {
     "id": "style_1780636102242",
-    "sort": 49,
+    "sort": 50,
     "title": "地标冰箱贴图标",
     "tags": [
       "异形，带背景"
@@ -705,7 +719,7 @@ const styles = [
   },
   {
     "id": "style_1779179574408",
-    "sort": 50,
+    "sort": 51,
     "title": "丑萌马克笔涂鸦",
     "tags": [
       "丑萌，手绘，随意"
@@ -719,7 +733,7 @@ const styles = [
   },
   {
     "id": "style_1779181030715",
-    "sort": 51,
+    "sort": 52,
     "title": "皮克斯萌趣动画",
     "tags": [
       "皮克斯，可爱，动画，宠物，儿童"
@@ -733,7 +747,7 @@ const styles = [
   },
   {
     "id": "style_1779179444790",
-    "sort": 52,
+    "sort": 53,
     "title": "复古波普漫画海报",
     "tags": [
       "复古，海报，儿童，宠物"
@@ -747,7 +761,7 @@ const styles = [
   },
   {
     "id": "style_1780029542441",
-    "sort": 53,
+    "sort": 54,
     "title": "柔软层叠剪纸",
     "tags": [
       "剪纸"
@@ -761,7 +775,7 @@ const styles = [
   },
   {
     "id": "style_1779762562660",
-    "sort": 54,
+    "sort": 55,
     "title": "潮流角色海报",
     "tags": [
       "潮流，海报，人物"
@@ -775,7 +789,7 @@ const styles = [
   },
   {
     "id": "style_1779961220177",
-    "sort": 55,
+    "sort": 56,
     "title": "Plog手写注释",
     "tags": [
       "Plog，日常"
@@ -789,7 +803,7 @@ const styles = [
   },
   {
     "id": "style_1779179665778",
-    "sort": 56,
+    "sort": 57,
     "title": "灵魂画手速写",
     "tags": [
       "随意，手绘，丑萌，速写"
@@ -803,7 +817,7 @@ const styles = [
   },
   {
     "id": "style_1779845065374",
-    "sort": 57,
+    "sort": 58,
     "title": "旅行纸艺微缩景",
     "tags": [
       "剪纸，旅行，可爱"
@@ -817,7 +831,7 @@ const styles = [
   },
   {
     "id": "style_1779844966340",
-    "sort": 58,
+    "sort": 59,
     "title": "韩系杂志剪贴",
     "tags": [
       "剪纸，简约"
@@ -831,7 +845,7 @@ const styles = [
   },
   {
     "id": "style_1779322951275",
-    "sort": 59,
+    "sort": 60,
     "title": "鼠标乱画表情包",
     "tags": [
       "表情包"
@@ -845,7 +859,7 @@ const styles = [
   },
   {
     "id": "style_1779180072956",
-    "sort": 60,
+    "sort": 61,
     "title": "可爱Plog涂鸦",
     "tags": [
       "Plog，可爱，涂鸦，剪贴"
@@ -859,7 +873,7 @@ const styles = [
   },
   {
     "id": "style_1779179914765",
-    "sort": 61,
+    "sort": 62,
     "title": "装饰民俗童书",
     "tags": [
       "儿童，插画，可爱，卡通"
@@ -873,7 +887,7 @@ const styles = [
   },
   {
     "id": "style_1779179882103",
-    "sort": 62,
+    "sort": 63,
     "title": "梵高宠物肖像",
     "tags": [
       "艺术",
@@ -888,7 +902,7 @@ const styles = [
   },
   {
     "id": "style_1779179828722",
-    "sort": 63,
+    "sort": 64,
     "title": "英伦童书卡通",
     "tags": [
       "手绘，插画，卡通"
@@ -902,7 +916,7 @@ const styles = [
   },
   {
     "id": "style_1779179773582",
-    "sort": 64,
+    "sort": 65,
     "title": "Irasutoya日式插画",
     "tags": [
       "卡通"
@@ -916,7 +930,7 @@ const styles = [
   },
   {
     "id": "style_1779179722094",
-    "sort": 65,
+    "sort": 66,
     "title": "新天真丑萌卡通",
     "tags": [
       "卡通",
@@ -933,7 +947,7 @@ const styles = [
   },
   {
     "id": "style_1779179649152",
-    "sort": 66,
+    "sort": 67,
     "title": "鼠标画图丑萌",
     "tags": [
       "随意，手绘，丑萌"
@@ -947,7 +961,7 @@ const styles = [
   },
   {
     "id": "style_1782804856180",
-    "sort": 67,
+    "sort": 68,
     "title": "超现实手工拼贴",
     "tags": [
       "多图剪贴"
@@ -961,7 +975,7 @@ const styles = [
   },
   {
     "id": "style_1779179490072",
-    "sort": 68,
+    "sort": 69,
     "title": "便签涂鸦小画",
     "tags": [
       "插画",
@@ -979,7 +993,7 @@ const styles = [
   },
   {
     "id": "style_1779179328013",
-    "sort": 69,
+    "sort": 70,
     "title": "复古旅行卡通海报",
     "tags": [
       "卡通",
@@ -999,7 +1013,7 @@ const styles = [
   },
   {
     "id": "clay",
-    "sort": 70,
+    "sort": 71,
     "title": "韩式稚拙平涂",
     "tags": [
       "手绘，儿童，可爱，随意，宠物"
@@ -1013,7 +1027,7 @@ const styles = [
   },
   {
     "id": "style_1779165306174",
-    "sort": 71,
+    "sort": 72,
     "title": "像素头像徽章",
     "tags": [
       "像素，头像，儿童，宠物，卡通"
@@ -1027,7 +1041,7 @@ const styles = [
   },
   {
     "id": "oil_painting",
-    "sort": 72,
+    "sort": 73,
     "title": "丑萌漫画涂鸦",
     "tags": [
       "宠物，随意，手绘，丑萌，涂鸦，漫画"
@@ -1041,7 +1055,7 @@ const styles = [
   },
   {
     "id": "style_1780359396127",
-    "sort": 73,
+    "sort": 74,
     "title": "艺术印刷肖像",
     "tags": [
       "艺术肖像海报"
@@ -1055,7 +1069,7 @@ const styles = [
   },
   {
     "id": "cyberpunk",
-    "sort": 74,
+    "sort": 75,
     "title": "幼儿园蜡笔画",
     "tags": [
       "手绘，蜡笔，儿童，宠物，可爱"
@@ -1069,7 +1083,7 @@ const styles = [
   },
   {
     "id": "pixel",
-    "sort": 75,
+    "sort": 76,
     "title": "新天真丑萌插画",
     "tags": [
       "丑萌，插画，宠物"
@@ -1083,7 +1097,7 @@ const styles = [
   },
   {
     "id": "style_1779179392820",
-    "sort": 76,
+    "sort": 77,
     "title": "诡异复古童话",
     "tags": [
       "诡异，童话，猎奇"
@@ -1097,7 +1111,7 @@ const styles = [
   },
   {
     "id": "style_1779268159068",
-    "sort": 77,
+    "sort": 78,
     "title": "怪诞时装漫画",
     "tags": [
       "人物"
@@ -1111,7 +1125,7 @@ const styles = [
   },
   {
     "id": "style_1779931260825",
-    "sort": 78,
+    "sort": 79,
     "title": "LINE萌系贴纸",
     "tags": [
       "表情包"
@@ -1125,7 +1139,7 @@ const styles = [
   },
   {
     "id": "style_1780637137263",
-    "sort": 79,
+    "sort": 80,
     "title": "九宫格认知绘本",
     "tags": [
       "认知书"
@@ -1139,7 +1153,7 @@ const styles = [
   },
   {
     "id": "style_1784075518763",
-    "sort": 80,
+    "sort": 81,
     "title": "稚拙文字海报",
     "tags": [
       "海报"
@@ -1153,7 +1167,7 @@ const styles = [
   },
   {
     "id": "style_1785371976741",
-    "sort": 81,
+    "sort": 82,
     "title": "电商主图",
     "tags": [
       "电商主图"
