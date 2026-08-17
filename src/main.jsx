@@ -69,7 +69,8 @@ const DEFAULT_IMAGE_JOB_QUERY = {
   status: "all",
   search: "",
   date: "",
-  likedOnly: false
+  likedOnly: false,
+  owner: ""
 };
 const DEFAULT_ADMIN_ORDER_QUERY = {
   page: 1,
@@ -6228,11 +6229,12 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
   const [searchInput, setSearchInput] = useState(DEFAULT_IMAGE_JOB_QUERY.search);
   const [dateInput, setDateInput] = useState(DEFAULT_IMAGE_JOB_QUERY.date);
   const [likedOnlyInput, setLikedOnlyInput] = useState(DEFAULT_IMAGE_JOB_QUERY.likedOnly);
+  const [ownerInput, setOwnerInput] = useState(DEFAULT_IMAGE_JOB_QUERY.owner);
+  const [ownerOptions, setOwnerOptions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [editingJob, setEditingJob] = useState(null);
-  const [updatingClipJobId, setUpdatingClipJobId] = useState("");
   const [replacingStylePreviewKey, setReplacingStylePreviewKey] = useState("");
   const queryRef = useRef(DEFAULT_IMAGE_JOB_QUERY);
 
@@ -6256,6 +6258,7 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
       syncQueryState(nextQuery, jobPayload);
       setJobs(jobPayload.jobs || []);
       setJobTotal(Number(jobPayload.total || 0));
+      setOwnerOptions(jobPayload.ownerOptions || []);
       setError("");
     } catch (nextError) {
       setError(nextError.message);
@@ -6271,15 +6274,6 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
     await loadDashboard(nextQuery, options);
   }
 
-  async function cancelJob(jobId) {
-    try {
-      await updateImageJob(jobId, "cancel");
-      await loadDashboard(queryRef.current, { showLoading: false });
-    } catch (nextError) {
-      setError(nextError.message);
-    }
-  }
-
   async function deleteJob(jobId) {
     try {
       await deleteImageJob(jobId);
@@ -6287,25 +6281,6 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
       setError("");
     } catch (nextError) {
       setError(nextError.message);
-    }
-  }
-
-  async function toggleClip(job) {
-    if (!job?.jobId) return;
-
-    setUpdatingClipJobId(job.jobId);
-    try {
-      const nextJob = job.isLiked ? await unlikeImageJob(job.jobId) : await likeImageJob(job.jobId);
-      if (queryRef.current.likedOnly && job.isLiked) {
-        await loadDashboard(queryRef.current, { showLoading: false });
-      } else {
-        setJobs((current) => current.map((item) => (item.jobId === job.jobId ? { ...nextJob, stylePreviewMatch: item.stylePreviewMatch } : item)));
-      }
-      setError("");
-    } catch (nextError) {
-      setError(nextError.message);
-    } finally {
-      setUpdatingClipJobId("");
     }
   }
 
@@ -6342,6 +6317,7 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
         syncQueryState(currentQuery, jobPayload);
         setJobs(jobPayload.jobs || []);
         setJobTotal(Number(jobPayload.total || 0));
+        setOwnerOptions(jobPayload.ownerOptions || []);
         setError("");
       } catch (nextError) {
         if (!isActive) return;
@@ -6369,7 +6345,8 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
       page: 1,
       search: searchInput.trim(),
       date: dateInput,
-      likedOnly: likedOnlyInput
+      likedOnly: likedOnlyInput,
+      owner: ownerInput
     });
   }
 
@@ -6377,6 +6354,7 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
     setSearchInput(DEFAULT_IMAGE_JOB_QUERY.search);
     setDateInput(DEFAULT_IMAGE_JOB_QUERY.date);
     setLikedOnlyInput(DEFAULT_IMAGE_JOB_QUERY.likedOnly);
+    setOwnerInput(DEFAULT_IMAGE_JOB_QUERY.owner);
     applyJobQuery(DEFAULT_IMAGE_JOB_QUERY);
   }
 
@@ -6390,7 +6368,7 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
   }
 
   return (
-    <section className="task-page" aria-label="AI 生图任务记录">
+    <section className="task-page image-jobs-page" aria-label="AI 生图任务记录">
       <div className="task-toolbar">
         <div>
           <p className="eyebrow">Image jobs</p>
@@ -6418,6 +6396,13 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
           <label className="field-label task-query-field">
             日期
             <input onChange={(event) => setDateInput(event.target.value)} type="date" value={dateInput} />
+          </label>
+          <label className="field-label task-query-field">
+            发起用户
+            <select onChange={(event) => setOwnerInput(event.target.value)} value={ownerInput}>
+              <option value="">全部用户与访客</option>
+              {ownerOptions.map((owner) => <option key={owner.key} value={owner.key}>{owner.type === "visitor" ? "访客 · " : "用户 · "}{owner.name}</option>)}
+            </select>
           </label>
           <label className="toggle-field task-query-toggle">
             <input checked={likedOnlyInput} onChange={(event) => setLikedOnlyInput(event.target.checked)} type="checkbox" />
@@ -6464,6 +6449,7 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
                   <strong>{shortJobId(job.jobId)}</strong>
                   {job.isLiked ? <span className="task-like-badge">已加入卡夹</span> : null}
                   <span className="experience-badge">{publicExperienceLabel(job.experienceType)}</span>
+                  <span className="task-owner-badge" title={job.owner?.email || job.owner?.visitorId || ""}>{job.owner?.type === "visitor" ? "访客" : "用户"}：{job.owner?.name || "未识别"}</span>
                   {job.styleName ? <span>{job.styleName}</span> : null}
                   {job.styleGroupName ? <span>组：{job.styleGroupName}</span> : null}
                   <span>{modeLabel(job.mode)}</span>
@@ -6482,10 +6468,6 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
                 {providerDiagnostics ? <p className="storage-note">诊断：{providerDiagnostics}</p> : null}
               </div>
               <div className="task-actions">
-                <button className="secondary-button" disabled={!canCancelJob(job)} onClick={() => cancelJob(job.jobId)} type="button">
-                  <X size={18} />
-                  <span>停止</span>
-                </button>
                 <button className="secondary-button" disabled={!job.result?.imageUrl} onClick={() => openAdminJobResult(job.jobId)} type="button">
                   <Eye size={18} />
                   <span>查看</span>
@@ -6504,10 +6486,6 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
                     <span>{replacingStylePreviewKey === `${job.jobId}:pet` ? "替换中" : "替换宠物效果"}</span>
                   </button>
                 </> : null}
-                <button className={job.isLiked ? "secondary-button" : "copy-button"} disabled={updatingClipJobId === job.jobId} onClick={() => toggleClip(job)} type="button">
-                  {updatingClipJobId === job.jobId ? <LoaderCircle className="spin" size={18} /> : job.isLiked ? <X size={18} /> : <Sparkles size={18} />}
-                  <span>{updatingClipJobId === job.jobId ? "处理中" : job.isLiked ? "移出卡夹" : "加入卡夹"}</span>
-                </button>
                 <button className="copy-button" onClick={() => setEditingJob(job)} type="button">
                   <Pencil size={18} />
                   <span>修改</span>
@@ -8572,6 +8550,7 @@ function UserAdminPage({ onOpenClip }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [type, setType] = useState("");
   const [selected, setSelected] = useState(null);
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
@@ -8586,7 +8565,7 @@ function UserAdminPage({ onOpenClip }) {
   async function load(next = {}) {
     setBusy(true);
     try {
-      const payload = await fetchAdminUsers({ page: next.page ?? page, limit, search: next.search ?? search, status: next.status ?? status });
+      const payload = await fetchAdminUsers({ page: next.page ?? page, limit, search: next.search ?? search, status: next.status ?? status, type: next.type ?? type });
       setUsers(payload.users || []);
       setTotal(Number(payload.total || 0));
       setPage(Number(payload.page || 1));
@@ -8606,6 +8585,10 @@ function UserAdminPage({ onOpenClip }) {
     setDelta("");
     setRemark("");
     setCurrency("coin");
+    if (user.recordType === "visitor") {
+      setDetail({ user });
+      return;
+    }
     try {
       setDetail(await fetchAdminUser(user.id));
     } catch (nextError) {
@@ -8660,12 +8643,13 @@ function UserAdminPage({ onOpenClip }) {
   return (
     <section className="task-page user-admin-page" aria-label="用户管理">
       <div className="task-toolbar">
-        <div><p className="eyebrow">Users</p><h2>用户管理</h2><p className="storage-note">管理邮箱注册用户、账户状态、币与豆豆余额。</p></div>
+        <div><p className="eyebrow">Users</p><h2>用户管理</h2><p className="storage-note">查看注册用户与访客，并管理注册用户的账户状态、币与豆豆余额。</p></div>
         <button className="secondary-button" disabled={busy} onClick={() => load()} type="button"><RefreshCw size={18} /><span>刷新</span></button>
       </div>
       <div className="task-filters">
+        <select onChange={(event) => setType(event.target.value)} value={type}><option value="">全部类型</option><option value="registered">注册用户</option><option value="visitor">访客</option></select>
         <select onChange={(event) => setStatus(event.target.value)} value={status}><option value="">全部状态</option><option value="active">正常</option><option value="disabled">已禁用</option></select>
-        <label className="search-box"><Search size={18} /><input onChange={(event) => setSearch(event.target.value)} placeholder="用户名或邮箱" value={search} /></label>
+        <label className="search-box"><Search size={18} /><input onChange={(event) => setSearch(event.target.value)} placeholder="用户、访客 ID、邮箱或邀请人" value={search} /></label>
         <button className="secondary-button" onClick={() => load({ page: 1 })} type="button">筛选</button>
       </div>
       {error ? <p className="error-note">{error}</p> : null}
@@ -8674,10 +8658,13 @@ function UserAdminPage({ onOpenClip }) {
           <table className="user-admin-table">
             <colgroup>
               <col className="user-admin-status-column" />
+              <col className="user-admin-status-column" />
+              <col className="user-admin-identity-column" />
               <col className="user-admin-identity-column" />
               <col className="user-admin-credit-column" />
               <col className="user-admin-date-column" />
               <col className="user-admin-date-column" />
+              <col className="user-admin-browser-column" />
               <col className="user-admin-orders-column" />
               <col className="user-admin-clip-column" />
               <col className="user-admin-action-column" />
@@ -8685,11 +8672,14 @@ function UserAdminPage({ onOpenClip }) {
             <thead>
               <tr>
                 <th scope="col">状态</th>
+                <th scope="col">类型</th>
                 <th scope="col">用户</th>
+                <th scope="col">邀请人</th>
                 <th scope="col">币 / 豆豆</th>
                 <th scope="col">注册时间</th>
                 <th scope="col">最近登录</th>
-                <th scope="col">订单</th>
+                <th scope="col">浏览器</th>
+                <th scope="col">订单 / 生成任务</th>
                 <th scope="col">用户卡夹</th>
                 <th scope="col" aria-label="操作" />
               </tr>
@@ -8698,35 +8688,40 @@ function UserAdminPage({ onOpenClip }) {
               {users.map((user) => (
                 <tr key={user.id}>
                   <td><span className={`task-status user-admin-status ${user.status === "disabled" ? "failed" : "succeeded"}`}>{user.status === "disabled" ? "已禁用" : "正常"}</span></td>
+                  <td><span className="user-admin-record-type">{user.recordType === "visitor" ? "访客" : user.inviter ? "受邀注册" : "注册"}</span></td>
                   <td>
                     <div className="user-admin-identity">
                       <strong title={user.username}>{user.username}</strong>
-                      <span title={user.email}>{user.email}</span>
+                      <span title={user.email || user.visitorId}>{user.email || `ID：${user.visitorId}`}</span>
                     </div>
                   </td>
+                  <td><div className="user-admin-identity"><strong title={user.inviter?.name || user.invitationSource || ""}>{user.inviter?.name || user.invitationSource || "—"}</strong>{user.inviter?.email ? <span title={user.inviter.email}>{user.inviter.email}</span> : null}</div></td>
                   <td className="user-admin-number">{user.coinBalance} 币 / {user.beanBalance} 豆豆</td>
-                  <td className="user-admin-date">{formatDateTime(user.registeredAt)}</td>
+                  <td className="user-admin-date">{formatDateTime(user.registeredAt || user.createdAt)}</td>
                   <td className="user-admin-date">{formatDateTime(user.lastLoginAt)}</td>
-                  <td><div className="user-admin-orders"><strong>{user.orderCount} 笔</strong><span>{formatCurrencyCents(user.paidTotalCents)}</span></div></td>
-                  <td><button className="secondary-button user-admin-clip-button" onClick={() => onOpenClip(user.id)} type="button"><Layers3 size={15} /><span>查看卡夹</span></button></td>
+                  <td className="user-admin-browser" title={user.browser || ""}>{user.recordType === "visitor" ? user.browser || "未知" : "—"}</td>
+                  <td>{user.recordType === "visitor" ? <div className="user-admin-orders"><strong>{user.orderCount} 个</strong><span>生成任务</span></div> : <div className="user-admin-orders"><strong>{user.orderCount} 笔</strong><span>{formatCurrencyCents(user.paidTotalCents)}</span></div>}</td>
+                  <td>{user.recordType === "registered" ? <button className="secondary-button user-admin-clip-button" onClick={() => onOpenClip(user.accountId || user.id)} type="button"><Layers3 size={15} /><span>查看卡夹</span></button> : <span className="storage-note">—</span>}</td>
                   <td className="user-admin-action"><button className="secondary-button user-admin-detail-button" onClick={() => openDetail(user)} type="button"><Eye size={15} /><span>详情</span></button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      ) : <p className="empty-note">暂无注册用户。</p>}
-      <div className="task-pagination"><p className="storage-note">共 {total} 位用户，当前第 {page} / {totalPages} 页。</p><div className="task-pagination-actions"><button className="secondary-button" disabled={busy || page <= 1} onClick={() => load({ page: page - 1 })} type="button">上一页</button><button className="secondary-button" disabled={busy || page >= totalPages} onClick={() => load({ page: page + 1 })} type="button">下一页</button></div></div>
+      ) : <p className="empty-note">暂无符合条件的用户或访客。</p>}
+      <div className="task-pagination"><p className="storage-note">共 {total} 位用户与访客，当前第 {page} / {totalPages} 页。</p><div className="task-pagination-actions"><button className="secondary-button" disabled={busy || page <= 1} onClick={() => load({ page: page - 1 })} type="button">上一页</button><button className="secondary-button" disabled={busy || page >= totalPages} onClick={() => load({ page: page + 1 })} type="button">下一页</button></div></div>
       {selected ? (
         <div className="modal-backdrop" onClick={() => setSelected(null)} role="presentation">
           <section className="prompt-modal order-admin-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="用户详情">
             <div className="modal-head"><div><p className="eyebrow">User detail</p><h2>{detail?.user?.username || selected.username}</h2></div><button className="icon-button" onClick={() => setSelected(null)} type="button"><X size={18} /></button></div>
-            <p className="storage-note">{detail?.user?.email || selected.email} · {detail?.user?.coinBalance ?? selected.coinBalance} 币 / {detail?.user?.beanBalance ?? selected.beanBalance} 豆豆 · 关联访客 {detail?.user?.visitorCount ?? selected.visitorCount}</p>
-            <div className="task-actions"><button className={detail?.user?.status === "disabled" ? "secondary-button" : "danger-button"} disabled={isDeleting} onClick={() => updateStatus(detail?.user?.status === "disabled" ? "active" : "disabled")} type="button">{detail?.user?.status === "disabled" ? "恢复用户" : "禁用用户"}</button><button className="danger-button" disabled={isDeleting} onClick={deleteUser} type="button">{isDeleting ? "正在永久删除..." : "永久删除用户"}</button></div>
-            <div className="draw-card-order-form"><label className="field-label">币种<select onChange={(event) => setCurrency(event.target.value)} value={currency}><option value="coin">币</option><option value="bean">豆豆</option></select></label><label className="field-label">调整余额（正数增加、负数扣减）<input onChange={(event) => setDelta(event.target.value)} type="number" value={delta} /></label><label className="field-label">调整备注<textarea onChange={(event) => setRemark(event.target.value)} rows="2" value={remark} /></label><button className="secondary-button" disabled={!Number(delta) || !remark.trim()} onClick={adjustWallet} type="button">保存余额调整</button></div>
-            <h3>币流水</h3><div className="task-list">{(detail?.ledger || []).slice(0, 20).map((item) => <div className="task-meta-row" key={item.id}><strong>{item.delta > 0 ? "+" : ""}{item.delta} 币</strong><span>{item.reason}{item.note ? `：${item.note}` : ""}</span><span>{formatDateTime(item.createdAt)}</span></div>)}</div>
-            <h3>豆豆流水</h3><div className="task-list">{(detail?.beanLedger || []).slice(0, 20).map((item) => <div className="task-meta-row" key={item.id}><strong>{item.delta > 0 ? "+" : ""}{item.delta} 豆豆</strong><span>{item.reason}{item.note ? `：${item.note}` : ""}</span><span>{formatDateTime(item.createdAt)}</span></div>)}</div>
-            <h3>订单摘要</h3><div className="task-list">{(detail?.orders || []).slice(0, 20).map((order) => <div className="task-meta-row" key={order.id}><strong>{order.orderNo}</strong><span>{order.paymentStatus === "paid" ? "已支付" : "未支付"}</span><span>{formatCurrencyCents(order.totalCents)}</span></div>)}</div>
+            <p className="storage-note">{detail?.user?.email || (detail?.user?.visitorId ? `访客 ID：${detail.user.visitorId}` : selected.email)} · {detail?.user?.coinBalance ?? selected.coinBalance} 币 / {detail?.user?.beanBalance ?? selected.beanBalance} 豆豆 · 邀请人：{detail?.user?.inviter?.name || detail?.user?.invitationSource || "无"}</p>
+            {selected.recordType === "registered" ? <>
+              <div className="task-actions"><button className={detail?.user?.status === "disabled" ? "secondary-button" : "danger-button"} disabled={isDeleting} onClick={() => updateStatus(detail?.user?.status === "disabled" ? "active" : "disabled")} type="button">{detail?.user?.status === "disabled" ? "恢复用户" : "禁用用户"}</button><button className="danger-button" disabled={isDeleting} onClick={deleteUser} type="button">{isDeleting ? "正在永久删除..." : "永久删除用户"}</button></div>
+              <div className="draw-card-order-form"><label className="field-label">币种<select onChange={(event) => setCurrency(event.target.value)} value={currency}><option value="coin">币</option><option value="bean">豆豆</option></select></label><label className="field-label">调整余额（正数增加、负数扣减）<input onChange={(event) => setDelta(event.target.value)} type="number" value={delta} /></label><label className="field-label">调整备注<textarea onChange={(event) => setRemark(event.target.value)} rows="2" value={remark} /></label><button className="secondary-button" disabled={!Number(delta) || !remark.trim()} onClick={adjustWallet} type="button">保存余额调整</button></div>
+              <h3>币流水</h3><div className="task-list">{(detail?.ledger || []).slice(0, 20).map((item) => <div className="task-meta-row" key={item.id}><strong>{item.delta > 0 ? "+" : ""}{item.delta} 币</strong><span>{item.reason}{item.note ? `：${item.note}` : ""}</span><span>{formatDateTime(item.createdAt)}</span></div>)}</div>
+              <h3>豆豆流水</h3><div className="task-list">{(detail?.beanLedger || []).slice(0, 20).map((item) => <div className="task-meta-row" key={item.id}><strong>{item.delta > 0 ? "+" : ""}{item.delta} 豆豆</strong><span>{item.reason}{item.note ? `：${item.note}` : ""}</span><span>{formatDateTime(item.createdAt)}</span></div>)}</div>
+              <h3>订单摘要</h3><div className="task-list">{(detail?.orders || []).slice(0, 20).map((order) => <div className="task-meta-row" key={order.id}><strong>{order.orderNo}</strong><span>{order.paymentStatus === "paid" ? "已支付" : "未支付"}</span><span>{formatCurrencyCents(order.totalCents)}</span></div>)}</div>
+            </> : <p className="storage-note">访客记录为匿名会话信息，暂无可管理的钱包、订单或卡夹。</p>}
           </section>
         </div>
       ) : null}
@@ -10198,7 +10193,8 @@ function areImageJobQueriesEqual(left, right) {
     String(left?.status || "") === String(right?.status || "") &&
     String(left?.search || "") === String(right?.search || "") &&
     String(left?.date || "") === String(right?.date || "") &&
-    Boolean(left?.likedOnly) === Boolean(right?.likedOnly)
+    Boolean(left?.likedOnly) === Boolean(right?.likedOnly) &&
+    String(left?.owner || "") === String(right?.owner || "")
   );
 }
 

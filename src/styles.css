@@ -3838,6 +3838,68 @@ h2 {
   gap: 10px;
 }
 
+.image-jobs-page .task-card {
+  grid-template-columns: 76px 120px minmax(0, 1fr) 160px;
+  gap: 10px;
+  padding: 10px;
+}
+
+.image-jobs-page .task-preview {
+  display: block;
+  width: 120px;
+  height: auto;
+  max-height: 220px;
+  aspect-ratio: auto;
+  overflow: visible;
+  align-self: center;
+  background: transparent;
+}
+
+.image-jobs-page .task-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 7px;
+  background: #edf2ee;
+}
+
+.image-jobs-page .task-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.image-jobs-page .task-actions > button {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 8px;
+  font-size: 0.78rem;
+}
+
+.image-jobs-page .task-prompt {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.task-owner-badge,
+.user-admin-record-type {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #f2eee7;
+  color: #5b4b3b;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .manual-payment-qr {
   display: block;
   inline-size: min(320px, 100%);
@@ -4609,7 +4671,7 @@ h2 {
 
 .user-admin-table {
   width: 100%;
-  min-width: 940px;
+  min-width: 1460px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -4618,24 +4680,36 @@ h2 {
   width: 92px;
 }
 
+.user-admin-table col:nth-child(2) {
+  width: 110px;
+}
+
 .user-admin-identity-column {
-  width: 25%;
+  width: 220px;
+}
+
+.user-admin-table col:nth-child(4) {
+  width: 190px;
 }
 
 .user-admin-credit-column {
-  width: 82px;
+  width: 126px;
 }
 
 .user-admin-date-column {
-  width: 146px;
+  width: 134px;
+}
+
+.user-admin-browser-column {
+  width: 126px;
 }
 
 .user-admin-orders-column {
-  width: 112px;
+  width: 96px;
 }
 
 .user-admin-clip-column {
-  width: 112px;
+  width: 120px;
 }
 
 .user-admin-action-column {
@@ -4706,6 +4780,15 @@ h2 {
 
 .user-admin-number,
 .user-admin-date {
+  white-space: nowrap;
+}
+
+.user-admin-browser {
+  overflow: hidden;
+  color: #60706d;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -5873,6 +5956,43 @@ textarea {
 
   .task-card {
     grid-template-columns: 1fr;
+  }
+
+  .image-jobs-page .task-card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .image-jobs-page .task-status {
+    justify-self: start;
+  }
+
+  .image-jobs-page .task-preview {
+    width: min(140px, 100%);
+    max-height: 260px;
+    justify-self: center;
+  }
+
+  .image-jobs-page .task-preview img {
+    max-height: 260px;
+  }
+
+  .image-jobs-page .task-detail {
+    gap: 9px;
+  }
+
+  .image-jobs-page .task-meta-row {
+    gap: 6px;
+    font-size: 0.8rem;
+  }
+
+  .image-jobs-page .task-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .image-jobs-page .task-actions > button {
+    min-height: 38px;
   }
 
   .task-preview {

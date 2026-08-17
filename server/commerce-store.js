@@ -1641,14 +1641,22 @@ export function createCommerceStore({ dbPath }) {
     const totalPages = Math.max(1, Math.ceil(total / safeLimit));
     const safePage = Math.min(requestedPage, totalPages);
     const rows = db.prepare(`
-      SELECT a.*, COUNT(DISTINCT v.visitor_id) AS visitor_count,
-        COUNT(DISTINCT o.id) AS order_count,
-        COALESCE(SUM(CASE WHEN o.payment_status = 'paid' THEN o.total_cents ELSE 0 END), 0) AS paid_total_cents
+      SELECT a.*,
+        (SELECT COUNT(DISTINCT av.visitor_id) FROM commerce_account_visitors av WHERE av.account_id = a.id) AS visitor_count,
+        (SELECT COUNT(*) FROM orders o WHERE o.account_id = a.id OR EXISTS (
+          SELECT 1 FROM commerce_account_visitors av WHERE av.account_id = a.id AND av.visitor_id = o.visitor_id
+        )) AS order_count,
+        COALESCE((SELECT SUM(CASE WHEN o.payment_status = 'paid' THEN o.total_cents ELSE 0 END) FROM orders o WHERE o.account_id = a.id OR EXISTS (
+          SELECT 1 FROM commerce_account_visitors av WHERE av.account_id = a.id AND av.visitor_id = o.visitor_id
+        )), 0) AS paid_total_cents,
+        r.referrer_account_id AS inviter_account_id,
+        inviter.username AS inviter_username,
+        inviter.email AS inviter_email,
+        inviter.wechat_nickname AS inviter_wechat_nickname
       FROM commerce_accounts a
-      LEFT JOIN commerce_account_visitors v ON v.account_id = a.id
-      LEFT JOIN orders o ON o.account_id = a.id
+      LEFT JOIN commerce_referrals r ON r.invitee_account_id = a.id
+      LEFT JOIN commerce_accounts inviter ON inviter.id = r.referrer_account_id
       ${where}
-      GROUP BY a.id
       ORDER BY a.registered_at DESC
       LIMIT @limit OFFSET @offset
     `).all({ ...params, limit: safeLimit, offset: (safePage - 1) * safeLimit });
@@ -1660,27 +1668,102 @@ export function createCommerceStore({ dbPath }) {
         ...mapAccount(row),
         visitorCount: Number(row.visitor_count || 0),
         orderCount: Number(row.order_count || 0),
-        paidTotalCents: Number(row.paid_total_cents || 0)
+        paidTotalCents: Number(row.paid_total_cents || 0),
+        inviterAccountId: String(row.inviter_account_id || ""),
+        inviterUsername: String(row.inviter_username || ""),
+        inviterEmail: String(row.inviter_email || ""),
+        inviterWechatNickname: String(row.inviter_wechat_nickname || "")
       }))
     };
   }
 
+  function listAdminAccounts() {
+    const rows = db.prepare(`
+      SELECT a.*,
+        (SELECT COUNT(DISTINCT av.visitor_id) FROM commerce_account_visitors av WHERE av.account_id = a.id) AS visitor_count,
+        (SELECT COUNT(*) FROM orders o WHERE o.account_id = a.id OR EXISTS (
+          SELECT 1 FROM commerce_account_visitors av WHERE av.account_id = a.id AND av.visitor_id = o.visitor_id
+        )) AS order_count,
+        COALESCE((SELECT SUM(CASE WHEN o.payment_status = 'paid' THEN o.total_cents ELSE 0 END) FROM orders o WHERE o.account_id = a.id OR EXISTS (
+          SELECT 1 FROM commerce_account_visitors av WHERE av.account_id = a.id AND av.visitor_id = o.visitor_id
+        )), 0) AS paid_total_cents,
+        r.referrer_account_id AS inviter_account_id,
+        inviter.username AS inviter_username,
+        inviter.email AS inviter_email,
+        inviter.wechat_nickname AS inviter_wechat_nickname
+      FROM commerce_accounts a
+      LEFT JOIN commerce_referrals r ON r.invitee_account_id = a.id
+      LEFT JOIN commerce_accounts inviter ON inviter.id = r.referrer_account_id
+      ORDER BY a.created_at DESC
+    `).all();
+    const visitorRows = db.prepare(`
+      SELECT account_id, visitor_id
+      FROM commerce_account_visitors
+      ORDER BY created_at ASC
+    `).all();
+    const visitorIdsByAccountId = new Map();
+    visitorRows.forEach((row) => {
+      const accountId = String(row.account_id || "");
+      const visitorId = String(row.visitor_id || "");
+      if (!accountId || !visitorId) return;
+      const current = visitorIdsByAccountId.get(accountId) || [];
+      current.push(visitorId);
+      visitorIdsByAccountId.set(accountId, current);
+    });
+    return rows.map((row) => ({
+      ...mapAccount(row),
+      visitorCount: Number(row.visitor_count || 0),
+      orderCount: Number(row.order_count || 0),
+      paidTotalCents: Number(row.paid_total_cents || 0),
+      inviterAccountId: String(row.inviter_account_id || ""),
+      inviterUsername: String(row.inviter_username || ""),
+      inviterEmail: String(row.inviter_email || ""),
+      inviterWechatNickname: String(row.inviter_wechat_nickname || ""),
+      visitorIds: visitorIdsByAccountId.get(String(row.id || "")) || []
+    }));
+  }
+
   function readRegisteredUserDetail(accountId) {
-    const account = readAccount(accountId);
+    const accountRow = db.prepare(`
+      SELECT a.*, r.referrer_account_id AS inviter_account_id,
+        inviter.username AS inviter_username,
+        inviter.email AS inviter_email,
+        inviter.wechat_nickname AS inviter_wechat_nickname
+      FROM commerce_accounts a
+      LEFT JOIN commerce_referrals r ON r.invitee_account_id = a.id
+      LEFT JOIN commerce_accounts inviter ON inviter.id = r.referrer_account_id
+      WHERE a.id = ?
+    `).get(String(accountId || ""));
+    const account = accountRow
+      ? {
+          ...mapAccount(accountRow),
+          inviterAccountId: String(accountRow.inviter_account_id || ""),
+          inviterUsername: String(accountRow.inviter_username || ""),
+          inviterEmail: String(accountRow.inviter_email || ""),
+          inviterWechatNickname: String(accountRow.inviter_wechat_nickname || "")
+        }
+      : null;
     if (!account?.isRegistered) return null;
     const summary = db.prepare(`
-      SELECT COUNT(DISTINCT v.visitor_id) AS visitor_count,
-        COUNT(DISTINCT o.id) AS order_count,
-        COALESCE(SUM(CASE WHEN o.payment_status = 'paid' THEN o.total_cents ELSE 0 END), 0) AS paid_total_cents
+      SELECT
+        (SELECT COUNT(DISTINCT av.visitor_id) FROM commerce_account_visitors av WHERE av.account_id = a.id) AS visitor_count,
+        (SELECT COUNT(*) FROM orders o WHERE o.account_id = a.id OR EXISTS (
+          SELECT 1 FROM commerce_account_visitors av WHERE av.account_id = a.id AND av.visitor_id = o.visitor_id
+        )) AS order_count,
+        COALESCE((SELECT SUM(CASE WHEN o.payment_status = 'paid' THEN o.total_cents ELSE 0 END) FROM orders o WHERE o.account_id = a.id OR EXISTS (
+          SELECT 1 FROM commerce_account_visitors av WHERE av.account_id = a.id AND av.visitor_id = o.visitor_id
+        )), 0) AS paid_total_cents
       FROM commerce_accounts a
-      LEFT JOIN commerce_account_visitors v ON v.account_id = a.id
-      LEFT JOIN orders o ON o.account_id = a.id
       WHERE a.id = ?
     `).get(account.id) || {};
     const orders = db.prepare(`
       SELECT id, order_no, payment_status, fulfillment_status, item_count, total_cents, paid_at, created_at
-      FROM orders WHERE account_id = ? ORDER BY created_at DESC LIMIT 50
-    `).all(account.id).map((row) => ({
+      FROM orders
+      WHERE account_id = ? OR EXISTS (
+        SELECT 1 FROM commerce_account_visitors av WHERE av.account_id = ? AND av.visitor_id = orders.visitor_id
+      )
+      ORDER BY created_at DESC LIMIT 50
+    `).all(account.id, account.id).map((row) => ({
       id: String(row.id || ""), orderNo: String(row.order_no || ""), paymentStatus: String(row.payment_status || ""),
       fulfillmentStatus: String(row.fulfillment_status || ""), itemCount: Number(row.item_count || 0),
       totalCents: Number(row.total_cents || 0), paidAt: row.paid_at || null, createdAt: row.created_at || null
@@ -1732,6 +1815,7 @@ export function createCommerceStore({ dbPath }) {
     listAllCreditLedger,
     listAllBeanLedger,
     listAllPaymentIntents,
+    listAdminAccounts,
     listPaymentIntents,
     listRegisteredUsers,
     listVisitorIds,

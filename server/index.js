@@ -1297,6 +1297,7 @@ app.post("/api/visit-sessions/report", async (req, res) => {
         visitorId: visitor.visitorId,
         experienceType: req.body?.experienceType,
         route: req.body?.route,
+        browser: describeRequestBrowser(req),
         sourceMerchantId: activeSource?.sourceMerchantId || "",
         sourceMerchantName: activeSource?.sourceMerchantName || "",
         startedAt: now,
@@ -3259,13 +3260,14 @@ app.delete("/api/admin/invite-codes/:id", requireAdmin, async (req, res) => {
   }
 });
 
-app.get("/api/admin/users", requireAdmin, (req, res, next) => {
+app.get("/api/admin/users", requireAdmin, async (req, res, next) => {
   try {
-    const payload = commerceStore.listRegisteredUsers({
+    const payload = await listAdminUserRecords({
       page: req.query?.page,
       limit: req.query?.limit,
       search: req.query?.search,
-      status: req.query?.status
+      status: req.query?.status,
+      type: req.query?.type
     });
     res.json({ ...payload, users: payload.items.map(toPublicAdminUser) });
   } catch (error) {
@@ -4450,13 +4452,11 @@ async function inferVisitorStateFromArtifacts(visitorId, currentText = "") {
   }
 
   const uniqueChargedSessionIds = [...new Set(chargedDrawCardSessionIds)];
-  const invited = matchingInvites.length > 0 || readJsonStringFieldFromText(currentText, "tier") === "invited";
   const recoveredQuotaLimit = readJsonNumberFieldFromText(currentText, "quotaLimit");
   const recoveredQuotaUsed = readJsonNumberFieldFromText(currentText, "quotaUsed");
   const recoveredCreatedAt = readJsonStringFieldFromText(currentText, "createdAt");
   const recoveredUpdatedAt = readJsonStringFieldFromText(currentText, "updatedAt");
   const recoveredLastActiveAt = readJsonStringFieldFromText(currentText, "lastActiveAt");
-  const recoveredInvitedAt = readJsonNullableStringFieldFromText(currentText, "invitedAt");
   const recoveredContactMessage = readJsonStringFieldFromText(currentText, "contactMessage");
   const recoveredSourceClaimedAt = readJsonNullableStringFieldFromText(currentText, "sourceClaimedAt");
   const recoveredSourceExpiresAt = readJsonNullableStringFieldFromText(currentText, "sourceExpiresAt");
@@ -4466,17 +4466,17 @@ async function inferVisitorStateFromArtifacts(visitorId, currentText = "") {
 
   return {
     visitorId,
-    tier: invited ? "invited" : "anonymous",
+    tier: "anonymous",
     quotaLimit: Number.isFinite(recoveredQuotaLimit)
       ? Math.max(0, Math.round(recoveredQuotaLimit))
-      : anonymousQuotaLimit + (invited ? recoveredInviteQuotaBonus || VISITOR_INVITE_BONUS : 0),
+      : anonymousQuotaLimit + recoveredInviteQuotaBonus,
     quotaUsed: Math.max(recoveredChargedQuotaUsed, uniqueChargedSessionIds.length, Number.isFinite(recoveredQuotaUsed) ? Math.max(0, Math.round(recoveredQuotaUsed)) : 0),
     chargedDrawCardSessionIds: uniqueChargedSessionIds,
     sourceMerchantId,
     sourceMerchantName,
     sourceClaimedAt: recoveredSourceClaimedAt,
     sourceExpiresAt: recoveredSourceExpiresAt,
-    invitedAt: invited ? recoveredInvitedAt || invitedAtFromInvite || createdAt : null,
+    invitedAt: null,
     contactMessage: recoveredContactMessage || DEFAULT_CONTACT_MESSAGE,
     lastActiveAt,
     activeVisitSessionId,
@@ -4525,8 +4525,10 @@ async function saveVisitorState(visitor) {
 }
 
 function normalizeVisitorState(visitor) {
-  const tier = String(visitor?.tier || "anonymous");
-  const quotaLimit = Number(visitor?.quotaLimit || (tier === "invited" ? DEFAULT_VISITOR_ANONYMOUS_LIMIT + VISITOR_INVITE_BONUS : DEFAULT_VISITOR_ANONYMOUS_LIMIT));
+  // Redeeming a legacy invite code only grants a quota bonus; it is not a
+  // referral relationship. Only registered accounts can be marked invited.
+  const tier = "anonymous";
+  const quotaLimit = Number(visitor?.quotaLimit || DEFAULT_VISITOR_ANONYMOUS_LIMIT);
   const quotaUsed = Math.max(0, Number(visitor?.quotaUsed || 0));
   const chargedDrawCardSessionIds = Array.isArray(visitor?.chargedDrawCardSessionIds)
     ? visitor.chargedDrawCardSessionIds.map((sessionId) => String(sessionId || "")).filter(Boolean)
@@ -4544,7 +4546,7 @@ function normalizeVisitorState(visitor) {
     sourceMerchantName: sourceIsActive ? String(visitor?.sourceMerchantName || "").trim() : "",
     sourceClaimedAt: sourceIsActive ? visitor?.sourceClaimedAt || null : null,
     sourceExpiresAt: sourceIsActive ? rawSourceExpiresAt : null,
-    invitedAt: visitor?.invitedAt || null,
+    invitedAt: null,
     contactMessage: String(visitor?.contactMessage || DEFAULT_CONTACT_MESSAGE),
     lastActiveAt: visitor?.lastActiveAt || visitor?.updatedAt || visitor?.createdAt || new Date().toISOString(),
     activeVisitSessionId: isSafeVisitSessionId(visitor?.activeVisitSessionId) ? String(visitor.activeVisitSessionId) : "",
@@ -4630,6 +4632,7 @@ function normalizeVisitSession(session) {
     visitorId: String(session?.visitorId || ""),
     experienceType: normalizePublicExperienceType(session?.experienceType),
     route: normalizeVisitSessionRoute(session?.route),
+    browser: normalizeBrowserDescription(session?.browser),
     sourceMerchantId: String(session?.sourceMerchantId || "").trim(),
     sourceMerchantName: String(session?.sourceMerchantName || "").trim(),
     startedAt,
@@ -4760,6 +4763,39 @@ function normalizeInviteBonus(value, fallback = 5) {
   const next = Number(value);
   if (!Number.isFinite(next)) return fallback;
   return Math.min(Math.max(Math.round(next), 0), 999);
+}
+
+function normalizeBrowserDescription(value) {
+  const browser = String(value || "").trim();
+  return browser.slice(0, 80);
+}
+
+function describeRequestBrowser(req) {
+  const userAgent = String(req?.headers?.["user-agent"] || "");
+  if (!userAgent) return "未知浏览器";
+  const platform = /Android/i.test(userAgent)
+    ? "Android"
+    : /iPhone|iPad|iPod/i.test(userAgent)
+      ? "iOS"
+      : /Windows/i.test(userAgent)
+        ? "Windows"
+        : /Macintosh/i.test(userAgent)
+          ? "macOS"
+          : "其他";
+  const browser = /MicroMessenger/i.test(userAgent)
+    ? "微信"
+    : /Edg\//i.test(userAgent)
+      ? "Edge"
+      : /CriOS/i.test(userAgent)
+        ? "Chrome"
+        : /Chrome\//i.test(userAgent)
+          ? "Chrome"
+          : /Firefox\//i.test(userAgent)
+            ? "Firefox"
+            : /Safari\//i.test(userAgent)
+              ? "Safari"
+              : "其他浏览器";
+  return `${browser} · ${platform}`;
 }
 
 function normalizeWalletBonus(value, fallback) {
@@ -6478,13 +6514,17 @@ function matchesImageJobDate(job, date) {
   return formatArchiveDate(createdAt) === date;
 }
 
-function matchesImageJobSearch(job, search) {
+function matchesImageJobSearch(job, search, owner = null) {
   if (!search) return true;
   const haystack = [
     job?.jobId,
     job?.prompt,
     job?.styleName,
-    job?.styleGroupName
+    job?.styleGroupName,
+    owner?.name,
+    owner?.email,
+    owner?.visitorId,
+    owner?.accountId
   ]
     .map((value) => String(value || "").toLowerCase())
     .join("\n");
@@ -7412,8 +7452,12 @@ function toPublicCreditLedger(entry) {
 }
 
 function toPublicAdminUser(account) {
+  const recordType = String(account?.recordType || "registered");
   return {
     id: account.id,
+    recordType,
+    accountId: String(account.accountId || (recordType === "registered" ? account.id : "")),
+    visitorId: String(account.visitorId || ""),
     username: getAccountDisplayName(account),
     email: account.email || "",
     status: account.accountStatus || "active",
@@ -7421,9 +7465,168 @@ function toPublicAdminUser(account) {
     beanBalance: Number(account.beanBalance || 0),
     registeredAt: account.registeredAt || null,
     lastLoginAt: account.lastLoginAt || null,
+    createdAt: account.createdAt || null,
+    updatedAt: account.updatedAt || null,
     visitorCount: Number(account.visitorCount || 0),
     orderCount: Number(account.orderCount || 0),
-    paidTotalCents: Number(account.paidTotalCents || 0)
+    paidTotalCents: Number(account.paidTotalCents || 0),
+    visitorTier: String(account.visitorTier || ""),
+    browser: String(account.browser || ""),
+    inviter: toPublicAdminInviter(account),
+    invitationSource: String(account.invitationSource || "")
+  };
+}
+
+function toPublicAdminInviter(account) {
+  const id = String(account?.inviterAccountId || "");
+  if (!id) return null;
+  const raw = {
+    id,
+    username: String(account?.inviterUsername || ""),
+    wechatNickname: String(account?.inviterWechatNickname || ""),
+    email: String(account?.inviterEmail || "")
+  };
+  return {
+    id,
+    name: getAccountDisplayName(raw, raw.email || `用户 ${id.slice(0, 8)}`),
+    email: raw.email
+  };
+}
+
+async function listAdminUserRecords({ page = 1, limit = 20, search = "", status = "", type = "" } = {}) {
+  const safeLimit = Math.min(Math.max(Math.trunc(Number(limit || 20)), 1), 100);
+  const requestedPage = Math.max(Math.trunc(Number(page || 1)), 1);
+  const keyword = String(search || "").trim().toLowerCase();
+  const safeStatus = ["active", "disabled"].includes(String(status || "")) ? String(status) : "";
+  const safeType = ["registered", "visitor"].includes(String(type || "")) ? String(type) : "";
+  const [visitors, accounts, jobs, visitSessions] = await Promise.all([
+    listVisitorStates(),
+    Promise.resolve(commerceStore.listAdminAccounts()),
+    listImageJobs(),
+    listVisitSessions()
+  ]);
+  const accountByVisitorId = new Map();
+  const visitorGenerationCount = new Map();
+  const latestSessionByVisitorId = new Map();
+  const visitorById = new Map(visitors.map((visitor) => {
+    const safeVisitor = normalizeVisitorState(visitor);
+    return [safeVisitor.visitorId, safeVisitor];
+  }));
+  jobs.forEach((job) => {
+    const visitorId = String(job?.ownerVisitorId || "");
+    if (!visitorId) return;
+    visitorGenerationCount.set(visitorId, Number(visitorGenerationCount.get(visitorId) || 0) + 1);
+  });
+  visitSessions.forEach((session) => {
+    const safeSession = normalizeVisitSession(session);
+    if (!safeSession.visitorId) return;
+    const current = latestSessionByVisitorId.get(safeSession.visitorId);
+    if (!current || String(getVisitSessionLastActivityAt(safeSession) || "").localeCompare(String(getVisitSessionLastActivityAt(current) || "")) > 0) {
+      latestSessionByVisitorId.set(safeSession.visitorId, safeSession);
+    }
+  });
+  accounts.forEach((account) => {
+    const visitorIds = Array.isArray(account.visitorIds) ? account.visitorIds : [];
+    visitorIds.forEach((visitorId) => {
+      const current = accountByVisitorId.get(visitorId);
+      if (!current || (!current.isRegistered && account.isRegistered)) accountByVisitorId.set(visitorId, account);
+    });
+    if (account.channel === "browser_guest" && account.openId) {
+      const current = accountByVisitorId.get(account.openId);
+      if (!current || (!current.isRegistered && account.isRegistered)) accountByVisitorId.set(account.openId, account);
+    }
+  });
+  // Older jobs can already carry the registered account ID while the legacy
+  // visitor-to-account mapping is absent. Treat that task ownership as a
+  // binding too, so the same person is not shown once as a user and again as
+  // an independent visitor.
+  jobs.forEach((job) => {
+    const visitorId = String(job?.ownerVisitorId || "");
+    const account = accounts.find((item) => String(item.id || "") === String(job?.ownerAccountId || ""));
+    if (visitorId && account?.isRegistered) accountByVisitorId.set(visitorId, account);
+  });
+  const latestActivityByAccountId = new Map();
+  accounts.forEach((account) => {
+    const activity = [account.lastLoginAt];
+    const visitorIds = Array.isArray(account.visitorIds) ? account.visitorIds : [];
+    visitorIds.forEach((visitorId) => {
+      const visitor = visitorById.get(visitorId);
+      const session = latestSessionByVisitorId.get(visitorId);
+      activity.push(getVisitSessionLastActivityAt(session), visitor?.lastActiveAt, visitor?.updatedAt);
+    });
+    const latestActivity = activity
+      .filter(Boolean)
+      .map((value) => String(value))
+      .sort()
+      .at(-1) || null;
+    latestActivityByAccountId.set(account.id, latestActivity);
+  });
+
+  const records = [
+    ...accounts
+      .filter((account) => account.isRegistered)
+      .map((account) => ({
+        ...account,
+        recordType: "registered",
+        accountId: account.id,
+        visitorId: "",
+        lastLoginAt: latestActivityByAccountId.get(account.id) || account.lastLoginAt
+      })),
+    ...visitors
+      .filter((visitor) => {
+        const visitorId = String(visitor?.visitorId || "");
+        return Number(visitorGenerationCount.get(visitorId) || 0) > 0 && !accountByVisitorId.get(visitorId)?.isRegistered;
+      })
+      .map((visitor) => {
+      const safeVisitor = normalizeVisitorState(visitor);
+      const linkedAccount = accountByVisitorId.get(safeVisitor.visitorId) || null;
+      const latestSession = latestSessionByVisitorId.get(safeVisitor.visitorId) || null;
+      const visitorLabel = linkedAccount
+        ? `访客 · ${getAccountDisplayName(linkedAccount, `访客 ${safeVisitor.visitorId.slice(0, 8)}`)}`
+        : `访客 ${safeVisitor.visitorId.slice(0, 8)}`;
+      return {
+        ...(linkedAccount || {}),
+        id: safeVisitor.visitorId,
+        recordType: "visitor",
+        accountId: String(linkedAccount?.id || ""),
+        visitorId: safeVisitor.visitorId,
+        username: visitorLabel,
+        email: "",
+        accountStatus: linkedAccount?.accountStatus || "active",
+        creditBalance: Number(linkedAccount?.creditBalance || 0),
+        beanBalance: Number(linkedAccount?.beanBalance || 0),
+        visitorCount: 0,
+        orderCount: Number(visitorGenerationCount.get(safeVisitor.visitorId) || 0),
+        paidTotalCents: 0,
+        visitorTier: safeVisitor.tier,
+        browser: latestSession?.browser || "未知（历史访问未记录）",
+        invitationSource: safeVisitor.tier === "invited" ? "邀请码兑换（未记录来源）" : "",
+        registeredAt: null,
+        lastLoginAt: getVisitSessionLastActivityAt(latestSession) || safeVisitor.lastActiveAt || safeVisitor.updatedAt || null,
+        createdAt: safeVisitor.createdAt || null,
+        updatedAt: safeVisitor.updatedAt || null
+      };
+    })
+  ]
+    .filter((record) => !safeType || record.recordType === safeType)
+    .filter((record) => !safeStatus || String(record.accountStatus || "active") === safeStatus)
+    .filter((record) => {
+      if (!keyword) return true;
+      const inviter = toPublicAdminInviter(record);
+      return [record.username, record.email, record.id, record.accountId, record.visitorId, inviter?.name, inviter?.email]
+        .map((value) => String(value || "").toLowerCase())
+        .join("\n")
+        .includes(keyword);
+    })
+    .sort((left, right) => String(right.lastLoginAt || right.updatedAt || right.createdAt || "").localeCompare(String(left.lastLoginAt || left.updatedAt || left.createdAt || "")));
+  const total = records.length;
+  const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+  const safePage = Math.min(requestedPage, totalPages);
+  return {
+    total,
+    page: safePage,
+    limit: safeLimit,
+    items: records.slice((safePage - 1) * safeLimit, safePage * safeLimit)
   };
 }
 
@@ -8295,9 +8498,9 @@ async function upgradeVisitorByInvite(req, quotaBonus = VISITOR_INVITE_BONUS) {
   const visitor = await getVisitorState(req);
   return saveVisitorState({
     ...visitor,
-    tier: "invited",
+    tier: "anonymous",
     quotaLimit: Math.max(0, Number(visitor.quotaLimit || 0)) + normalizeInviteQuotaBonus(quotaBonus),
-    invitedAt: visitor.invitedAt || new Date().toISOString(),
+    invitedAt: null,
     updatedAt: new Date().toISOString()
   });
 }
@@ -11381,7 +11584,14 @@ async function queryImageJobs(options = {}) {
   const search = normalizeImageJobSearch(options.search);
   const date = normalizeImageJobQueryDate(options.date);
   const likedOnly = normalizeBooleanQuery(options.likedOnly);
-  const [jobs, styles] = await Promise.all([listImageJobs(), readStyles()]);
+  const owner = normalizeImageJobOwnerFilter(options.owner);
+  const [jobs, styles, accounts, visitors] = await Promise.all([
+    listImageJobs(),
+    readStyles(),
+    Promise.resolve(commerceStore.listAdminAccounts()),
+    listVisitorStates()
+  ]);
+  const ownerContext = buildImageJobOwnerContext(accounts, visitors);
   const stylesByPrompt = new Map();
   styles.forEach((style) => {
     const key = normalizeStylePromptMatchKey(style.prompt);
@@ -11390,22 +11600,28 @@ async function queryImageJobs(options = {}) {
     matches.push(style);
     stylesByPrompt.set(key, matches);
   });
-  const filteredJobs = jobs
-    .filter((job) => matchesImageJobStatus(job, status))
-    .filter((job) => matchesImageJobLikedOnly(job, likedOnly))
-    .filter((job) => matchesImageJobDate(job, date))
-    .filter((job) => matchesImageJobSearch(job, search))
-    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const jobsWithOwners = jobs.map((job) => ({ job, owner: resolveImageJobOwner(job, ownerContext) }));
+  const ownerOptions = Array.from(new Map(jobsWithOwners.map(({ owner: item }) => [item.key, item])).values())
+    .sort((left, right) => left.name.localeCompare(right.name, "zh-CN"))
+    .map((item) => ({ key: item.key, name: item.name, type: item.type }));
+  const filteredJobs = jobsWithOwners
+    .filter(({ job }) => matchesImageJobStatus(job, status))
+    .filter(({ job }) => matchesImageJobLikedOnly(job, likedOnly))
+    .filter(({ job }) => matchesImageJobDate(job, date))
+    .filter(({ owner: item }) => !owner || item.key === owner)
+    .filter(({ job, owner: item }) => matchesImageJobSearch(job, search, item))
+    .sort(({ job: left }, { job: right }) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
   const total = filteredJobs.length;
   const totalPages = total > 0 ? Math.ceil(total / limit) : 1;
   const safePage = Math.min(page, totalPages);
   const start = (safePage - 1) * limit;
   return {
-    jobs: filteredJobs.slice(start, start + limit).map((job) => {
+    jobs: filteredJobs.slice(start, start + limit).map(({ job, owner: jobOwner }) => {
       const matches = stylesByPrompt.get(normalizeStylePromptMatchKey(job.prompt)) || [];
       const matchedStyle = matches.length === 1 ? matches[0] : null;
       return {
         ...toPublicImageJob(job),
+        owner: jobOwner,
         stylePreviewMatch: matchedStyle
           ? {
               id: String(matchedStyle.id || ""),
@@ -11417,7 +11633,59 @@ async function queryImageJobs(options = {}) {
     }),
     total,
     page: safePage,
-    limit
+    limit,
+    ownerOptions
+  };
+}
+
+function normalizeImageJobOwnerFilter(value) {
+  const owner = String(value || "").trim();
+  return owner.length <= 180 ? owner : "";
+}
+
+function buildImageJobOwnerContext(accounts, visitors) {
+  const accountById = new Map();
+  const accountByVisitorId = new Map();
+  (Array.isArray(accounts) ? accounts : []).forEach((account) => {
+    accountById.set(String(account.id || ""), account);
+    const visitorIds = Array.isArray(account.visitorIds) ? account.visitorIds : [];
+    visitorIds.forEach((visitorId) => {
+      const current = accountByVisitorId.get(visitorId);
+      if (!current || (!current.isRegistered && account.isRegistered)) accountByVisitorId.set(visitorId, account);
+    });
+    if (account.channel === "browser_guest" && account.openId) accountByVisitorId.set(account.openId, account);
+  });
+  return {
+    accountById,
+    accountByVisitorId,
+    visitorById: new Map((Array.isArray(visitors) ? visitors : []).map((visitor) => {
+      const safeVisitor = normalizeVisitorState(visitor);
+      return [safeVisitor.visitorId, safeVisitor];
+    }))
+  };
+}
+
+function resolveImageJobOwner(job, context) {
+  const accountId = String(job?.ownerAccountId || "");
+  const visitorId = String(job?.ownerVisitorId || "");
+  const visitorAccount = visitorId ? context.accountByVisitorId.get(visitorId) : null;
+  const directAccount = accountId ? context.accountById.get(accountId) : null;
+  const account = visitorAccount?.isRegistered ? visitorAccount : directAccount || visitorAccount || null;
+  if (account?.isRegistered) {
+    const name = getAccountDisplayName(account, account.email || `用户 ${String(account.id || "").slice(0, 8)}`);
+    return { key: `registered:${account.id}`, type: "registered", accountId: String(account.id || ""), visitorId, name, email: String(account.email || "") };
+  }
+  const resolvedVisitorId = visitorId || String(account?.openId || "") || accountId;
+  const visitor = context.visitorById.get(resolvedVisitorId);
+  const shortId = String(resolvedVisitorId || "未知").slice(0, 8);
+  return {
+    key: `visitor:${resolvedVisitorId || "unknown"}`,
+    type: "visitor",
+    accountId: String(account?.id || accountId || ""),
+    visitorId: resolvedVisitorId,
+    name: `访客 ${shortId}`,
+    email: "",
+    tier: String(visitor?.tier || "")
   };
 }
 
