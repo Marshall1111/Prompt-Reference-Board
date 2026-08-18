@@ -8,8 +8,28 @@ const defaultReferencePath = path.join(rootDir, "data", "body-book-sample-refere
 const outputArg = process.argv.find((argument) => argument.startsWith("--output="));
 const referenceArg = process.argv.find((argument) => argument.startsWith("--reference="));
 const limitArg = process.argv.find((argument) => argument.startsWith("--limit="));
-const outputDir = outputArg ? path.resolve(rootDir, outputArg.slice("--output=".length)) : defaultOutputDir;
+const keysArg = process.argv.find((argument) => argument.startsWith("--keys="));
+const presetPagesOnly = process.argv.includes("--preset-pages");
+const outputDir = presetPagesOnly
+  ? path.join(rootDir, "public", "body-book-preset-pages")
+  : outputArg ? path.resolve(rootDir, outputArg.slice("--output=".length)) : defaultOutputDir;
 const referencePath = referenceArg ? path.resolve(referenceArg.slice("--reference=".length)) : defaultReferencePath;
+const requestedPresetKeys = new Set(String(keysArg?.slice("--keys=".length) || "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean));
+
+const presetBodyPages = [
+  { key: "head", chinese: "\u5934\u90e8", english: "Head", artDirection: "a hand-drawn close-up of one child's head only, cropped above the shoulders; do not show a whole child or any body below the neck" },
+  { key: "eyes", chinese: "\u773c\u775b", english: "Eyes", artDirection: "a hand-drawn close-up of only a child's pair of eyes and the smallest surrounding skin area; do not show a full face or head" },
+  { key: "ears", chinese: "\u8033\u6735", english: "Ears", artDirection: "a hand-drawn close-up of one child's ear only, with just a small neutral area of surrounding skin; do not show a head, face, hair, hand, or whole child" },
+  { key: "nose", chinese: "\u9f3b\u5b50", english: "Nose", artDirection: "a hand-drawn close-up of only a child's nose and the smallest surrounding skin area; do not show a full face or head" },
+  { key: "mouth", chinese: "\u5634\u5df4", english: "Mouth", artDirection: "a hand-drawn close-up of only a child's mouth and the smallest surrounding skin area; do not show a full face or head" },
+  { key: "hands", chinese: "\u624b", english: "Hands", artDirection: "a hand-drawn close-up of two small child hands only, without arms, face, head, or body" },
+  { key: "feet", chinese: "\u811a", english: "Feet", artDirection: "a hand-drawn close-up of two small child feet only, without legs, face, head, or body" },
+  { key: "tummy", chinese: "\u809a\u5b50", english: "Tummy", artDirection: "a hand-drawn close-up of only a child's round tummy, cropped tightly so that no face, head, limbs, or whole child appears" }
+];
+
+function presetBodyPagePrompt(part) {
+  return `Create one square 1:1 static preschool body-part recognition page. Subject: ${part.artDirection}. Use a warm, gentle hand-drawn colored-pencil and crayon illustration with subtle paper texture, clean outlines, soft warm skin tones, and a simple white or warm-cream background. Print layout requirement: the background must extend continuously to all four edges as a full-bleed image. Keep the entire illustrated body part and both text labels inside the central safe area, with at least 10% of the canvas width as empty background on every side; nothing important may touch or approach an outer edge. The body part must be large, centered, immediately recognizable, and the only illustrated subject. Render exactly two text labels and no other text: the Chinese label "${part.chinese}" and the English label "${part.english.toLowerCase()}". Use large, clear, rounded hand-drawn type, with the Chinese label above the English label. Do not include a sentence, page number, arrow, icon, prop, sound symbol, border, watermark, decorative lettering, or additional labels. Do not show a full child, portrait, full head, face, torso, limbs, clothing, or any unrelated body part beyond the minimum skin needed for this close-up.`;
+}
 
 const themes = [
   { id: "body", name: "身体认知书", englishName: "My First Body", title: "我的第一本身体认知书", part: { chinese: "头部", english: "Head", copy: "This is my head. 这是我的头部。" } },
@@ -50,19 +70,37 @@ function parseEnv(source) {
 }
 
 async function generateImage({ prompt, referenceBytes, apiKey, baseUrl, model }) {
-  const form = new FormData();
-  form.append("model", model);
-  form.append("prompt", prompt);
-  form.append("size", "1024x1024");
-  form.append("quality", "medium");
-  form.append("n", "1");
-  form.append("output_format", "png");
-  form.append("background", "opaque");
-  form.append("moderation", "auto");
-  form.append("image", new Blob([referenceBytes], { type: "image/png" }), "baby-reference.png");
-  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/images/edits`, { method: "POST", headers: { Authorization: `Bearer ${apiKey}` }, body: form });
+  const endpoint = referenceBytes ? "/images/edits" : "/images/generations";
+  const requestUrl = `${baseUrl.replace(/\/+$/, "")}${endpoint}`;
+  const requestOptions = referenceBytes
+    ? (() => {
+        const form = new FormData();
+        form.append("model", model);
+        form.append("prompt", prompt);
+        form.append("size", "1024x1024");
+        form.append("quality", "medium");
+        form.append("n", "1");
+        form.append("output_format", "png");
+        form.append("background", "opaque");
+        form.append("moderation", "auto");
+        form.append("image", new Blob([referenceBytes], { type: "image/png" }), "baby-reference.png");
+        return { method: "POST", headers: { Authorization: `Bearer ${apiKey}` }, body: form };
+      })()
+    : {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, prompt, size: "1024x1024", quality: "medium", n: 1, output_format: "png", background: "opaque", moderation: "auto" })
+      };
+  const response = await fetch(requestUrl, requestOptions);
   const text = await response.text();
-  const payload = text ? JSON.parse(text) : {};
+  let payload = {};
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      throw new Error(`Image API returned HTTP ${response.status} with a non-JSON response: ${text.replace(/\s+/g, " ").slice(0, 300)}`);
+    }
+  }
   if (!response.ok) throw new Error(payload?.error?.message || payload?.message || `HTTP ${response.status}`);
   const image = payload?.data?.[0];
   if (image?.b64_json) return Buffer.from(image.b64_json, "base64");
@@ -82,21 +120,30 @@ const baseUrl = env[`IMAGE_API_${providerKey}_BASE_URL`];
 const model = env[`IMAGE_API_${providerKey}_MODEL`] || "gpt-image-2";
 if (!apiKey || !baseUrl) throw new Error(`未找到 ${providerId} 的图片 API 配置。`);
 
-const referenceBytes = await readFile(referencePath);
-await rm(outputDir, { recursive: true, force: true });
+const referenceBytes = presetPagesOnly ? null : await readFile(referencePath);
+if (!presetPagesOnly) await rm(outputDir, { recursive: true, force: true });
 await mkdir(outputDir, { recursive: true });
 const manifest = { generatedAt: new Date().toISOString(), provider: providerId, model, reference: path.relative(rootDir, referencePath), samples: [] };
 const requestedLimit = Number(limitArg?.slice("--limit=".length) || 0);
-const tasks = themes.flatMap((theme) => [["cover", coverPrompt(theme)], ["page-01", cardPrompt(theme)]].map(([kind, prompt]) => ({ theme, kind, prompt }))).slice(0, Number.isFinite(requestedLimit) && requestedLimit > 0 ? requestedLimit : undefined);
+const tasks = (presetPagesOnly
+  ? presetBodyPages.filter((part) => !requestedPresetKeys.size || requestedPresetKeys.has(part.key)).map((part) => ({
+      theme: { id: "body" },
+      kind: "preset",
+      prompt: presetBodyPagePrompt(part),
+      filename: `body-${part.key}.png`,
+      title: `${part.chinese} ${part.english}`
+    }))
+  : themes.flatMap((theme) => [["cover", coverPrompt(theme)], ["page-01", cardPrompt(theme)]].map(([kind, prompt]) => ({ theme, kind, prompt }))))
+  .slice(0, Number.isFinite(requestedLimit) && requestedLimit > 0 ? requestedLimit : undefined);
 const concurrency = 2;
 
-async function runTask({ theme, kind, prompt }) {
-  const filename = `${theme.id}-${kind}.png`;
+async function runTask({ theme, kind, prompt, filename: requestedFilename = "", title = "" }) {
+  const filename = requestedFilename || `${theme.id}-${kind}.png`;
   process.stdout.write(`Generating ${theme.id} ${kind}...\n`);
   try {
     const image = await generateImage({ prompt, referenceBytes, apiKey, baseUrl, model });
     await writeFile(path.join(outputDir, filename), image);
-    manifest.samples.push({ themeId: theme.id, kind, title: kind === "cover" ? `${theme.englishName} cover` : `${theme.part.chinese} ${theme.part.english}`, file: `/body-book-samples/${filename}`, prompt, status: "succeeded" });
+    manifest.samples.push({ themeId: theme.id, kind, title: title || (kind === "cover" ? `${theme.englishName} cover` : `${theme.part.chinese} ${theme.part.english}`), file: `${presetPagesOnly ? "/body-book-preset-pages" : "/body-book-samples"}/${filename}`, prompt, status: "succeeded" });
     process.stdout.write(`Succeeded ${theme.id} ${kind}\n`);
   } catch (error) {
     manifest.samples.push({ themeId: theme.id, kind, status: "failed", error: error.message, prompt });
@@ -113,5 +160,5 @@ async function worker() {
 
 await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker));
 
-await writeFile(path.join(outputDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+if (!presetPagesOnly) await writeFile(path.join(outputDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 process.stdout.write(`Done. ${manifest.samples.filter((item) => item.status === "succeeded").length}/${manifest.samples.length} samples succeeded.\n`);

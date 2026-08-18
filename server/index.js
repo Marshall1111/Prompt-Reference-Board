@@ -270,6 +270,16 @@ const BODY_BOOK_PROMPT_PROFILES = {
     icons: "small daily-routine objects and gentle action marks"
   }
 };
+const BODY_BOOK_PRESET_PAGE_ART_DIRECTIONS = {
+  head: "a hand-drawn close-up of one child's head only, cropped above the shoulders; do not show a whole child or any body below the neck",
+  eyes: "a hand-drawn close-up of only a child's pair of eyes and the smallest surrounding skin area; do not show a full face or head",
+  ears: "a hand-drawn close-up of one child's ear only, with just a small neutral area of surrounding skin; do not show a head, face, hair, hand, or whole child",
+  nose: "a hand-drawn close-up of only a child's nose and the smallest surrounding skin area; do not show a full face or head",
+  mouth: "a hand-drawn close-up of only a child's mouth and the smallest surrounding skin area; do not show a full face or head",
+  hands: "a hand-drawn close-up of two small child hands only, without arms, face, head, or body",
+  feet: "a hand-drawn close-up of two small child feet only, without legs, face, head, or body",
+  tummy: "a hand-drawn close-up of only a child's round tummy, cropped tightly so that no face, head, limbs, or whole child appears"
+};
 const DEFAULT_DRAW_CARD_WEIGHT = 100;
 const SUBJECT_PERSON = "person";
 const SUBJECT_PET = "pet";
@@ -10850,7 +10860,11 @@ function getBuiltInPresetBookPageResult(definition, theme) {
 
 function buildBuiltInPresetBookPagePrompt(definition, theme) {
   if (String(theme?.id || "") === "color") return buildColorObjectPagePrompt(definition);
-  return `Built-in static preset page for ${theme?.name || "认知书"}: ${definition?.chinese || ""} / ${definition?.english || ""}.`;
+  const conceptKey = String(definition?.conceptKey || definition?.key || "").replace(/-objects$/i, "").toLowerCase();
+  const artDirection = BODY_BOOK_PRESET_PAGE_ART_DIRECTIONS[conceptKey]
+    || "a hand-drawn close-up of only the requested body part; do not show a whole child";
+  const englishLabel = String(definition?.english || "").toLowerCase();
+  return `Create one square 1:1 static preschool body-part recognition page. Subject: ${artDirection}. Use a warm, gentle hand-drawn colored-pencil and crayon illustration with subtle paper texture, clean outlines, soft warm skin tones, and a simple white or warm-cream background. Print layout requirement: the background must extend continuously to all four edges as a full-bleed image. Keep the entire illustrated body part and both text labels inside the central safe area, with at least 10% of the canvas width as empty background on every side; nothing important may touch or approach an outer edge. The body part must be large, centered, immediately recognizable, and the only illustrated subject. Render exactly two text labels and no other text: the Chinese label "${definition?.chinese || ""}" and the English label "${englishLabel}". Use large, clear, rounded hand-drawn type, with the Chinese label above the English label. Do not include a sentence, page number, arrow, icon, prop, sound symbol, border, watermark, decorative lettering, or additional labels. Do not show a full child, portrait, full head, face, torso, limbs, clothing, or any unrelated body part beyond the minimum skin needed for this close-up.`;
 }
 
 // Editable project pages deliberately exclude paired preset artwork. The
