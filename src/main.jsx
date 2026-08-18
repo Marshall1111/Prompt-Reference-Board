@@ -147,7 +147,8 @@ const BODY_BOOK_THEME_FALLBACKS = [
   { id: "emotion", name: "情绪认知书", englishName: "My First Feelings", title: "我的第一本情绪认知书" },
   { id: "transport", name: "交通工具认知书", englishName: "My First Vehicles", title: "我的第一本交通工具认知书" },
   { id: "animal", name: "动物认知书", englishName: "My First Animals", title: "我的第一本动物认知书" },
-  { id: "daily", name: "日常行为认知书", englishName: "My First Daily Routines", title: "我的第一本日常行为认知书" }
+  { id: "daily", name: "日常行为认知书", englishName: "My First Daily Routines", title: "我的第一本日常行为认知书" },
+  { id: "kindergarten", name: "入园适应绘本", englishName: "My First Day at Kindergarten", title: "我的入园第一天" }
 ];
 const BODY_BOOK_THEME_EFFECT_SAMPLES = {
   color: [
@@ -181,6 +182,10 @@ const BODY_BOOK_THEME_EFFECT_SAMPLES = {
   daily: [
     { label: "封面效果", src: "/body-book-samples/effects/daily-cover.webp", type: "cover" },
     { label: "宝宝内页效果", src: "/body-book-samples/effects/daily-page-01.webp", type: "baby" }
+  ],
+  kindergarten: [
+    { label: "手账绘本封面", type: "kindergarten", previewText: "我去\n幼儿园啦" },
+    { label: "入园故事内页", type: "kindergarten", previewText: "勇敢\n第一天" }
   ]
 };
 const LATEST_MANUAL_ORDER_STORAGE_KEY = "pg.fridge.latest-manual-order";
@@ -1585,7 +1590,7 @@ function LegacyBodyBookPage() {
         <section className="body-book-theme-home body-book-theme-layout">
           <div className="body-book-theme-content">
             <div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>每本认知书包含一张封面和按主题扩展的认知卡。</p></div>
-            <div className="body-book-theme-grid">{themes.map((theme, index) => <button className="body-book-theme-card" key={theme.id} onClick={() => { setSelectedTheme(theme); setError(""); }} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={`/body-book-samples/${encodeURIComponent(theme.id)}-cover-thumbnail.webp`} /><span className="body-book-theme-index">{String(index + 1).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small></button>)}</div>
+            <div className="body-book-theme-grid">{themes.map((theme, index) => <button className="body-book-theme-card" key={theme.id} onClick={() => { setSelectedTheme(theme); setError(""); }} type="button">{theme.id === "kindergarten" ? <div className="body-book-kindergarten-theme-preview" aria-label={`${theme.name} 例图`}>入园<br />绘本</div> : <img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={`/body-book-samples/${encodeURIComponent(theme.id)}-cover-thumbnail.webp`} />}<span className="body-book-theme-index">{String(index + 1).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small></button>)}</div>
           </div>
           <aside className="body-book-wallet-panel">
             <span className="body-book-wallet-label">我的豆豆</span>
@@ -1760,6 +1765,7 @@ function BodyBookPage() {
   const [project, setProject] = useState(null);
   const [draftKeys, setDraftKeys] = useState([]);
   const [draftReferences, setDraftReferences] = useState([]);
+  const [draftChildName, setDraftChildName] = useState("");
   const [draftReferencePreviews, setDraftReferencePreviews] = useState([]);
   const [draftPageReferences, setDraftPageReferences] = useState({});
   const [draftPageReferencePreviews, setDraftPageReferencePreviews] = useState({});
@@ -1806,6 +1812,7 @@ function BodyBookPage() {
   const bodyBookEditorRef = useRef(false);
 
   const activeTheme = project?.theme || selectedTheme;
+  const isKindergartenBook = activeTheme?.id === "kindergarten";
   bodyBookEditorRef.current = Boolean(activeTheme);
   const contents = getBodyBookThemeContents(activeTheme);
   const selectableContents = useMemo(() => contents.filter((content) => !content.isBuiltIn && content.pageType !== "back-cover"), [contents]);
@@ -1870,6 +1877,7 @@ function BodyBookPage() {
     setProject(nextProject);
     setSelectedTheme(nextProject.theme || selectedTheme);
     setDraftKeys(nextProject.pages?.map((page) => page.key) || []);
+    setDraftChildName(nextProject.personalization?.childName || "");
     setDraftPageReferences({});
     setPagePrompts(Object.fromEntries((nextProject.pages || []).map((page) => [page.key, page.prompt || ""])));
     setDirtyPromptKeys([]);
@@ -2009,8 +2017,9 @@ function BodyBookPage() {
     setProject(null);
     setThemePreview(null);
     setSelectedTheme(theme);
-    setDraftKeys(themeContents.slice(0, 2).map((item) => item.key));
+    setDraftKeys(theme.id === "kindergarten" ? themeContents.map((item) => item.key) : themeContents.slice(0, 2).map((item) => item.key));
     setDraftReferences([]);
+    setDraftChildName("");
     setDraftPageReferences({});
     setPagePrompts({});
     setDirtyPromptKeys([]);
@@ -2061,6 +2070,7 @@ function BodyBookPage() {
     setSelectedTheme(null);
     setThemePreview(null);
     setDraftReferences([]);
+    setDraftChildName("");
     setDraftPageReferences({});
     setDraftKeys([]);
     setPagePrompts({});
@@ -2373,6 +2383,10 @@ function BodyBookPage() {
       setError("请先上传至少 1 张宝宝照片。");
       return;
     }
+    if (!project && isKindergartenBook && !draftChildName.trim()) {
+      setError("请先填写孩子昵称。");
+      return;
+    }
     setBusy(true);
     setBusyPageKey(busyKey);
     setError("");
@@ -2385,6 +2399,7 @@ function BodyBookPage() {
         const preparedReferences = await Promise.all(draftReferences.map((file, index) => prepareReferenceForUpload({ id: `body-book-project-reference-${index}`, file })));
         preparedReferences.forEach((prepared) => data.append("images", prepared.file));
         data.append("themeId", activeTheme.id);
+        if (isKindergartenBook) data.append("childName", draftChildName.trim());
         data.append("contentKeys", JSON.stringify(draftKeys));
         data.append("generationKeys", JSON.stringify(keys));
         data.append("pagePrompts", JSON.stringify(selectBodyBookPagePrompts(pagePrompts, draftKeys, dirtyPromptKeys)));
@@ -2479,13 +2494,14 @@ function BodyBookPage() {
 
       {home ? <>
         <section className="body-book-theme-home body-book-theme-layout">
-          <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先查看整本效果，再开始制作专属认知书。</p></div><div className="body-book-theme-grid">{themes.map((theme, originalIndex) => ({ theme, originalIndex })).sort((left, right) => getBodyBookThemeGenerationCost(left.theme) - getBodyBookThemeGenerationCost(right.theme) || left.originalIndex - right.originalIndex).map(({ theme }, index) => <button className="body-book-theme-card" disabled={busy} key={theme.id} onClick={() => { setThemePreview(theme); setError(""); }} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={`/body-book-samples/${encodeURIComponent(theme.id)}-cover-thumbnail.webp`} /><span className="body-book-theme-index">{String(index + 1).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small><em>预计消耗 {getBodyBookThemeGenerationCost(theme)} 豆</em></button>)}</div></div>
+          <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先查看整本效果，再开始制作专属认知书。</p></div><div className="body-book-theme-grid">{themes.map((theme, originalIndex) => ({ theme, originalIndex })).sort((left, right) => getBodyBookThemeGenerationCost(left.theme) - getBodyBookThemeGenerationCost(right.theme) || left.originalIndex - right.originalIndex).map(({ theme }, index) => <button className="body-book-theme-card" disabled={busy} key={theme.id} onClick={() => { setThemePreview(theme); setError(""); }} type="button">{theme.id === "kindergarten" ? <div className="body-book-kindergarten-theme-preview" aria-label={`${theme.name} 例图`}>入园<br />绘本</div> : <img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={`/body-book-samples/${encodeURIComponent(theme.id)}-cover-thumbnail.webp`} />}<span className="body-book-theme-index">{String(index + 1).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small><em>预计消耗 {getBodyBookThemeGenerationCost(theme)} 豆</em></button>)}</div></div>
         </section>
         <section className="body-book-library"><div className="body-book-library-head"><span className="body-book-step">MY BOOKS</span><h2>我的认知书</h2></div>{error ? <p className="error-note">{error}</p> : null}{savedBooks.length ? <div className="body-book-library-grid">{savedBooks.map((book) => <article className="body-book-library-item" key={book.sessionId}><button className="body-book-library-cover" onClick={() => openProject(book.sessionId)} type="button">{book.thumbnail ? <img alt={`${book.title} 缩略图`} src={book.thumbnail} /> : <div className="body-book-library-placeholder">{book.theme?.name || "认知书"}</div>}<span>{book.title}</span><small>继续制作 · {formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></button><button aria-label={`删除《${book.title}》`} className="body-book-library-delete icon-button" disabled={deletingProjectId === book.sessionId} onClick={() => deleteProject(book)} title="删除" type="button">{deletingProjectId === book.sessionId ? <LoaderCircle className="spin" size={16} /> : <X size={17} />}</button></article>)}</div> : <p className="body-book-library-empty">成功生成第一张图片后，工程会自动保存在这里。</p>}</section>
       </> : showingThemePreview ? <BodyBookThemeEffectPreview busy={busy} onBack={() => setThemePreview(null)} onStart={() => selectTheme(themePreview)} theme={themePreview} /> : <section className="body-book-workspace body-book-project-workspace">
         <div className="body-book-status-row"><div><span className="body-book-step">02</span><h2>{project?.message || "配置你的认知书页面"}</h2></div></div>
         {error ? <p className="error-note">{error}</p> : null}
-        <section className="body-book-project-reference"><div><span className="body-book-step">REFERENCE</span><h3>全局参考图</h3><p>请上传宝宝照片，1张即可，最多3张。</p></div><div className={`body-book-reference-list${topReferenceUrls.length ? " has-references" : " is-empty"}`}>{topReferenceUrls.length ? <div className="body-book-reference-previews">{topReferenceUrls.map((url, index) => <div className="body-book-reference-preview" key={`${url}-${index}`}><button aria-label={`查看宝宝参考图 ${index + 1} 大图`} className="body-book-reference-preview-open" onClick={() => setActiveReferencePreview({ url, index })} type="button"><img alt={`宝宝参考图 ${index + 1}`} decoding="async" src={topReferenceThumbnailUrls[index] || url} /><span className="body-book-reference-index">{index + 1}</span></button><button aria-label={`删除第 ${index + 1} 张宝宝参考图`} className="body-book-reference-delete icon-button" disabled={busy} onClick={() => removeTopReference(index)} title="删除参考图" type="button"><X size={15} /></button></div>)}{topReferenceUrls.length < 3 ? <label aria-label="继续上传宝宝照片" className="body-book-upload body-book-project-upload body-book-reference-add is-compact" title="继续上传宝宝照片"><Plus aria-hidden="true" size={24} /><input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label> : null}</div> : <label aria-label="上传宝宝照片" className="body-book-upload body-book-project-upload body-book-reference-add is-initial" title="上传宝宝照片"><Plus aria-hidden="true" size={32} /><strong>上传宝宝照片</strong><input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label>}</div></section>
+        {isKindergartenBook ? <section className="body-book-kindergarten-profile"><div><span className="body-book-step">STORY HERO</span><h3>孩子昵称</h3><p>会出现在封面上，例如“乐乐去幼儿园啦”。</p></div>{project ? <strong>{draftChildName || "小朋友"}</strong> : <label><span>昵称（必填）</span><input disabled={busy} maxLength={12} onChange={(event) => setDraftChildName(event.target.value)} placeholder="例如：乐乐" value={draftChildName} /></label>}</section> : null}
+        <section className="body-book-project-reference"><div><span className="body-book-step">REFERENCE</span><h3>{isKindergartenBook ? "孩子参考图" : "全局参考图"}</h3><p>{isKindergartenBook ? "请上传孩子照片，1张即可，最多3张。" : "请上传宝宝照片，1张即可，最多3张。"}</p></div><div className={`body-book-reference-list${topReferenceUrls.length ? " has-references" : " is-empty"}`}>{topReferenceUrls.length ? <div className="body-book-reference-previews">{topReferenceUrls.map((url, index) => <div className="body-book-reference-preview" key={`${url}-${index}`}><button aria-label={`查看${isKindergartenBook ? "孩子" : "宝宝"}参考图 ${index + 1} 大图`} className="body-book-reference-preview-open" onClick={() => setActiveReferencePreview({ url, index })} type="button"><img alt={`${isKindergartenBook ? "孩子" : "宝宝"}参考图 ${index + 1}`} decoding="async" src={topReferenceThumbnailUrls[index] || url} /><span className="body-book-reference-index">{index + 1}</span></button><button aria-label={`删除第 ${index + 1} 张${isKindergartenBook ? "孩子" : "宝宝"}参考图`} className="body-book-reference-delete icon-button" disabled={busy} onClick={() => removeTopReference(index)} title="删除参考图" type="button"><X size={15} /></button></div>)}{topReferenceUrls.length < 3 ? <label aria-label={`继续上传${isKindergartenBook ? "孩子" : "宝宝"}照片`} className="body-book-upload body-book-project-upload body-book-reference-add is-compact" title={`继续上传${isKindergartenBook ? "孩子" : "宝宝"}照片`}><Plus aria-hidden="true" size={24} /><input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label> : null}</div> : <label aria-label={`上传${isKindergartenBook ? "孩子" : "宝宝"}照片`} className="body-book-upload body-book-project-upload body-book-reference-add is-initial" title={`上传${isKindergartenBook ? "孩子" : "宝宝"}照片`}><Plus aria-hidden="true" size={32} /><strong>上传{isKindergartenBook ? "孩子" : "宝宝"}照片</strong><input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label>}</div></section>
         <section className="body-book-content-panel">
           <div className="body-book-project-pages-head"><div><span className="body-book-step">03</span><h3>内容选择</h3><p>{usesPairedPresetLayout ? "制作时仅选择封面和各主题专属认知页；对应内置认知页会在下单预览中自动加入。" : "每张卡片可单独替换参考图并生成。"}</p><p className="body-book-selection-progress">{selectionProgressText}</p></div></div>
           <div className="body-book-grid body-book-project-grid">{pages.map((page) => <BodyBookProjectItem busy={busy} busyPageKey={busyPageKey} key={`${page.key}-${page.jobId || "new"}`} onDelete={() => savePageSelection(selectedKeys.filter((key) => key !== page.key))} onDownload={() => { void downloadBookOriginal(page); }} onEditReferences={() => setActivePageReferenceKey(page.key)} onGenerate={() => submitGeneration([page.key], page.key)} onOpen={openActiveItem} page={page} />)}<button className="body-book-add-page-card" disabled={busy} onClick={openContentPicker} type="button" aria-label="添加或编辑内容"><Plus size={36} /><span>添加内容</span></button>{!pages.length ? <p className="body-book-library-empty">点击“添加内容”选择要制作的页面。</p> : null}</div>
@@ -2547,6 +2563,7 @@ function getBodyBookThemeGenerationCost(theme) {
 function BodyBookThemeEffectPreview({ theme, busy, onBack, onStart }) {
   const pages = BODY_BOOK_THEME_EFFECT_SAMPLES[String(theme?.id || "")] || [];
   const hasPresetPage = pages.some((page) => page.type === "preset");
+  const isKindergartenTheme = theme?.id === "kindergarten";
   const generationCost = getBodyBookThemeGenerationCost(theme);
   return <section className="body-book-theme-effect" aria-label={`${theme.name} 效果预览`}>
     <div className="body-book-theme-effect-head">
@@ -2554,8 +2571,8 @@ function BodyBookThemeEffectPreview({ theme, busy, onBack, onStart }) {
       <div><p className="body-book-kicker">Book preview</p><h2>{theme.name}</h2><p>{theme.englishName} · 成书效果预览</p></div>
       <span className="body-book-theme-effect-cost">预计消耗 {generationCost} 豆</span>
     </div>
-    <div className="body-book-theme-effect-copy"><strong>先看成书效果</strong><p>{hasPresetPage ? "封面和专属认知页将根据上传照片生成；对应的内置认知页会自动插入成书与订单 ZIP。" : "上传照片后，将生成同一风格的封面和专属认知内页，做成一本专属认知书。"}</p></div>
-    <div className={`body-book-theme-effect-pages count-${pages.length}`}>{pages.map((page, index) => <figure className="body-book-theme-effect-page" key={page.src}><div className="body-book-theme-effect-image"><img alt={`${theme.name}${page.label}`} decoding="async" fetchPriority={index === 0 ? "high" : "auto"} loading={index === 0 ? "eager" : "lazy"} src={page.src} />{page.type === "preset" ? <span>内置预设</span> : null}</div><figcaption><span>第 {index + 1} 页示例</span><strong>{page.label}</strong></figcaption></figure>)}</div>
+    <div className="body-book-theme-effect-copy"><strong>先看成书效果</strong><p>{isKindergartenTheme ? "上传孩子照片并填写昵称后，将生成一整天连续叙事的专属入园适应绘本。" : hasPresetPage ? "封面和专属认知页将根据上传照片生成；对应的内置认知页会自动插入成书与订单 ZIP。" : "上传照片后，将生成同一风格的封面和专属认知内页，做成一本专属认知书。"}</p></div>
+    <div className={`body-book-theme-effect-pages count-${pages.length}`}>{pages.map((page, index) => <figure className="body-book-theme-effect-page" key={page.src || page.label}><div className="body-book-theme-effect-image">{page.type === "kindergarten" ? <div className="body-book-kindergarten-effect-preview">{String(page.previewText || "入园绘本").split("\n").map((line) => <span key={line}>{line}</span>)}</div> : <img alt={`${theme.name}${page.label}`} decoding="async" fetchPriority={index === 0 ? "high" : "auto"} loading={index === 0 ? "eager" : "lazy"} src={page.src} />}{page.type === "preset" ? <span>内置预设</span> : null}</div><figcaption><span>第 {index + 1} 页示例</span><strong>{page.label}</strong></figcaption></figure>)}</div>
     <div className="body-book-theme-effect-actions"><button className="draw-card-secondary" disabled={busy} onClick={onBack} type="button">换个主题</button><button className="draw-card-primary" disabled={busy} onClick={onStart} type="button"><Sparkles size={18} /><span>{busy ? "准备中" : "开始制作"}</span></button></div>
   </section>;
 }

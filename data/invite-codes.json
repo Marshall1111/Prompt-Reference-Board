@@ -7,6 +7,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "8bd73a23-4c4e-4cb5-80fa-dc8d798749e0"
@@ -23,6 +25,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "be44feec-476d-4dc7-92e2-3a3d25672ea0"
@@ -39,6 +43,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "a4f3f5bf-e11c-4bc3-a90d-3f82290ffedf"
@@ -55,6 +61,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "be44feec-476d-4dc7-92e2-3a3d25672ea0"
@@ -71,6 +79,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "5f323334-6528-4dfb-94e2-2dd326fd1673"
@@ -87,6 +97,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "8bd73a23-4c4e-4cb5-80fa-dc8d798749e0"
@@ -103,6 +115,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "8bd73a23-4c4e-4cb5-80fa-dc8d798749e0"
@@ -119,6 +133,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 0,
     "redeemedByVisitorIds": [],
     "redeemedByAccountIds": [],
@@ -133,6 +149,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 0,
     "redeemedByVisitorIds": [],
     "redeemedByAccountIds": [],
@@ -147,6 +165,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 0,
     "redeemedByVisitorIds": [],
     "redeemedByAccountIds": [],
@@ -161,6 +181,8 @@
     "quotaBonus": 100,
     "coinBonus": 100,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "5f323334-6528-4dfb-94e2-2dd326fd1673"
@@ -177,6 +199,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "5f323334-6528-4dfb-94e2-2dd326fd1673"
@@ -193,6 +217,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 0,
     "redeemedByVisitorIds": [],
     "redeemedByAccountIds": [],
@@ -207,6 +233,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 0,
     "redeemedByVisitorIds": [],
     "redeemedByAccountIds": [],
@@ -221,6 +249,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 0,
     "redeemedByVisitorIds": [],
     "redeemedByAccountIds": [],
@@ -235,6 +265,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 0,
     "redeemedByVisitorIds": [],
     "redeemedByAccountIds": [],
@@ -244,58 +276,66 @@
   {
     "id": "db661d29-5e8b-4a9b-ab75-9c31d894946e",
     "code": "FA914BB3",
-    "enabled": true,
+    "enabled": false,
     "maxRedemptions": 1,
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 0,
     "redeemedByVisitorIds": [],
     "redeemedByAccountIds": [],
     "createdAt": "2026-07-20T07:57:25.793Z",
-    "updatedAt": "2026-07-20T07:57:25.793Z"
+    "updatedAt": "2026-08-18T11:23:27.177Z"
   },
   {
     "id": "1f63aa78-22a0-4d9c-bddc-b50acb5528d0",
     "code": "F325F570",
-    "enabled": true,
+    "enabled": false,
     "maxRedemptions": 1,
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 0,
     "redeemedByVisitorIds": [],
     "redeemedByAccountIds": [],
     "createdAt": "2026-07-20T07:57:25.793Z",
-    "updatedAt": "2026-07-20T07:57:25.793Z"
+    "updatedAt": "2026-08-18T11:23:29.612Z"
   },
   {
     "id": "25ded864-da55-44b3-a41e-0b512bdf831e",
     "code": "AEEB3BFA",
-    "enabled": true,
+    "enabled": false,
     "maxRedemptions": 1,
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 0,
     "redeemedByVisitorIds": [],
     "redeemedByAccountIds": [],
     "createdAt": "2026-07-20T07:57:25.793Z",
-    "updatedAt": "2026-07-20T07:57:25.793Z"
+    "updatedAt": "2026-08-18T11:23:31.695Z"
   },
   {
     "id": "b4f3c62e-4a6b-4b43-8acd-a8269c0c9c6c",
     "code": "78BD9825",
-    "enabled": true,
+    "enabled": false,
     "maxRedemptions": 1,
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 0,
     "redeemedByVisitorIds": [],
     "redeemedByAccountIds": [],
     "createdAt": "2026-07-20T07:57:25.793Z",
-    "updatedAt": "2026-07-20T07:57:25.793Z"
+    "updatedAt": "2026-08-18T11:23:33.694Z"
   },
   {
     "id": "21c1c0ab-1931-4c55-8b1d-bb36686d2150",
@@ -305,6 +345,8 @@
     "quotaBonus": 5,
     "coinBonus": 5,
     "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
     "redeemedCount": 1,
     "redeemedByVisitorIds": [
       "5f323334-6528-4dfb-94e2-2dd326fd1673"
@@ -314,5 +356,113 @@
     ],
     "createdAt": "2026-07-20T07:57:25.793Z",
     "updatedAt": "2026-07-20T07:57:41.109Z"
+  },
+  {
+    "id": "70ac7f2f-1820-4f43-80ba-182932621f84",
+    "code": "9CBE86F5",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 20,
+    "beanBonus": 0,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
+    "redeemedCount": 1,
+    "redeemedByVisitorIds": [
+      "5f323334-6528-4dfb-94e2-2dd326fd1673"
+    ],
+    "redeemedByAccountIds": [
+      "f4634ba1-79dd-4a06-9ce7-e070d7e6cb4f"
+    ],
+    "createdAt": "2026-08-18T11:24:01.012Z",
+    "updatedAt": "2026-08-18T11:24:11.275Z"
+  },
+  {
+    "id": "41b89dec-a419-4755-bad6-04d0cea3f4b8",
+    "code": "E51D0310",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
+    "redeemedCount": 1,
+    "redeemedByVisitorIds": [
+      "5f323334-6528-4dfb-94e2-2dd326fd1673"
+    ],
+    "redeemedByAccountIds": [
+      "f4634ba1-79dd-4a06-9ce7-e070d7e6cb4f"
+    ],
+    "createdAt": "2026-08-18T11:24:39.865Z",
+    "updatedAt": "2026-08-18T11:24:49.025Z"
+  },
+  {
+    "id": "edddc3a2-4787-4da3-bb76-143d34412690",
+    "code": "1615A966",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
+    "redeemedCount": 1,
+    "redeemedByVisitorIds": [
+      "5f323334-6528-4dfb-94e2-2dd326fd1673"
+    ],
+    "redeemedByAccountIds": [
+      "f4634ba1-79dd-4a06-9ce7-e070d7e6cb4f"
+    ],
+    "createdAt": "2026-08-18T11:24:39.865Z",
+    "updatedAt": "2026-08-18T11:25:09.474Z"
+  },
+  {
+    "id": "05565b8c-6460-4803-89df-d1c949664573",
+    "code": "E8919CA5",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "redeemedByAccountIds": [],
+    "createdAt": "2026-08-18T11:24:39.865Z",
+    "updatedAt": "2026-08-18T11:24:39.865Z"
+  },
+  {
+    "id": "87ed2b13-8079-41cf-9650-8d2355571ddf",
+    "code": "57634BE3",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "redeemedByAccountIds": [],
+    "createdAt": "2026-08-18T11:24:39.865Z",
+    "updatedAt": "2026-08-18T11:24:39.865Z"
+  },
+  {
+    "id": "4b376b76-7155-403e-9881-05522e658618",
+    "code": "E4DA840C",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 10,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
+    "redeemedCount": 0,
+    "redeemedByVisitorIds": [],
+    "redeemedByAccountIds": [],
+    "createdAt": "2026-08-18T11:24:39.865Z",
+    "updatedAt": "2026-08-18T11:24:39.865Z"
   }
 ]

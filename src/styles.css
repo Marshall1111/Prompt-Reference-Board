@@ -6528,6 +6528,93 @@ textarea {
   padding: 18px 20px;
 }
 
+.body-book-kindergarten-profile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.7fr);
+  gap: 18px;
+  align-items: center;
+  padding: 18px 20px;
+  border: 1px solid #e4c898;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fff9ed, #fffdf8);
+}
+
+.body-book-kindergarten-theme-preview {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid #e1ba7f;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 80% 17%, #f7d56b 0 7%, transparent 7.5%),
+    linear-gradient(135deg, rgba(255,255,255,0.76), rgba(255,247,229,0.86)),
+    repeating-linear-gradient(16deg, rgba(207,128,71,0.08) 0 2px, transparent 2px 12px);
+  color: #9b5634;
+  font-size: clamp(19px, 2.5vw, 28px);
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  line-height: 1.42;
+  text-align: center;
+}
+
+.body-book-kindergarten-effect-preview {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  place-content: center;
+  gap: 8px;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 78% 16%, #f6d56f 0 8%, transparent 8.5%),
+    linear-gradient(145deg, rgba(255,255,255,.75), rgba(255,241,211,.95)),
+    repeating-linear-gradient(-14deg, rgba(202,116,72,.09) 0 2px, transparent 2px 13px);
+  color: #98583b;
+  font-size: clamp(24px, 3.4vw, 39px);
+  font-weight: 800;
+  letter-spacing: .14em;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.body-book-kindergarten-profile h3 {
+  margin: 4px 0 5px;
+  font-size: 19px;
+}
+
+.body-book-kindergarten-profile p {
+  margin: 0;
+  color: #746255;
+}
+
+.body-book-kindergarten-profile label {
+  display: grid;
+  gap: 7px;
+  color: #704b32;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.body-book-kindergarten-profile input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #d7b884;
+  border-radius: 12px;
+  background: #fff;
+  color: #3d2a20;
+  font: inherit;
+}
+
+.body-book-kindergarten-profile > strong {
+  padding: 13px 15px;
+  border-radius: 12px;
+  background: #fff;
+  color: #5a3826;
+  text-align: center;
+}
+
 .body-book-content-panel {
   display: grid;
   gap: 18px;
@@ -7251,6 +7338,7 @@ textarea {
 }
 
 @media (max-width: 680px) {
+  .body-book-kindergarten-profile { grid-template-columns: minmax(0, 1fr); }
   .body-book-project-reference,
   .body-book-batch-row,
   .body-book-project-pages-head {

@@ -224,7 +224,25 @@ const BOOK_THEME_DEFINITIONS = [
     { key: "sleep", chinese: "睡觉", english: "Sleep", copy: "I can sleep. 我会睡觉。" },
     { key: "comb-hair", chinese: "梳头", english: "Comb Hair", copy: "I can comb my hair. 我会梳头。" },
     { key: "go-for-a-walk", chinese: "散步", english: "Go for a Walk", copy: "I can go for a walk. 我会散步。" }
-  ] }
+  ] },
+  { id: "kindergarten", name: "入园适应绘本", englishName: "My First Day at Kindergarten", title: "我的入园第一天", parts: [
+    ["first-day", "今天，我要去幼儿园啦", "My First Day", "今天，我要去幼儿园啦！", "Today is my first day at kindergarten."],
+    ["wake-up", "起床啦", "Wake Up", "早晨到了，我精神满满地起床啦。", "Good morning, I wake up feeling ready."],
+    ["wash-and-dress", "洗漱穿衣", "Get Ready", "洗洗脸，穿好衣服，我准备好了。", "I wash up and get dressed."],
+    ["backpack", "背上小书包", "My Backpack", "背上小书包，出发去幼儿园。", "My little backpack is ready to go."],
+    ["arrive", "到了幼儿园", "Here We Are", "到了幼儿园，我好奇地看一看。", "Here we are at kindergarten."],
+    ["goodbye", "和家人说再见", "See You Later", "我和家人抱一抱，说一声待会儿见。", "A hug, then see you later."],
+    ["teacher", "老师欢迎我", "Hello, Teacher", "老师笑着欢迎我，我觉得很安心。", "My teacher welcomes me."],
+    ["cubby", "找到我的小柜子", "My Little Cubby", "这是我的小柜子，我会把东西放好。", "This little cubby is mine."],
+    ["friends", "认识新朋友", "New Friends", "我认识了新朋友，我们一起打招呼。", "Hello, new friends!"],
+    ["play", "一起玩游戏", "Play Together", "我们一起搭积木，玩得真开心。", "We play together."],
+    ["snack", "点心时间", "Snack Time", "点心时间到了，我慢慢品尝。", "It is snack time."],
+    ["lunch", "洗手吃午餐", "Lunch Time", "小手洗干净，午餐香喷喷。", "Clean hands, then lunch."],
+    ["outdoor", "户外活动", "Outdoor Play", "到户外跑一跑、跳一跳。", "Time to play outside."],
+    ["nap", "午睡时间", "Nap Time", "午睡时，我抱着小被子安静休息。", "I rest quietly at nap time."],
+    ["miss-home", "想家时，我可以找老师", "I Can Ask for Help", "想家时，我可以找老师抱一抱、说一说。", "When I miss home, my teacher can help."],
+    ["pickup", "家人来接我，明天见", "See You Tomorrow", "家人来接我啦。今天真棒，明天见！", "My family is here. See you tomorrow!" ]
+  ].map(([key, chinese, english, copy, englishCopy]) => ({ key, chinese, english, copy, englishCopy, story: copy })) }
 ];
 const BODY_BOOK_PROMPT_PROFILES = {
   body: {
@@ -268,6 +286,12 @@ const BODY_BOOK_PROMPT_PROFILES = {
     cardScene: "the baby doing the requested daily routine in its own specific, safe, natural action and suitable clothing; show only a few clearly separated matching objects and no realistic room scene",
     accents: "soft pastel blue, peach, butter yellow, and warm cream",
     icons: "small daily-routine objects and gentle action marks"
+  },
+  kindergarten: {
+    coverScene: "a warm, original handmade picture-book cover: the child proudly holding a small backpack beside a friendly kindergarten gate, with hand-painted paper textures, washi tape, crayon stars, and a simple sun",
+    cardScene: "one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed",
+    accents: "warm cream paper, coral red, butter yellow, sky blue, leafy green, and hand-torn pastel paper accents",
+    icons: "small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details"
   }
 };
 const BODY_BOOK_PRESET_PAGE_ART_DIRECTIONS = {
@@ -2212,6 +2236,7 @@ app.post("/api/body-book/projects", requireWebAccount, upload.any(), async (req,
     if (files.some((file) => file.mimetype === "image/svg+xml")) throw createHttpError(400, "请上传 JPG、PNG 或 WebP 图片。");
     const theme = getBookTheme(req.body?.themeId);
     if (!theme) throw createHttpError(400, "请选择认知书主题。");
+    const personalization = normalizeBodyBookPersonalization(req.body, theme, true);
     const layoutVersion = getNewBodyBookLayoutVersion(theme);
     const contentKeys = parseBodyBookPageKeys(req.body?.contentKeys, theme, layoutVersion);
     const generationKeys = parseBodyBookPageKeys(req.body?.generationKeys, theme, layoutVersion).filter((key) => contentKeys.includes(key));
@@ -2232,7 +2257,7 @@ app.post("/api/body-book/projects", requireWebAccount, upload.any(), async (req,
       if (current.length < BODY_BOOK_MAX_REFERENCE_COUNT) current.push(file);
       pageReferenceFiles.set(key, current);
     });
-    const project = await createBodyBookProject({ files: referenceFiles, pageReferenceFiles, pagePrompts, visitor, accountId: req.webAccount.id, theme, layoutVersion, contentKeys, generationKeys });
+    const project = await createBodyBookProject({ files: referenceFiles, pageReferenceFiles, pagePrompts, visitor, accountId: req.webAccount.id, theme, layoutVersion, contentKeys, generationKeys, personalization });
     res.status(202).json(toPublicBodyBookSession(project));
   } catch (error) {
     console.error(error);
@@ -9926,6 +9951,18 @@ function getBookTheme(themeId) {
   return BOOK_THEME_DEFINITIONS.find((theme) => theme.id === String(themeId || "").trim().toLowerCase()) || null;
 }
 
+function normalizeBodyBookPersonalization(value, theme, requireChildName = false) {
+  if (String(theme?.id || "") !== "kindergarten") return {};
+  const rawName = typeof value === "object" && value !== null ? value.childName : "";
+  const childName = String(rawName || "")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 12);
+  if (requireChildName && !childName) throw createHttpError(400, "请填写孩子昵称（最多 12 个字符）。");
+  return { childName };
+}
+
 function toPublicBookTheme(theme, layoutVersion = getNewBodyBookLayoutVersion(theme)) {
   const pages = getBodyBookPageDefinitions(theme, layoutVersion);
   return {
@@ -9948,18 +9985,32 @@ function getBodyBookPart(partKey, themeId = "body") {
   return getBookTheme(themeId)?.parts.find((part) => part.key === key) || null;
 }
 
-function buildBodyBookCoverPrompt(theme = getBookTheme("body")) {
+function buildBodyBookCoverPrompt(theme = getBookTheme("body"), personalization = {}) {
   const profile = getBodyBookPromptProfile(theme);
+  if (theme?.id === "kindergarten") {
+    const childName = String(personalization?.childName || "小朋友").trim() || "小朋友";
+    return `Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as a simple, slightly abstract, fully hand-drawn picture-book character with soft colored-pencil outlines, watercolor fills, uneven crayon texture, and an expressive rounded face. Create one square 1:1 cover illustration for ages 2.5 to 4. ${profile.coverScene}. Use a warm cream full-bleed paper page with hand-torn paper shapes and a few original washi-tape and sticker details. Keep the child large, joyful, and unmistakably central. Render these words clearly as part of the hand-drawn cover layout: the large Chinese title exactly "${childName}去幼儿园啦", the smaller English title exactly "My First Day at Kindergarten", and the short Chinese line exactly "第一天，勇敢出发！". Place the title in a calm high-contrast upper-third area and leave the lower third open for a printed story caption. No other letters, numbers, logos, watermarks, school names, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, or frightening expressions.`;
+  }
   const pageBackground = theme?.id === "color" ? "a pure white (#FFFFFF) studio-paper page only" : "a clean white or warm-cream studio page";
   return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 cover for a bilingual 0-3 year-old ${theme.name}. The main title should read exactly: "${theme.englishName}". The Chinese subtitle should read exactly: "${theme.title}". Beneath it, add the small English line: "A Bilingual Book for Babies" and the small Chinese line: "中英双语 · 0-3岁宝宝启蒙". Use rounded, highly legible sans-serif typography; make the English title playful with a refined natural rainbow palette, while keeping Chinese text dark and clear. Add a small pink circular badge in the upper-right that reads "0-3岁适用". Compose the baby as the clear central subject in a realistic, detailed professional baby portrait with soft warm daylight and natural skin texture. Theme scene: ${profile.coverScene}. Use ${pageBackground}, ${profile.accents} accents, ample breathing room, subtle paper texture, and a few neat cutout-style elements with fine white outlines. DK children's encyclopedia style: premium early-learning editorial layout, white-background cutout-object collage composition, realistic baby photography blended with restrained children's illustration, bright but gentle, clean and modern. Do not create a busy room, scenic background, deep depth, extra people, watermark, border, illegible decorative text, collage panels, or 3D animation look.`;
 }
 
-function buildBodyBookPartPrompt(part, order, theme = getBookTheme("body")) {
+function buildBodyBookPartPrompt(part, order, theme = getBookTheme("body"), personalization = {}) {
   if (theme?.id === "color") return buildColorBookPartPrompt(part, order, theme);
+  if (theme?.id === "kindergarten") return buildKindergartenBookPagePrompt(part, order, theme, personalization);
   const profile = getBodyBookPromptProfile(theme);
   const visualDirection = getBodyBookPartVisualDirection(theme?.id, part?.conceptKey || part?.colorKey || part?.key);
   const concept = getBodyBookLearningConcept(part);
   return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual ${theme.name} learning card for ages 0-3. The sole learning concept is "${concept.english} / ${concept.chinese}". The image must attempt to render this heading exactly: "${concept.chinese} ${concept.english}". Include this short bilingual sentence exactly: "${part.copy}". The terms "宝宝页", "Baby Page", "${concept.chinese}宝宝页", and "${concept.english} Baby" are internal production labels: never render them anywhere in the image, title, subtitle, or decorative text. Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: ${profile.cardScene}. Mandatory page-specific art direction: ${visualDirection} Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, ${profile.accents} accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching ${profile.icons}. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.`;
+}
+
+function buildKindergartenBookPagePrompt(part, order, theme = getBookTheme("kindergarten"), personalization = {}) {
+  const profile = getBodyBookPromptProfile(theme);
+  const visualDirection = getBodyBookPartVisualDirection("kindergarten", part?.key);
+  const concept = getBodyBookLearningConcept(part);
+  const story = String(part?.story || part?.copy || concept.chinese);
+  const englishStory = String(part?.englishCopy || concept.english);
+  return `Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page ${order}, about "${concept.english} / ${concept.chinese}". Story moment: ${story}. ${profile.cardScene}. Mandatory art direction: ${visualDirection} Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained ${profile.icons}. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly "${concept.chinese}"; small English heading exactly "${concept.english}"; Chinese story sentence exactly "${story}"; small English story sentence exactly "${englishStory}". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.`;
 }
 
 function getBodyBookLearningConcept(part) {
@@ -10067,6 +10118,24 @@ function getBodyBookPartVisualDirection(themeId, partKey) {
       sleep: "Dress the baby in a soft moon-and-star sleep suit; show a curled, peaceful side-lying pose hugging one small moon plush, with no realistic bedroom.",
       "comb-hair": "Dress the baby in a pale-yellow cotton romper with a small bib; show a safe seated pose gently brushing their own hair with one soft toddler hairbrush, keeping the hair clearly visible and using no realistic bathroom scene.",
       "go-for-a-walk": "Dress the baby in a light denim jacket, soft leggings, and toddler sneakers; show a safe standing-supported or early-walking pose taking a few small steps along one simple dotted path, carrying one tiny fabric backpack and with no realistic street scene."
+    },
+    kindergarten: {
+      "first-day": "Dress the child in a cheerful yellow cardigan, soft blue shorts, and tiny sneakers; show a confident standing pose at home holding a small paper sun, with a morning window and one simple calendar sticker.",
+      "wake-up": "Dress the child in soft striped pajamas; show the child sitting up in a small cozy bed and stretching both arms toward a painted morning sun, with no realistic bedroom clutter.",
+      "wash-and-dress": "Dress the child in a half-buttoned mint cardigan over a cream top; show the child happily patting their face with a small towel beside one illustrated toothbrush cup, with no realistic bathroom.",
+      backpack: "Dress the child in a coral T-shirt, denim-look shorts, and tiny sneakers; show the child proudly putting on a small blue backpack beside one hand-drawn star sticker.",
+      arrive: "Dress the child in the same coral T-shirt, denim-look shorts, tiny sneakers, and blue backpack; show the child arriving at a friendly, simple hand-painted kindergarten gate with flowers and a sun, never show a real school logo or readable sign.",
+      goodbye: "Dress the child in the arrival outfit; show a gentle hug goodbye with one simplified, warmly drawn adult caregiver shown from the side, then the child giving a small wave. Keep the child calm and supported, never crying or distressed.",
+      teacher: "Dress the child in the arrival outfit; show one friendly hand-drawn teacher kneeling at the child's height with an open welcoming gesture and a small star sticker, keeping the child as the visual focus.",
+      cubby: "Dress the child in the arrival outfit; show the child carefully placing the small backpack into one simple cubby with a picture-symbol label only, never include readable words or a school name.",
+      friends: "Dress the child in a sunny yellow smock over the arrival outfit; show the child and two simplified hand-drawn classmates smiling and waving hello in a roomy, uncluttered play area.",
+      play: "Dress the child in a bright blue play smock; show the child floor-seated with two simplified classmates, happily stacking a small tower of colorful blocks.",
+      snack: "Dress the child in a warm cream bib over a soft green top; show the child seated at a simple little table enjoying a small fruit snack, with one cup and no branded packaging.",
+      lunch: "Dress the child in a sky-blue smock with rolled sleeves; show clean hands beside a simple illustrated sink, then a small lunch tray with vegetables and rice in the same gentle scene.",
+      outdoor: "Dress the child in a leafy-green jacket and comfortable sneakers; show the child running or jumping along a simple chalk path outdoors with one ball and a few friendly classmates in the distance.",
+      nap: "Dress the child in a soft lilac nap smock; show the child peacefully lying on a small mat under a light blanket, hugging one tiny cloud pillow, with calm moon and star stickers.",
+      "miss-home": "Dress the child in a soft peach cardigan; show a mild thoughtful expression while a friendly hand-drawn teacher sits nearby at child height, offering a comforting hug and a small heart-shaped cushion. The child must look safe and gently reassured, never upset or crying.",
+      pickup: "Dress the child in the arrival outfit with the blue backpack; show the child happily walking toward one simplified caregiver at a kindergarten gate during warm afternoon light, with a painted setting sun and a small tomorrow-star sticker."
     }
   };
 
@@ -10232,7 +10301,12 @@ async function createBodyBookImageJob(session, slot, provider, providers, refere
   const references = await readBodyBookReferences(session, referenceMetadata);
   const jobId = randomUUID();
   const originalReferences = await persistImageJobReferences(jobId, references);
-  const prompt = `${slot.prompt}\n\nIdentity reference rule: All uploaded reference photos are photos of the same baby. Use them only to preserve one baby's consistent facial features, skin tone, age impression, and natural hair. Do not blend them into multiple people, and do not generate more than one baby.`;
+  const isKindergartenBook = String(session?.themeId || "") === "kindergarten";
+  const subjectLabel = isKindergartenBook ? "child" : "baby";
+  const identityRule = isKindergartenBook
+    ? "All uploaded reference photos are of the same child. Use them only for broad visual continuity: approximate age impression, hairstyle silhouette, hair color, and general skin-tone family. Do not reproduce the exact face, pose, clothing, or a photorealistic likeness. The result must remain a stylized hand-drawn child character, not a portrait photograph. Do not blend the reference photos into multiple children."
+    : `All uploaded reference photos are photos of the same ${subjectLabel}. Use them only to preserve one ${subjectLabel}'s consistent facial features, skin tone, age impression, and natural hair. Do not blend them into multiple people, and do not generate more than one ${subjectLabel}.`;
+  const prompt = `${slot.prompt}\n\nIdentity reference rule: ${identityRule}`;
   const now = new Date().toISOString();
   const job = {
     jobId,
@@ -10302,7 +10376,8 @@ async function runBodyBookMockJob({ jobId, sessionId, slot }) {
   await new Promise((resolve) => setTimeout(resolve, 600 + Math.max(0, Number(slot?.order || 0)) * 420));
   job = await readImageJob(jobId);
   if (!job || job.status === "cancelled") return;
-  const result = await createBodyBookMockResult(jobId, slot);
+  const rawResult = await createBodyBookMockResult(jobId, slot);
+  const result = await applyKindergartenBookTypesetting(job, rawResult);
   await saveImageJob({
     ...job,
     status: "succeeded",
@@ -10317,13 +10392,14 @@ async function runBodyBookMockJob({ jobId, sessionId, slot }) {
 
 async function createBodyBookMockResult(jobId, slot) {
   const isCover = slot?.key === "cover";
-  const heading = isCover ? String(slot?.bookTitle || "My First Book") : String(slot?.title || "Learning Card");
-  const subheading = String(slot?.bookSubtitle || (isCover ? "我的第一本认知书" : "开发模拟"));
+  const isKindergarten = Boolean(slot?.kindergarten);
+  const heading = isKindergarten ? "" : isCover ? String(slot?.bookTitle || "My First Book") : String(slot?.title || "Learning Card");
+  const subheading = isKindergarten ? "" : String(slot?.bookSubtitle || (isCover ? "我的第一本认知书" : "开发模拟"));
   const filename = `${jobId}.svg`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <rect width="1024" height="1024" fill="#f7f4eb"/>
   <rect x="58" y="58" width="908" height="908" rx="20" fill="#fffdf8" stroke="#c7d4c9" stroke-width="4"/>
-  <text x="110" y="148" fill="#315d50" font-family="Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="3">BABY BODY BOOK</text>
+  <text x="110" y="148" fill="#315d50" font-family="Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="3">${isKindergarten ? "" : "BABY BODY BOOK"}</text>
   <text x="110" y="222" fill="#273d37" font-family="Georgia, serif" font-size="64" font-weight="700">${escapeBodyBookMockText(heading)}</text>
   <text x="110" y="270" fill="#5e766e" font-family="Arial, sans-serif" font-size="28">${escapeBodyBookMockText(subheading)}</text>
   <circle cx="512" cy="540" r="192" fill="#d9e7d5"/>
@@ -10335,7 +10411,7 @@ async function createBodyBookMockResult(jobId, slot) {
   <path d="M250 700c90-70 150-80 204-74" fill="none" stroke="#8ea88d" stroke-width="8" stroke-dasharray="12 14"/>
   <circle cx="240" cy="708" r="42" fill="#f4c36d"/>
   <rect x="110" y="850" width="804" height="54" rx="12" fill="#edf3eb"/>
-  <text x="140" y="886" fill="#416455" font-family="Arial, sans-serif" font-size="22">Development placeholder · No image API request</text>
+  <text x="140" y="886" fill="#416455" font-family="Arial, sans-serif" font-size="22">${isKindergarten ? "" : "Development placeholder · No image API request"}</text>
 </svg>`;
   await mkdir(generatedImageRoot, { recursive: true });
   await writeFile(path.join(generatedImageRoot, filename), svg, "utf-8");
@@ -10783,12 +10859,12 @@ function parseBodyBookPagePrompts(value, theme, layoutVersion) {
     .map(([key, prompt]) => [String(key).toLowerCase(), String(prompt).slice(0, 6000)]));
 }
 
-function createBodyBookPage(definition, theme, references, current = {}) {
+function createBodyBookPage(definition, theme, references, current = {}, personalization = {}) {
   const prompt = definition.key === "cover"
-    ? buildBodyBookCoverPrompt(theme)
+    ? buildBodyBookCoverPrompt(theme, personalization)
     : definition.pageType === "objects"
       ? buildBuiltInPresetBookPagePrompt(definition, theme)
-      : buildBodyBookPartPrompt(definition, definition.order, theme);
+      : buildBodyBookPartPrompt(definition, definition.order, theme, personalization);
   if (definition.isBuiltIn) {
     return {
       ...definition,
@@ -10888,14 +10964,14 @@ function getBodyBookPrintPages(session) {
     .flatMap((definition) => {
       if (definition.pageType === "objects") {
         const babyKey = `${definition.conceptKey || definition.colorKey}-baby`;
-        return byKey.has(babyKey) ? [createBodyBookPage(definition, theme, references)] : [];
+        return byKey.has(babyKey) ? [createBodyBookPage(definition, theme, references, {}, session?.personalization)] : [];
       }
       const existing = byKey.get(definition.key);
-      return existing ? [createBodyBookPage(definition, theme, references, existing)] : [];
+      return existing ? [createBodyBookPage(definition, theme, references, existing, session?.personalization)] : [];
     });
 }
 
-async function createBodyBookProject({ files, pageReferenceFiles = new Map(), pagePrompts = {}, visitor, accountId, theme, layoutVersion = getNewBodyBookLayoutVersion(theme), contentKeys, generationKeys }) {
+async function createBodyBookProject({ files, pageReferenceFiles = new Map(), pagePrompts = {}, visitor, accountId, theme, layoutVersion = getNewBodyBookLayoutVersion(theme), contentKeys, generationKeys, personalization = {} }) {
   const sessionId = randomUUID();
   const now = new Date().toISOString();
   const references = await persistBodyBookReferences(sessionId, files, "reference");
@@ -10914,6 +10990,7 @@ async function createBodyBookProject({ files, pageReferenceFiles = new Map(), pa
     experienceType: "body-book",
     themeId: theme.id,
     layoutVersion,
+    personalization: normalizeBodyBookPersonalization(personalization, theme),
     ownerAccountId: String(accountId || ""),
     ownerVisitorId: String(visitor?.visitorId || ""),
     stage: "ready",
@@ -10931,7 +11008,8 @@ async function createBodyBookProject({ files, pageReferenceFiles = new Map(), pa
       getBodyBookPageDefinition(theme, key, layoutVersion),
       theme,
       pageReferences.get(key) || references,
-      { prompt: pagePrompts[key], hasCustomPrompt: Boolean(String(pagePrompts[key] || "").trim()) }
+      { prompt: pagePrompts[key], hasCustomPrompt: Boolean(String(pagePrompts[key] || "").trim()) },
+      personalization
     ))
   });
   return generateBodyBookPages(session, generationKeys);
@@ -10947,7 +11025,7 @@ async function updateBodyBookProjectPages(session, contentKeys) {
   const byKey = new Map(current.pages.map((page) => [page.key, page]));
   return saveBodyBookSession({
     ...current,
-    pages: selectedKeys.map((key) => createBodyBookPage(getBodyBookPageDefinition(theme, key, current.layoutVersion), theme, current.references, byKey.get(key))),
+    pages: selectedKeys.map((key) => createBodyBookPage(getBodyBookPageDefinition(theme, key, current.layoutVersion), theme, current.references, byKey.get(key), current.personalization)),
     updatedAt: new Date().toISOString(),
     message: "内容已更新，可继续生成。"
   });
@@ -11048,8 +11126,8 @@ async function generateBodyBookPages(session, pageKeys, pagePrompts = {}) {
   const queued = await Promise.all(pages.map(async (page) => {
     const version = Math.max(0, Number(page.version || 0)) + 1;
     const fallbackPrompt = page.key === "cover"
-      ? buildBodyBookCoverPrompt(theme)
-      : buildBodyBookPartPrompt(page, page.order, theme);
+      ? buildBodyBookCoverPrompt(theme, current.personalization)
+      : buildBodyBookPartPrompt(page, page.order, theme, current.personalization);
     const requestedPrompt = pagePrompts && typeof pagePrompts === "object" ? pagePrompts[page.key] : "";
     const hasRequestedPrompt = Boolean(String(requestedPrompt || "").trim());
     const prompt = hasRequestedPrompt
@@ -11063,6 +11141,7 @@ async function generateBodyBookPages(session, pageKeys, pagePrompts = {}) {
       order: page.order,
       version,
       prompt,
+      kindergarten: theme.id === "kindergarten",
       bookTitle: theme.englishName,
       bookSubtitle: page.key === "cover" ? theme.title : theme.name
     };
@@ -11215,6 +11294,7 @@ function normalizeBodyBookSession(session) {
     experienceType: "body-book",
     themeId: theme.id,
     layoutVersion,
+    personalization: normalizeBodyBookPersonalization(session?.personalization, theme),
     ownerAccountId: String(session?.ownerAccountId || ""),
     ownerVisitorId: String(session?.ownerVisitorId || ""),
     stage: String(session?.stage || "ready"),
@@ -11229,7 +11309,7 @@ function normalizeBodyBookSession(session) {
     chargedJobIds: Array.isArray(session?.chargedJobIds) ? session.chargedJobIds.map(String).filter(Boolean) : [],
     refundedJobIds: Array.isArray(session?.refundedJobIds) ? session.refundedJobIds.map(String).filter(Boolean) : [],
     billingError: String(session?.billingError || ""),
-    pages: selectedKeys.map((key) => createBodyBookPage(getBodyBookPageDefinition(theme, key, layoutVersion), theme, references, byKey.get(key)))
+    pages: selectedKeys.map((key) => createBodyBookPage(getBodyBookPageDefinition(theme, key, layoutVersion), theme, references, byKey.get(key), session?.personalization))
   };
 }
 
@@ -11240,6 +11320,7 @@ function toPublicBodyBookSession(session) {
     sessionId: current.sessionId,
     experienceType: current.experienceType,
     layoutVersion: current.layoutVersion,
+    personalization: current.personalization,
     // Use the project's persisted layout. New body/transport/animal books use
     // paired-preset-v2, while existing projects must continue to expose their
     // original legacy-v1 17 editable pages.
@@ -11511,7 +11592,8 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider,
     const latestJob = await readImageJob(jobId);
     if (!latestJob || latestJob.status === "cancelled") return;
     const persistResultStartedAtMs = nowMs();
-    const publicResult = await persistImageJobResult(jobId, result, outputFormat);
+    const persistedResult = await persistImageJobResult(jobId, result, outputFormat);
+    const publicResult = await applyKindergartenBookTypesetting(latestJob, persistedResult);
     const persistResultMs = elapsedMs(persistResultStartedAtMs);
     await saveImageJob({
       ...latestJob,
@@ -11668,6 +11750,97 @@ async function persistRemoteImageJobResult(jobId, result, outputFormat) {
     thumbnailWidth: thumbnail?.width || null,
     thumbnailHeight: thumbnail?.height || null
   };
+}
+
+async function applyKindergartenBookTypesetting(job, result) {
+  if (String(job?.experienceType || "") !== "body-book" || !result?.imageUrl) return result;
+  const sessionId = String(job?.telemetry?.sessionId || "");
+  const session = sessionId ? await readBodyBookSession(sessionId) : null;
+  const current = session ? normalizeBodyBookSession(session) : null;
+  if (!current || current.themeId !== "kindergarten") return result;
+  const page = current.pages.find((item) => item.key === String(job?.styleId || ""));
+  if (!page) return result;
+
+  const sourceFilename = path.basename(String(result.imageUrl || ""));
+  const sourcePath = path.join(generatedImageRoot, sourceFilename);
+  if (!sourceFilename || path.dirname(sourcePath) !== generatedImageRoot || !existsSync(sourcePath)) return result;
+
+  try {
+    const sharp = await loadSharpModule();
+    if (!sharp) return result;
+    const source = await readFile(sourcePath);
+    const metadata = await sharp(source, { animated: false }).metadata();
+    const width = Number(metadata.width || 1024) || 1024;
+    const height = Number(metadata.height || 1024) || 1024;
+    const overlay = createKindergartenBookTextOverlay({ page, childName: current.personalization?.childName || "", width, height });
+    const rendered = await sharp(source, { animated: false }).rotate().composite([{ input: overlay, top: 0, left: 0 }]).png().toBuffer();
+    const filename = `${job.jobId}.png`;
+    await writeFile(path.join(generatedImageRoot, filename), rendered);
+    const preview = await createPublicPreview(job.jobId, rendered);
+    const thumbnail = await createGeneratedImageThumbnail(job.jobId, rendered);
+    return {
+      ...result,
+      imageDataUrl: "",
+      imageUrl: `/generated-images/${filename}`,
+      mimeType: "image/png",
+      previewUrl: preview?.url || thumbnail?.url || "",
+      previewWidth: preview?.width || null,
+      previewHeight: preview?.height || null,
+      thumbnailUrl: thumbnail?.url || "",
+      thumbnailWidth: thumbnail?.width || null,
+      thumbnailHeight: thumbnail?.height || null,
+      typeset: "kindergarten-story-v1"
+    };
+  } catch (error) {
+    console.warn("Kindergarten story typesetting skipped.", error?.message || error);
+    return result;
+  }
+}
+
+function createKindergartenBookTextOverlay({ page, childName, width, height }) {
+  const safeWidth = Math.max(1, Math.round(width || 1024));
+  const safeHeight = Math.max(1, Math.round(height || 1024));
+  const isCover = page?.key === "cover";
+  const title = isCover ? `${String(childName || "小朋友")}去幼儿园啦` : String(page?.chinese || "我的入园第一天");
+  const english = isCover ? "My First Day at Kindergarten" : String(page?.englishCopy || page?.english || "My First Day");
+  const story = isCover ? "第一天，勇敢出发！" : String(page?.story || page?.copy || "");
+  const titleSize = Math.round(safeWidth * (isCover ? 0.065 : 0.052));
+  const bodySize = Math.round(safeWidth * 0.032);
+  const englishSize = Math.round(safeWidth * 0.025);
+  const padding = Math.round(safeWidth * 0.075);
+  const panelHeight = Math.round(safeHeight * (isCover ? 0.26 : 0.22));
+  const panelY = safeHeight - panelHeight - Math.round(safeHeight * 0.045);
+  const titleLines = wrapKindergartenOverlayText(title, Math.max(10, Math.floor((safeWidth - padding * 2) / titleSize * 1.75)));
+  const storyLines = wrapKindergartenOverlayText(story, Math.max(12, Math.floor((safeWidth - padding * 2) / bodySize * 1.55)));
+  const titleY = panelY + Math.round(panelHeight * 0.29);
+  const englishY = titleY + titleLines.length * Math.round(titleSize * 1.08) + Math.round(englishSize * 1.3);
+  const storyY = englishY + Math.round(englishSize * 1.8);
+  const pageNumber = Number(page?.order || 0);
+  const tag = isCover ? "MY FIRST DAY" : `DAY ONE · ${String(pageNumber).padStart(2, "0")}`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${safeWidth}" height="${safeHeight}" viewBox="0 0 ${safeWidth} ${safeHeight}">
+  <g transform="rotate(-2 ${padding * 1.7} ${panelY - 18})"><rect x="${padding}" y="${panelY - Math.round(safeHeight * 0.045)}" width="${Math.round(safeWidth * 0.32)}" height="${Math.round(safeHeight * 0.06)}" rx="10" fill="#f2bd65" opacity="0.96"/><text x="${padding + 18}" y="${panelY - Math.round(safeHeight * 0.008)}" fill="#5b3d28" font-family="Arial, sans-serif" font-size="${Math.round(safeWidth * 0.019)}" font-weight="700" letter-spacing="1">${escapeKindergartenOverlayText(tag)}</text></g>
+  <rect x="${Math.round(padding * 0.72)}" y="${panelY}" width="${safeWidth - Math.round(padding * 1.44)}" height="${panelHeight}" rx="${Math.round(safeWidth * 0.025)}" fill="#fffaf0" fill-opacity="0.93" stroke="#e2b787" stroke-width="${Math.max(2, Math.round(safeWidth * 0.003))}"/>
+  <text x="${padding}" y="${titleY}" fill="#3c2a23" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, sans-serif" font-size="${titleSize}" font-weight="700">${kindergartenOverlayTspans(titleLines, titleSize * 1.08, padding)}</text>
+  <text x="${padding}" y="${englishY}" fill="#8a5c44" font-family="Arial, sans-serif" font-size="${englishSize}" font-weight="700" letter-spacing="0.6">${escapeKindergartenOverlayText(english)}</text>
+  <text x="${padding}" y="${storyY}" fill="#5a4539" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, sans-serif" font-size="${bodySize}">${kindergartenOverlayTspans(storyLines, bodySize * 1.35, padding)}</text>
+  </svg>`;
+}
+
+function wrapKindergartenOverlayText(value, lineLength) {
+  const characters = Array.from(String(value || ""));
+  const lines = [];
+  for (let index = 0; index < characters.length; index += lineLength) lines.push(characters.slice(index, index + lineLength).join(""));
+  return lines.length ? lines.slice(0, 2) : [""];
+}
+
+function kindergartenOverlayTspans(lines, lineHeight, x) {
+  return (lines || []).map((line, index) => index === 0
+    ? escapeKindergartenOverlayText(line)
+    : `<tspan x="${Math.round(x || 0)}" dy="${Math.round(lineHeight)}">${escapeKindergartenOverlayText(line)}</tspan>`).join("");
+}
+
+function escapeKindergartenOverlayText(value) {
+  return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 }
 
 async function readImageJob(jobId) {

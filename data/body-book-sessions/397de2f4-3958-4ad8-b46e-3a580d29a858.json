@@ -1,0 +1,673 @@
+{
+  "schemaVersion": 2,
+  "sessionId": "397de2f4-3958-4ad8-b46e-3a580d29a858",
+  "experienceType": "body-book",
+  "themeId": "kindergarten",
+  "layoutVersion": "legacy-v1",
+  "personalization": {
+    "childName": "满满"
+  },
+  "ownerAccountId": "f4634ba1-79dd-4a06-9ce7-e070d7e6cb4f",
+  "ownerVisitorId": "5f323334-6528-4dfb-94e2-2dd326fd1673",
+  "stage": "generating",
+  "status": "running",
+  "message": "正在生成图片（2/17）。",
+  "createdAt": "2026-08-18T11:03:42.832Z",
+  "updatedAt": "2026-08-18T11:26:10.954Z",
+  "completedAt": null,
+  "savedAt": "2026-08-18T11:04:46.085Z",
+  "reference": {
+    "filename": "reference-1.jpg",
+    "mimeType": "image/jpeg",
+    "size": 253239,
+    "originalName": "20260719-154824-compressed.jpg"
+  },
+  "references": [
+    {
+      "filename": "reference-1.jpg",
+      "mimeType": "image/jpeg",
+      "size": 253239,
+      "originalName": "20260719-154824-compressed.jpg"
+    }
+  ],
+  "chargedJobIds": [
+    "966df093-32ce-47d7-8d3e-9291bcd6e903",
+    "a599297e-f4e7-47d5-a171-52f54070eb64",
+    "8f1b9b95-5039-426d-a25c-209c899ef009",
+    "6895b7f5-5798-4ffe-8e2d-daeac444f163",
+    "f584a259-c76c-4e8d-b93e-70f08f4c3215",
+    "db7b204b-1603-4276-a9af-bf42cab8f688",
+    "a7e5c0b1-4d1d-41f9-aa7f-f743a825d667",
+    "8369f52a-1460-4e2b-a304-040a015ff34a",
+    "f1d1c676-c55d-43e5-a244-6dc4fbe32787",
+    "f8edcb19-009a-435b-99cb-dc97cf9fe19e",
+    "21ffea8b-b006-43ef-a6b1-40beafdcbdf1",
+    "39052695-5f03-4906-b4ba-b881f04a3a5e",
+    "27ba4220-bba0-404a-b847-391e2810c422",
+    "b8f2c499-26e1-43a7-8a57-4f0e283a85e1",
+    "ae636076-6919-4b22-a70d-1a9b615f44c6",
+    "4bb2f560-afd9-4ee4-ad33-1458951127b8",
+    "844cbd4b-4b4b-4ae4-986f-386787e0f8ee",
+    "835d7b86-63d3-420f-9682-1be8d60ed4cd",
+    "f1a56969-f922-4bce-b769-675463760a6a"
+  ],
+  "refundedJobIds": [],
+  "billingError": "",
+  "pages": [
+    {
+      "key": "cover",
+      "chinese": "封面",
+      "english": "Cover",
+      "title": "封面 Cover",
+      "order": 0,
+      "pageType": "cover",
+      "isRequired": true,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as a simple, slightly abstract, fully hand-drawn picture-book character with soft colored-pencil outlines, watercolor fills, uneven crayon texture, and an expressive rounded face. Create one square 1:1 cover illustration for ages 2.5 to 4. a warm, original handmade picture-book cover: the child proudly holding a small backpack beside a friendly kindergarten gate, with hand-painted paper textures, washi tape, crayon stars, and a simple sun. Use a warm cream full-bleed paper page with hand-torn paper shapes and a few original washi-tape and sticker details. Keep the child large, joyful, and unmistakably central. Render these words clearly as part of the hand-drawn cover layout: the large Chinese title exactly \"满满去幼儿园啦\", the smaller English title exactly \"My First Day at Kindergarten\", and the short Chinese line exactly \"第一天，勇敢出发！\". Place the title in a calm high-contrast upper-third area and leave the lower third open for a printed story caption. No other letters, numbers, logos, watermarks, school names, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, or frightening expressions.",
+      "hasCustomPrompt": false,
+      "version": 2,
+      "jobId": "8f1b9b95-5039-426d-a25c-209c899ef009",
+      "status": "succeeded",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/8f1b9b95-5039-426d-a25c-209c899ef009.png",
+        "mimeType": "image/png",
+        "usage": {
+          "total_tokens": 2411,
+          "input_tokens": 1896,
+          "output_tokens": 515,
+          "input_tokens_details": {
+            "text_tokens": 444,
+            "image_tokens": 1452
+          }
+        },
+        "mode": "edit",
+        "originalImageUrl": "https://oss.filenest.top/uploads/56f7f530-c5de-4483-a5a2-ab92841b570a.png",
+        "previewUrl": "/generated-previews/8f1b9b95-5039-426d-a25c-209c899ef009.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/8f1b9b95-5039-426d-a25c-209c899ef009.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "kuaipao",
+          "name": "快跑",
+          "model": "gpt-image-2"
+        }
+      },
+      "errorMessage": "",
+      "historyJobIds": [
+        "966df093-32ce-47d7-8d3e-9291bcd6e903"
+      ]
+    },
+    {
+      "key": "first-day",
+      "chinese": "今天，我要去幼儿园啦",
+      "english": "My First Day",
+      "copy": "今天，我要去幼儿园啦！",
+      "englishCopy": "Today is my first day at kindergarten.",
+      "story": "今天，我要去幼儿园啦！",
+      "title": "今天，我要去幼儿园啦 My First Day",
+      "order": 1,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 1, about \"My First Day / 今天，我要去幼儿园啦\". Story moment: 今天，我要去幼儿园啦！. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in a cheerful yellow cardigan, soft blue shorts, and tiny sneakers; show a confident standing pose at home holding a small paper sun, with a morning window and one simple calendar sticker. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"今天，我要去幼儿园啦\"; small English heading exactly \"My First Day\"; Chinese story sentence exactly \"今天，我要去幼儿园啦！\"; small English story sentence exactly \"Today is my first day at kindergarten.\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 2,
+      "jobId": "6895b7f5-5798-4ffe-8e2d-daeac444f163",
+      "status": "succeeded",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/6895b7f5-5798-4ffe-8e2d-daeac444f163.png",
+        "mimeType": "image/png",
+        "usage": {
+          "total_tokens": 2385,
+          "input_tokens": 1870,
+          "output_tokens": 515,
+          "input_tokens_details": {
+            "text_tokens": 418,
+            "image_tokens": 1452
+          }
+        },
+        "mode": "edit",
+        "originalImageUrl": "https://oss.filenest.top/uploads/09e5a591-af62-46be-8194-66b27fe047af.png",
+        "previewUrl": "/generated-previews/6895b7f5-5798-4ffe-8e2d-daeac444f163.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/6895b7f5-5798-4ffe-8e2d-daeac444f163.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "kuaipao",
+          "name": "快跑",
+          "model": "gpt-image-2"
+        }
+      },
+      "errorMessage": "",
+      "historyJobIds": [
+        "a599297e-f4e7-47d5-a171-52f54070eb64"
+      ]
+    },
+    {
+      "key": "wake-up",
+      "chinese": "起床啦",
+      "english": "Wake Up",
+      "copy": "早晨到了，我精神满满地起床啦。",
+      "englishCopy": "Good morning, I wake up feeling ready.",
+      "story": "早晨到了，我精神满满地起床啦。",
+      "title": "起床啦 Wake Up",
+      "order": 2,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 2, about \"Wake Up / 起床啦\". Story moment: 早晨到了，我精神满满地起床啦。. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in soft striped pajamas; show the child sitting up in a small cozy bed and stretching both arms toward a painted morning sun, with no realistic bedroom clutter. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"起床啦\"; small English heading exactly \"Wake Up\"; Chinese story sentence exactly \"早晨到了，我精神满满地起床啦。\"; small English story sentence exactly \"Good morning, I wake up feeling ready.\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "f584a259-c76c-4e8d-b93e-70f08f4c3215",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "wash-and-dress",
+      "chinese": "洗漱穿衣",
+      "english": "Get Ready",
+      "copy": "洗洗脸，穿好衣服，我准备好了。",
+      "englishCopy": "I wash up and get dressed.",
+      "story": "洗洗脸，穿好衣服，我准备好了。",
+      "title": "洗漱穿衣 Get Ready",
+      "order": 3,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 3, about \"Get Ready / 洗漱穿衣\". Story moment: 洗洗脸，穿好衣服，我准备好了。. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in a half-buttoned mint cardigan over a cream top; show the child happily patting their face with a small towel beside one illustrated toothbrush cup, with no realistic bathroom. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"洗漱穿衣\"; small English heading exactly \"Get Ready\"; Chinese story sentence exactly \"洗洗脸，穿好衣服，我准备好了。\"; small English story sentence exactly \"I wash up and get dressed.\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "db7b204b-1603-4276-a9af-bf42cab8f688",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "backpack",
+      "chinese": "背上小书包",
+      "english": "My Backpack",
+      "copy": "背上小书包，出发去幼儿园。",
+      "englishCopy": "My little backpack is ready to go.",
+      "story": "背上小书包，出发去幼儿园。",
+      "title": "背上小书包 My Backpack",
+      "order": 4,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 4, about \"My Backpack / 背上小书包\". Story moment: 背上小书包，出发去幼儿园。. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in a coral T-shirt, denim-look shorts, and tiny sneakers; show the child proudly putting on a small blue backpack beside one hand-drawn star sticker. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"背上小书包\"; small English heading exactly \"My Backpack\"; Chinese story sentence exactly \"背上小书包，出发去幼儿园。\"; small English story sentence exactly \"My little backpack is ready to go.\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "a7e5c0b1-4d1d-41f9-aa7f-f743a825d667",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "arrive",
+      "chinese": "到了幼儿园",
+      "english": "Here We Are",
+      "copy": "到了幼儿园，我好奇地看一看。",
+      "englishCopy": "Here we are at kindergarten.",
+      "story": "到了幼儿园，我好奇地看一看。",
+      "title": "到了幼儿园 Here We Are",
+      "order": 5,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 5, about \"Here We Are / 到了幼儿园\". Story moment: 到了幼儿园，我好奇地看一看。. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in the same coral T-shirt, denim-look shorts, tiny sneakers, and blue backpack; show the child arriving at a friendly, simple hand-painted kindergarten gate with flowers and a sun, never show a real school logo or readable sign. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"到了幼儿园\"; small English heading exactly \"Here We Are\"; Chinese story sentence exactly \"到了幼儿园，我好奇地看一看。\"; small English story sentence exactly \"Here we are at kindergarten.\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "8369f52a-1460-4e2b-a304-040a015ff34a",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "goodbye",
+      "chinese": "和家人说再见",
+      "english": "See You Later",
+      "copy": "我和家人抱一抱，说一声待会儿见。",
+      "englishCopy": "A hug, then see you later.",
+      "story": "我和家人抱一抱，说一声待会儿见。",
+      "title": "和家人说再见 See You Later",
+      "order": 6,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 6, about \"See You Later / 和家人说再见\". Story moment: 我和家人抱一抱，说一声待会儿见。. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in the arrival outfit; show a gentle hug goodbye with one simplified, warmly drawn adult caregiver shown from the side, then the child giving a small wave. Keep the child calm and supported, never crying or distressed. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"和家人说再见\"; small English heading exactly \"See You Later\"; Chinese story sentence exactly \"我和家人抱一抱，说一声待会儿见。\"; small English story sentence exactly \"A hug, then see you later.\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "f1d1c676-c55d-43e5-a244-6dc4fbe32787",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "teacher",
+      "chinese": "老师欢迎我",
+      "english": "Hello, Teacher",
+      "copy": "老师笑着欢迎我，我觉得很安心。",
+      "englishCopy": "My teacher welcomes me.",
+      "story": "老师笑着欢迎我，我觉得很安心。",
+      "title": "老师欢迎我 Hello, Teacher",
+      "order": 7,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 7, about \"Hello, Teacher / 老师欢迎我\". Story moment: 老师笑着欢迎我，我觉得很安心。. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in the arrival outfit; show one friendly hand-drawn teacher kneeling at the child's height with an open welcoming gesture and a small star sticker, keeping the child as the visual focus. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"老师欢迎我\"; small English heading exactly \"Hello, Teacher\"; Chinese story sentence exactly \"老师笑着欢迎我，我觉得很安心。\"; small English story sentence exactly \"My teacher welcomes me.\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "f8edcb19-009a-435b-99cb-dc97cf9fe19e",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "cubby",
+      "chinese": "找到我的小柜子",
+      "english": "My Little Cubby",
+      "copy": "这是我的小柜子，我会把东西放好。",
+      "englishCopy": "This little cubby is mine.",
+      "story": "这是我的小柜子，我会把东西放好。",
+      "title": "找到我的小柜子 My Little Cubby",
+      "order": 8,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 8, about \"My Little Cubby / 找到我的小柜子\". Story moment: 这是我的小柜子，我会把东西放好。. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in the arrival outfit; show the child carefully placing the small backpack into one simple cubby with a picture-symbol label only, never include readable words or a school name. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"找到我的小柜子\"; small English heading exactly \"My Little Cubby\"; Chinese story sentence exactly \"这是我的小柜子，我会把东西放好。\"; small English story sentence exactly \"This little cubby is mine.\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "21ffea8b-b006-43ef-a6b1-40beafdcbdf1",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "friends",
+      "chinese": "认识新朋友",
+      "english": "New Friends",
+      "copy": "我认识了新朋友，我们一起打招呼。",
+      "englishCopy": "Hello, new friends!",
+      "story": "我认识了新朋友，我们一起打招呼。",
+      "title": "认识新朋友 New Friends",
+      "order": 9,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 9, about \"New Friends / 认识新朋友\". Story moment: 我认识了新朋友，我们一起打招呼。. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in a sunny yellow smock over the arrival outfit; show the child and two simplified hand-drawn classmates smiling and waving hello in a roomy, uncluttered play area. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"认识新朋友\"; small English heading exactly \"New Friends\"; Chinese story sentence exactly \"我认识了新朋友，我们一起打招呼。\"; small English story sentence exactly \"Hello, new friends!\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "39052695-5f03-4906-b4ba-b881f04a3a5e",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "play",
+      "chinese": "一起玩游戏",
+      "english": "Play Together",
+      "copy": "我们一起搭积木，玩得真开心。",
+      "englishCopy": "We play together.",
+      "story": "我们一起搭积木，玩得真开心。",
+      "title": "一起玩游戏 Play Together",
+      "order": 10,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 10, about \"Play Together / 一起玩游戏\". Story moment: 我们一起搭积木，玩得真开心。. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in a bright blue play smock; show the child floor-seated with two simplified classmates, happily stacking a small tower of colorful blocks. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"一起玩游戏\"; small English heading exactly \"Play Together\"; Chinese story sentence exactly \"我们一起搭积木，玩得真开心。\"; small English story sentence exactly \"We play together.\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "27ba4220-bba0-404a-b847-391e2810c422",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "snack",
+      "chinese": "点心时间",
+      "english": "Snack Time",
+      "copy": "点心时间到了，我慢慢品尝。",
+      "englishCopy": "It is snack time.",
+      "story": "点心时间到了，我慢慢品尝。",
+      "title": "点心时间 Snack Time",
+      "order": 11,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 11, about \"Snack Time / 点心时间\". Story moment: 点心时间到了，我慢慢品尝。. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in a warm cream bib over a soft green top; show the child seated at a simple little table enjoying a small fruit snack, with one cup and no branded packaging. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"点心时间\"; small English heading exactly \"Snack Time\"; Chinese story sentence exactly \"点心时间到了，我慢慢品尝。\"; small English story sentence exactly \"It is snack time.\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "b8f2c499-26e1-43a7-8a57-4f0e283a85e1",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "lunch",
+      "chinese": "洗手吃午餐",
+      "english": "Lunch Time",
+      "copy": "小手洗干净，午餐香喷喷。",
+      "englishCopy": "Clean hands, then lunch.",
+      "story": "小手洗干净，午餐香喷喷。",
+      "title": "洗手吃午餐 Lunch Time",
+      "order": 12,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 12, about \"Lunch Time / 洗手吃午餐\". Story moment: 小手洗干净，午餐香喷喷。. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in a sky-blue smock with rolled sleeves; show clean hands beside a simple illustrated sink, then a small lunch tray with vegetables and rice in the same gentle scene. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"洗手吃午餐\"; small English heading exactly \"Lunch Time\"; Chinese story sentence exactly \"小手洗干净，午餐香喷喷。\"; small English story sentence exactly \"Clean hands, then lunch.\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "ae636076-6919-4b22-a70d-1a9b615f44c6",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "outdoor",
+      "chinese": "户外活动",
+      "english": "Outdoor Play",
+      "copy": "到户外跑一跑、跳一跳。",
+      "englishCopy": "Time to play outside.",
+      "story": "到户外跑一跑、跳一跳。",
+      "title": "户外活动 Outdoor Play",
+      "order": 13,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 13, about \"Outdoor Play / 户外活动\". Story moment: 到户外跑一跑、跳一跳。. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in a leafy-green jacket and comfortable sneakers; show the child running or jumping along a simple chalk path outdoors with one ball and a few friendly classmates in the distance. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"户外活动\"; small English heading exactly \"Outdoor Play\"; Chinese story sentence exactly \"到户外跑一跑、跳一跳。\"; small English story sentence exactly \"Time to play outside.\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "4bb2f560-afd9-4ee4-ad33-1458951127b8",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "nap",
+      "chinese": "午睡时间",
+      "english": "Nap Time",
+      "copy": "午睡时，我抱着小被子安静休息。",
+      "englishCopy": "I rest quietly at nap time.",
+      "story": "午睡时，我抱着小被子安静休息。",
+      "title": "午睡时间 Nap Time",
+      "order": 14,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 14, about \"Nap Time / 午睡时间\". Story moment: 午睡时，我抱着小被子安静休息。. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in a soft lilac nap smock; show the child peacefully lying on a small mat under a light blanket, hugging one tiny cloud pillow, with calm moon and star stickers. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"午睡时间\"; small English heading exactly \"Nap Time\"; Chinese story sentence exactly \"午睡时，我抱着小被子安静休息。\"; small English story sentence exactly \"I rest quietly at nap time.\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "844cbd4b-4b4b-4ae4-986f-386787e0f8ee",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "miss-home",
+      "chinese": "想家时，我可以找老师",
+      "english": "I Can Ask for Help",
+      "copy": "想家时，我可以找老师抱一抱、说一说。",
+      "englishCopy": "When I miss home, my teacher can help.",
+      "story": "想家时，我可以找老师抱一抱、说一说。",
+      "title": "想家时，我可以找老师 I Can Ask for Help",
+      "order": 15,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 15, about \"I Can Ask for Help / 想家时，我可以找老师\". Story moment: 想家时，我可以找老师抱一抱、说一说。. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in a soft peach cardigan; show a mild thoughtful expression while a friendly hand-drawn teacher sits nearby at child height, offering a comforting hug and a small heart-shaped cushion. The child must look safe and gently reassured, never upset or crying. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"想家时，我可以找老师\"; small English heading exactly \"I Can Ask for Help\"; Chinese story sentence exactly \"想家时，我可以找老师抱一抱、说一说。\"; small English story sentence exactly \"When I miss home, my teacher can help.\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "835d7b86-63d3-420f-9682-1be8d60ed4cd",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "pickup",
+      "chinese": "家人来接我，明天见",
+      "english": "See You Tomorrow",
+      "copy": "家人来接我啦。今天真棒，明天见！",
+      "englishCopy": "My family is here. See you tomorrow!",
+      "story": "家人来接我啦。今天真棒，明天见！",
+      "title": "家人来接我，明天见 See You Tomorrow",
+      "order": 16,
+      "prompt": "Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, clothing, photographic skin texture, or a realistic portrait. Redraw the child as the same simple, slightly abstract, fully hand-drawn picture-book character on every page, with colored-pencil outlines, watercolor fills, uneven crayon texture, and a soft expressive rounded face. Create one square 1:1 INNER STORY PAGE, page 16, about \"See You Tomorrow / 家人来接我，明天见\". Story moment: 家人来接我啦。今天真棒，明天见！. one continuous moment from the child's first day at kindergarten, with the child as the clear hero and only simple, friendly hand-drawn teacher or classmate supporting characters when needed. Mandatory art direction: Dress the child in the arrival outfit with the blue backpack; show the child happily walking toward one simplified caregiver at a kindergarten gate during warm afternoon light, with a painted setting sun and a small tomorrow-star sticker. Use a warm cream full-bleed paper page, hand-torn paper shapes, and a few restrained small hand-drawn stickers, crayon stars, hearts, suns, dots, and washi-tape details. Keep the child unmistakably central; any teacher, caregiver, or classmates must be simplified supporting characters, never additional focal children. Render this text clearly in the illustration: Chinese heading exactly \"家人来接我，明天见\"; small English heading exactly \"See You Tomorrow\"; Chinese story sentence exactly \"家人来接我啦。今天真棒，明天见！\"; small English story sentence exactly \"My family is here. See you tomorrow!\". Put the two headings in a calm upper-corner hand-drawn label and the story sentences in a clean lower-third caption area. No other letters, numbers, logos, watermarks, school names, labels, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, distressing emotions, or unrelated props.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "f1a56969-f922-4bce-b769-675463760a6a",
+      "status": "running",
+      "references": [
+        {
+          "filename": "reference-1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 253239,
+          "originalName": "20260719-154824-compressed.jpg"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.jpg",
+        "mimeType": "image/jpeg",
+        "size": 253239,
+        "originalName": "20260719-154824-compressed.jpg"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    }
+  ]
+}
