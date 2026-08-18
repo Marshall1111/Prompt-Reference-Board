@@ -9,12 +9,12 @@
   },
   "ownerAccountId": "f4634ba1-79dd-4a06-9ce7-e070d7e6cb4f",
   "ownerVisitorId": "5f323334-6528-4dfb-94e2-2dd326fd1673",
-  "stage": "generating",
-  "status": "running",
-  "message": "正在生成图片（2/17）。",
+  "stage": "ready",
+  "status": "succeeded",
+  "message": "图片已保存，可继续编辑或生成更多页面。",
   "createdAt": "2026-08-18T11:03:42.832Z",
-  "updatedAt": "2026-08-18T11:26:10.954Z",
-  "completedAt": null,
+  "updatedAt": "2026-08-18T11:29:15.772Z",
+  "completedAt": "2026-08-18T11:29:14.926Z",
   "savedAt": "2026-08-18T11:04:46.085Z",
   "reference": {
     "filename": "reference-1.jpg",
@@ -188,7 +188,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "f584a259-c76c-4e8d-b93e-70f08f4c3215",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -203,7 +203,37 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/f584a259-c76c-4e8d-b93e-70f08f4c3215.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 1938,
+          "input_tokens_details": {
+            "image_tokens": 1452,
+            "text_tokens": 486
+          },
+          "output_tokens": 515,
+          "output_tokens_details": {
+            "image_tokens": 515,
+            "text_tokens": 0
+          },
+          "total_tokens": 2453
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/f584a259-c76c-4e8d-b93e-70f08f4c3215.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/f584a259-c76c-4e8d-b93e-70f08f4c3215.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "llmtoken",
+          "name": "llmtoken",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
       "errorMessage": "",
       "historyJobIds": []
     },
@@ -221,7 +251,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "db7b204b-1603-4276-a9af-bf42cab8f688",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -236,7 +266,30 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/db7b204b-1603-4276-a9af-bf42cab8f688.png",
+        "mimeType": "image/png",
+        "usage": {
+          "total_cost": "0.04",
+          "total_points": "0.04",
+          "total_cost_decimal": "0.04",
+          "total_points_decimal": "0.04"
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/db7b204b-1603-4276-a9af-bf42cab8f688.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/db7b204b-1603-4276-a9af-bf42cab8f688.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "kuaipao",
+          "name": "快跑",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
       "errorMessage": "",
       "historyJobIds": []
     },
@@ -254,7 +307,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "a7e5c0b1-4d1d-41f9-aa7f-f743a825d667",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -269,7 +322,33 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/a7e5c0b1-4d1d-41f9-aa7f-f743a825d667.png",
+        "mimeType": "image/png",
+        "usage": {
+          "total_tokens": 2125,
+          "input_tokens": 1360,
+          "output_tokens": 765,
+          "input_tokens_details": {
+            "text_tokens": 595,
+            "image_tokens": 765
+          }
+        },
+        "mode": "edit",
+        "originalImageUrl": "https://oss.filenest.top/uploads/d8ab1d3e-5a8e-4ad6-ad78-97df01294e2b.png",
+        "previewUrl": "/generated-previews/a7e5c0b1-4d1d-41f9-aa7f-f743a825d667.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/a7e5c0b1-4d1d-41f9-aa7f-f743a825d667.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "kuaipao",
+          "name": "快跑",
+          "model": "gpt-image-2"
+        }
+      },
       "errorMessage": "",
       "historyJobIds": []
     },
@@ -287,7 +366,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "8369f52a-1460-4e2b-a304-040a015ff34a",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -302,7 +381,30 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/8369f52a-1460-4e2b-a304-040a015ff34a.png",
+        "mimeType": "image/png",
+        "usage": {
+          "total_cost": "0.04",
+          "total_points": "0.04",
+          "total_cost_decimal": "0.04",
+          "total_points_decimal": "0.04"
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/8369f52a-1460-4e2b-a304-040a015ff34a.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/8369f52a-1460-4e2b-a304-040a015ff34a.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "kuaipao",
+          "name": "快跑",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
       "errorMessage": "",
       "historyJobIds": []
     },
@@ -320,7 +422,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "f1d1c676-c55d-43e5-a244-6dc4fbe32787",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -335,7 +437,38 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/f1d1c676-c55d-43e5-a244-6dc4fbe32787.png",
+        "mimeType": "image/png",
+        "usage": {
+          "prompt_tokens": 529,
+          "completion_tokens": 1056,
+          "total_tokens": 1585,
+          "input_tokens": 529,
+          "output_tokens": 1056,
+          "input_tokens_details": {
+            "text_tokens": 526,
+            "image_tokens": 3
+          },
+          "output_tokens_details": {
+            "image_tokens": 1056
+          }
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/f1d1c676-c55d-43e5-a244-6dc4fbe32787.webp",
+        "previewWidth": 1024,
+        "previewHeight": 1024,
+        "thumbnailUrl": "/generated-thumbnails/f1d1c676-c55d-43e5-a244-6dc4fbe32787.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "uuapi",
+          "name": "UUAPI",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
       "errorMessage": "",
       "historyJobIds": []
     },
@@ -353,7 +486,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "f8edcb19-009a-435b-99cb-dc97cf9fe19e",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -368,7 +501,38 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/f8edcb19-009a-435b-99cb-dc97cf9fe19e.png",
+        "mimeType": "image/png",
+        "usage": {
+          "prompt_tokens": 507,
+          "completion_tokens": 1056,
+          "total_tokens": 1563,
+          "input_tokens": 507,
+          "output_tokens": 1056,
+          "input_tokens_details": {
+            "text_tokens": 504,
+            "image_tokens": 3
+          },
+          "output_tokens_details": {
+            "image_tokens": 1056
+          }
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/f8edcb19-009a-435b-99cb-dc97cf9fe19e.webp",
+        "previewWidth": 1024,
+        "previewHeight": 1024,
+        "thumbnailUrl": "/generated-thumbnails/f8edcb19-009a-435b-99cb-dc97cf9fe19e.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "uuapi",
+          "name": "UUAPI",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
       "errorMessage": "",
       "historyJobIds": []
     },
@@ -386,7 +550,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "21ffea8b-b006-43ef-a6b1-40beafdcbdf1",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -401,7 +565,37 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/21ffea8b-b006-43ef-a6b1-40beafdcbdf1.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 2020,
+          "input_tokens_details": {
+            "image_tokens": 1452,
+            "text_tokens": 568
+          },
+          "output_tokens": 515,
+          "output_tokens_details": {
+            "image_tokens": 515,
+            "text_tokens": 0
+          },
+          "total_tokens": 2535
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/21ffea8b-b006-43ef-a6b1-40beafdcbdf1.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/21ffea8b-b006-43ef-a6b1-40beafdcbdf1.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "llmtoken",
+          "name": "llmtoken",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
       "errorMessage": "",
       "historyJobIds": []
     },
@@ -419,7 +613,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "39052695-5f03-4906-b4ba-b881f04a3a5e",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -434,7 +628,38 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/39052695-5f03-4906-b4ba-b881f04a3a5e.png",
+        "mimeType": "image/png",
+        "usage": {
+          "prompt_tokens": 504,
+          "completion_tokens": 1056,
+          "total_tokens": 1560,
+          "input_tokens": 504,
+          "output_tokens": 1056,
+          "input_tokens_details": {
+            "text_tokens": 501,
+            "image_tokens": 3
+          },
+          "output_tokens_details": {
+            "image_tokens": 1056
+          }
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/39052695-5f03-4906-b4ba-b881f04a3a5e.webp",
+        "previewWidth": 1024,
+        "previewHeight": 1024,
+        "thumbnailUrl": "/generated-thumbnails/39052695-5f03-4906-b4ba-b881f04a3a5e.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "uuapi",
+          "name": "UUAPI",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
       "errorMessage": "",
       "historyJobIds": []
     },
@@ -452,7 +677,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "27ba4220-bba0-404a-b847-391e2810c422",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -467,7 +692,38 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/27ba4220-bba0-404a-b847-391e2810c422.png",
+        "mimeType": "image/png",
+        "usage": {
+          "prompt_tokens": 497,
+          "completion_tokens": 1056,
+          "total_tokens": 1553,
+          "input_tokens": 497,
+          "output_tokens": 1056,
+          "input_tokens_details": {
+            "text_tokens": 494,
+            "image_tokens": 3
+          },
+          "output_tokens_details": {
+            "image_tokens": 1056
+          }
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/27ba4220-bba0-404a-b847-391e2810c422.webp",
+        "previewWidth": 1024,
+        "previewHeight": 1024,
+        "thumbnailUrl": "/generated-thumbnails/27ba4220-bba0-404a-b847-391e2810c422.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "uuapi",
+          "name": "UUAPI",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
       "errorMessage": "",
       "historyJobIds": []
     },
@@ -485,7 +741,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "b8f2c499-26e1-43a7-8a57-4f0e283a85e1",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -500,7 +756,38 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/b8f2c499-26e1-43a7-8a57-4f0e283a85e1.png",
+        "mimeType": "image/png",
+        "usage": {
+          "prompt_tokens": 500,
+          "completion_tokens": 1056,
+          "total_tokens": 1556,
+          "input_tokens": 500,
+          "output_tokens": 1056,
+          "input_tokens_details": {
+            "text_tokens": 497,
+            "image_tokens": 3
+          },
+          "output_tokens_details": {
+            "image_tokens": 1056
+          }
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/b8f2c499-26e1-43a7-8a57-4f0e283a85e1.webp",
+        "previewWidth": 1024,
+        "previewHeight": 1024,
+        "thumbnailUrl": "/generated-thumbnails/b8f2c499-26e1-43a7-8a57-4f0e283a85e1.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "uuapi",
+          "name": "UUAPI",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
       "errorMessage": "",
       "historyJobIds": []
     },
@@ -518,7 +805,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "ae636076-6919-4b22-a70d-1a9b615f44c6",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -533,7 +820,38 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/ae636076-6919-4b22-a70d-1a9b615f44c6.png",
+        "mimeType": "image/png",
+        "usage": {
+          "prompt_tokens": 510,
+          "completion_tokens": 1056,
+          "total_tokens": 1566,
+          "input_tokens": 510,
+          "output_tokens": 1056,
+          "input_tokens_details": {
+            "text_tokens": 507,
+            "image_tokens": 3
+          },
+          "output_tokens_details": {
+            "image_tokens": 1056
+          }
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/ae636076-6919-4b22-a70d-1a9b615f44c6.webp",
+        "previewWidth": 1024,
+        "previewHeight": 1024,
+        "thumbnailUrl": "/generated-thumbnails/ae636076-6919-4b22-a70d-1a9b615f44c6.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "uuapi",
+          "name": "UUAPI",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
       "errorMessage": "",
       "historyJobIds": []
     },
@@ -551,7 +869,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "4bb2f560-afd9-4ee4-ad33-1458951127b8",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -566,7 +884,33 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/4bb2f560-afd9-4ee4-ad33-1458951127b8.png",
+        "mimeType": "image/png",
+        "usage": {
+          "total_tokens": 2120,
+          "input_tokens": 1355,
+          "output_tokens": 765,
+          "input_tokens_details": {
+            "text_tokens": 590,
+            "image_tokens": 765
+          }
+        },
+        "mode": "edit",
+        "originalImageUrl": "https://oss.filenest.top/uploads/d50e3b6b-954c-4dcd-b016-954099693ca6.png",
+        "previewUrl": "/generated-previews/4bb2f560-afd9-4ee4-ad33-1458951127b8.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/4bb2f560-afd9-4ee4-ad33-1458951127b8.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "kuaipao",
+          "name": "快跑",
+          "model": "gpt-image-2"
+        }
+      },
       "errorMessage": "",
       "historyJobIds": []
     },
@@ -584,7 +928,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "844cbd4b-4b4b-4ae4-986f-386787e0f8ee",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -599,7 +943,38 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/844cbd4b-4b4b-4ae4-986f-386787e0f8ee.png",
+        "mimeType": "image/png",
+        "usage": {
+          "prompt_tokens": 512,
+          "completion_tokens": 1056,
+          "total_tokens": 1568,
+          "input_tokens": 512,
+          "output_tokens": 1056,
+          "input_tokens_details": {
+            "text_tokens": 509,
+            "image_tokens": 3
+          },
+          "output_tokens_details": {
+            "image_tokens": 1056
+          }
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/844cbd4b-4b4b-4ae4-986f-386787e0f8ee.webp",
+        "previewWidth": 1024,
+        "previewHeight": 1024,
+        "thumbnailUrl": "/generated-thumbnails/844cbd4b-4b4b-4ae4-986f-386787e0f8ee.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "uuapi",
+          "name": "UUAPI",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
       "errorMessage": "",
       "historyJobIds": []
     },
@@ -617,7 +992,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "835d7b86-63d3-420f-9682-1be8d60ed4cd",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -632,7 +1007,38 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/835d7b86-63d3-420f-9682-1be8d60ed4cd.png",
+        "mimeType": "image/png",
+        "usage": {
+          "prompt_tokens": 547,
+          "completion_tokens": 1056,
+          "total_tokens": 1603,
+          "input_tokens": 547,
+          "output_tokens": 1056,
+          "input_tokens_details": {
+            "text_tokens": 544,
+            "image_tokens": 3
+          },
+          "output_tokens_details": {
+            "image_tokens": 1056
+          }
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/835d7b86-63d3-420f-9682-1be8d60ed4cd.webp",
+        "previewWidth": 1024,
+        "previewHeight": 1024,
+        "thumbnailUrl": "/generated-thumbnails/835d7b86-63d3-420f-9682-1be8d60ed4cd.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "uuapi",
+          "name": "UUAPI",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
       "errorMessage": "",
       "historyJobIds": []
     },
@@ -650,7 +1056,7 @@
       "isRequired": false,
       "version": 1,
       "jobId": "f1a56969-f922-4bce-b769-675463760a6a",
-      "status": "running",
+      "status": "succeeded",
       "references": [
         {
           "filename": "reference-1.jpg",
@@ -665,7 +1071,30 @@
         "size": 253239,
         "originalName": "20260719-154824-compressed.jpg"
       },
-      "result": null,
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/f1a56969-f922-4bce-b769-675463760a6a.png",
+        "mimeType": "image/png",
+        "usage": {
+          "total_cost": "0.04",
+          "total_points": "0.04",
+          "total_cost_decimal": "0.04",
+          "total_points_decimal": "0.04"
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/f1a56969-f922-4bce-b769-675463760a6a.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/f1a56969-f922-4bce-b769-675463760a6a.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "kuaipao",
+          "name": "快跑",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
       "errorMessage": "",
       "historyJobIds": []
     }
