@@ -1074,6 +1074,17 @@ app.post("/api/auth/login", async (req, res, next) => {
     if (account.accountStatus === "disabled") throw createHttpError(403, "该账户已被禁用，请联系管理员。");
     commerceStore.linkVisitor(account.id, req.visitorId);
     const loggedInAccount = commerceStore.recordAccountLogin(account.id);
+    // A body-book project is the user's ongoing work, not optional clip content.
+    // Keep it with the account whenever this browser guest logs into an existing user.
+    const linkedVisitorIds = [...new Set([req.visitorId, ...commerceStore.listVisitorIds(loggedInAccount.id)])];
+    for (const visitorId of linkedVisitorIds) {
+      await mergeGuestAssetsIntoAccount({
+        account: loggedInAccount,
+        visitorId,
+        mergeClip: false,
+        mergeBodyBooks: true
+      });
+    }
     const session = commerceStore.createUserSession(account.id, { ttlMs: USER_SESSION_TTL_MS });
     req.webAccount = loggedInAccount;
     req.userSession = { ...session, account: loggedInAccount };
@@ -2182,6 +2193,26 @@ app.get("/api/body-book/projects/:sessionId", requireWebAccount, async (req, res
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "读取认知书工程失败，请稍后再试。" });
+  }
+});
+
+app.get("/api/body-book/projects/:sessionId/pages/:pageKey/download-original", requireWebAccount, async (req, res, next) => {
+  try {
+    if (!req.userSession || !req.webAccount?.isRegistered) {
+      throw createHttpError(401, "请先注册并登录后再下载认知书原图。", "请先注册并登录后再下载认知书原图。");
+    }
+    const session = await readBodyBookSession(req.params.sessionId);
+    if (!session) throw createHttpError(404, "这本认知书工程不存在或已删除。");
+    assertWebAccountOwnsBodyBookSession(req, session);
+    const page = session.pages.find((item) => item.key === String(req.params.pageKey || "").toLowerCase());
+    if (!page || page.status !== "succeeded" || !page.result?.imageUrl) {
+      throw createHttpError(404, "该认知书原图不存在。");
+    }
+    const file = await resolveBodyBookPageImageFile(page);
+    if (!file) throw createHttpError(404, "该认知书原图不存在。");
+    await sendBodyBookOriginalImage(res, page, file);
+  } catch (error) {
+    next(error);
   }
 });
 
@@ -3914,7 +3945,29 @@ app.post("/api/styles/:id/image", requireAdmin, upload.single("image"), async (r
   }
 });
 
-app.use("/generated-images", express.static(generatedImageRoot));
+app.get("/generated-images/:filename", async (req, res, next) => {
+  try {
+    const filename = path.basename(String(req.params.filename || ""));
+    const jobId = filename.replace(/\.[^.]+$/, "");
+    const job = await readImageJob(jobId);
+    const file = path.join(generatedImageRoot, filename);
+    if (!job || !(await fileExists(file))) throw createHttpError(404, "图片不存在。");
+
+    if (String(job.experienceType || "").trim().toLowerCase() === "body-book") {
+      if (!req.userSession || !req.webAccount?.isRegistered) {
+        throw createHttpError(401, "请先注册并登录后再下载认知书原图。", "请先注册并登录后再下载认知书原图。");
+      }
+      if (!accountOwnsPublicRecord(req.webAccount, job)) {
+        throw createHttpError(403, "无权访问该认知书原图。");
+      }
+    }
+
+    res.type(mimeForExtension(path.extname(file).toLowerCase()) || "application/octet-stream");
+    res.sendFile(file);
+  } catch (error) {
+    next(error);
+  }
+});
 app.use("/order-assets", express.static(orderAssetPublicRoot));
 app.use(express.static(path.join(rootDir, "public")));
 app.use("/images-small", express.static(miniImageRoot));
@@ -8863,6 +8916,17 @@ async function sendPublicClipOriginalImage(res, job, resolvedFile = "") {
   res.sendFile(file);
 }
 
+async function sendBodyBookOriginalImage(res, page, file) {
+  const extension = path.extname(file).toLowerCase() || ".png";
+  const safeKey = String(page?.key || "page").replace(/[^a-z0-9_-]/gi, "-") || "page";
+  const filename = `my-first-book-${safeKey}${extension}`;
+  res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.type(mimeForExtension(extension) || "application/octet-stream");
+  res.sendFile(file);
+}
+
 async function sendAdminReferenceImage(res, job, index) {
   const references = Array.isArray(job.originalReferences) ? [...job.originalReferences].sort((left, right) => Number(left.order || 0) - Number(right.order || 0)) : [];
   const reference = references[index];
@@ -8903,6 +8967,17 @@ async function resolveJobImageFile(job) {
   const publicAssetPath = resolvePublicAssetFilePath(imageUrl);
   if (publicAssetPath && await fileExists(publicAssetPath)) return publicAssetPath;
   return "";
+}
+
+async function resolveBodyBookPageImageFile(page) {
+  const jobId = String(page?.jobId || "");
+  if (jobId) {
+    const job = await readImageJob(jobId);
+    const file = await resolveJobImageFile(job);
+    if (file) return file;
+  }
+  const publicAssetPath = resolvePublicAssetFilePath(page?.result?.imageUrl);
+  return publicAssetPath && await fileExists(publicAssetPath) ? publicAssetPath : "";
 }
 
 function getJobReferenceFilePath(jobId, url) {
@@ -11539,7 +11614,6 @@ async function getMergeableGuestAssets({ guestAccount, visitorId }) {
     (String(job.ownerAccountId || "") === guestAccountId || (!String(job.ownerAccountId || "") && String(job.ownerVisitorId || "") === safeVisitorId))
   ).length;
   const projectCount = books.filter((book) =>
-    book.savedAt &&
     (String(book.ownerAccountId || "") === guestAccountId || (!String(book.ownerAccountId || "") && String(book.ownerVisitorId || "") === safeVisitorId))
   ).length;
   return { clipCount, projectCount, savedBookCount: projectCount, hasAssets: clipCount > 0 || projectCount > 0 };
@@ -11567,10 +11641,20 @@ async function mergeGuestAssetsIntoAccount({ account, visitorId, mergeClip, merg
   if (mergeBodyBooks) {
     const books = await listBodyBookSessions();
     const guestBooks = books.filter((book) =>
-      book.savedAt &&
       (String(book.ownerAccountId || "") === guestAccountId || (!String(book.ownerAccountId || "") && String(book.ownerVisitorId || "") === safeVisitorId))
     );
     await Promise.all(guestBooks.map((book) => saveBodyBookSession({ ...book, ownerAccountId: account.id })));
+    const bookJobIds = [...new Set(guestBooks.flatMap((book) =>
+      (book.pages || []).flatMap((page) => [page?.jobId, ...(page?.historyJobIds || [])]).filter(isSafeImageJobId)
+    ))];
+    const bookJobs = await Promise.all(bookJobIds.map((jobId) => readImageJob(jobId)));
+    await Promise.all(bookJobs
+      .filter((job) => job && (
+        String(job.ownerAccountId || "") === guestAccountId ||
+        (!String(job.ownerAccountId || "") && String(job.ownerVisitorId || "") === safeVisitorId)
+      ))
+      .map((job) => saveImageJob({ ...job, ownerAccountId: account.id }))
+    );
     mergedSavedBookCount = guestBooks.length;
   }
 
