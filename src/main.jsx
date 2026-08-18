@@ -1767,6 +1767,7 @@ function BodyBookPage() {
   const [dirtyPromptKeys, setDirtyPromptKeys] = useState([]);
   const [error, setError] = useState("");
   const [activeItem, setActiveItem] = useState(null);
+  const [originalPreview, setOriginalPreview] = useState(null);
   const [activeReferencePreview, setActiveReferencePreview] = useState(null);
   const [activePageReferenceKey, setActivePageReferenceKey] = useState("");
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -2448,11 +2449,7 @@ function BodyBookPage() {
       setShowAuthModal(true);
       return;
     }
-    try {
-      await downloadBodyBookProjectPage(projectId, page);
-    } catch (nextError) {
-      setError(nextError.message || "下载认知书原图失败，请稍后再试。");
-    }
+    setOriginalPreview({ url: getBodyBookProjectPageOriginalUrl(projectId, page), title: page.title || "认知书原图" });
   }
 
   const home = !activeTheme && !themePreview;
@@ -2495,6 +2492,7 @@ function BodyBookPage() {
       </section>}
 
       {activeItem?.result?.imageUrl ? <div className="modal-backdrop body-book-lightbox" onClick={closeActiveItem} role="presentation"><section className="body-book-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="icon-button" onClick={closeActiveItem} type="button" aria-label="关闭预览"><X size={18} /></button><img alt={activeItem.title} src={getBodyBookThumbnail(activeItem)} /><div className="body-book-lightbox-meta"><strong>{activeItem.title}</strong><button className="draw-card-primary" onClick={() => { void downloadBookOriginal(activeItem); }} type="button"><Download size={17} /><span>下载原图</span></button></div></section></div> : null}
+      {originalPreview ? <div className="modal-backdrop body-book-lightbox" onClick={() => setOriginalPreview(null)} role="presentation"><section className="body-book-lightbox-panel body-book-original-preview-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`${originalPreview.title}原图`} aria-modal="true"><button className="icon-button" onClick={() => setOriginalPreview(null)} type="button" aria-label="关闭原图"><X size={18} /></button><img alt={originalPreview.title} onError={() => { setOriginalPreview(null); setError("加载认知书原图失败，请稍后再试。"); }} src={originalPreview.url} /><div className="body-book-lightbox-meta"><strong>{originalPreview.title}原图</strong><p className="body-book-lightbox-save-tip">请长按图片，选择“保存图片”到手机。</p></div></section></div> : null}
       {activeReferencePreview ? <div className="modal-backdrop body-book-lightbox" onClick={() => setActiveReferencePreview(null)} role="presentation"><section className="body-book-lightbox-panel body-book-reference-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`宝宝参考图 ${activeReferencePreview.index + 1} 大图预览`} aria-modal="true"><button className="icon-button" onClick={() => setActiveReferencePreview(null)} type="button" aria-label="关闭预览"><X size={18} /></button><img alt={`宝宝参考图 ${activeReferencePreview.index + 1} 大图`} src={activeReferencePreview.url} /><div className="body-book-lightbox-meta"><strong>宝宝参考图 {activeReferencePreview.index + 1}</strong></div></section></div> : null}
       {activePageReferencePage ? <div className="modal-backdrop body-book-page-reference-modal" onClick={() => setActivePageReferenceKey("")} role="presentation"><section className="body-book-project-modal body-book-page-reference-modal-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`修改${activePageReferencePage.title}的参考图`} aria-modal="true"><button className="icon-button" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onClick={() => setActivePageReferenceKey("")} type="button" aria-label="关闭修改参考图"><X size={18} /></button><p className="body-book-kicker">References</p><h2>修改参考图</h2><p>替换、删除或增加本页使用的参考图，不影响其他页面。</p><div className="body-book-page-reference-editor-list">{activePageReferenceUrls.map((referenceUrl, index) => <div className="body-book-page-reference-editor-item" key={`${referenceUrl}-${index}`}><img alt={`${activePageReferencePage.title} 参考图 ${index + 1}`} decoding="async" src={activePageReferenceThumbnailUrls[index] || referenceUrl} /><div><strong>参考图 {index + 1}</strong><label className="draw-card-secondary"><RefreshCw size={15} /><span>替换参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onChange={(event) => { updatePageReference(activePageReferencePage, event.target.files?.[0] || null, index); event.target.value = ""; }} type="file" /></label></div><button aria-label={`删除第 ${index + 1} 张参考图`} className="body-book-page-reference-editor-remove icon-button" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status) || activePageReferenceUrls.length <= 1} onClick={() => removePageReference(activePageReferencePage, index)} title={activePageReferenceUrls.length <= 1 ? "每页至少保留 1 张参考图" : "删除参考图"} type="button"><X size={16} /></button></div>)}{activePageReferenceUrls.length < 3 ? <label aria-label="增加参考图" className="body-book-page-reference-editor-add" title="增加参考图"><Plus size={24} /><span>增加参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onChange={(event) => { updatePageReference(activePageReferencePage, event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label> : null}</div></section></div> : null}
 
@@ -9965,23 +9963,8 @@ async function fetchBodyBookProject(projectId) {
   return payload;
 }
 
-async function downloadBodyBookProjectPage(projectId, page) {
-  const response = await fetch(`/api/body-book/projects/${encodeURIComponent(projectId)}/pages/${encodeURIComponent(page.key)}/download-original`, {
-    credentials: "same-origin"
-  });
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.message || "下载认知书原图失败，请稍后再试。");
-  }
-  const extension = page?.result?.mimeType === "image/svg+xml" ? "svg" : "png";
-  const url = URL.createObjectURL(await response.blob());
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `my-first-book-${page?.key || "page"}.${extension}`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+function getBodyBookProjectPageOriginalUrl(projectId, page) {
+  return `/api/body-book/projects/${encodeURIComponent(projectId)}/pages/${encodeURIComponent(page.key)}/download-original?inline=1`;
 }
 
 async function createBodyBookProject(formData) {

@@ -2210,7 +2210,7 @@ app.get("/api/body-book/projects/:sessionId/pages/:pageKey/download-original", r
     }
     const file = await resolveBodyBookPageImageFile(page);
     if (!file) throw createHttpError(404, "该认知书原图不存在。");
-    await sendBodyBookOriginalImage(res, page, file);
+    await sendBodyBookOriginalImage(res, page, file, { inline: String(req.query?.inline || "") === "1" });
   } catch (error) {
     next(error);
   }
@@ -8916,11 +8916,11 @@ async function sendPublicClipOriginalImage(res, job, resolvedFile = "") {
   res.sendFile(file);
 }
 
-async function sendBodyBookOriginalImage(res, page, file) {
+async function sendBodyBookOriginalImage(res, page, file, { inline = false } = {}) {
   const extension = path.extname(file).toLowerCase() || ".png";
   const safeKey = String(page?.key || "page").replace(/[^a-z0-9_-]/gi, "-") || "page";
   const filename = `my-first-book-${safeKey}${extension}`;
-  res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+  res.setHeader("Content-Disposition", `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(filename)}`);
   res.setHeader("Cache-Control", "private, no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.type(mimeForExtension(extension) || "application/octet-stream");
