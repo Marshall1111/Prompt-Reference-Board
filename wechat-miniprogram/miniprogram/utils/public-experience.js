@@ -136,7 +136,7 @@ function unlikeJob(jobId) {
 
 function redeemInviteCode(code) {
   return publicApi.request({
-    path: "/api/invite-codes/redeem",
+    path: "/api/redemption-codes/redeem",
     method: "POST",
     header: {
       "Content-Type": "application/json"

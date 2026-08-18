@@ -125,12 +125,12 @@
             <text class="account-access">{{visitorState && visitorState.account && visitorState.account.canRedeemOriginalDownloads ? '已解锁账户下全部原图下载' : '购买币累计满 20 元或完成定制订单可解锁原图下载'}}</text>
           </view>
           <text>账户币：{{visitorState && visitorState.account ? visitorState.account.coinBalance : '--'}}</text>
-          <input bindinput="onInviteInput" class="inline-input" placeholder="输入邀请码" value="{{inviteCode}}" />
+          <input bindinput="onInviteInput" class="inline-input" placeholder="输入兑换码" value="{{inviteCode}}" />
           <view class="clip-actions">
             <button bindtap="openCoinPurchase" class="secondary-button" wx:if="{{isDrawCard}}">购买币</button>
             <button bindtap="openOrderModal" class="primary-button" disabled="{{!clipItems.length || !orderConfig || !orderConfig.enabled}}" wx:if="{{isDrawCard}}">选图定制</button>
             <button bindtap="openOrders" class="secondary-button" wx:if="{{isDrawCard}}">我的订单</button>
-            <button bindtap="redeemInvite" class="secondary-button">兑换邀请码</button>
+            <button bindtap="redeemInvite" class="secondary-button">兑换</button>
             <button bindtap="copyContact" class="secondary-button">联系客服</button>
             <button bindtap="toggleAccountMenu" class="secondary-button">{{isAccountRegistered ? '账号菜单' : '登录 / 注册'}}</button>
           </view>
@@ -360,9 +360,9 @@
         <button bindtap="prepareReferralShare" class="secondary-button coin-referral-button" disabled="{{isPreparingReferral || !referralSharePath}}" open-type="share">{{isPreparingReferral ? '准备邀请中…' : '邀新获币'}}</button>
       </view>
       <text class="coin-info-error" wx:if="{{referralError}}">{{referralError}}</text>
-      <text class="field-label">邀请码</text>
-      <input bindinput="onInviteInput" class="form-input" placeholder="输入邀请码" value="{{inviteCode}}" />
-      <button bindtap="redeemInvite" class="primary-button coin-redeem-button" disabled="{{!inviteCode}}">兑换邀请码</button>
+      <text class="field-label">兑换码</text>
+      <input bindinput="onInviteInput" class="form-input" placeholder="输入兑换码" value="{{inviteCode}}" />
+      <button bindtap="redeemInvite" class="primary-button coin-redeem-button" disabled="{{!inviteCode}}">兑换</button>
     </view>
   </view>
 
@@ -386,7 +386,7 @@
       </view>
       <text class="coin-purchase-payable">应付 <text>{{coinPurchaseAmountText}}</text></text>
       <text class="coin-purchase-discount-note">购买 {{coinPurchaseCount}} 币后，自动获得 {{coinPurchaseCount}} 元实体冰箱贴优惠券，首枚定制仅需 {{coinPurchaseFirstMagnetPriceYuan}} 元。（每枚冰箱贴优惠上限 15 元）</text>
-      <text class="coin-purchase-note">赠送币和邀请码兑换币不参与冰箱贴优惠抵扣。</text>
+      <text class="coin-purchase-note">赠送币和兑换码兑换币不参与冰箱贴优惠抵扣。</text>
       <text class="coin-purchase-error" wx:if="{{coinPurchaseError}}">{{coinPurchaseError}}</text>
 
       <view class="coin-purchase-actions">

@@ -217,6 +217,34 @@ export function createCommerceStore({ dbPath }) {
       FOREIGN KEY (payment_intent_id) REFERENCES commerce_payment_intents(id) ON DELETE CASCADE
     );
 
+    -- A redemption code can grant physical-product rights in addition to coins
+    -- and beans. Keep these rights in SQLite (rather than the code JSON file)
+    -- so redemption and order fulfilment can be audited independently.
+    CREATE TABLE IF NOT EXISTS commerce_redemption_entitlements (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      code_id TEXT NOT NULL,
+      entitlement_type TEXT NOT NULL,
+      quantity_total INTEGER NOT NULL,
+      quantity_remaining INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(account_id, code_id, entitlement_type),
+      FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS commerce_redemption_entitlement_consumptions (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      entitlement_type TEXT NOT NULL,
+      quantity INTEGER NOT NULL,
+      reference_id TEXT NOT NULL,
+      allocation_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL,
+      UNIQUE(account_id, entitlement_type, reference_id),
+      FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS commerce_body_book_discount_reservations (
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL,
@@ -292,6 +320,8 @@ export function createCommerceStore({ dbPath }) {
     CREATE INDEX IF NOT EXISTS idx_commerce_account_visitors_visitor ON commerce_account_visitors(visitor_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_payment_intents_account ON commerce_payment_intents(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_payment_intents_transaction ON commerce_payment_intents(transaction_id);
+    CREATE INDEX IF NOT EXISTS idx_commerce_redemption_entitlements_account ON commerce_redemption_entitlements(account_id, entitlement_type, created_at);
+    CREATE INDEX IF NOT EXISTS idx_commerce_redemption_consumptions_account ON commerce_redemption_entitlement_consumptions(account_id, entitlement_type, reference_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_body_book_discount_reservations_account ON commerce_body_book_discount_reservations(account_id, status, expires_at);
     CREATE INDEX IF NOT EXISTS idx_commerce_fridge_coin_discount_reservations_account ON commerce_fridge_coin_discount_reservations(account_id, status, expires_at);
     CREATE INDEX IF NOT EXISTS idx_commerce_credit_ledger_account ON commerce_credit_ledger(account_id, created_at DESC);
@@ -1481,6 +1511,114 @@ export function createCommerceStore({ dbPath }) {
     return items.length;
   }
 
+  function normalizeRedemptionEntitlementQuantity(value) {
+    return Math.max(0, Math.trunc(Number(value || 0)));
+  }
+
+  function getRedemptionEntitlementSummary(accountId) {
+    const safeAccountId = String(accountId || "");
+    const rows = db.prepare(`
+      SELECT entitlement_type, COALESCE(SUM(quantity_remaining), 0) AS quantity
+      FROM commerce_redemption_entitlements
+      WHERE account_id = ?
+      GROUP BY entitlement_type
+    `).all(safeAccountId);
+    const byType = new Map(rows.map((row) => [String(row.entitlement_type || ""), Number(row.quantity || 0)]));
+    return {
+      fridgeMagnetItemCount: Math.max(0, byType.get("fridge_magnet_item") || 0),
+      bodyBookPrintCount: Math.max(0, byType.get("body_book_print") || 0)
+    };
+  }
+
+  function grantRedemptionEntitlements({ accountId, codeId, fridgeMagnetItemCount = 0, bodyBookPrintCount = 0 }) {
+    return withTransaction(db, () => {
+      const account = readAccount(accountId);
+      if (!account) throw new Error("账户不存在。");
+      const now = nowIso();
+      const grants = [
+        ["fridge_magnet_item", normalizeRedemptionEntitlementQuantity(fridgeMagnetItemCount)],
+        ["body_book_print", normalizeRedemptionEntitlementQuantity(bodyBookPrintCount)]
+      ];
+      const insert = db.prepare(`
+        INSERT OR IGNORE INTO commerce_redemption_entitlements (
+          id, account_id, code_id, entitlement_type, quantity_total, quantity_remaining, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      grants.forEach(([entitlementType, quantity]) => {
+        if (!quantity) return;
+        insert.run(randomUUID(), account.id, String(codeId || ""), entitlementType, quantity, quantity, now, now);
+      });
+      return getRedemptionEntitlementSummary(account.id);
+    });
+  }
+
+  function consumeRedemptionEntitlement({ accountId, entitlementType, quantity = 1, referenceId }) {
+    return withTransaction(db, () => {
+      const safeAccountId = String(accountId || "");
+      const safeType = String(entitlementType || "");
+      const safeReferenceId = String(referenceId || "");
+      const requestedQuantity = normalizeRedemptionEntitlementQuantity(quantity);
+      if (!safeAccountId || !safeType || !safeReferenceId || !requestedQuantity) throw new Error("兑换权益参数无效。");
+      const existing = db.prepare(`
+        SELECT * FROM commerce_redemption_entitlement_consumptions
+        WHERE account_id = ? AND entitlement_type = ? AND reference_id = ?
+      `).get(safeAccountId, safeType, safeReferenceId);
+      if (existing) return { consumedNow: false, summary: getRedemptionEntitlementSummary(safeAccountId) };
+      const entitlements = db.prepare(`
+        SELECT id, quantity_remaining FROM commerce_redemption_entitlements
+        WHERE account_id = ? AND entitlement_type = ? AND quantity_remaining > 0
+        ORDER BY created_at ASC, id ASC
+      `).all(safeAccountId, safeType);
+      const available = entitlements.reduce((sum, entitlement) => sum + Number(entitlement.quantity_remaining || 0), 0);
+      if (available < requestedQuantity) throw new Error("可用兑换权益不足。");
+      let remainingToConsume = requestedQuantity;
+      const allocations = [];
+      const decrement = db.prepare(`
+        UPDATE commerce_redemption_entitlements
+        SET quantity_remaining = quantity_remaining - ?, updated_at = ?
+        WHERE id = ? AND quantity_remaining >= ?
+      `);
+      for (const entitlement of entitlements) {
+        if (!remainingToConsume) break;
+        const used = Math.min(remainingToConsume, Number(entitlement.quantity_remaining || 0));
+        decrement.run(used, nowIso(), entitlement.id, used);
+        allocations.push({ id: String(entitlement.id), quantity: used });
+        remainingToConsume -= used;
+      }
+      db.prepare(`
+        INSERT INTO commerce_redemption_entitlement_consumptions (
+          id, account_id, entitlement_type, quantity, reference_id, allocation_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), safeAccountId, safeType, requestedQuantity, safeReferenceId, JSON.stringify(allocations), nowIso());
+      return { consumedNow: true, summary: getRedemptionEntitlementSummary(safeAccountId) };
+    });
+  }
+
+  function restoreRedemptionEntitlement({ accountId, entitlementType, referenceId }) {
+    return withTransaction(db, () => {
+      const safeAccountId = String(accountId || "");
+      const safeType = String(entitlementType || "");
+      const safeReferenceId = String(referenceId || "");
+      const consumption = db.prepare(`
+        SELECT * FROM commerce_redemption_entitlement_consumptions
+        WHERE account_id = ? AND entitlement_type = ? AND reference_id = ?
+      `).get(safeAccountId, safeType, safeReferenceId);
+      if (!consumption) return false;
+      const allocations = safeJsonParse(consumption.allocation_json, []);
+      const restore = db.prepare(`
+        UPDATE commerce_redemption_entitlements
+        SET quantity_remaining = quantity_remaining + ?, updated_at = ?
+        WHERE id = ? AND account_id = ?
+      `);
+      (Array.isArray(allocations) ? allocations : []).forEach((allocation) => {
+        const quantity = normalizeRedemptionEntitlementQuantity(allocation?.quantity);
+        if (quantity && allocation?.id) restore.run(quantity, nowIso(), String(allocation.id), safeAccountId);
+      });
+      db.prepare("DELETE FROM commerce_redemption_entitlement_consumptions WHERE id = ?").run(consumption.id);
+      return true;
+    });
+  }
+
   function grantCredits({ accountId, amount, referenceType, referenceId, reason = "promotion" }) {
     return withTransaction(db, () => appendLedger(accountId, Math.max(0, Math.trunc(Number(amount || 0))), {
       reason,
@@ -1786,6 +1924,7 @@ export function createCommerceStore({ dbPath }) {
     createEmailVerification,
     createUserSession,
     createPaymentIntent,
+    consumeRedemptionEntitlement,
     cancelPaymentIntentByOutTradeNo,
     hidePaymentIntentForUser,
     debitCredits,
@@ -1802,6 +1941,8 @@ export function createCommerceStore({ dbPath }) {
     grantBeans,
     getBodyBookDiscountSummary,
     getFridgeCoinDiscountSummary,
+    getRedemptionEntitlementSummary,
+    grantRedemptionEntitlements,
     getOrCreateReferralLink,
     getReferralSummary,
     releaseReferralPaymentForOrder,
@@ -1832,6 +1973,7 @@ export function createCommerceStore({ dbPath }) {
     replacePaymentIntentOutTradeNo,
     recordPaymentEvent,
     redeemOriginalImage,
+    restoreRedemptionEntitlement,
     releaseBodyBookDiscountReservation,
     releaseFridgeCoinDiscountReservation,
     reserveBodyBookDiscount,

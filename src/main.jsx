@@ -203,8 +203,8 @@ const DRAW_CARD_EXPERIENCE_CONFIG = {
   clipKicker: "Card clip",
   clipTitle: "卡夹",
   clipEmptyText: "挑中想保留的结果后，它会被收进这里，并在你下次回来时继续保留。",
-  clipInvitePlaceholder: "输入邀请码",
-  clipContactFallback: "如需更多生图机会，请联系客服填写邀请码。",
+  clipInvitePlaceholder: "输入兑换码",
+  clipContactFallback: "如需更多生图机会，请联系客服领取兑换码。",
   errorTitle: "这一轮没有顺利完成。",
   restoreErrorMessage: "恢复上次抽卡进度失败，请稍后再试。",
   readErrorMessage: "读取抽卡状态失败，请稍后再试。",
@@ -213,7 +213,7 @@ const DRAW_CARD_EXPERIENCE_CONFIG = {
   clipErrorMessage: "读取卡夹失败，请稍后再试。",
   addClipErrorMessage: "加入卡夹失败，请稍后再试。",
   removeClipErrorMessage: "移出卡夹失败，请稍后再试。",
-  inviteErrorMessage: "邀请码兑换失败，请稍后再试。",
+  inviteErrorMessage: "兑换码兑换失败，请稍后再试。",
   originalAlt: "抽卡原图",
   resultAltPrefix: "抽卡结果",
   previewAlt: "待抽卡图片预览",
@@ -243,8 +243,8 @@ const FRIDGE_MAGNET_EXPERIENCE_CONFIG = {
   clipKicker: "Pocket",
   clipTitle: "口袋",
   clipEmptyText: "挑中想保留的冰箱贴后，它会被收进口袋，并在你下次回来时继续保留。",
-  clipInvitePlaceholder: "输入邀请码",
-  clipContactFallback: "如需更多制作次数，请联系客服填写邀请码。",
+  clipInvitePlaceholder: "输入兑换码",
+  clipContactFallback: "如需更多制作次数，请联系客服领取兑换码。",
   pocketAddLabel: "加入口袋",
   pocketAddedLabel: "已入口袋",
   pocketRemoveLabel: "移出口袋",
@@ -256,7 +256,7 @@ const FRIDGE_MAGNET_EXPERIENCE_CONFIG = {
   clipErrorMessage: "读取冰箱贴收藏失败，请稍后再试。",
   addClipErrorMessage: "加入口袋失败，请稍后再试。",
   removeClipErrorMessage: "移出口袋失败，请稍后再试。",
-  inviteErrorMessage: "邀请码兑换失败，请稍后再试。",
+  inviteErrorMessage: "兑换码兑换失败，请稍后再试。",
   originalAlt: "冰箱贴原图",
   resultAltPrefix: "冰箱贴结果",
   previewAlt: "待制作冰箱贴图片预览",
@@ -1013,7 +1013,7 @@ function AdminApp({ navigate, route }) {
             </button>
             <button className="nav-button" onClick={() => navigate("admin-invites")} type="button">
               <Sparkles size={18} />
-              <span>邀请码</span>
+              <span>兑换码</span>
             </button>
             <button className="nav-button" onClick={() => navigate("admin-api-providers")} type="button">
               <ImageUp size={18} />
@@ -1437,7 +1437,7 @@ function LegacyBodyBookPage() {
       setVisitorState(payload);
       setInviteCode("");
     } catch (nextError) {
-      setError(nextError.message || "邀请码兑换失败，请稍后再试。");
+      setError(nextError.message || "兑换码兑换失败，请稍后再试。");
     } finally {
       setIsSubmitting(false);
     }
@@ -1591,9 +1591,9 @@ function LegacyBodyBookPage() {
             <span className="body-book-wallet-label">我的豆豆</span>
             <strong>{visitorState ? `${visitorState.account?.beanBalance || 0} 个豆豆` : "--"}</strong>
             <p>{billingEnabled ? "认知书封面、内页和重新生成均消耗豆豆。" : "内测阶段，认知书暂不消耗豆豆。"}</p>
-            <label className="body-book-wallet-field"><span>邀请码</span><input disabled={isSubmitting} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} /></label>
+            <label className="body-book-wallet-field"><span>兑换码</span><input disabled={isSubmitting} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入兑换码" value={inviteCode} /></label>
             <div className="body-book-wallet-actions">
-              <button className="draw-card-primary" disabled={isSubmitting || !inviteCode.trim()} onClick={redeemBookInvite} type="button">兑换邀请码</button>
+              <button className="draw-card-primary" disabled={isSubmitting || !inviteCode.trim()} onClick={redeemBookInvite} type="button">兑换</button>
               <button className="draw-card-secondary" onClick={() => setShowContactModal(true)} type="button">联系客服</button>
             </div>
           </aside>
@@ -1828,9 +1828,11 @@ function BodyBookPage() {
   const allAvailableKeys = pages.filter((page) => !page.isBuiltIn && !["queued", "running"].includes(page.status)).map((page) => page.key);
   const bodyBookPricing = orderConfig?.bodyBook || {};
   const beanPurchaseDiscount = visitorState?.beanPurchaseDiscount || { availableCents: 0 };
+  const redemptionEntitlements = visitorState?.redemptionEntitlements || { fridgeMagnetItemCount: 0, bodyBookPrintCount: 0 };
+  const hasBodyBookPrintRedemption = Number(redemptionEntitlements.bodyBookPrintCount || 0) > 0;
   const bookOrderGrossCents = Number(bodyBookPricing.priceCents || 0) + Number(bodyBookPricing.shippingFeeCents || 0);
   const bookOrderDiscountPreviewCents = Math.min(4000, bookOrderGrossCents, Math.max(0, Number(beanPurchaseDiscount.availableCents || 0)));
-  const bookOrderPayablePreviewCents = Math.max(0, bookOrderGrossCents - bookOrderDiscountPreviewCents);
+  const bookOrderPayablePreviewCents = hasBodyBookPrintRedemption ? 0 : Math.max(0, bookOrderGrossCents - bookOrderDiscountPreviewCents);
   const usesPairedPresetLayout = activeTheme?.id === "color"
     || project?.layoutVersion === "paired-preset-v2"
     || (!project && ["body", "transport", "animal"].includes(activeTheme?.id));
@@ -2428,7 +2430,7 @@ function BodyBookPage() {
       setVisitorState(await redeemInviteCode(inviteCode.trim()));
       setInviteCode("");
     } catch (nextError) {
-      setError(nextError.message || "邀请码兑换失败，请稍后再试。");
+      setError(nextError.message || "兑换码兑换失败，请稍后再试。");
     } finally {
       setBusy(false);
     }
@@ -2487,7 +2489,7 @@ function BodyBookPage() {
         <section className="body-book-content-panel">
           <div className="body-book-project-pages-head"><div><span className="body-book-step">03</span><h3>内容选择</h3><p>{usesPairedPresetLayout ? "制作时仅选择封面和各主题专属认知页；对应内置认知页会在下单预览中自动加入。" : "每张卡片可单独替换参考图并生成。"}</p><p className="body-book-selection-progress">{selectionProgressText}</p></div></div>
           <div className="body-book-grid body-book-project-grid">{pages.map((page) => <BodyBookProjectItem busy={busy} busyPageKey={busyPageKey} key={`${page.key}-${page.jobId || "new"}`} onDelete={() => savePageSelection(selectedKeys.filter((key) => key !== page.key))} onDownload={() => { void downloadBookOriginal(page); }} onEditReferences={() => setActivePageReferenceKey(page.key)} onGenerate={() => submitGeneration([page.key], page.key)} onOpen={openActiveItem} page={page} />)}<button className="body-book-add-page-card" disabled={busy} onClick={openContentPicker} type="button" aria-label="添加或编辑内容"><Plus size={36} /><span>添加内容</span></button>{!pages.length ? <p className="body-book-library-empty">点击“添加内容”选择要制作的页面。</p> : null}</div>
-          <div className="body-book-content-panel-actions"><div className="body-book-content-panel-order-actions"><button className="draw-card-secondary" onClick={() => setShowBatchDialog(true)} type="button">{busy && !busyPageKey ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}<span>批量生成</span></button><button className="draw-card-primary" onClick={openBookCheckout} type="button">下单实体书 · {formatCurrencyCents(bookOrderPayablePreviewCents)}</button></div></div>
+          <div className="body-book-content-panel-actions"><div className="body-book-content-panel-order-actions"><button className="draw-card-secondary" onClick={() => setShowBatchDialog(true)} type="button">{busy && !busyPageKey ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}<span>批量生成</span></button><button className="draw-card-primary" onClick={openBookCheckout} type="button">{hasBodyBookPrintRedemption ? `使用实体书兑换券（剩余 ${redemptionEntitlements.bodyBookPrintCount} 册）` : `下单实体书 · ${formatCurrencyCents(bookOrderPayablePreviewCents)}`}</button></div></div>
         </section>
       </section>}
 
@@ -2505,7 +2507,7 @@ function BodyBookPage() {
       {historyTheme ? <div className="modal-backdrop" onClick={() => !busy && setHistoryTheme(null)} role="presentation"><section className="body-book-project-modal body-book-history-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择历史认知书工程"><button className="icon-button" disabled={busy} onClick={() => setHistoryTheme(null)} type="button"><X size={18} /></button><p className="body-book-kicker">Existing projects</p><h2>{historyTheme.name}已有历史工程</h2><p>请选择继续历史任务，或新建一本独立工程。</p><div className="body-book-history-list">{historyProjects.map((book) => <button key={book.sessionId} onClick={() => openProject(book.sessionId)} type="button">{book.thumbnail ? <img alt="工程缩略图" src={book.thumbnail} /> : <span className="body-book-history-placeholder">{book.theme?.name}</span>}<span><strong>{book.title}</strong><small>{formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></span></button>)}</div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={() => startNewDraft(historyTheme)} type="button">创建新的工程</button></div></section></div> : null}
 
       {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀请好友"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀请好友</h2><p>邀请新用户注册，即得 <strong>5 豆 + 5 币</strong>；好友每笔实付订单还可返你 <strong>20% 推荐币</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
-      {showBeanInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowBeanInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的豆豆"><button className="icon-button" onClick={() => setShowBeanInfo(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">My beans</p><h2>我的豆豆</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong> 豆</p><p className="body-book-bean-cost-note">已购豆豆剩余可抵扣额度：<strong>{formatCurrencyCents(Math.max(0, Number(beanPurchaseDiscount.availableCents || 0)))}</strong></p><p className="body-book-bean-cost-note">{billingEnabled ? "每张成功生成的图片消耗 1 个豆豆。" : "内测阶段，认知书暂不消耗豆豆。"}</p><ul className="body-book-bean-benefits"><li>成功购买 1 元豆豆，可获得 1 元认知书优惠额度。</li><li>认知书每单最多抵扣 40 元；赠送豆豆不参与抵扣。</li><li>认知书按实付金额赠豆，每实付满 1 元赠 1 豆。</li><li>邀请新用户注册可获得 5 豆和 5 币；好友每笔实付订单返 20% 推荐币。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openBeanPurchase} type="button">购买豆豆</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); openReferral(); }} type="button">邀请好友</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); setShowContactModal(true); }} type="button">联系客服</button></div><label className="body-book-wallet-field"><span>邀请码</span><input disabled={busy} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={busy || !inviteCode.trim()} onClick={redeemBookInvite} type="button">兑换邀请码</button></div></section></div> : null}
+      {showBeanInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowBeanInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的豆豆"><button className="icon-button" onClick={() => setShowBeanInfo(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">My beans</p><h2>我的豆豆</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong> 豆</p><p className="body-book-bean-cost-note">已购豆豆剩余可抵扣额度：<strong>{formatCurrencyCents(Math.max(0, Number(beanPurchaseDiscount.availableCents || 0)))}</strong></p><p className="body-book-bean-cost-note">{billingEnabled ? "每张成功生成的图片消耗 1 个豆豆。" : "内测阶段，认知书暂不消耗豆豆。"}</p><ul className="body-book-bean-benefits"><li>成功购买 1 元豆豆，可获得 1 元认知书优惠额度。</li><li>认知书每单最多抵扣 40 元；赠送豆豆不参与抵扣。</li><li>认知书按实付金额赠豆，每实付满 1 元赠 1 豆。</li><li>邀请新用户注册可获得 5 豆和 5 币；好友每笔实付订单返 20% 推荐币。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openBeanPurchase} type="button">购买豆豆</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); openReferral(); }} type="button">邀请好友</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); setShowContactModal(true); }} type="button">联系客服</button></div><label className="body-book-wallet-field"><span>兑换码</span><input disabled={busy} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入兑换码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={busy || !inviteCode.trim()} onClick={redeemBookInvite} type="button">兑换</button></div></section></div> : null}
       {showBeanPurchase ? <BeanPurchaseModal beanCount={beanPurchaseCount} busy={beanPurchaseBusy} error={beanPurchaseError} onClose={() => !beanPurchaseBusy && setShowBeanPurchase(false)} onCountChange={setBeanPurchaseCount} onRestart={restartBeanPurchase} onRetry={() => prepareBeanPurchase(beanPurchase?.id)} onSubmit={submitBeanPurchase} payment={beanPurchasePayment} purchase={beanPurchase} /> : null}
       {showBookCheckout ? <div className="modal-backdrop" onClick={() => !bookOrderBusy && setShowBookCheckout(false)} role="presentation"><section className="body-book-project-modal body-book-checkout-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="下单认知书实体书"><button className="icon-button" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Print your book</p><h2>{bookOrderBlockReason ? "暂时无法下单" : "下单认知书实体书"}</h2>{bookOrderBlockReason ? <><div className="body-book-checkout-blocked"><AlertTriangle size={24} /><p>{bookOrderBlockReason}</p></div><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={() => setShowBookCheckout(false)} type="button">知道了</button></div></> : <><p>以下为将要印刷的全部页面，共 {bookPreviewPages.length} 页；成书时会自动插入对应的内置认知页，不含固定封底。</p><div className="body-book-checkout-preview" aria-label="成书预览">{bookPreviewPages.map((page, index) => <figure className="body-book-checkout-preview-item" key={`${page.key}-${index}`}><img alt={`${page.title} 成书预览`} decoding="async" loading="lazy" src={getBodyBookThumbnail(page)} /><figcaption><span>第 {index + 1} 页</span><strong>{page.title}</strong></figcaption></figure>)}</div><div className="draw-card-order-summary"><p>实体书 {formatCurrencyCents(bodyBookPricing.priceCents)}</p><p>邮费 {Number(bodyBookPricing.shippingFeeCents || 0) > 0 ? formatCurrencyCents(bodyBookPricing.shippingFeeCents) : "包邮"}</p>{bookOrderDiscountPreviewCents > 0 ? <p>豆豆优惠 -{formatCurrencyCents(bookOrderDiscountPreviewCents)}（每单最多抵扣 40 元）</p> : null}<strong>实付 {formatCurrencyCents(bookOrderPayablePreviewCents)}</strong></div><div className="draw-card-order-form"><label className="field-label">收件人<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={bookOrderForm.receiverName} /></label><label className="field-label">手机号<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverPhone: event.target.value }))} type="tel" value={bookOrderForm.receiverPhone} /></label><label className="field-label">收货地址<input onChange={(event) => setBookOrderForm((current) => ({ ...current, address: event.target.value, addressDetail: event.target.value }))} type="text" value={bookOrderForm.address || bookOrderForm.addressDetail || ""} /></label><label className="field-label">备注<textarea onChange={(event) => setBookOrderForm((current) => ({ ...current, remark: event.target.value }))} rows="2" value={bookOrderForm.remark} /></label></div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button">取消</button><button className="draw-card-primary" disabled={bookOrderBusy} onClick={submitBookOrder} type="button">{bookOrderBusy ? "创建订单中" : "确定"}</button></div></>}</section></div> : null}
       {showAuthModal ? <AuthModal description={pendingBookOriginalDownloadRef.current ? "下载认知书原图前，请先注册并登录。" : ""} onAuthenticated={async () => { setShowAuthModal(false); const nextVisitorState = await fetchVisitorState(); setVisitorState(nextVisitorState); setBookOrderForm((current) => fillOrderAddressFromSaved(current, nextVisitorState?.account)); await loadSavedBooks(); if (pendingReferralRef.current) { pendingReferralRef.current = false; await showReferralDialog(); } if (pendingBookCheckoutRef.current) { pendingBookCheckoutRef.current = false; setShowBookCheckout(true); } if (pendingBeanPurchaseRef.current) { pendingBeanPurchaseRef.current = false; openBeanPurchase(); } const pendingDownload = pendingBookOriginalDownloadRef.current; pendingBookOriginalDownloadRef.current = null; if (pendingDownload) await downloadBookOriginal(pendingDownload.page, pendingDownload.projectId); }} onClose={() => { pendingReferralRef.current = false; pendingBookCheckoutRef.current = false; pendingBeanPurchaseRef.current = false; pendingBookOriginalDownloadRef.current = null; setShowAuthModal(false); }} reloadOnLogin={false} /> : null}
@@ -4501,6 +4503,10 @@ function PublicExperiencePage({ config }) {
       });
       saveOrderAddress(visitorState?.account, orderForm);
       setShowOrderModal(false);
+      if (created.payment?.status === "already_paid") {
+        goToOrderDetail(created.order.id, created.order.publicToken);
+        return;
+      }
       if (created.payment?.mode === "wechat") {
         goToOrderDetail(created.order.id, created.order.publicToken);
         return;
@@ -4525,7 +4531,9 @@ function PublicExperiencePage({ config }) {
         Math.max(0, Number(visitorState?.coinPurchaseDiscount?.availableCents || 0))
       )
     : 0;
-  const orderPayablePreviewCents = Math.max(0, orderAmountPreview.totalCents - orderCoinDiscountPreviewCents);
+  const fridgeMagnetRedemptionCount = Math.max(0, Number(visitorState?.redemptionEntitlements?.fridgeMagnetItemCount || 0));
+  const usesFridgeMagnetRedemption = experienceType === "fridge-magnet" && fridgeMagnetRedemptionCount >= totalOrderItemCount && totalOrderItemCount > 0;
+  const orderPayablePreviewCents = usesFridgeMagnetRedemption ? 0 : Math.max(0, orderAmountPreview.totalCents - orderCoinDiscountPreviewCents);
   const recentManualOrderLink = isActiveLatestManualOrder(latestManualOrder)
     ? buildOrderDetailUrl(latestManualOrder.orderId, latestManualOrder.publicToken)
     : "";
@@ -4683,7 +4691,7 @@ function PublicExperiencePage({ config }) {
               }}
               type="button"
             >
-              <span>兑换邀请码</span>
+              <span>兑换</span>
             </button>
             {experienceType === "draw-card" && visitorState?.account?.isRegistered ? (
               <button className="draw-card-secondary" onClick={() => window.location.assign("/fridge/orders")} type="button">
@@ -5141,7 +5149,7 @@ function PublicExperiencePage({ config }) {
         </div>
       ) : null}
 
-      {showCoinInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowCoinInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的币"><button className="icon-button" onClick={() => setShowCoinInfo(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><p className="draw-card-kicker">My coins</p><h2>我的币</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.coinBalance || 0 : "--"}</strong> 币</p><p className="body-book-bean-cost-note">已购币剩余可抵扣额度：<strong>{formatCurrencyCents(Math.max(0, Number(visitorState?.coinPurchaseDiscount?.availableCents || 0)))}</strong></p><ul className="body-book-bean-benefits"><li>成功购买 1 元币，可获得 1 元冰箱贴优惠额度。</li><li>每枚冰箱贴最多抵扣 15 元；同一订单可按数量累计抵扣。</li><li>冰箱贴订单支付成功后，按抵扣后实付金额赠送等额币。</li><li>邀请新用户注册可获得 5 豆和 5 币；好友每笔实付订单返 20% 推荐币。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openCoinPurchase} type="button">购买币</button><button className="draw-card-secondary" onClick={() => { setShowCoinInfo(false); openReferral(); }} type="button">邀请好友</button></div><label className="body-book-wallet-field"><span>邀请码</span><input disabled={isSubmitting} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入邀请码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={isSubmitting || !inviteCode.trim()} onClick={async () => { try { setIsSubmitting(true); const payload = await redeemInviteCode(inviteCode); setVisitorState(payload); setInviteCode(""); setError(""); } catch (nextError) { setError(nextError.message || inviteErrorMessage); } finally { setIsSubmitting(false); } }} type="button">兑换邀请码</button></div></section></div> : null}
+      {showCoinInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowCoinInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的币"><button className="icon-button" onClick={() => setShowCoinInfo(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><p className="draw-card-kicker">My coins</p><h2>我的币</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.coinBalance || 0 : "--"}</strong> 币</p><p className="body-book-bean-cost-note">已购币剩余可抵扣额度：<strong>{formatCurrencyCents(Math.max(0, Number(visitorState?.coinPurchaseDiscount?.availableCents || 0)))}</strong></p><ul className="body-book-bean-benefits"><li>成功购买 1 元币，可获得 1 元冰箱贴优惠额度。</li><li>每枚冰箱贴最多抵扣 15 元；同一订单可按数量累计抵扣。</li><li>冰箱贴订单支付成功后，按抵扣后实付金额赠送等额币。</li><li>邀请新用户注册可获得 5 豆和 5 币；好友每笔实付订单返 20% 推荐币。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openCoinPurchase} type="button">购买币</button><button className="draw-card-secondary" onClick={() => { setShowCoinInfo(false); openReferral(); }} type="button">邀请好友</button></div><label className="body-book-wallet-field"><span>兑换码</span><input disabled={isSubmitting} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入兑换码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={isSubmitting || !inviteCode.trim()} onClick={async () => { try { setIsSubmitting(true); const payload = await redeemInviteCode(inviteCode); setVisitorState(payload); setInviteCode(""); setError(""); } catch (nextError) { setError(nextError.message || inviteErrorMessage); } finally { setIsSubmitting(false); } }} type="button">兑换</button></div></section></div> : null}
       {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀请好友"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀请好友</h2><p>邀请新用户注册，即得 <strong>5 豆 + 5 币</strong>；好友每笔实付订单还可返你 <strong>20% 推荐币</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
       {showCoinPurchase ? <CoinPurchaseModal coinCount={coinPurchaseCount} busy={coinPurchaseBusy} error={coinPurchaseError} payment={coinPurchasePayment} purchase={coinPurchase} onClose={() => setShowCoinPurchase(false)} onCountChange={setCoinPurchaseCount} onRestart={restartCoinPurchase} onRetry={() => prepareCoinPurchase(coinPurchase?.id)} onSubmit={submitCoinPurchase} /> : null}
 
@@ -5242,6 +5250,7 @@ function PublicExperiencePage({ config }) {
               <p>单价 {formatCurrencyCents(orderAmountPreview.unitPriceCents)} / 只</p>
               <p>邮费 {orderAmountPreview.shippingFeeCents > 0 ? formatCurrencyCents(orderAmountPreview.shippingFeeCents) : "包邮"}</p>
               {orderCoinDiscountPreviewCents > 0 ? <p>已购币优惠 -{formatCurrencyCents(orderCoinDiscountPreviewCents)}（每枚最多抵扣 15 元）</p> : null}
+              {usesFridgeMagnetRedemption ? <p>将使用实体冰箱贴兑换权益 {totalOrderItemCount} 个（剩余 {fridgeMagnetRedemptionCount} 个）</p> : fridgeMagnetRedemptionCount ? <p>当前有 {fridgeMagnetRedemptionCount} 个实体冰箱贴兑换权益；本次数量不足以覆盖整单。</p> : null}
               <strong>实付 {formatCurrencyCents(orderPayablePreviewCents)}</strong>
               <span className="storage-note">1 只收邮费，2 只及以上包邮</span>
             </div>
@@ -7458,13 +7467,13 @@ async function deleteMyOrder(orderId, token = "") {
 }
 
 async function redeemInviteCode(code) {
-  const response = await fetch("/api/invite-codes/redeem", {
+  const response = await fetch("/api/redemption-codes/redeem", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code })
   });
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message || "邀请码兑换失败。");
+  if (!response.ok) throw new Error(payload.message || "兑换码兑换失败。");
   return payload;
 }
 
@@ -7623,31 +7632,31 @@ async function adminLogout() {
 }
 
 async function refreshInviteCodes() {
-  const response = await fetch("/api/admin/invite-codes");
+  const response = await fetch("/api/admin/redemption-codes");
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message || "读取邀请码失败。");
+  if (!response.ok) throw new Error(payload.message || "读取兑换码失败。");
   return payload.inviteCodes || [];
 }
 
 async function createInviteCodesRequest(payload) {
-  const response = await fetch("/api/admin/invite-codes", {
+  const response = await fetch("/api/admin/redemption-codes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || "创建邀请码失败。");
+  if (!response.ok) throw new Error(data.message || "创建兑换码失败。");
   return data;
 }
 
 async function updateInviteCodeRequest(id, payload) {
-  const response = await fetch(`/api/admin/invite-codes/${id}`, {
+  const response = await fetch(`/api/admin/redemption-codes/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || "更新邀请码失败。");
+  if (!response.ok) throw new Error(data.message || "更新兑换码失败。");
   return data;
 }
 
@@ -7769,10 +7778,10 @@ async function updateAdminOrder(orderId, payload) {
 }
 
 async function deleteInviteCodeRequest(id) {
-  const response = await fetch(`/api/admin/invite-codes/${id}`, { method: "DELETE" });
+  const response = await fetch(`/api/admin/redemption-codes/${id}`, { method: "DELETE" });
   if (!response.ok && response.status !== 204) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(data.message || "删除邀请码失败。");
+    throw new Error(data.message || "删除兑换码失败。");
   }
 }
 
@@ -8016,6 +8025,8 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
   const [prefix, setPrefix] = useState("");
   const [coinBonus, setCoinBonus] = useState(5);
   const [beanBonus, setBeanBonus] = useState(10);
+  const [fridgeMagnetItemCount, setFridgeMagnetItemCount] = useState(0);
+  const [bodyBookPrintCount, setBodyBookPrintCount] = useState(0);
   const [defaultCoinBonus, setDefaultCoinBonus] = useState(settings?.defaultCoinBonus ?? 5);
   const [defaultBeanBonus, setDefaultBeanBonus] = useState(settings?.defaultBeanBonus ?? 10);
   const [error, setError] = useState("");
@@ -8034,11 +8045,11 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
     setIsSubmitting(true);
     setError("");
     try {
-      await createInviteCodesRequest({ count, prefix, coinBonus, beanBonus });
+      await createInviteCodesRequest({ count, prefix, coinBonus, beanBonus, fridgeMagnetItemCount, bodyBookPrintCount });
       await onRefreshInviteCodes();
       setPrefix("");
     } catch (nextError) {
-      setError(nextError.message || "创建邀请码失败。");
+      setError(nextError.message || "创建兑换码失败。");
     } finally {
       setIsSubmitting(false);
     }
@@ -8058,23 +8069,23 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
   }
 
   async function deleteInvite(inviteCode) {
-    if (!window.confirm(`确定删除邀请码 ${inviteCode.code} 吗？删除后将无法兑换。`)) return;
+    if (!window.confirm(`确定删除兑换码 ${inviteCode.code} 吗？删除后将无法兑换。`)) return;
     setError("");
     try {
       await deleteInviteCodeRequest(inviteCode.id);
       await onRefreshInviteCodes();
     } catch (nextError) {
-      setError(nextError.message || "删除邀请码失败。");
+      setError(nextError.message || "删除兑换码失败。");
     }
   }
 
   return (
-    <section className="task-page" aria-label="邀请码与访问记录">
+    <section className="task-page redemption-admin-page" aria-label="兑换码与访问记录">
       <div className="task-toolbar">
         <div>
-          <p className="eyebrow">Invites</p>
-          <h2>邀请码与访问记录</h2>
-          <p className="storage-note">配置新访客默认奖励、创建邀请码，并查看最近访客的来源、停留、生成与下单情况。</p>
+          <p className="eyebrow">Redemption codes</p>
+          <h2>兑换码与访问记录</h2>
+          <p className="storage-note">配置新访客默认奖励、创建一次性兑换码，并查看最近访客的来源、停留、生成与下单情况。</p>
         </div>
         <button className="secondary-button" onClick={() => Promise.all([onRefreshInviteCodes(), onRefreshVisitorRecords(), onRefreshSettings()])} type="button">
           <RefreshCw size={18} />
@@ -8082,70 +8093,23 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
         </button>
       </div>
 
-      <div className="draw-card-upload-panel">
-        <label className="field-label">
-          新访客默认币数
-          <input max="999" min="0" onChange={(event) => setDefaultCoinBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={defaultCoinBonus} />
-        </label>
-        <label className="field-label">
-          新访客默认豆豆数
-          <input max="999" min="0" onChange={(event) => setDefaultBeanBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={defaultBeanBonus} />
-        </label>
-        <div className="card-actions generator-actions">
-          <button className="secondary-button" disabled={isSubmitting} onClick={saveSettings} type="button">
-            <Save size={18} />
-            <span>保存默认奖励</span>
-          </button>
-        </div>
-        <label className="field-label">
-          一次创建数量
-          <input max="20" min="1" onChange={(event) => setCount(Number(event.target.value) || 1)} type="number" value={count} />
-        </label>
-        <label className="field-label">
-          前缀
-          <input onChange={(event) => setPrefix(event.target.value.toUpperCase())} placeholder="例如 VIP" type="text" value={prefix} />
-        </label>
-        <label className="field-label">
-          每个邀请码币数
-          <input max="999" min="0" onChange={(event) => setCoinBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={coinBonus} />
-        </label>
-        <label className="field-label">
-          每个邀请码豆豆数
-          <input max="999" min="0" onChange={(event) => setBeanBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={beanBonus} />
-        </label>
-        <div className="card-actions generator-actions">
-          <button className="copy-button" disabled={isSubmitting} onClick={createCodes} type="button">
-            {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Plus size={18} />}
-            <span>{isSubmitting ? "创建中" : "创建邀请码"}</span>
-          </button>
-        </div>
-        {error ? <p className="error-note">{error}</p> : null}
-      </div>
+      <div className="redemption-admin-controls">
+        <section className="redemption-control-card">
+          <div className="redemption-control-head"><div><h3>新访客默认奖励</h3><p>注册后自动发放，不影响兑换码权益。</p></div><button className="secondary-button" disabled={isSubmitting} onClick={saveSettings} type="button"><Save size={16} /><span>保存</span></button></div>
+          <div className="redemption-field-grid defaults"><label className="field-label">默认币<input max="999" min="0" onChange={(event) => setDefaultCoinBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={defaultCoinBonus} /></label><label className="field-label">默认豆豆<input max="999" min="0" onChange={(event) => setDefaultBeanBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={defaultBeanBonus} /></label></div>
+        </section>
 
-      <div className="task-list">
-        {availableInviteCodes.map((inviteCode) => (
-          <article className="task-card" key={inviteCode.id}>
-            <div className={`task-status ${inviteCode.enabled ? "succeeded" : "cancelled"}`}>{inviteCode.enabled ? "启用中" : "已停用"}</div>
-            <div className="task-detail">
-              <div className="task-meta-row">
-                <strong>{inviteCode.code}</strong>
-                <span>{Number(inviteCode.coinBonus ?? inviteCode.quotaBonus ?? 5)} 币</span>
-                <span>{Number(inviteCode.beanBonus ?? 10)} 豆豆</span>
-                <span>已兑换 {inviteCode.redeemedCount}</span>
-                <span>剩余 {inviteCode.remainingRedemptions}</span>
-              </div>
-              <p className="storage-note">创建于 {formatDateTime(inviteCode.createdAt)}</p>
-            </div>
-            <div className="task-actions">
-              <button className="danger-button" onClick={() => deleteInvite(inviteCode)} type="button">
-                <Trash2 size={18} />
-                <span>删除</span>
-              </button>
-            </div>
-          </article>
-        ))}
-        {!availableInviteCodes.length ? <p className="empty-note">当前没有可继续兑换的邀请码。</p> : null}
+        <section className="redemption-control-card create-card">
+          <div className="redemption-control-head"><div><h3>创建兑换码</h3><p>每个兑换码仅可兑换一次，可叠加虚拟余额和实体定制权益。</p></div><button className="copy-button" disabled={isSubmitting} onClick={createCodes} type="button">{isSubmitting ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}<span>{isSubmitting ? "创建中" : "创建"}</span></button></div>
+          <div className="redemption-field-grid"><label className="field-label">数量<input max="20" min="1" onChange={(event) => setCount(Number(event.target.value) || 1)} type="number" value={count} /></label><label className="field-label">前缀<input onChange={(event) => setPrefix(event.target.value.toUpperCase())} placeholder="例如 SHOP" type="text" value={prefix} /></label><label className="field-label">币<input max="999" min="0" onChange={(event) => setCoinBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={coinBonus} /></label><label className="field-label">豆豆<input max="999" min="0" onChange={(event) => setBeanBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={beanBonus} /></label><label className="field-label">冰箱贴（个）<input max="999" min="0" onChange={(event) => setFridgeMagnetItemCount(clampInviteQuotaBonus(event.target.value))} type="number" value={fridgeMagnetItemCount} /></label><label className="field-label">实体认知书（册）<input max="999" min="0" onChange={(event) => setBodyBookPrintCount(clampInviteQuotaBonus(event.target.value))} type="number" value={bodyBookPrintCount} /></label></div>
+        </section>
       </div>
+      {error ? <p className="error-note">{error}</p> : null}
+
+      <section className="redemption-code-section" aria-label="可用兑换码">
+        <div className="redemption-section-head"><div><h3>可用兑换码</h3><p>已创建 {availableInviteCodes.length} 个，删除后不可恢复。</p></div></div>
+        {availableInviteCodes.length ? <div className="redemption-code-table"><div className="redemption-code-table-head" role="presentation"><span>兑换码</span><span>发放权益</span><span>核销情况</span><span>创建时间</span><span>操作</span></div>{availableInviteCodes.map((inviteCode) => <article className="redemption-code-row" key={inviteCode.id}><div className="redemption-code-primary"><strong>{inviteCode.code}</strong><span className={`task-status ${inviteCode.enabled ? "succeeded" : "cancelled"}`}>{inviteCode.enabled ? "可用" : "已停用"}</span></div><div className="redemption-code-benefits"><span>{Number(inviteCode.coinBonus ?? inviteCode.quotaBonus ?? 5)} 币</span><span>{Number(inviteCode.beanBonus ?? 10)} 豆豆</span><span>冰箱贴 {Number(inviteCode.fridgeMagnetItemCount || 0)} 个</span><span>认知书 {Number(inviteCode.bodyBookPrintCount || 0)} 册</span></div><div className="redemption-code-usage">已兑换 {inviteCode.redeemedCount} · 剩余 {inviteCode.remainingRedemptions}</div><time>{formatDateTime(inviteCode.createdAt)}</time><button className="danger-button" onClick={() => deleteInvite(inviteCode)} type="button"><Trash2 size={16} /><span>删除</span></button></article>)}</div> : <p className="empty-note">当前没有可继续兑换的兑换码。</p>}
+      </section>
 
 
       <section className="task-page" aria-label="访问记录列表">
@@ -9833,7 +9797,7 @@ function StorageAdminPage({ storageSummary, onRefreshStorage }) {
           </label>
           <div className="storage-warning">
             <AlertTriangle size={18} />
-            <span>默认不会动风格库、分组、邀请码和系统设置。点击后会清空历史任务及其关联图片文件；访客记录默认也不删，除非你手动勾选。</span>
+            <span>默认不会动风格库、分组、兑换码和系统设置。点击后会清空历史任务及其关联图片文件；访客记录默认也不删，除非你手动勾选。</span>
           </div>
           <div className="card-actions generator-actions">
             <button className="danger-button" disabled={isBusy} onClick={handleCleanup} type="button">

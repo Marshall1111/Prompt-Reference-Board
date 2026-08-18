@@ -3729,6 +3729,205 @@ h2 {
   gap: 16px;
 }
 
+.redemption-admin-page {
+  gap: 20px;
+}
+
+.redemption-admin-controls {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.7fr);
+  gap: 14px;
+}
+
+.redemption-control-card,
+.redemption-code-section {
+  padding: 16px;
+  border: 1px solid #ded8ce;
+  border-radius: 12px;
+  background: rgba(255, 253, 249, 0.96);
+  box-shadow: 0 12px 32px rgba(33, 38, 40, 0.05);
+}
+
+.redemption-control-card {
+  display: grid;
+  gap: 14px;
+}
+
+.redemption-control-head,
+.redemption-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.redemption-control-head h3,
+.redemption-section-head h3 {
+  margin: 0;
+  color: #263532;
+  font-size: 1rem;
+}
+
+.redemption-control-head p,
+.redemption-section-head p {
+  margin: 4px 0 0;
+  color: #697975;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.redemption-control-head > button {
+  min-height: 36px;
+  padding-inline: 12px;
+  white-space: nowrap;
+}
+
+.redemption-field-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.redemption-field-grid.defaults {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.redemption-field-grid .field-label {
+  gap: 5px;
+  color: #52635e;
+  font-size: 0.78rem;
+}
+
+.redemption-field-grid input {
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.redemption-code-section {
+  display: grid;
+  gap: 12px;
+  padding-block: 14px;
+}
+
+.redemption-code-table {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid #e4ddd3;
+  border-radius: 9px;
+}
+
+.redemption-code-table-head,
+.redemption-code-row {
+  display: grid;
+  grid-template-columns: minmax(148px, 1fr) minmax(240px, 1.55fr) minmax(110px, 0.8fr) minmax(126px, 0.9fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.redemption-code-table-head {
+  padding: 8px 12px;
+  background: #f4f0e9;
+  color: #6b7873;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.redemption-code-row {
+  min-height: 58px;
+  padding: 10px 12px;
+  border-top: 1px solid #eee8df;
+  color: #53645f;
+  font-size: 0.82rem;
+}
+
+.redemption-code-primary,
+.redemption-code-benefits {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.redemption-code-primary strong {
+  color: #20352f;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+}
+
+.redemption-code-primary .task-status {
+  min-height: 24px;
+  padding: 3px 7px;
+  font-size: 0.7rem;
+}
+
+.redemption-code-benefits span {
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: #f5f7f4;
+  color: #48625a;
+  white-space: nowrap;
+}
+
+.redemption-code-usage,
+.redemption-code-row time {
+  white-space: nowrap;
+}
+
+.redemption-code-row .danger-button {
+  min-height: 34px;
+  padding-inline: 9px;
+}
+
+@media (max-width: 980px) {
+  .redemption-admin-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .redemption-code-table {
+    overflow: visible;
+  }
+
+  .redemption-code-table-head {
+    display: none;
+  }
+
+  .redemption-code-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 9px 12px;
+  }
+
+  .redemption-code-primary,
+  .redemption-code-benefits,
+  .redemption-code-usage,
+  .redemption-code-row time {
+    grid-column: 1;
+  }
+
+  .redemption-code-row .danger-button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+@media (max-width: 620px) {
+  .redemption-control-card,
+  .redemption-code-section {
+    padding: 13px;
+  }
+
+  .redemption-field-grid,
+  .redemption-field-grid.defaults {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .redemption-control-head {
+    align-items: flex-start;
+  }
+}
+
 .task-query-form,
 .task-query-fields,
 .task-query-actions,

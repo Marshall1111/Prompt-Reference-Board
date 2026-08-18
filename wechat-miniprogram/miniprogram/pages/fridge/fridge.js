@@ -13,6 +13,6 @@ Page(experiencePage.createExperiencePage({
   pocketAddLabel: "加入口袋",
   pocketAddedLabel: "已入口袋",
   pocketRemoveLabel: "移出口袋",
-  contactFallback: "如需更多制作次数，请联系客服填写邀请码。",
+  contactFallback: "如需更多制作次数，请联系客服领取兑换码。",
   otherPageLabel: "AI小画家"
 }));

@@ -84,7 +84,7 @@ const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const USER_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const EMAIL_CODE_TTL_MS = 10 * 60 * 1000;
 const INVITE_DEFAULT_MAX_REDEMPTIONS = 1;
-const DEFAULT_CONTACT_MESSAGE = "如需更多生图机会，请联系客服填写邀请码。";
+const DEFAULT_CONTACT_MESSAGE = "如需更多生图机会，请联系客服领取兑换码。";
 const DEFAULT_VISITOR_ANONYMOUS_LIMIT = 5;
 const DEFAULT_STORAGE_CLEANUP_DAYS = 30;
 const MAX_STORAGE_CLEANUP_DAYS = 3650;
@@ -1400,34 +1400,49 @@ app.get("/api/orders/config", async (_req, res) => {
   }
 });
 
-app.post("/api/invite-codes/redeem", requireWebAccount, async (req, res) => {
+async function redeemCodeHandler(req, res) {
   try {
     const code = String(req.body?.code || "").trim();
     if (!code) {
-      return res.status(400).json({ message: "请输入邀请码。" });
+      return res.status(400).json({ message: "请输入兑换码。" });
     }
 
     const result = await redeemInviteCode(req, code);
     const coinResult = commerceStore.grantCredits({
       accountId: req.webAccount.id,
       amount: result.coinBonus,
-      referenceType: "invite_code",
+      referenceType: "redemption_code",
       referenceId: code.toUpperCase(),
-      reason: "invite_bonus"
+      reason: "redemption_bonus"
     });
     const beanResult = commerceStore.grantBeans({
       accountId: req.webAccount.id,
       amount: result.beanBonus,
-      referenceType: "invite_code",
+      referenceType: "redemption_code",
       referenceId: code.toUpperCase(),
-      reason: "invite_bonus"
+      reason: "redemption_bonus"
     });
-    res.json({ ...toPublicWebAccountState(req, beanResult.account || coinResult.account), inviteCoins: result.coinBonus, inviteBeans: result.beanBonus });
+    const entitlements = commerceStore.grantRedemptionEntitlements({
+      accountId: req.webAccount.id,
+      codeId: result.id,
+      fridgeMagnetItemCount: result.fridgeMagnetItemCount,
+      bodyBookPrintCount: result.bodyBookPrintCount
+    });
+    res.json({
+      ...toPublicWebAccountState(req, beanResult.account || coinResult.account),
+      redemptionCoins: result.coinBonus,
+      redemptionBeans: result.beanBonus,
+      redemptionEntitlements: entitlements
+    });
   } catch (error) {
     console.error(error);
-    res.status(error.status || 400).json({ message: error.publicMessage || "邀请码兑换失败，请稍后再试。" });
+    res.status(error.status || 400).json({ message: error.publicMessage || "兑换码兑换失败，请稍后再试。" });
   }
-});
+}
+
+app.post("/api/redemption-codes/redeem", requireWebAccount, redeemCodeHandler);
+// Kept temporarily for clients that have not yet updated to the renamed API.
+app.post("/api/invite-codes/redeem", requireWebAccount, redeemCodeHandler);
 
 app.post("/api/orders", requireWebAccount, async (req, res, next) => {
   try {
@@ -1470,6 +1485,8 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
     const likedJobById = new Map(likedJobs.map((job) => [String(job.jobId || ""), job]));
     const totalRequestedItemCount = requestedItems.reduce((sum, item) => sum + item.quantity, 0);
     const amount = calculateOrderAmounts(totalRequestedItemCount, pricing);
+    const redemptionEntitlements = commerceStore.getRedemptionEntitlementSummary(req.webAccount.id);
+    const usesFridgeRedemption = redemptionEntitlements.fridgeMagnetItemCount >= amount.itemCount;
     const merchantSource = await resolveOrderMerchantSource(req);
     const now = new Date();
     const createdAt = now.toISOString();
@@ -1481,15 +1498,27 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
       requestedItems,
       likedJobById
     });
-    const discountReservation = commerceStore.reserveFridgeCoinDiscount({
+    const discountReservation = usesFridgeRedemption ? null : commerceStore.reserveFridgeCoinDiscount({
       accountId: req.webAccount.id,
       orderId,
       itemCount: amount.itemCount,
       subtotalCents: amount.subtotalCents,
       expiresAt
     });
-    const coinDiscountCents = discountReservation.discountCents;
-    const payableCents = Math.max(0, amount.totalCents - coinDiscountCents);
+    const coinDiscountCents = discountReservation?.discountCents || 0;
+    const payableCents = usesFridgeRedemption ? 0 : Math.max(0, amount.totalCents - coinDiscountCents);
+    if (usesFridgeRedemption) {
+      try {
+        commerceStore.consumeRedemptionEntitlement({
+          accountId: req.webAccount.id,
+          entitlementType: "fridge_magnet_item",
+          quantity: amount.itemCount,
+          referenceId: orderId
+        });
+      } catch (error) {
+        throw createHttpError(409, error.message || "实体冰箱贴兑换权益不足。", "实体冰箱贴兑换权益不足，请先兑换或联系客服。");
+      }
+    }
     let created;
     try {
       created = orderStore.createOrder({
@@ -1500,7 +1529,7 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
         accountId: req.webAccount.id,
         publicToken: randomUUID(),
         experienceType,
-        paymentStatus: "unpaid",
+        paymentStatus: usesFridgeRedemption ? "paid" : "unpaid",
         fulfillmentStatus: "new",
         itemCount: amount.itemCount,
         unitPriceCents: amount.unitPriceCents,
@@ -1521,11 +1550,12 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
         commissionRateBps: merchantSource.commissionRateBps,
         sourceClaimedAt: merchantSource.sourceClaimedAt,
         wechatOpenId: "",
-        wechatTransactionId: "",
+        wechatTransactionId: usesFridgeRedemption ? `REDEMPTION-${orderId}` : "",
         outTradeNo: generateWechatOutTradeNo("FM"),
-        lastPaymentChannel: paymentMode === "manual" ? "manual_collection" : "",
+        lastPaymentChannel: usesFridgeRedemption ? "redemption_code" : (paymentMode === "manual" ? "manual_collection" : ""),
         lastPaymentError: "",
         expiresAt,
+        paidAt: usesFridgeRedemption ? createdAt : null,
         createdAt,
         updatedAt: createdAt
       },
@@ -1541,13 +1571,29 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
           payableCents,
           paymentMode,
           sourceMerchantId: merchantSource.sourceMerchantId,
-          commissionRateBps: merchantSource.commissionRateBps
+          commissionRateBps: merchantSource.commissionRateBps,
+          usesFridgeRedemption
         }
       }
     });
     } catch (error) {
-      commerceStore.releaseFridgeCoinDiscountReservation(orderId);
+      if (usesFridgeRedemption) commerceStore.restoreRedemptionEntitlement({ accountId: req.webAccount.id, entitlementType: "fridge_magnet_item", referenceId: orderId });
+      else commerceStore.releaseFridgeCoinDiscountReservation(orderId);
       throw error;
+    }
+
+    if (usesFridgeRedemption) {
+      const paidOrder = orderStore.updateOrderAndAppendEvent(created.id, {}, {
+        eventType: "redemption_entitlement_consumed",
+        eventId: `redemption:${created.id}`,
+        success: true,
+        payload: { entitlementType: "fridge_magnet_item", quantity: amount.itemCount }
+      });
+      queueOrderOriginalImageBundle(paidOrder);
+      return res.status(201).json({
+        order: toPublicOrder(paidOrder, { includeToken: true }),
+        payment: { status: "already_paid", mode: "redemption_code", expiresAt: created.expiresAt }
+      });
     }
 
     const paymentIntent = commerceStore.createPaymentIntent({
@@ -3025,7 +3071,7 @@ app.delete("/api/image-jobs/:jobId", requireAdmin, async (req, res) => {
   }
 });
 
-app.get("/api/admin/invite-codes", requireAdmin, async (_req, res) => {
+async function listRedemptionCodesHandler(_req, res) {
   try {
     const inviteCodes = await readInviteCodes();
     res.json({
@@ -3036,36 +3082,47 @@ app.get("/api/admin/invite-codes", requireAdmin, async (_req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "读取邀请码失败。" });
+    res.status(500).json({ message: "读取兑换码失败。" });
   }
-});
+}
 
-app.post("/api/admin/invite-codes", requireAdmin, async (req, res) => {
+app.get("/api/admin/redemption-codes", requireAdmin, listRedemptionCodesHandler);
+app.get("/api/admin/invite-codes", requireAdmin, listRedemptionCodesHandler);
+
+async function createRedemptionCodesHandler(req, res) {
   try {
     const count = Math.min(Math.max(Number(req.body?.count || 1), 1), 20);
     const coinBonus = normalizeInviteBonus(req.body?.coinBonus, 5);
     const beanBonus = normalizeInviteBonus(req.body?.beanBonus, 10);
+    const fridgeMagnetItemCount = normalizeRedemptionEntitlementCount(req.body?.fridgeMagnetItemCount);
+    const bodyBookPrintCount = normalizeRedemptionEntitlementCount(req.body?.bodyBookPrintCount);
     const prefix = String(req.body?.prefix || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
-    const created = await createInviteCodes(count, prefix, coinBonus, beanBonus);
+    const created = await createInviteCodes(count, prefix, coinBonus, beanBonus, fridgeMagnetItemCount, bodyBookPrintCount);
     res.status(201).json({ inviteCodes: created.map(toPublicInviteCode) });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "创建邀请码失败。" });
+    res.status(500).json({ message: "创建兑换码失败。" });
   }
-});
+}
 
-app.patch("/api/admin/invite-codes/:id", requireAdmin, async (req, res) => {
+app.post("/api/admin/redemption-codes", requireAdmin, createRedemptionCodesHandler);
+app.post("/api/admin/invite-codes", requireAdmin, createRedemptionCodesHandler);
+
+async function updateRedemptionCodeHandler(req, res) {
   try {
     const updated = await updateInviteCode(req.params.id, {
       enabled: req.body?.enabled
     });
-    if (!updated) return res.status(404).json({ message: "邀请码不存在。" });
+    if (!updated) return res.status(404).json({ message: "兑换码不存在。" });
     res.json({ inviteCode: toPublicInviteCode(updated) });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "更新邀请码失败。" });
+    res.status(500).json({ message: "更新兑换码失败。" });
   }
-});
+}
+
+app.patch("/api/admin/redemption-codes/:id", requireAdmin, updateRedemptionCodeHandler);
+app.patch("/api/admin/invite-codes/:id", requireAdmin, updateRedemptionCodeHandler);
 
 app.get("/api/admin/visitors", requireAdmin, async (_req, res) => {
   try {
@@ -3280,16 +3337,19 @@ app.get("/api/admin/merchant-commissions", requireAdmin, async (req, res) => {
   }
 });
 
-app.delete("/api/admin/invite-codes/:id", requireAdmin, async (req, res) => {
+async function deleteRedemptionCodeHandler(req, res) {
   try {
     const deleted = await disableInviteCode(req.params.id);
-    if (!deleted) return res.status(404).json({ message: "邀请码不存在。" });
+    if (!deleted) return res.status(404).json({ message: "兑换码不存在。" });
     res.status(204).end();
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "删除邀请码失败。" });
+    res.status(500).json({ message: "删除兑换码失败。" });
   }
-});
+}
+
+app.delete("/api/admin/redemption-codes/:id", requireAdmin, deleteRedemptionCodeHandler);
+app.delete("/api/admin/invite-codes/:id", requireAdmin, deleteRedemptionCodeHandler);
 
 app.get("/api/admin/users", requireAdmin, async (req, res, next) => {
   try {
@@ -5900,6 +5960,8 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
     });
   });
   const amount = calculateBodyBookOrderAmounts(bodyBookPricing);
+  const redemptionEntitlements = commerceStore.getRedemptionEntitlementSummary(req.webAccount.id);
+  const usesPrintRedemption = redemptionEntitlements.bodyBookPrintCount > 0;
   const paymentMode = normalizeOrderPaymentMode(pricing?.paymentMode);
   const merchantSource = await resolveOrderMerchantSource(req);
   const now = new Date();
@@ -5911,14 +5973,26 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
     requestedItems,
     likedJobById: jobsById
   });
-  const discountReservation = commerceStore.reserveBodyBookDiscount({
+  const discountReservation = usesPrintRedemption ? null : commerceStore.reserveBodyBookDiscount({
     accountId: req.webAccount.id,
     orderId,
     orderTotalCents: amount.totalCents,
     expiresAt
   });
-  const beanDiscountCents = discountReservation.discountCents;
-  const payableCents = Math.max(0, amount.totalCents - beanDiscountCents);
+  const beanDiscountCents = discountReservation?.discountCents || 0;
+  const payableCents = usesPrintRedemption ? 0 : Math.max(0, amount.totalCents - beanDiscountCents);
+  if (usesPrintRedemption) {
+    try {
+      commerceStore.consumeRedemptionEntitlement({
+        accountId: req.webAccount.id,
+        entitlementType: "body_book_print",
+        quantity: 1,
+        referenceId: orderId
+      });
+    } catch (error) {
+      throw createHttpError(409, error.message || "实体认知书兑换券不足。", "实体认知书兑换券不足，请先兑换或联系客服。");
+    }
+  }
   let created;
   try {
     created = orderStore.createOrder({
@@ -5930,7 +6004,7 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
       publicToken: randomUUID(),
       experienceType: "body-book",
       bodyBookThemeName: theme.name,
-      paymentStatus: "unpaid",
+      paymentStatus: usesPrintRedemption ? "paid" : "unpaid",
       fulfillmentStatus: "new",
       itemCount: amount.itemCount,
       unitPriceCents: amount.unitPriceCents,
@@ -5951,11 +6025,12 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
       commissionRateBps: merchantSource.commissionRateBps,
       sourceClaimedAt: merchantSource.sourceClaimedAt,
       wechatOpenId: "",
-      wechatTransactionId: "",
+      wechatTransactionId: usesPrintRedemption ? `REDEMPTION-${orderId}` : "",
       outTradeNo: generateWechatOutTradeNo("BB"),
-      lastPaymentChannel: paymentMode === "manual" ? "manual_collection" : "",
+      lastPaymentChannel: usesPrintRedemption ? "redemption_code" : (paymentMode === "manual" ? "manual_collection" : ""),
       lastPaymentError: "",
       expiresAt,
+      paidAt: usesPrintRedemption ? createdAt : null,
       createdAt,
       updatedAt: createdAt
     },
@@ -5970,13 +6045,27 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
         totalCents: amount.totalCents,
         beanDiscountCents,
         payableCents,
-        paymentMode
+        paymentMode,
+        usesPrintRedemption
       }
     }
     });
   } catch (error) {
-    commerceStore.releaseBodyBookDiscountReservation(orderId);
+    if (usesPrintRedemption) commerceStore.restoreRedemptionEntitlement({ accountId: req.webAccount.id, entitlementType: "body_book_print", referenceId: orderId });
+    else commerceStore.releaseBodyBookDiscountReservation(orderId);
     throw error;
+  }
+  if (usesPrintRedemption) {
+    const paidOrder = orderStore.updateOrderAndAppendEvent(created.id, {}, {
+      eventType: "redemption_entitlement_consumed",
+      eventId: `redemption:${created.id}`,
+      success: true,
+      payload: { entitlementType: "body_book_print", quantity: 1 }
+    });
+    return {
+      order: toPublicOrder(paidOrder, { includeToken: true }),
+      payment: { status: "already_paid", mode: "redemption_code", expiresAt: created.expiresAt }
+    };
   }
   const paymentIntent = commerceStore.createPaymentIntent({
     accountId: req.webAccount.id,
@@ -7338,6 +7427,7 @@ function toPublicWebAccountState(req, account) {
     account: publicAccount,
     beanPurchaseDiscount: commerceStore.getBodyBookDiscountSummary(publicAccount.id),
     coinPurchaseDiscount: commerceStore.getFridgeCoinDiscountSummary(publicAccount.id),
+    redemptionEntitlements: commerceStore.getRedemptionEntitlementSummary(publicAccount.id),
     authorizationUrl: ""
   };
 }
@@ -7653,7 +7743,7 @@ async function listAdminUserRecords({ page = 1, limit = 20, search = "", status 
         paidTotalCents: 0,
         visitorTier: safeVisitor.tier,
         browser: latestSession?.browser || "未知（历史访问未记录）",
-        invitationSource: safeVisitor.tier === "invited" ? "邀请码兑换（未记录来源）" : "",
+        invitationSource: safeVisitor.tier === "invited" ? "兑换码兑换（未记录来源）" : "",
         registeredAt: null,
         lastLoginAt: getVisitSessionLastActivityAt(latestSession) || safeVisitor.lastActiveAt || safeVisitor.updatedAt || null,
         createdAt: safeVisitor.createdAt || null,
@@ -8459,6 +8549,8 @@ function normalizeInviteCode(inviteCode) {
     quotaBonus: normalizeInviteQuotaBonus(legacyCoinBonus),
     coinBonus: normalizeInviteBonus(inviteCode?.coinBonus ?? legacyCoinBonus, 5),
     beanBonus: normalizeInviteBonus(inviteCode?.beanBonus, 10),
+    fridgeMagnetItemCount: normalizeRedemptionEntitlementCount(inviteCode?.fridgeMagnetItemCount),
+    bodyBookPrintCount: normalizeRedemptionEntitlementCount(inviteCode?.bodyBookPrintCount),
     redeemedCount: Math.max(0, Number(inviteCode?.redeemedCount || 0)),
     redeemedByVisitorIds: Array.isArray(inviteCode?.redeemedByVisitorIds) ? inviteCode.redeemedByVisitorIds.map(String) : [],
     redeemedByAccountIds: Array.isArray(inviteCode?.redeemedByAccountIds) ? inviteCode.redeemedByAccountIds.map(String) : [],
@@ -8476,6 +8568,8 @@ function toPublicInviteCode(inviteCode) {
     maxRedemptions: safeInvite.maxRedemptions,
     coinBonus: safeInvite.coinBonus,
     beanBonus: safeInvite.beanBonus,
+    fridgeMagnetItemCount: safeInvite.fridgeMagnetItemCount,
+    bodyBookPrintCount: safeInvite.bodyBookPrintCount,
     redeemedCount: safeInvite.redeemedCount,
     remainingRedemptions: Math.max(0, safeInvite.maxRedemptions - safeInvite.redeemedCount),
     createdAt: safeInvite.createdAt,
@@ -8483,7 +8577,12 @@ function toPublicInviteCode(inviteCode) {
   };
 }
 
-async function createInviteCodes(count, prefix = "", coinBonus = 5, beanBonus = 10) {
+function normalizeRedemptionEntitlementCount(value) {
+  const normalized = Math.trunc(Number(value || 0));
+  return Number.isFinite(normalized) ? Math.min(Math.max(normalized, 0), 999) : 0;
+}
+
+async function createInviteCodes(count, prefix = "", coinBonus = 5, beanBonus = 10, fridgeMagnetItemCount = 0, bodyBookPrintCount = 0) {
   const inviteCodes = await readInviteCodes();
   const now = new Date().toISOString();
   const created = Array.from({ length: count }, () => normalizeInviteCode({
@@ -8493,6 +8592,8 @@ async function createInviteCodes(count, prefix = "", coinBonus = 5, beanBonus = 
     maxRedemptions: INVITE_DEFAULT_MAX_REDEMPTIONS,
     coinBonus,
     beanBonus,
+    fridgeMagnetItemCount,
+    bodyBookPrintCount,
     redeemedCount: 0,
     redeemedByVisitorIds: [],
     redeemedByAccountIds: [],
@@ -8526,13 +8627,13 @@ async function redeemInviteCode(req, code) {
   const normalizedCode = String(code || "").trim().toUpperCase();
   const invite = inviteCodes.find((item) => item.code === normalizedCode);
   if (!invite || !invite.enabled) {
-    throw createHttpError(400, "邀请码无效或已停用。");
+    throw createHttpError(400, "兑换码无效或已停用。");
   }
   if (invite.redeemedCount >= invite.maxRedemptions) {
-    throw createHttpError(400, "邀请码已被使用。");
+    throw createHttpError(400, "兑换码已被使用。");
   }
   if (invite.redeemedByAccountIds.includes(String(req.webAccount?.id || ""))) {
-    throw createHttpError(400, "你已兑换过这个邀请码。");
+    throw createHttpError(400, "你已兑换过这个兑换码。");
   }
 
   invite.redeemedCount += 1;
@@ -8540,7 +8641,13 @@ async function redeemInviteCode(req, code) {
   invite.redeemedByAccountIds = invite.redeemedByAccountIds.concat(String(req.webAccount.id));
   invite.updatedAt = new Date().toISOString();
   await saveInviteCodes(inviteCodes);
-  return { coinBonus: invite.coinBonus, beanBonus: invite.beanBonus };
+  return {
+    id: invite.id,
+    coinBonus: invite.coinBonus,
+    beanBonus: invite.beanBonus,
+    fridgeMagnetItemCount: invite.fridgeMagnetItemCount,
+    bodyBookPrintCount: invite.bodyBookPrintCount
+  };
 }
 
 async function disableInviteCode(id) {

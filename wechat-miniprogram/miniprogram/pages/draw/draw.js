@@ -12,7 +12,7 @@ Page(experiencePage.createExperiencePage({
   pocketAddLabel: "加入卡夹",
   pocketAddedLabel: "已在卡夹",
   pocketRemoveLabel: "移出卡夹",
-  contactFallback: "如需更多生图机会，请联系客服填写邀请码。",
+  contactFallback: "如需更多生图机会，请联系客服领取兑换码。",
   otherPageLabel: "",
   showOtherEntry: false
 }));

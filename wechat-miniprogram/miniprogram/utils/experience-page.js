@@ -916,7 +916,7 @@ function createExperiencePage(config) {
       var self = this;
       var code = String(this.data.inviteCode || "").trim();
       if (!code) {
-        this.setData({ errorMessage: "请输入邀请码。" });
+        this.setData({ errorMessage: "请输入兑换码。" });
         return;
       }
       publicExperience.redeemInviteCode(code).then(function (visitor) {
@@ -927,7 +927,7 @@ function createExperiencePage(config) {
         });
         wx.showToast({ title: "已兑换", icon: "success" });
       }).catch(function (error) {
-        self.setData({ errorMessage: (error && error.message) || "邀请码兑换失败。" });
+        self.setData({ errorMessage: (error && error.message) || "兑换码兑换失败。" });
       });
     },
 
