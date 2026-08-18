@@ -191,7 +191,7 @@ const PAIRED_PRESET_BOOK_PARTS = {
 };
 const PAIRED_PRESET_BOOK_THEME_IDS = new Set(Object.keys(PAIRED_PRESET_BOOK_PARTS));
 const BOOK_THEME_DEFINITIONS = [
-  { id: "body", name: "身体认知书", englishName: "My First Body", title: "我的第一本身体认知书", parts: BODY_BOOK_PARTS },
+  { id: "body", name: "身体认知书", englishName: "My First Body Book", title: "我的第一本身体认知书", parts: BODY_BOOK_PARTS },
   { id: "career", name: "职业认知书", englishName: "My First Jobs", title: "我的第一本职业认知书", parts: [
     ["doctor", "医生", "Doctor"], ["teacher", "老师", "Teacher"], ["firefighter", "消防员", "Firefighter"], ["chef", "厨师", "Chef"], ["police", "警察", "Police Officer"], ["farmer", "农夫", "Farmer"], ["builder", "建筑师", "Builder"], ["scientist", "科学家", "Scientist"], ["artist", "艺术家", "Artist"], ["nurse", "护士", "Nurse"], ["dentist", "牙医", "Dentist"], ["baker", "面包师", "Baker"], ["gardener", "园丁", "Gardener"], ["veterinarian", "兽医", "Veterinarian"], ["dancer", "舞蹈家", "Dancer"], ["writer", "作家", "Writer"], ["singer", "歌手", "Singer"], ["hairdresser", "理发师", "Hairdresser"]
   ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `I can be a ${english}. 我可以成为${chinese}。` })) },

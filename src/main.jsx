@@ -141,7 +141,7 @@ const DRAW_CARD_SESSION_STORAGE_KEY = "pg.public-draw.session-id";
 const FRIDGE_MAGNET_SESSION_STORAGE_KEY = "pg.public-fridge.session-id";
 const BODY_BOOK_SESSION_STORAGE_KEY = "pg.body-book.session-id";
 const BODY_BOOK_THEME_FALLBACKS = [
-  { id: "body", name: "身体认知书", englishName: "My First Body", title: "我的第一本身体认知书" },
+  { id: "body", name: "身体认知书", englishName: "My First Body Book", title: "我的第一本身体认知书" },
   { id: "career", name: "职业认知书", englishName: "My First Jobs", title: "我的第一本职业认知书" },
   { id: "color", name: "颜色认知书", englishName: "My First Colors", title: "我的第一本颜色认知书" },
   { id: "emotion", name: "情绪认知书", englishName: "My First Feelings", title: "我的第一本情绪认知书" },
