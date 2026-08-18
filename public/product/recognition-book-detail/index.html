@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>宝宝专属认知书｜详情页预览</title>
+    <style>
+      :root { --ink:#31291f; --paper:#fffaf3; --yellow:#ffbf20; --orange:#ff7a20; --red:#ee3b2f; --green:#79ad25; --blue:#2498d6; }
+      * { box-sizing:border-box; }
+      body { margin:0; background:#e8e5df; color:var(--ink); font-family:"PingFang SC","Microsoft YaHei",sans-serif; }
+      .detail { width:min(100%,790px); margin:0 auto; overflow:hidden; background:var(--paper); }
+      .hero { position:relative; min-height:790px; padding:42px 34px 0; overflow:hidden; background:linear-gradient(150deg,#fff9de 0%,#fffef9 50%,#ecf8ff 100%); text-align:center; }
+      .hero::before,.hero::after { position:absolute; content:""; width:240px; height:240px; border-radius:50%; opacity:.32; }
+      .hero::before { top:-92px; left:-85px; background:var(--yellow); }
+      .hero::after { right:-112px; bottom:98px; background:#78d0f2; }
+      .eyebrow { position:relative; display:inline-flex; padding:8px 16px; border-radius:999px; background:#fff; box-shadow:0 6px 20px rgba(111,87,27,.12); color:#e97016; font-size:17px; font-weight:800; letter-spacing:.08em; }
+      h1 { position:relative; max-width:590px; margin:21px auto 10px; font-size:45px; line-height:1.17; letter-spacing:.03em; }
+      .hero p { position:relative; margin:0 auto 20px; color:#6c6051; font-size:20px; line-height:1.6; }
+      .rainbow { position:relative; display:flex; justify-content:center; gap:8px; margin-bottom:-22px; font-weight:900; font-size:25px; }
+      .rainbow i { width:21px; height:21px; border-radius:50%; transform:rotate(-14deg); }
+      .rainbow i:nth-child(1){background:#e83936}.rainbow i:nth-child(2){background:#ff922b}.rainbow i:nth-child(3){background:#ffcd2d}.rainbow i:nth-child(4){background:#65b848}.rainbow i:nth-child(5){background:#1ba6d7}.rainbow i:nth-child(6){background:#7951aa}
+      .hero img { position:relative; width:100%; max-width:680px; display:block; margin:0 auto; mix-blend-mode:multiply; }
+      .section { padding:66px 36px; text-align:center; }
+      .section h2 { margin:0; font-size:35px; line-height:1.25; letter-spacing:.025em; }
+      .section .lead { max-width:560px; margin:14px auto 0; color:#7c7166; font-size:18px; line-height:1.65; }
+      .value-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:30px; text-align:left; }
+      .value { min-height:148px; padding:21px 18px; border-radius:24px; background:#fff; box-shadow:0 10px 25px rgba(61,42,10,.08); }
+      .value b { display:block; margin-bottom:10px; font-size:22px; }
+      .value span { display:block; color:#786d61; font-size:15px; line-height:1.5; }
+      .value .icon { display:inline-grid; place-items:center; width:42px; height:42px; margin-bottom:12px; border-radius:14px; color:#fff; font-weight:900; font-size:24px; }
+      .v1 .icon{background:#f39c29}.v2 .icon{background:#1e9bd6}.v3 .icon{background:#62aa35}.v4 .icon{background:#e84a42}
+      .color-story { padding:65px 0 46px; overflow:hidden; background:linear-gradient(180deg,#f4fbec,#fffdf7); }
+      .color-story .section-head { padding:0 36px; text-align:center; }
+      .spread { position:relative; margin:31px 0 0; }
+      .spread img { width:100%; display:block; }
+      .spread figcaption { padding:10px 36px 0; text-align:center; color:#6e7761; font-size:16px; font-weight:700; }
+      .size-section { display:grid; grid-template-columns:1fr 1.05fr; align-items:center; gap:12px; padding:55px 36px; background:#fff4d3; text-align:left; }
+      .size-copy h2 { margin:0 0 12px; font-size:36px; line-height:1.15; }
+      .size-copy p { margin:0; color:#746654; line-height:1.65; font-size:17px; }
+      .size-card { padding:28px 14px; border:3px solid #5e4937; border-radius:12px; background:#fffdfa; text-align:center; box-shadow:10px 10px 0 #f1ca5e; }
+      .size-card strong { display:block; font-family:Arial,sans-serif; font-size:48px; line-height:1; }
+      .size-card span { display:block; margin-top:8px; font-size:20px; font-weight:800; }
+      .size-card small { display:block; margin-top:12px; color:#756451; font-size:14px; }
+      .design { padding:66px 36px 0; background:linear-gradient(145deg,#eaf8ff,#fffaf4 70%); text-align:center; }
+      .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:30px 0 -5px; }
+      .step { position:relative; padding:18px 10px 24px; border-radius:18px 18px 0 0; background:rgba(255,255,255,.78); }
+      .step b { display:grid; place-items:center; width:39px; height:39px; margin:0 auto 10px; border-radius:50%; background:var(--orange); color:#fff; font-size:20px; }
+      .step strong { display:block; font-size:17px; }
+      .step span { display:block; margin-top:6px; color:#756e65; font-size:13px; line-height:1.45; }
+      .cta { padding:58px 36px 66px; background:#fff; text-align:center; }
+      .cta h2 { margin:0; font-size:33px; }
+      .cta p { margin:12px auto 22px; color:#756a60; font-size:17px; }
+      .cta strong { display:block; padding:17px 20px; border-radius:999px; background:linear-gradient(90deg,#ff7b27,#f3543e); color:#fff; box-shadow:0 10px 20px rgba(230,83,51,.25); font-size:21px; letter-spacing:.06em; }
+      @media(max-width:520px){ .hero{min-height:auto;padding:32px 18px 0}.eyebrow{font-size:14px}h1{font-size:33px}.hero p{font-size:16px}.section{padding:48px 20px}.section h2{font-size:29px}.value-grid{gap:10px}.value{min-height:138px;padding:16px 14px}.value b{font-size:18px}.value span{font-size:13px}.size-section{padding:44px 20px;grid-template-columns:1fr}.size-copy{text-align:center}.size-copy h2{font-size:30px}.size-card strong{font-size:42px}.color-story .section-head,.design,.cta{padding-left:20px;padding-right:20px}.steps{gap:6px}.step{padding:14px 5px 18px}.step strong{font-size:14px}.step span{font-size:12px}.cta h2{font-size:28px} }
+    </style>
+  </head>
+  <body>
+    <main class="detail">
+      <section class="hero">
+        <span class="eyebrow">0–3 岁宝宝专属启蒙书</span>
+        <h1>把宝宝的照片，做成<br />TA 的第一本认知书</h1>
+        <p>8 种颜色 · 16 页内容，每一页都是宝宝熟悉的模样，让认识颜色变得更有趣。</p>
+        <div class="rainbow" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <img src="cover.png" alt="宝宝专属颜色认知书封面实拍" />
+      </section>
+
+      <section class="section">
+        <h2>一本真正属于宝宝的颜色认知书</h2>
+        <p class="lead">8 种颜色主题，16 页趣味内容；把宝宝照片融入红、黄、绿等色彩，在轻松翻阅中认识身边的世界。</p>
+        <div class="value-grid">
+          <article class="value v1"><span class="icon">✦</span><b>免费设计</b><span>上传宝宝照片，专属版面由我们免费设计。</span></article>
+          <article class="value v2"><span class="icon">HD</span><b>高清印刷</b><span>画面清晰、色彩饱满，记录宝宝可爱的成长瞬间。</span></article>
+          <article class="value v3"><span class="icon">⌁</span><b>防水防污</b><span>日常阅读更安心，轻松应对小手探索。</span></article>
+          <article class="value v4"><span class="icon">↔</span><b>耐撕扯</b><span>为宝宝翻翻看而设计，陪伴反复阅读。</span></article>
+        </div>
+      </section>
+
+      <section class="color-story">
+        <div class="section-head"><h2>翻一翻，认识缤纷色彩</h2><p class="lead">左页是宝宝的趣味场景，右页是中英双语认知内容。</p></div>
+        <figure class="spread"><img src="green-spread.png" alt="绿色主题认知书内页实拍" /><figcaption>绿色 Green · 和苹果、树叶、小青蛙打个招呼</figcaption></figure>
+        <figure class="spread"><img src="red-spread.png" alt="红色主题认知书内页实拍" /><figcaption>红色 Red · 把熟悉的物品变成认知游戏</figcaption></figure>
+        <figure class="spread"><img src="yellow-spread.png" alt="黄色主题认知书内页实拍" /><figcaption>黄色 Yellow · 每一次翻页都有新发现</figcaption></figure>
+      </section>
+
+      <section class="size-section">
+        <div class="size-copy"><h2>6 寸小方书<br />刚好适合宝宝小手</h2><p>14 cm × 14 cm 的轻巧尺寸，内含 8 种颜色、16 页内容；放进妈妈包也不占地方，居家、出行都能随手翻看。</p></div>
+        <div class="size-card"><strong>14 × 14</strong><span>厘米</span><small>6 寸方形认知书 · 8 色 16 页</small></div>
+      </section>
+
+      <section class="design"><h2>下单后，轻松拥有专属认知书</h2><p class="lead">无需自己排版，按步骤提交照片即可。</p><div class="steps"><article class="step"><b>1</b><strong>上传照片</strong><span>选择宝宝清晰正面照</span></article><article class="step"><b>2</b><strong>免费设计</strong><span>制作专属颜色主题书稿</span></article><article class="step"><b>3</b><strong>确认印刷</strong><span>高清印刷后寄到家</span></article></div></section>
+      <section class="cta"><h2>让宝宝成为书里的主角</h2><p>一份有趣、好看，也值得珍藏的成长礼物。</p><strong>立即定制宝宝专属认知书</strong></section>
+    </main>
+  </body>
+</html>

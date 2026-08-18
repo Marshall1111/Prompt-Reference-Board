@@ -1,0 +1,12 @@
+2026-08-18 06:13:49.353: [INFO] CurrentProfilePath: D:\Prompt-Reference-Board\Prompt-Reference-Board\tmp\edge-render-profile\Default
+2026-08-18 06:13:49.353: [INFO] Profiles total count: 1
+2026-08-18 06:13:49.353: [INFO] Profile: name=用户配置 1 path=D:\Prompt-Reference-Board\Prompt-Reference-Board\tmp\edge-render-profile\Default lastActive=2026-08-18T06:13:49.279Z
+2026-08-18 06:13:49.353: [INFO] LastUsedProfileDir: D:\Prompt-Reference-Board\Prompt-Reference-Board\tmp\edge-render-profile\Default
+2026-08-18 06:13:49.353: [INFO] MostRecentlyActiveProfile: name=用户配置 1 path=D:\Prompt-Reference-Board\Prompt-Reference-Board\tmp\edge-render-profile\Default lastActive=2026-08-18T06:13:49.279Z
+2026-08-18 06:13:49.353: [INFO] OnDoneLoading sync enabled: 0
+2026-08-18 06:13:49.353: [INFO] BookmarkModelLoaded, ids_reassigned: 0
+2026-08-18 06:13:49.353: [INFO] BookmarksLoadDropped droppedNodes=0
+2026-08-18 06:13:49.353: [INFO] BookmarksSnapshot Startup total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1
+2026-08-18 06:13:49.389: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-08-18 06:13:49.465: [INFO] VisibilityChanged: 0
+2026-08-18 06:13:56.249: [INFO] BookmarksSnapshot Shutdown total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1
