@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 2,
+  "sessionId": "02aeb84d-579a-4945-a03c-12799ccf33e0",
+  "experienceType": "body-book",
+  "themeId": "emotion-cartoon",
+  "layoutVersion": "legacy-v1",
+  "personalization": {},
+  "ownerAccountId": "f4634ba1-79dd-4a06-9ce7-e070d7e6cb4f",
+  "ownerVisitorId": "5f323334-6528-4dfb-94e2-2dd326fd1673",
+  "stage": "ready",
+  "status": "succeeded",
+  "message": "图片已保存，可继续编辑或生成更多页面。",
+  "createdAt": "2026-08-19T06:26:38.266Z",
+  "updatedAt": "2026-08-19T07:03:40.560Z",
+  "completedAt": "2026-08-19T06:27:25.502Z",
+  "savedAt": "2026-08-19T06:27:20.322Z",
+  "share": {
+    "token": "",
+    "enabled": false,
+    "createdAt": null,
+    "referralToken": ""
+  },
+  "reference": {
+    "filename": "reference-1.png",
+    "mimeType": "image/png",
+    "size": 1918139,
+    "originalName": "result (12).png"
+  },
+  "references": [
+    {
+      "filename": "reference-1.png",
+      "mimeType": "image/png",
+      "size": 1918139,
+      "originalName": "result (12).png"
+    }
+  ],
+  "chargedJobIds": [
+    "8e7c0db3-d4c7-4c2a-8ec0-12f5fb10cb79",
+    "ca4ae875-52bd-4809-adab-a62382c1db83"
+  ],
+  "refundedJobIds": [],
+  "billingError": "",
+  "pages": [
+    {
+      "key": "cover",
+      "chinese": "封面",
+      "english": "Cover",
+      "title": "封面 Cover",
+      "order": 0,
+      "pageType": "cover",
+      "isRequired": true,
+      "prompt": "Use the uploaded child photos only as loose visual-trait reference. Keep the child's broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual cover for the 0-3 year-old 情绪认知书. Draw one single child in a premium family-friendly animated-feature 3D cartoon style: rounded sculpted forms, expressive simplified facial features, soft matte materials, gentle global illumination, and polished non-photorealistic digital animation art. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Theme scene: the child showing a warm expressive cartoon face with a small calm ring of simple emotion symbols. Every visible subject, including the child, vehicles, animals, objects, icons, and decorations, must use this same animated-feature 3D cartoon style; do not mix in photographs, realistic product renders, realistic animals, or cutout photos. The main title should read exactly: \"My First Feelings\". The Chinese subtitle should read exactly: \"我的第一本情绪认知书\". Beneath it, add the small English line: \"A Bilingual Book for Babies\" and the small Chinese line: \"中英双语 · 0-3岁宝宝启蒙\". Match the original photography-version cover typography treatment: rounded, highly legible sans-serif type; make the English title playful with a refined natural rainbow palette, while keeping all Chinese text dark and clear; add a small pink circular badge in the upper-right that reads exactly \"0-3岁适用\". Do not write \"Cartoon Edition\", \"动画卡通版\", \"手绘卡通版\", or any other style label anywhere in the image. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. No extra people, logos, watermark, border, crowded room, deep perspective, photorealistic skin pores, photography, live-action lighting, photographic collage, or unreadable decorative text.",
+      "hasCustomPrompt": false,
+      "version": 1,
+      "jobId": "8e7c0db3-d4c7-4c2a-8ec0-12f5fb10cb79",
+      "status": "succeeded",
+      "references": [
+        {
+          "filename": "reference-1.png",
+          "mimeType": "image/png",
+          "size": 1918139,
+          "originalName": "result (12).png"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.png",
+        "mimeType": "image/png",
+        "size": 1918139,
+        "originalName": "result (12).png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/8e7c0db3-d4c7-4c2a-8ec0-12f5fb10cb79.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 3033,
+          "output_tokens": 1056,
+          "total_tokens": 4089,
+          "input_tokens_details": {
+            "text_tokens": 568,
+            "image_tokens": 2465,
+            "cached_tokens": 0
+          },
+          "output_tokens_details": {
+            "text_tokens": 0,
+            "image_tokens": 1056,
+            "reasoning_tokens": 0
+          }
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/8e7c0db3-d4c7-4c2a-8ec0-12f5fb10cb79.webp",
+        "previewWidth": 1024,
+        "previewHeight": 1024,
+        "thumbnailUrl": "/generated-thumbnails/8e7c0db3-d4c7-4c2a-8ec0-12f5fb10cb79.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "kuaipao",
+          "name": "快跑",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "happy",
+      "chinese": "开心",
+      "english": "Happy",
+      "copy": "I feel Happy. 我感到开心。",
+      "title": "开心 Happy",
+      "order": 1,
+      "prompt": "Use the uploaded child photos only as loose visual-trait reference. Retain broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual 情绪认知书 learning card, page 1, for ages 0-3. The sole learning concept is \"Happy / 开心\". Render the heading exactly: \"开心 Happy\" and the supporting sentence exactly: \"I feel Happy. 我感到开心。\". Draw exactly one child in a premium family-friendly animated-feature 3D cartoon style: rounded sculpted forms, expressive simplified facial features, soft matte materials, gentle global illumination, and polished non-photorealistic digital animation art. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Page scene: a close cartoon pose showing the Happy feeling gently through expression, posture, clothing, and one small matching symbol. Every visible subject, including the child, vehicle, animal, prop, arrow, icon, and background decoration, must use this same animated-feature 3D cartoon style. Never mix in photography, realistic animals, realistic vehicles, product renders, or photographic cutouts. Theme-appropriate clothing and props may take priority when needed, while retaining the child's hairstyle, skin-tone family, and a small recognizable clothing detail. Make the learning concept immediate and unmistakable, with at most one clear arrow or visual cue and one or two matching small, friendly emotion symbols such as stars, clouds, hearts, or smile marks. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. Never use photorealism, realistic skin pores, photography, live-action lighting, photographic collage, extra people, a busy room, deep background, watermark, border, unrelated objects, internal production labels, or unreadable decorative text.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "ca4ae875-52bd-4809-adab-a62382c1db83",
+      "status": "succeeded",
+      "references": [
+        {
+          "filename": "reference-1.png",
+          "mimeType": "image/png",
+          "size": 1918139,
+          "originalName": "result (12).png"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.png",
+        "mimeType": "image/png",
+        "size": 1918139,
+        "originalName": "result (12).png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/ca4ae875-52bd-4809-adab-a62382c1db83.png",
+        "mimeType": "image/png",
+        "usage": {
+          "total_tokens": 2159,
+          "input_tokens": 1394,
+          "output_tokens": 765,
+          "input_tokens_details": {
+            "text_tokens": 629,
+            "image_tokens": 765
+          }
+        },
+        "mode": "edit",
+        "originalImageUrl": "https://oss.filenest.top/uploads/0461e5af-53a7-4498-919b-19f3d39dac19.png",
+        "previewUrl": "/generated-previews/ca4ae875-52bd-4809-adab-a62382c1db83.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/ca4ae875-52bd-4809-adab-a62382c1db83.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "kuaipao",
+          "name": "快跑",
+          "model": "gpt-image-2"
+        }
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    }
+  ]
+}

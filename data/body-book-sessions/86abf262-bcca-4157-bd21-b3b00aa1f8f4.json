@@ -11,8 +11,8 @@
   "status": "succeeded",
   "message": "图片已保存，可继续编辑或生成更多页面。",
   "createdAt": "2026-08-19T02:40:42.851Z",
-  "updatedAt": "2026-08-19T04:30:03.533Z",
-  "completedAt": "2026-08-19T03:20:54.997Z",
+  "updatedAt": "2026-08-19T07:03:40.560Z",
+  "completedAt": "2026-08-19T06:48:00.267Z",
   "savedAt": "2026-08-19T02:41:27.626Z",
   "share": {
     "token": "",
@@ -46,7 +46,9 @@
     "8df3a9fd-4437-4142-a10e-75e6cabc0630",
     "5834d0af-2858-428e-89c8-9b825bd7e4d0",
     "cd79ec35-53c0-46c5-944d-af1c949a71c7",
-    "a65be639-1d87-4bf0-bdc0-b11fab058e5a"
+    "a65be639-1d87-4bf0-bdc0-b11fab058e5a",
+    "bd91d570-8f46-4b03-8d34-c5df76b826ed",
+    "72ec8ef7-4d26-411b-b241-0b1f76b3a642"
   ],
   "refundedJobIds": [
     "bbf54169-4538-4d75-9778-c04ffccca338",
@@ -64,10 +66,10 @@
       "order": 0,
       "pageType": "cover",
       "isRequired": true,
-      "prompt": "Use the uploaded child photos only as loose visual-trait reference. Keep the child's broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual cover for the 0-3 year-old 交通工具认知书. Draw one single child as a friendly, slightly simplified hand-drawn flat cartoon character with rounded outlines and clean flat color fills. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Theme scene: the child surrounded by six clearly separated friendly, recognizable flat cartoon vehicles; never real vehicles or photographs. Every visible subject, including the child, vehicles, animals, objects, icons, and decorations, must be drawn in this same flat hand-drawn cartoon style; do not mix in photographs, realistic product renders, realistic animals, or cutout photos. The main title should read exactly: \"My First Vehicles\". The Chinese subtitle should read exactly: \"我的第一本交通工具认知书\". Beneath it, add the small English line: \"A Bilingual Book for Babies\" and the small Chinese line: \"中英双语 · 0-3岁宝宝启蒙\". Match the original photography-version cover typography treatment: rounded, highly legible sans-serif type; make the English title playful with a refined natural rainbow palette, while keeping all Chinese text dark and clear; add a small pink circular badge in the upper-right that reads exactly \"0-3岁适用\". Do not write \"Cartoon Edition\", \"手绘卡通版\", or any other style label anywhere in the image. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. No extra people, logos, watermark, border, crowded room, deep perspective, camera lighting, realistic skin pores, photographic collage, 3D rendering, or unreadable decorative text.",
+      "prompt": "Use the uploaded child photos only as loose visual-trait reference. Keep the child's broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual cover for the 0-3 year-old 交通工具认知书. Draw one single child in a premium family-friendly animated-feature 3D cartoon style: rounded sculpted forms, expressive simplified facial features, soft matte materials, gentle global illumination, and polished non-photorealistic digital animation art. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Theme scene: the child surrounded by six clearly separated friendly, recognizable animated cartoon vehicles; never real vehicles or photographs. Every visible subject, including the child, vehicles, animals, objects, icons, and decorations, must use this same animated-feature 3D cartoon style; do not mix in photographs, realistic product renders, realistic animals, or cutout photos. The main title should read exactly: \"My First Vehicles\". The Chinese subtitle should read exactly: \"我的第一本交通工具认知书\". Beneath it, add the small English line: \"A Bilingual Book for Babies\" and the small Chinese line: \"中英双语 · 0-3岁宝宝启蒙\". Match the original photography-version cover typography treatment: rounded, highly legible sans-serif type; make the English title playful with a refined natural rainbow palette, while keeping all Chinese text dark and clear; add a small pink circular badge in the upper-right that reads exactly \"0-3岁适用\". Do not write \"Cartoon Edition\", \"动画卡通版\", \"手绘卡通版\", or any other style label anywhere in the image. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. No extra people, logos, watermark, border, crowded room, deep perspective, photorealistic skin pores, photography, live-action lighting, photographic collage, or unreadable decorative text.",
       "hasCustomPrompt": false,
-      "version": 6,
-      "jobId": "cd79ec35-53c0-46c5-944d-af1c949a71c7",
+      "version": 7,
+      "jobId": "bd91d570-8f46-4b03-8d34-c5df76b826ed",
       "status": "succeeded",
       "references": [
         {
@@ -85,30 +87,34 @@
       },
       "result": {
         "imageDataUrl": "",
-        "imageUrl": "/generated-images/cd79ec35-53c0-46c5-944d-af1c949a71c7.png",
+        "imageUrl": "/generated-images/bd91d570-8f46-4b03-8d34-c5df76b826ed.png",
         "mimeType": "image/png",
         "usage": {
-          "total_tokens": 2556,
-          "input_tokens": 2041,
-          "output_tokens": 515,
+          "input_tokens": 764,
           "input_tokens_details": {
-            "text_tokens": 520,
-            "image_tokens": 1521
-          }
+            "image_tokens": 194,
+            "text_tokens": 570
+          },
+          "output_tokens": 2058,
+          "output_tokens_details": {
+            "image_tokens": 2058,
+            "text_tokens": 0
+          },
+          "total_tokens": 2822
         },
         "mode": "edit",
-        "originalImageUrl": "https://oss.filenest.top/uploads/989a477d-a898-45c9-9331-42cbe109b92e.png",
-        "previewUrl": "/generated-previews/cd79ec35-53c0-46c5-944d-af1c949a71c7.webp",
+        "previewUrl": "/generated-previews/bd91d570-8f46-4b03-8d34-c5df76b826ed.webp",
         "previewWidth": 1254,
         "previewHeight": 1254,
-        "thumbnailUrl": "/generated-thumbnails/cd79ec35-53c0-46c5-944d-af1c949a71c7.webp",
+        "thumbnailUrl": "/generated-thumbnails/bd91d570-8f46-4b03-8d34-c5df76b826ed.webp",
         "thumbnailWidth": 384,
         "thumbnailHeight": 384,
         "provider": {
           "id": "kuaipao",
           "name": "快跑",
           "model": "gpt-image-2"
-        }
+        },
+        "originalImageUrl": ""
       },
       "errorMessage": "",
       "historyJobIds": [
@@ -116,7 +122,8 @@
         "8fa45acd-2eb7-498e-8b02-77f01e7c108d",
         "76034c79-6ff7-49e5-99da-d88f90bb0413",
         "f4cc7ead-2272-44ad-a778-0ba308706d0e",
-        "8df3a9fd-4437-4142-a10e-75e6cabc0630"
+        "8df3a9fd-4437-4142-a10e-75e6cabc0630",
+        "cd79ec35-53c0-46c5-944d-af1c949a71c7"
       ]
     },
     {
@@ -129,11 +136,11 @@
       "pageType": "baby",
       "title": "汽车 Car",
       "order": 1,
-      "prompt": "Use the uploaded child photos only as loose visual-trait reference. Retain broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual 交通工具认知书 learning card, page 1, for ages 0-3. The sole learning concept is \"Car / 汽车\". Render the heading exactly: \"汽车 Car\" and the supporting sentence exactly: \"This is a Car. 这是一辆汽车。\". Draw exactly one child as a friendly, slightly simplified hand-drawn flat cartoon character with rounded outlines and clean flat color fills. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Page scene: the child safely playing with one clearly recognizable flat cartoon toy Car; never show a real, photographed, ride-on, or rendered vehicle. Every visible subject, including the child, vehicle, animal, prop, arrow, icon, and background decoration, must be the same flat hand-drawn cartoon illustration style. Never mix in photography, realistic animals, realistic vehicles, product renders, or photographic cutouts. Theme-appropriate clothing and props may take priority when needed, while retaining the child's hairstyle, skin-tone family, and a small recognizable clothing detail. Make the learning concept immediate and unmistakable, with at most one clear arrow or visual cue and one or two matching small transport symbols and movement marks. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. Never use photorealism, camera lighting, realistic skin pores, photographic collage, 3D animation, extra people, a busy room, deep background, watermark, border, unrelated objects, internal production labels, or unreadable decorative text.",
+      "prompt": "Use the uploaded child photos only as loose visual-trait reference. Retain broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual 交通工具认知书 learning card, page 1, for ages 0-3. The sole learning concept is \"Car / 汽车\". Render the heading exactly: \"汽车 Car\" and the supporting sentence exactly: \"This is a Car. 这是一辆汽车。\". Draw exactly one child in a premium family-friendly animated-feature 3D cartoon style: rounded sculpted forms, expressive simplified facial features, soft matte materials, gentle global illumination, and polished non-photorealistic digital animation art. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Page scene: the child safely playing with one clearly recognizable animated cartoon toy Car; never show a real, photographed, ride-on, or rendered vehicle. Every visible subject, including the child, vehicle, animal, prop, arrow, icon, and background decoration, must use this same animated-feature 3D cartoon style. Never mix in photography, realistic animals, realistic vehicles, product renders, or photographic cutouts. Theme-appropriate clothing and props may take priority when needed, while retaining the child's hairstyle, skin-tone family, and a small recognizable clothing detail. Make the learning concept immediate and unmistakable, with at most one clear arrow or visual cue and one or two matching small transport symbols and movement marks. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. Never use photorealism, realistic skin pores, photography, live-action lighting, photographic collage, extra people, a busy room, deep background, watermark, border, unrelated objects, internal production labels, or unreadable decorative text.",
       "hasCustomPrompt": false,
       "isRequired": false,
-      "version": 6,
-      "jobId": "a65be639-1d87-4bf0-bdc0-b11fab058e5a",
+      "version": 7,
+      "jobId": "72ec8ef7-4d26-411b-b241-0b1f76b3a642",
       "status": "succeeded",
       "references": [
         {
@@ -151,19 +158,26 @@
       },
       "result": {
         "imageDataUrl": "",
-        "imageUrl": "/generated-images/a65be639-1d87-4bf0-bdc0-b11fab058e5a.png",
+        "imageUrl": "/generated-images/72ec8ef7-4d26-411b-b241-0b1f76b3a642.png",
         "mimeType": "image/png",
         "usage": {
-          "total_cost": "0.04",
-          "total_points": "0.04",
-          "total_cost_decimal": "0.04",
-          "total_points_decimal": "0.04"
+          "input_tokens": 1370,
+          "input_tokens_details": {
+            "image_tokens": 560,
+            "text_tokens": 810
+          },
+          "output_tokens": 1756,
+          "output_tokens_details": {
+            "image_tokens": 1756,
+            "text_tokens": 0
+          },
+          "total_tokens": 3126
         },
         "mode": "edit",
-        "previewUrl": "/generated-previews/a65be639-1d87-4bf0-bdc0-b11fab058e5a.webp",
-        "previewWidth": 1254,
-        "previewHeight": 1254,
-        "thumbnailUrl": "/generated-thumbnails/a65be639-1d87-4bf0-bdc0-b11fab058e5a.webp",
+        "previewUrl": "/generated-previews/72ec8ef7-4d26-411b-b241-0b1f76b3a642.webp",
+        "previewWidth": 1024,
+        "previewHeight": 1024,
+        "thumbnailUrl": "/generated-thumbnails/72ec8ef7-4d26-411b-b241-0b1f76b3a642.webp",
         "thumbnailWidth": 384,
         "thumbnailHeight": 384,
         "provider": {
@@ -179,7 +193,8 @@
         "0ec0e774-3862-455e-882e-f77965bd5319",
         "640fdd7e-c115-4d0a-93f5-64ccca44c61f",
         "bbf54169-4538-4d75-9778-c04ffccca338",
-        "5834d0af-2858-428e-89c8-9b825bd7e4d0"
+        "5834d0af-2858-428e-89c8-9b825bd7e4d0",
+        "a65be639-1d87-4bf0-bdc0-b11fab058e5a"
       ]
     }
   ]

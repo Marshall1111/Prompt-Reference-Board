@@ -11,8 +11,8 @@
   "status": "succeeded",
   "message": "图片已保存，可继续编辑或生成更多页面。",
   "createdAt": "2026-08-19T02:43:18.256Z",
-  "updatedAt": "2026-08-19T04:30:03.534Z",
-  "completedAt": "2026-08-19T03:00:52.991Z",
+  "updatedAt": "2026-08-19T07:03:40.561Z",
+  "completedAt": "2026-08-19T06:40:56.245Z",
   "savedAt": "2026-08-19T02:44:06.628Z",
   "share": {
     "token": "",
@@ -38,7 +38,9 @@
     "677003ef-0be2-4ca6-bafd-a987afd3453d",
     "99c70d43-8e94-4e11-89a1-5b9c29f9daab",
     "830de943-5062-48d0-809e-0bebd16e7d20",
-    "408e6970-e982-492a-a425-e1bcc67ba6d3"
+    "408e6970-e982-492a-a425-e1bcc67ba6d3",
+    "6bea6534-5a80-4c95-b3dd-55dc243a07ca",
+    "08757639-f797-4b99-b5fd-8d8ce4d55265"
   ],
   "refundedJobIds": [],
   "billingError": "",
@@ -51,10 +53,10 @@
       "order": 0,
       "pageType": "cover",
       "isRequired": true,
-      "prompt": "Use the uploaded child photos only as loose visual-trait reference. Keep the child's broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual cover for the 0-3 year-old 身体认知书. Draw one single child as a friendly, slightly simplified hand-drawn flat cartoon character with rounded outlines and clean flat color fills. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Theme scene: the child naturally pointing to a few simple illustrated body-part cues, with restrained learning arrows. Every visible subject, including the child, vehicles, animals, objects, icons, and decorations, must be drawn in this same flat hand-drawn cartoon style; do not mix in photographs, realistic product renders, realistic animals, or cutout photos. The main title should read exactly: \"My First Body Book\". The Chinese subtitle should read exactly: \"我的第一本身体认知书\". Beneath it, add the small English line: \"A Bilingual Book for Babies\" and the small Chinese line: \"中英双语 · 0-3岁宝宝启蒙\". Match the original photography-version cover typography treatment: rounded, highly legible sans-serif type; make the English title playful with a refined natural rainbow palette, while keeping all Chinese text dark and clear; add a small pink circular badge in the upper-right that reads exactly \"0-3岁适用\". Do not write \"Cartoon Edition\", \"手绘卡通版\", or any other style label anywhere in the image. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. No extra people, logos, watermark, border, crowded room, deep perspective, camera lighting, realistic skin pores, photographic collage, 3D rendering, or unreadable decorative text.",
+      "prompt": "Use the uploaded child photos only as loose visual-trait reference. Keep the child's broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual cover for the 0-3 year-old 身体认知书. Draw one single child in a premium family-friendly animated-feature 3D cartoon style: rounded sculpted forms, expressive simplified facial features, soft matte materials, gentle global illumination, and polished non-photorealistic digital animation art. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Theme scene: the child naturally pointing to a few simple illustrated body-part cues, with restrained learning arrows. Every visible subject, including the child, vehicles, animals, objects, icons, and decorations, must use this same animated-feature 3D cartoon style; do not mix in photographs, realistic product renders, realistic animals, or cutout photos. The main title should read exactly: \"My First Body Book\". The Chinese subtitle should read exactly: \"我的第一本身体认知书\". Beneath it, add the small English line: \"A Bilingual Book for Babies\" and the small Chinese line: \"中英双语 · 0-3岁宝宝启蒙\". Match the original photography-version cover typography treatment: rounded, highly legible sans-serif type; make the English title playful with a refined natural rainbow palette, while keeping all Chinese text dark and clear; add a small pink circular badge in the upper-right that reads exactly \"0-3岁适用\". Do not write \"Cartoon Edition\", \"动画卡通版\", \"手绘卡通版\", or any other style label anywhere in the image. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. No extra people, logos, watermark, border, crowded room, deep perspective, photorealistic skin pores, photography, live-action lighting, photographic collage, or unreadable decorative text.",
       "hasCustomPrompt": false,
-      "version": 2,
-      "jobId": "830de943-5062-48d0-809e-0bebd16e7d20",
+      "version": 3,
+      "jobId": "6bea6534-5a80-4c95-b3dd-55dc243a07ca",
       "status": "succeeded",
       "references": [
         {
@@ -72,31 +74,35 @@
       },
       "result": {
         "imageDataUrl": "",
-        "imageUrl": "/generated-images/830de943-5062-48d0-809e-0bebd16e7d20.png",
+        "imageUrl": "/generated-images/6bea6534-5a80-4c95-b3dd-55dc243a07ca.png",
         "mimeType": "image/png",
         "usage": {
-          "total_cost": "0.04",
-          "total_points": "0.04",
-          "total_cost_decimal": "0.04",
-          "total_points_decimal": "0.04"
+          "total_tokens": 2490,
+          "input_tokens": 1975,
+          "output_tokens": 515,
+          "input_tokens_details": {
+            "text_tokens": 454,
+            "image_tokens": 1521
+          }
         },
         "mode": "edit",
-        "previewUrl": "/generated-previews/830de943-5062-48d0-809e-0bebd16e7d20.webp",
+        "originalImageUrl": "https://oss.filenest.top/uploads/0706af1a-febd-449d-b82e-8a847e5d15e8.png",
+        "previewUrl": "/generated-previews/6bea6534-5a80-4c95-b3dd-55dc243a07ca.webp",
         "previewWidth": 1254,
         "previewHeight": 1254,
-        "thumbnailUrl": "/generated-thumbnails/830de943-5062-48d0-809e-0bebd16e7d20.webp",
+        "thumbnailUrl": "/generated-thumbnails/6bea6534-5a80-4c95-b3dd-55dc243a07ca.webp",
         "thumbnailWidth": 384,
         "thumbnailHeight": 384,
         "provider": {
           "id": "kuaipao",
           "name": "快跑",
           "model": "gpt-image-2"
-        },
-        "originalImageUrl": ""
+        }
       },
       "errorMessage": "",
       "historyJobIds": [
-        "677003ef-0be2-4ca6-bafd-a987afd3453d"
+        "677003ef-0be2-4ca6-bafd-a987afd3453d",
+        "830de943-5062-48d0-809e-0bebd16e7d20"
       ]
     },
     {
@@ -109,11 +115,11 @@
       "pageType": "baby",
       "title": "头部 Head",
       "order": 1,
-      "prompt": "Use the uploaded child photos only as loose visual-trait reference. Retain broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual 身体认知书 learning card, page 1, for ages 0-3. The sole learning concept is \"Head / 头部\". Render the heading exactly: \"头部 Head\" and the supporting sentence exactly: \"This is my head. 这是我的头部。\". Draw exactly one child as a friendly, slightly simplified hand-drawn flat cartoon character with rounded outlines and clean flat color fills. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Page scene: a close cartoon pose where the requested body part for Head / 头部 is large and unmistakable, with one simple illustrated arrow. Every visible subject, including the child, vehicle, animal, prop, arrow, icon, and background decoration, must be the same flat hand-drawn cartoon illustration style. Never mix in photography, realistic animals, realistic vehicles, product renders, or photographic cutouts. Theme-appropriate clothing and props may take priority when needed, while retaining the child's hairstyle, skin-tone family, and a small recognizable clothing detail. Make the learning concept immediate and unmistakable, with at most one clear arrow or visual cue and one or two matching simple body-part learning symbols. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. Never use photorealism, camera lighting, realistic skin pores, photographic collage, 3D animation, extra people, a busy room, deep background, watermark, border, unrelated objects, internal production labels, or unreadable decorative text.",
+      "prompt": "Use the uploaded child photos only as loose visual-trait reference. Retain broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual 身体认知书 learning card, page 1, for ages 0-3. The sole learning concept is \"Head / 头部\". Render the heading exactly: \"头部 Head\" and the supporting sentence exactly: \"This is my head. 这是我的头部。\". Draw exactly one child in a premium family-friendly animated-feature 3D cartoon style: rounded sculpted forms, expressive simplified facial features, soft matte materials, gentle global illumination, and polished non-photorealistic digital animation art. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Page scene: a close cartoon pose where the requested body part for Head / 头部 is large and unmistakable, with one simple illustrated arrow. Every visible subject, including the child, vehicle, animal, prop, arrow, icon, and background decoration, must use this same animated-feature 3D cartoon style. Never mix in photography, realistic animals, realistic vehicles, product renders, or photographic cutouts. Theme-appropriate clothing and props may take priority when needed, while retaining the child's hairstyle, skin-tone family, and a small recognizable clothing detail. Make the learning concept immediate and unmistakable, with at most one clear arrow or visual cue and one or two matching simple body-part learning symbols. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. Never use photorealism, realistic skin pores, photography, live-action lighting, photographic collage, extra people, a busy room, deep background, watermark, border, unrelated objects, internal production labels, or unreadable decorative text.",
       "hasCustomPrompt": false,
       "isRequired": false,
-      "version": 2,
-      "jobId": "408e6970-e982-492a-a425-e1bcc67ba6d3",
+      "version": 3,
+      "jobId": "08757639-f797-4b99-b5fd-8d8ce4d55265",
       "status": "succeeded",
       "references": [
         {
@@ -131,31 +137,40 @@
       },
       "result": {
         "imageDataUrl": "",
-        "imageUrl": "/generated-images/408e6970-e982-492a-a425-e1bcc67ba6d3.png",
+        "imageUrl": "/generated-images/08757639-f797-4b99-b5fd-8d8ce4d55265.png",
         "mimeType": "image/png",
         "usage": {
-          "total_cost": "0.04",
-          "total_points": "0.04",
-          "total_cost_decimal": "0.04",
-          "total_points_decimal": "0.04"
+          "prompt_tokens": 534,
+          "completion_tokens": 1056,
+          "total_tokens": 1590,
+          "input_tokens": 534,
+          "output_tokens": 1056,
+          "input_tokens_details": {
+            "text_tokens": 532,
+            "image_tokens": 2
+          },
+          "output_tokens_details": {
+            "image_tokens": 1056
+          }
         },
         "mode": "edit",
-        "previewUrl": "/generated-previews/408e6970-e982-492a-a425-e1bcc67ba6d3.webp",
-        "previewWidth": 1254,
-        "previewHeight": 1254,
-        "thumbnailUrl": "/generated-thumbnails/408e6970-e982-492a-a425-e1bcc67ba6d3.webp",
+        "previewUrl": "/generated-previews/08757639-f797-4b99-b5fd-8d8ce4d55265.webp",
+        "previewWidth": 1024,
+        "previewHeight": 1024,
+        "thumbnailUrl": "/generated-thumbnails/08757639-f797-4b99-b5fd-8d8ce4d55265.webp",
         "thumbnailWidth": 384,
         "thumbnailHeight": 384,
         "provider": {
-          "id": "kuaipao",
-          "name": "快跑",
+          "id": "uuapi",
+          "name": "UUAPI",
           "model": "gpt-image-2"
         },
         "originalImageUrl": ""
       },
       "errorMessage": "",
       "historyJobIds": [
-        "99c70d43-8e94-4e11-89a1-5b9c29f9daab"
+        "99c70d43-8e94-4e11-89a1-5b9c29f9daab",
+        "408e6970-e982-492a-a425-e1bcc67ba6d3"
       ]
     }
   ]

@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 2,
+  "sessionId": "0a229bfb-ed46-4c86-9ba1-97e8b5d67d90",
+  "experienceType": "body-book",
+  "themeId": "color",
+  "layoutVersion": "paired-preset-v2",
+  "personalization": {},
+  "ownerAccountId": "f4634ba1-79dd-4a06-9ce7-e070d7e6cb4f",
+  "ownerVisitorId": "5f323334-6528-4dfb-94e2-2dd326fd1673",
+  "stage": "ready",
+  "status": "succeeded",
+  "message": "图片已保存，可继续编辑或生成更多页面。",
+  "createdAt": "2026-08-19T06:49:57.219Z",
+  "updatedAt": "2026-08-19T07:03:40.560Z",
+  "completedAt": "2026-08-19T06:53:10.815Z",
+  "savedAt": "2026-08-19T06:53:10.815Z",
+  "share": {
+    "token": "",
+    "enabled": false,
+    "createdAt": null,
+    "referralToken": ""
+  },
+  "reference": {
+    "filename": "reference-1.png",
+    "mimeType": "image/png",
+    "size": 1918139,
+    "originalName": "result (12).png"
+  },
+  "references": [
+    {
+      "filename": "reference-1.png",
+      "mimeType": "image/png",
+      "size": 1918139,
+      "originalName": "result (12).png"
+    }
+  ],
+  "chargedJobIds": [
+    "e477116b-7538-4f5c-914e-e979efa63379"
+  ],
+  "refundedJobIds": [],
+  "billingError": "",
+  "pages": [
+    {
+      "key": "cover",
+      "chinese": "封面",
+      "english": "Cover",
+      "title": "封面 Cover",
+      "order": 0,
+      "pageType": "cover",
+      "isRequired": true,
+      "prompt": "Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 cover for a bilingual 0-3 year-old 颜色认知书. The main title should read exactly: \"My First Colors\". The Chinese subtitle should read exactly: \"我的第一本颜色认知书\". Beneath it, add the small English line: \"A Bilingual Book for Babies\" and the small Chinese line: \"中英双语 · 0-3岁宝宝启蒙\". Use rounded, highly legible sans-serif typography; make the English title playful with a refined natural rainbow palette, while keeping Chinese text dark and clear. Add a small pink circular badge in the upper-right that reads \"0-3岁适用\". Compose the baby as the clear central subject in a realistic, detailed professional baby portrait with soft warm daylight and natural skin texture. Theme scene: the baby in a playful but refined rainbow color-block outfit, surrounded by six clearly separated, friendly everyday objects in different natural rainbow colors; each object is a crisp white-outline cutout on a pure white page. Use a pure white (#FFFFFF) studio-paper page only, the requested color only, plus restrained warm-cream paper texture; keep the page background pure white accents, ample breathing room, subtle paper texture, and a few neat cutout-style elements with fine white outlines. DK children's encyclopedia style: premium early-learning editorial layout, white-background cutout-object collage composition, realistic baby photography blended with restrained children's illustration, bright but gentle, clean and modern. Do not create a busy room, scenic background, deep depth, extra people, watermark, border, illegible decorative text, collage panels, or 3D animation look.",
+      "hasCustomPrompt": false,
+      "version": 0,
+      "jobId": "",
+      "status": "not_started",
+      "references": [
+        {
+          "filename": "reference-1.png",
+          "mimeType": "image/png",
+          "size": 1918139,
+          "originalName": "result (12).png"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.png",
+        "mimeType": "image/png",
+        "size": 1918139,
+        "originalName": "result (12).png"
+      },
+      "result": null,
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "red-baby",
+      "chinese": "红色",
+      "english": "Red",
+      "copy": "This is Red. 这是红色。",
+      "conceptKey": "red",
+      "colorKey": "red",
+      "pageType": "baby",
+      "title": "红色 Red",
+      "order": 1,
+      "prompt": "Use the uploaded baby photo as the only identity reference. Strictly preserve the baby's facial features, age impression, skin tone, natural hair, and Asian baby appearance. Do not copy the reference clothing, pose, props, or background. Create one square 1:1 INNER PAGE (not a cover) for a 0-3-year-old bilingual color-learning picture book. The only learning concept is \"Red / 红色\".\n\nComposition: make the baby the central half-body subject, recognizably the same child from the reference. Dress the baby in a clearly red soft cotton romper or hoodie and a coordinated matching red fruit- or ladybug-inspired knit hat. The baby should naturally hold, touch, or look at one clear red learning object. The requested color must be visually dominant and unmistakable.\n\nUse a bright, clean full-page red background. Give the baby a neat thick white cutout outline. At the top, include one large hand-drawn speech bubble with the exact Chinese text: \"我们一起来认识红色！\" The color word \"红色\" must use red lettering or a contrasting shade of the same color family; the remaining text is dark brown. Use large rounded, highly legible Chinese type. The only Chinese text allowed anywhere on this page is exactly \"我们一起来认识红色！\" Never include the words \"宝宝页\", \"物品页\", \"内页\", or any page-type label. Add only three to five small matching doodles or sticker-like objects from this family: a red apple, strawberry, cherry, ladybug, red balloon, and red toy car. Keep them far from the baby's face and leave generous breathing room.\n\nStyle: warm, high-saturation but gentle early-learning picture-book cover-style illustration; realistic detailed baby photography blended with restrained children's doodle illustration, subtle paper texture, soft warm daylight, natural skin texture, clean layout. No page number, no English title, no extra people, no room, no landscape, no deep background, no watermark, no border, no collage panels, no unrelated color as a focal point, no unreadable decorative text, and no 3D animation look.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "e477116b-7538-4f5c-914e-e979efa63379",
+      "status": "succeeded",
+      "references": [
+        {
+          "filename": "reference-1.png",
+          "mimeType": "image/png",
+          "size": 1918139,
+          "originalName": "result (12).png"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.png",
+        "mimeType": "image/png",
+        "size": 1918139,
+        "originalName": "result (12).png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/e477116b-7538-4f5c-914e-e979efa63379.png",
+        "mimeType": "image/png",
+        "usage": {
+          "prompt_tokens": 493,
+          "completion_tokens": 1056,
+          "total_tokens": 1549,
+          "input_tokens": 493,
+          "output_tokens": 1056,
+          "input_tokens_details": {
+            "text_tokens": 491,
+            "image_tokens": 2
+          },
+          "output_tokens_details": {
+            "image_tokens": 1056
+          }
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/e477116b-7538-4f5c-914e-e979efa63379.webp",
+        "previewWidth": 1024,
+        "previewHeight": 1024,
+        "thumbnailUrl": "/generated-thumbnails/e477116b-7538-4f5c-914e-e979efa63379.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "uuapi",
+          "name": "UUAPI",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    }
+  ]
+}

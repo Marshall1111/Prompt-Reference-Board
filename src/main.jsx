@@ -156,11 +156,11 @@ const BODY_BOOK_THEME_FALLBACKS = [
     ...theme,
     id: `${theme.id}-cartoon`,
     baseThemeId: theme.id,
-    visualVariant: "flat-cartoon",
+    visualVariant: "animated-3d-cartoon",
     themeCategory: "cartoon",
-    name: `${theme.name}（手绘卡通版）`,
+    name: `${theme.name}（动画卡通版）`,
     englishName: `${theme.englishName} · Cartoon Edition`,
-    title: `${theme.title}（手绘卡通版）`
+    title: `${theme.title}（动画卡通版）`
   }))
 ];
 const BODY_BOOK_THEME_EFFECT_SAMPLES = {
@@ -207,8 +207,8 @@ const BODY_BOOK_CARTOON_EFFECT_SAMPLES = Object.fromEntries([
 ].map(([id, name]) => {
   const preset = (BODY_BOOK_THEME_EFFECT_SAMPLES[id] || []).find((page) => page.type === "preset");
   return [id, [
-    { label: `${name}手绘封面`, src: `/body-book-samples/cartoon-effects/${id}-cover.webp`, type: "cover" },
-    { label: `${name}手绘内页`, src: `/body-book-samples/cartoon-effects/${id}-page.webp`, type: "baby" },
+    { label: `${name}卡通封面`, src: `/body-book-samples/cartoon-effects/${id}-cover.webp`, type: "cover" },
+    { label: `${name}卡通内页`, src: `/body-book-samples/cartoon-effects/${id}-page.webp`, type: "baby" },
     ...(preset ? [{ ...preset, label: `内置${preset.label}` }] : [])
   ]];
 }));
@@ -2697,7 +2697,7 @@ function getBodyBookBaseThemeId(theme) {
 }
 
 function isBodyBookCartoonTheme(theme) {
-  return theme?.visualVariant === "flat-cartoon" || String(theme?.id || "").toLowerCase().endsWith("-cartoon");
+  return ["flat-cartoon", "animated-3d-cartoon"].includes(theme?.visualVariant) || String(theme?.id || "").toLowerCase().endsWith("-cartoon");
 }
 
 function getBodyBookThemePreviewSrc(theme) {
@@ -2718,7 +2718,7 @@ function orderBodyBookThemes(themes) {
 
 const BODY_BOOK_THEME_CATEGORY_META = {
   realistic: { title: "写实认知书", description: "保留宝宝真实照片特征，适合日常认知启蒙。" },
-  cartoon: { title: "卡通认知书", description: "保留发型、肤色和服装等主要特征，以手绘卡通方式呈现。" },
+  cartoon: { title: "卡通认知书", description: "保留发型、肤色和服装等主要特征，以高品质动画电影 3D 卡通方式呈现。" },
   picturebook: { title: "手绘绘本", description: "以连续故事和手绘叙事，陪孩子探索新的成长体验。" }
 };
 
@@ -2768,9 +2768,9 @@ function isValidBodyBookReference(file) {
 }
 
 function formatBodyBookUpdatedAt(value) {
-  if (!value) return "刚刚保存";
+  if (!value) return "刚刚制作";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "已保存" : `更新于 ${date.toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}`;
+  return Number.isNaN(date.getTime()) ? "已制作" : `最近制作于 ${date.toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}`;
 }
 
 function selectBodyBookPagePrompts(prompts, keys, dirtyKeys = []) {
