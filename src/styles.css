@@ -8590,6 +8590,32 @@ textarea {
   display: none;
 }
 
+.body-book-page-prompt-editor {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  color: var(--body-book-apple-ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.body-book-page-prompt-editor textarea {
+  width: 100%;
+  min-height: 176px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid var(--body-book-apple-border);
+  border-radius: 14px;
+  background: #fbfbfd;
+  color: #1d1d1f;
+  font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.body-book-page-prompt-editor textarea:focus {
+  outline: 2px solid rgba(0, 113, 227, 0.2);
+  border-color: var(--body-book-apple-blue);
+}
+
 @media (max-width: 860px) {
   .body-book-page .body-book-header-actions {
     width: auto;
