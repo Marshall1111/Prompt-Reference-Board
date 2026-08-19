@@ -149,7 +149,7 @@ const BODY_BOOK_MOCK_MODE = BODY_BOOK_GENERATION_MODE !== "live";
 const BODY_BOOK_BILLING_ENABLED = !["0", "false", "no", "off"].includes(String(process.env.BODY_BOOK_BILLING_ENABLED || "true").trim().toLowerCase());
 const BODY_BOOK_MOCK_PROVIDER = { id: "body-book-mock", name: "开发模拟", model: "mock" };
 const BODY_BOOK_PARTS = [
-  { key: "head", chinese: "头部", english: "Head", copy: "This is my head. 这是我的头部。" },
+  { key: "head", chinese: "头", english: "Head", copy: "This is my head. 这是我的头。" },
   { key: "eyes", chinese: "眼睛", english: "Eyes", copy: "I see with my eyes. 我用眼睛看世界。" },
   { key: "ears", chinese: "耳朵", english: "Ears", copy: "I hear with my ears. 我用耳朵听声音。" },
   { key: "nose", chinese: "鼻子", english: "Nose", copy: "I smell with my nose. 我用鼻子闻一闻。" },
@@ -190,7 +190,7 @@ const PAIRED_PRESET_BOOK_PARTS = {
   ].map(([key, chinese, english]) => [key, chinese, english, `Hello, ${english}! 你好，${chinese}！`])
 };
 const PAIRED_PRESET_BOOK_THEME_IDS = new Set(Object.keys(PAIRED_PRESET_BOOK_PARTS));
-const BOOK_THEME_DEFINITIONS = [
+const BASE_BOOK_THEME_DEFINITIONS = [
   { id: "body", name: "身体认知书", englishName: "My First Body Book", title: "我的第一本身体认知书", parts: BODY_BOOK_PARTS },
   { id: "career", name: "职业认知书", englishName: "My First Jobs", title: "我的第一本职业认知书", parts: [
     ["doctor", "医生", "Doctor"], ["teacher", "老师", "Teacher"], ["firefighter", "消防员", "Firefighter"], ["chef", "厨师", "Chef"], ["police", "警察", "Police Officer"], ["farmer", "农夫", "Farmer"], ["builder", "建筑师", "Builder"], ["scientist", "科学家", "Scientist"], ["artist", "艺术家", "Artist"], ["nurse", "护士", "Nurse"], ["dentist", "牙医", "Dentist"], ["baker", "面包师", "Baker"], ["gardener", "园丁", "Gardener"], ["veterinarian", "兽医", "Veterinarian"], ["dancer", "舞蹈家", "Dancer"], ["writer", "作家", "Writer"], ["singer", "歌手", "Singer"], ["hairdresser", "理发师", "Hairdresser"]
@@ -243,7 +243,24 @@ const BOOK_THEME_DEFINITIONS = [
     ["miss-home", "想家时，我可以找老师", "I Can Ask for Help", "想家时，我可以找老师抱一抱、说一说。", "When I miss home, my teacher can help."],
     ["pickup", "家人来接我，明天见", "See You Tomorrow", "家人来接我啦。今天真棒，明天见！", "My family is here. See you tomorrow!" ]
   ].map(([key, chinese, english, copy, englishCopy]) => ({ key, chinese, english, copy, englishCopy, story: copy })) }
-];
+].map((theme) => ({
+  ...theme,
+  themeCategory: theme.id === "kindergarten" ? "picturebook" : "realistic"
+}));
+const CARTOON_THEME_SUFFIX = "-cartoon";
+const CARTOON_BOOK_THEME_DEFINITIONS = BASE_BOOK_THEME_DEFINITIONS
+  .filter((theme) => theme.id !== "kindergarten")
+  .map((theme) => ({
+    ...theme,
+    id: `${theme.id}${CARTOON_THEME_SUFFIX}`,
+    baseThemeId: theme.id,
+    visualVariant: "flat-cartoon",
+    themeCategory: "cartoon",
+    name: `${theme.name}（手绘卡通版）`,
+    englishName: `${theme.englishName} · Cartoon Edition`,
+    title: `${theme.title}（手绘卡通版）`
+  }));
+const BOOK_THEME_DEFINITIONS = [...BASE_BOOK_THEME_DEFINITIONS, ...CARTOON_BOOK_THEME_DEFINITIONS];
 const BODY_BOOK_PROMPT_PROFILES = {
   body: {
     coverScene: "the baby naturally pointing to or touching several body-part cues, with a few restrained arrows and tiny learning markers",
@@ -295,7 +312,7 @@ const BODY_BOOK_PROMPT_PROFILES = {
   }
 };
 const BODY_BOOK_PRESET_PAGE_ART_DIRECTIONS = {
-  head: "a hand-drawn close-up of one child's head only, cropped above the shoulders; do not show a whole child or any body below the neck",
+  head: "a hand-drawn crop showing only hair, hairline, forehead, and at most a small sliver of eyebrows; do not show a complete face, eyes, nose, mouth, cheeks, ears, neck, clothes, or any body",
   eyes: "a hand-drawn close-up of only a child's pair of eyes and the smallest surrounding skin area; do not show a full face or head",
   ears: "a hand-drawn close-up of one child's ear only, with just a small neutral area of surrounding skin; do not show a head, face, hair, hand, or whole child",
   nose: "a hand-drawn close-up of only a child's nose and the smallest surrounding skin area; do not show a full face or head",
@@ -10030,6 +10047,20 @@ function getBookTheme(themeId) {
   return BOOK_THEME_DEFINITIONS.find((theme) => theme.id === String(themeId || "").trim().toLowerCase()) || null;
 }
 
+function getBaseBookThemeId(themeOrId) {
+  const id = String(typeof themeOrId === "object" ? themeOrId?.baseThemeId || themeOrId?.id : themeOrId || "").trim().toLowerCase();
+  return id.endsWith(CARTOON_THEME_SUFFIX) ? id.slice(0, -CARTOON_THEME_SUFFIX.length) : id;
+}
+
+function isBodyBookCartoonTheme(themeOrId) {
+  const theme = typeof themeOrId === "object" ? themeOrId : getBookTheme(themeOrId);
+  return theme?.visualVariant === "flat-cartoon" || String(theme?.id || themeOrId || "").trim().toLowerCase().endsWith(CARTOON_THEME_SUFFIX);
+}
+
+function getBaseBookTheme(themeOrId) {
+  return getBookTheme(getBaseBookThemeId(themeOrId)) || getBookTheme("body");
+}
+
 function normalizeBodyBookPersonalization(value, theme, requireChildName = false) {
   if (String(theme?.id || "") !== "kindergarten") return {};
   const rawName = typeof value === "object" && value !== null ? value.childName : "";
@@ -10046,6 +10077,9 @@ function toPublicBookTheme(theme, layoutVersion = getNewBodyBookLayoutVersion(th
   const pages = getBodyBookPageDefinitions(theme, layoutVersion);
   return {
     id: theme.id,
+    baseThemeId: getBaseBookThemeId(theme),
+    visualVariant: String(theme.visualVariant || ""),
+    themeCategory: String(theme.themeCategory || (isBodyBookCartoonTheme(theme) ? "cartoon" : getBaseBookThemeId(theme) === "kindergarten" ? "picturebook" : "realistic")),
     name: theme.name,
     englishName: theme.englishName,
     title: theme.title,
@@ -10066,21 +10100,64 @@ function getBodyBookPart(partKey, themeId = "body") {
 
 function buildBodyBookCoverPrompt(theme = getBookTheme("body"), personalization = {}) {
   const profile = getBodyBookPromptProfile(theme);
-  if (theme?.id === "kindergarten") {
+  if (getBaseBookThemeId(theme) === "kindergarten") {
     const childName = String(personalization?.childName || "小朋友").trim() || "小朋友";
     return `Use the uploaded child photos only as a loose visual-trait reference: retain the child's broad age impression, hairstyle silhouette, hair color, and general skin-tone family, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic portrait. Use the FIRST reference photo as the clothing reference: preserve its main garment colors, pattern or graphic feeling, neckline, sleeve length, and overall outfit silhouette, but redraw those clothing traits in a simple hand-drawn style. Redraw the child as a simple, slightly abstract, fully hand-drawn picture-book character with soft colored-pencil outlines, watercolor fills, uneven crayon texture, and an expressive rounded face. Create one square 1:1 cover illustration for ages 2.5 to 4. ${profile.coverScene}. Use a warm cream full-bleed paper page with hand-torn paper shapes and a few original washi-tape and sticker details. Reserve a clear 15% crop-safe margin on all four sides: keep every important part of the child, all text, and all essential decorative elements inside this safe area. Keep the child large, joyful, and unmistakably central. Render these words clearly as part of the hand-drawn cover layout: the large Chinese title exactly "${childName}去幼儿园啦", the smaller English title exactly "My First Day at Kindergarten", and the short Chinese line exactly "第一天，勇敢出发！". Place the title in a calm high-contrast upper-third area and leave the lower third open for a printed story caption. No other letters, numbers, logos, watermarks, school names, or imitation artwork. Never use photorealism, camera lighting, realistic skin pores, 3D animation, busy rooms, deep perspective, clutter, or frightening expressions.`;
   }
-  const pageBackground = theme?.id === "color" ? "a pure white (#FFFFFF) studio-paper page only" : "a clean white or warm-cream studio page";
+  if (isBodyBookCartoonTheme(theme)) return buildCartoonBodyBookCoverPrompt(theme, profile);
+  const pageBackground = getBaseBookThemeId(theme) === "color" ? "a pure white (#FFFFFF) studio-paper page only" : "a clean white or warm-cream studio page";
   return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 cover for a bilingual 0-3 year-old ${theme.name}. The main title should read exactly: "${theme.englishName}". The Chinese subtitle should read exactly: "${theme.title}". Beneath it, add the small English line: "A Bilingual Book for Babies" and the small Chinese line: "中英双语 · 0-3岁宝宝启蒙". Use rounded, highly legible sans-serif typography; make the English title playful with a refined natural rainbow palette, while keeping Chinese text dark and clear. Add a small pink circular badge in the upper-right that reads "0-3岁适用". Compose the baby as the clear central subject in a realistic, detailed professional baby portrait with soft warm daylight and natural skin texture. Theme scene: ${profile.coverScene}. Use ${pageBackground}, ${profile.accents} accents, ample breathing room, subtle paper texture, and a few neat cutout-style elements with fine white outlines. DK children's encyclopedia style: premium early-learning editorial layout, white-background cutout-object collage composition, realistic baby photography blended with restrained children's illustration, bright but gentle, clean and modern. Do not create a busy room, scenic background, deep depth, extra people, watermark, border, illegible decorative text, collage panels, or 3D animation look.`;
 }
 
 function buildBodyBookPartPrompt(part, order, theme = getBookTheme("body"), personalization = {}) {
-  if (theme?.id === "color") return buildColorBookPartPrompt(part, order, theme);
-  if (theme?.id === "kindergarten") return buildKindergartenBookPagePrompt(part, order, theme, personalization);
+  if (isBodyBookCartoonTheme(theme)) return buildCartoonBodyBookPartPrompt(part, order, theme);
+  if (getBaseBookThemeId(theme) === "color") return buildColorBookPartPrompt(part, order, theme);
+  if (getBaseBookThemeId(theme) === "kindergarten") return buildKindergartenBookPagePrompt(part, order, theme, personalization);
   const profile = getBodyBookPromptProfile(theme);
-  const visualDirection = getBodyBookPartVisualDirection(theme?.id, part?.conceptKey || part?.colorKey || part?.key);
+  const visualDirection = getBodyBookPartVisualDirection(getBaseBookThemeId(theme), part?.conceptKey || part?.colorKey || part?.key);
   const concept = getBodyBookLearningConcept(part);
   return `Use the uploaded baby photo as the only identity reference. Preserve the baby's facial features, skin tone, age impression, and natural hair. Do not copy the clothing, pose, props, or background from the reference photo; follow this page's theme art direction instead. Create one square 1:1 bilingual ${theme.name} learning card for ages 0-3. The sole learning concept is "${concept.english} / ${concept.chinese}". The image must attempt to render this heading exactly: "${concept.chinese} ${concept.english}". Include this short bilingual sentence exactly: "${part.copy}". The terms "宝宝页", "Baby Page", "${concept.chinese}宝宝页", and "${concept.english} Baby" are internal production labels: never render them anywhere in the image, title, subtitle, or decorative text. Make the requested concept immediate and unmistakable; do not introduce competing learning concepts. Theme scene: ${profile.cardScene}. Mandatory page-specific art direction: ${visualDirection} Keep the same baby recognizable, but change the outfit, body position, action, and any prop to match this learning concept. Do not reuse a generic repeated outfit, standing pose, waving pose, or the same pose from another page. Use a white or warm-cream page, ${profile.accents} accents, soft warm natural light, natural skin texture, and generous white space. Add one clear dotted arrow or visual cue pointing to the requested concept, plus only one or two small matching ${profile.icons}. Use clean black or deep-charcoal rounded sans-serif type, with the learning word larger than the supporting sentence. DK children's encyclopedia style: white-background cutout-object collage composition, realistic baby photography blended with subtle cutout illustration, thin white outlines, a soft paper texture, gentle bright color, and no harsh shadows. No extra people, no busy room, no scenic environment, no deep background, no watermark, no border, no collage panels, no unrelated objects, no unreadable decorative text, and no 3D animation look.`;
+}
+
+function buildCartoonBodyBookCoverPrompt(theme, profile) {
+  const baseTheme = getBaseBookTheme(theme);
+  return `Use the uploaded child photos only as loose visual-trait reference. Keep the child's broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual cover for the 0-3 year-old ${baseTheme.name}. Draw one single child as a friendly, slightly simplified hand-drawn flat cartoon character with rounded outlines and clean flat color fills. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Theme scene: ${getCartoonCoverScene(baseTheme)}. Every visible subject, including the child, vehicles, animals, objects, icons, and decorations, must be drawn in this same flat hand-drawn cartoon style; do not mix in photographs, realistic product renders, realistic animals, or cutout photos. The main title should read exactly: "${baseTheme.englishName}". The Chinese subtitle should read exactly: "${baseTheme.title}". Beneath it, add the small English line: "A Bilingual Book for Babies" and the small Chinese line: "中英双语 · 0-3岁宝宝启蒙". Match the original photography-version cover typography treatment: rounded, highly legible sans-serif type; make the English title playful with a refined natural rainbow palette, while keeping all Chinese text dark and clear; add a small pink circular badge in the upper-right that reads exactly "0-3岁适用". Do not write "Cartoon Edition", "手绘卡通版", or any other style label anywhere in the image. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. No extra people, logos, watermark, border, crowded room, deep perspective, camera lighting, realistic skin pores, photographic collage, 3D rendering, or unreadable decorative text.`;
+}
+
+function buildCartoonBodyBookPartPrompt(part, order, theme) {
+  const baseTheme = getBaseBookTheme(theme);
+  const profile = getBodyBookPromptProfile(theme);
+  const concept = getBodyBookLearningConcept(part);
+  return `Use the uploaded child photos only as loose visual-trait reference. Retain broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual ${baseTheme.name} learning card, page ${order}, for ages 0-3. The sole learning concept is "${concept.english} / ${concept.chinese}". Render the heading exactly: "${concept.chinese} ${concept.english}" and the supporting sentence exactly: "${part.copy}". Draw exactly one child as a friendly, slightly simplified hand-drawn flat cartoon character with rounded outlines and clean flat color fills. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Page scene: ${getCartoonPageScene(baseTheme, concept, part)}. Every visible subject, including the child, vehicle, animal, prop, arrow, icon, and background decoration, must be the same flat hand-drawn cartoon illustration style. Never mix in photography, realistic animals, realistic vehicles, product renders, or photographic cutouts. Theme-appropriate clothing and props may take priority when needed, while retaining the child's hairstyle, skin-tone family, and a small recognizable clothing detail. Make the learning concept immediate and unmistakable, with at most one clear arrow or visual cue and one or two matching ${profile.icons}. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. Never use photorealism, camera lighting, realistic skin pores, photographic collage, 3D animation, extra people, a busy room, deep background, watermark, border, unrelated objects, internal production labels, or unreadable decorative text.`;
+}
+
+function getCartoonCoverScene(theme) {
+  const baseThemeId = getBaseBookThemeId(theme);
+  const scenes = {
+    body: "the child naturally pointing to a few simple illustrated body-part cues, with restrained learning arrows",
+    career: "the child in one charming illustrated career outfit, with a small matching cartoon prop and a few career symbols",
+    color: "the child in a playful rainbow color-block outfit, surrounded by six clearly separated friendly everyday cartoon objects in different colors",
+    emotion: "the child showing a warm expressive cartoon face with a small calm ring of simple emotion symbols",
+    transport: "the child surrounded by six clearly separated friendly, recognizable flat cartoon vehicles; never real vehicles or photographs",
+    animal: "the child surrounded by six friendly, recognizable flat cartoon animals; never real animals or photographs",
+    daily: "the child in a cheerful illustrated everyday moment, surrounded by a few clearly separated daily-routine cartoon objects"
+  };
+  return scenes[baseThemeId] || "the child in a clear, friendly illustrated learning scene";
+}
+
+function getCartoonPageScene(theme, concept, part) {
+  const baseThemeId = getBaseBookThemeId(theme);
+  const label = `${concept.english} / ${concept.chinese}`;
+  const scenes = {
+    body: `a close cartoon pose where the requested body part for ${label} is large and unmistakable, with one simple illustrated arrow`,
+    career: `the child wearing a child-safe flat cartoon version of the ${concept.english} profession outfit and using one simple matching illustrated prop`,
+    color: `the child wearing the requested ${concept.english} color and interacting with one clear matching-color illustrated learning object`,
+    emotion: `a close cartoon pose showing the ${concept.english} feeling gently through expression, posture, clothing, and one small matching symbol`,
+    transport: `the child safely playing with one clearly recognizable flat cartoon toy ${concept.english}; never show a real, photographed, ride-on, or rendered vehicle`,
+    animal: `the child beside one friendly, recognizable flat cartoon ${concept.english} animal; never show a real, photographed, or rendered animal`,
+    daily: `the child performing the ${concept.english} routine in one clear, safe, simplified cartoon action with only the necessary illustrated props`
+  };
+  return scenes[baseThemeId] || `a clear illustrated learning scene for ${label}`;
 }
 
 function buildKindergartenBookPagePrompt(part, order, theme = getBookTheme("kindergarten"), personalization = {}) {
@@ -10222,7 +10299,7 @@ function getBodyBookPartVisualDirection(themeId, partKey) {
   };
 
   const fallback = "Dress the baby in a theme-appropriate soft outfit and show one clearly different, safe, age-appropriate action that directly teaches the requested concept.";
-  return directions[String(themeId || "").toLowerCase()]?.[String(partKey || "").toLowerCase()] || fallback;
+  return directions[getBaseBookThemeId(themeId)]?.[String(partKey || "").toLowerCase()] || fallback;
 }
 
 function buildColorBookPartPrompt(part, order, theme = getBookTheme("color")) {
@@ -10262,7 +10339,7 @@ function getColorBookVisualDetails(colorKey) {
 }
 
 function getBodyBookPromptProfile(theme) {
-  return BODY_BOOK_PROMPT_PROFILES[theme?.id] || BODY_BOOK_PROMPT_PROFILES.body;
+  return BODY_BOOK_PROMPT_PROFILES[getBaseBookThemeId(theme)] || BODY_BOOK_PROMPT_PROFILES.body;
 }
 
 async function createBodyBookSession(file, visitor, accountId, theme) {
@@ -10383,10 +10460,13 @@ async function createBodyBookImageJob(session, slot, provider, providers, refere
   const references = await readBodyBookReferences(session, referenceMetadata);
   const jobId = randomUUID();
   const originalReferences = await persistImageJobReferences(jobId, references);
-  const isKindergartenBook = String(session?.themeId || "") === "kindergarten";
-  const subjectLabel = isKindergartenBook ? "child" : "baby";
+  const isKindergartenBook = getBaseBookThemeId(session?.themeId) === "kindergarten";
+  const isCartoonBook = isBodyBookCartoonTheme(session?.themeId);
+  const subjectLabel = isKindergartenBook || isCartoonBook ? "child" : "baby";
   const identityRule = isKindergartenBook
     ? "All uploaded reference photos are of the same child. Use them only for broad visual continuity: approximate age impression, hairstyle silhouette, hair color, and general skin-tone family. Do not reproduce the exact face, pose, or a photorealistic likeness. The FIRST reference photo is the deliberate exception for clothing: preserve its clothing colors, pattern feeling, silhouette, and shoe style as hand-drawn outfit traits. The result must remain a stylized hand-drawn child character, not a portrait photograph. Do not blend the reference photos into multiple children."
+    : isCartoonBook
+      ? "All uploaded reference photos are of the same child. Use them only for broad visual traits: approximate age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two clothing cues. Do not reproduce the exact face, pose, photo background, photographic skin texture, or a realistic likeness. Draw one simplified hand-drawn flat cartoon child, not a portrait photograph, and do not blend the references into multiple children."
     : `All uploaded reference photos are photos of the same ${subjectLabel}. Use them only to preserve one ${subjectLabel}'s consistent facial features, skin tone, age impression, and natural hair. Do not blend them into multiple people, and do not generate more than one ${subjectLabel}.`;
   const prompt = `${slot.prompt}\n\nIdentity reference rule: ${identityRule}`;
   const now = new Date().toISOString();
@@ -10829,31 +10909,32 @@ async function legacySynchronizeBodyBookSessionByJobId(jobId) {
 // intentionally supersede the original fixed cover/cards workflow above while
 // keeping existing JSON files readable during the rollout.
 function getNewBodyBookLayoutVersion(theme) {
-  return PAIRED_PRESET_BOOK_THEME_IDS.has(String(theme?.id || "").toLowerCase())
+  return PAIRED_PRESET_BOOK_THEME_IDS.has(getBaseBookThemeId(theme))
     ? PAIRED_PRESET_LAYOUT_VERSION
     : LEGACY_BODY_BOOK_LAYOUT_VERSION;
 }
 
 function getBodyBookLayoutVersion(theme, layoutVersion = "") {
-  if (layoutVersion === PAIRED_PRESET_LAYOUT_VERSION && PAIRED_PRESET_BOOK_THEME_IDS.has(String(theme?.id || "").toLowerCase())) {
+  if (layoutVersion === PAIRED_PRESET_LAYOUT_VERSION && PAIRED_PRESET_BOOK_THEME_IDS.has(getBaseBookThemeId(theme))) {
     return PAIRED_PRESET_LAYOUT_VERSION;
   }
   // Colour books shipped with this paired structure before layout versions were
   // persisted, so retain their existing behaviour for every historical project.
-  if (String(theme?.id || "") === "color") return PAIRED_PRESET_LAYOUT_VERSION;
+  if (getBaseBookThemeId(theme) === "color") return PAIRED_PRESET_LAYOUT_VERSION;
   return LEGACY_BODY_BOOK_LAYOUT_VERSION;
 }
 
 function getPairedPresetBookParts(theme) {
-  return (PAIRED_PRESET_BOOK_PARTS[String(theme?.id || "").toLowerCase()] || [])
+  return (PAIRED_PRESET_BOOK_PARTS[getBaseBookThemeId(theme)] || [])
     .map(([key, chinese, english, copy]) => ({ key, chinese, english, copy }));
 }
 
 function getBodyBookPageDefinitions(theme = getBookTheme("body"), layoutVersion = getNewBodyBookLayoutVersion(theme)) {
   const resolved = theme || getBookTheme("body");
+  const baseThemeId = getBaseBookThemeId(resolved);
   const pairedLayout = getBodyBookLayoutVersion(resolved, layoutVersion) === PAIRED_PRESET_LAYOUT_VERSION;
-  if (resolved?.id === "color" || pairedLayout) {
-    const parts = resolved.id === "color" ? resolved.parts || [] : getPairedPresetBookParts(resolved);
+  if (baseThemeId === "color" || pairedLayout) {
+    const parts = baseThemeId === "color" ? resolved.parts || [] : getPairedPresetBookParts(resolved);
     const innerPages = parts.flatMap((part, index) => {
       const babyOrder = index * 2 + 1;
       return [
@@ -10861,7 +10942,7 @@ function getBodyBookPageDefinitions(theme = getBookTheme("body"), layoutVersion 
           ...part,
           key: `${part.key}-baby`,
           conceptKey: part.key,
-          colorKey: resolved.id === "color" ? part.key : "",
+          colorKey: baseThemeId === "color" ? part.key : "",
           pageType: "baby",
           chinese: part.chinese,
           english: part.english,
@@ -10872,7 +10953,7 @@ function getBodyBookPageDefinitions(theme = getBookTheme("body"), layoutVersion 
           ...part,
           key: `${part.key}-objects`,
           conceptKey: part.key,
-          colorKey: resolved.id === "color" ? part.key : "",
+          colorKey: baseThemeId === "color" ? part.key : "",
           pageType: "objects",
           isBuiltIn: true,
           isRequired: true,
@@ -10994,16 +11075,20 @@ function createBodyBookPage(definition, theme, references, current = {}, persona
 
 function getBuiltInPresetBookPageResult(definition, theme) {
   const isBackCover = definition?.pageType === "back-cover";
-  const isColorBook = String(theme?.id || "") === "color";
+  const baseThemeId = getBaseBookThemeId(theme);
+  const isColorBook = baseThemeId === "color";
   const filename = isBackCover ? "back-cover.svg" : `${definition?.conceptKey || definition?.colorKey || "red"}-objects.png`;
   const imageUrl = isBackCover || isColorBook
     ? `/body-book-color-pages/${filename}`
-    : `/body-book-preset-pages/${String(theme?.id || "body")}-${String(definition?.conceptKey || "item")}.png`;
+    : `/body-book-preset-pages/${baseThemeId || "body"}-${String(definition?.conceptKey || "item")}.png`;
+  const isBodyPresetPage = baseThemeId === "body" && !isBackCover;
   const thumbnailUrl = isBackCover
     ? imageUrl
     : isColorBook
       ? `/body-book-color-pages/thumbnails/${definition?.colorKey || "red"}-objects.webp`
-      : imageUrl;
+      : isBodyPresetPage
+        ? `/body-book-preset-pages/thumbnails/body-${String(definition?.conceptKey || "item")}.webp`
+        : imageUrl;
   return {
     imageDataUrl: "",
     imageUrl,
@@ -11017,7 +11102,7 @@ function getBuiltInPresetBookPageResult(definition, theme) {
 }
 
 function buildBuiltInPresetBookPagePrompt(definition, theme) {
-  if (String(theme?.id || "") === "color") return buildColorObjectPagePrompt(definition);
+  if (getBaseBookThemeId(theme) === "color") return buildColorObjectPagePrompt(definition);
   const conceptKey = String(definition?.conceptKey || definition?.key || "").replace(/-objects$/i, "").toLowerCase();
   const artDirection = BODY_BOOK_PRESET_PAGE_ART_DIRECTIONS[conceptKey]
     || "a hand-drawn close-up of only the requested body part; do not show a whole child";
@@ -11358,7 +11443,7 @@ function normalizeBodyBookSession(session) {
   const hasProjectPages = Array.isArray(session?.pages);
   const legacyItems = hasProjectPages ? session.pages : [session?.cover, ...(Array.isArray(session?.cards) ? session.cards : [])].filter(Boolean);
   const byKey = new Map(legacyItems.map((item) => [String(item?.key || "").toLowerCase(), item]));
-  if (theme.id === "color") {
+  if (getBaseBookThemeId(theme) === "color") {
     for (const part of theme.parts) {
       const legacyPage = byKey.get(part.key);
       const babyKey = `${part.key}-baby`;

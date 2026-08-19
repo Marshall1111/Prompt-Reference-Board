@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 2,
+  "sessionId": "0894a939-5238-4d39-958b-a5a9f3db060a",
+  "experienceType": "body-book",
+  "themeId": "daily-cartoon",
+  "layoutVersion": "legacy-v1",
+  "personalization": {},
+  "ownerAccountId": "f4634ba1-79dd-4a06-9ce7-e070d7e6cb4f",
+  "ownerVisitorId": "5f323334-6528-4dfb-94e2-2dd326fd1673",
+  "stage": "ready",
+  "status": "succeeded",
+  "message": "图片已保存，可继续编辑或生成更多页面。",
+  "createdAt": "2026-08-19T03:15:10.844Z",
+  "updatedAt": "2026-08-19T04:30:03.533Z",
+  "completedAt": "2026-08-19T03:16:10.116Z",
+  "savedAt": "2026-08-19T03:16:03.160Z",
+  "share": {
+    "token": "",
+    "enabled": false,
+    "createdAt": null,
+    "referralToken": ""
+  },
+  "reference": {
+    "filename": "reference-1.png",
+    "mimeType": "image/png",
+    "size": 1918139,
+    "originalName": "result (12).png"
+  },
+  "references": [
+    {
+      "filename": "reference-1.png",
+      "mimeType": "image/png",
+      "size": 1918139,
+      "originalName": "result (12).png"
+    }
+  ],
+  "chargedJobIds": [
+    "caa36ba3-b19a-4feb-a818-2f249b9c636f",
+    "0a3b9a06-d700-4bd0-a4b8-a3572a6c2bb3"
+  ],
+  "refundedJobIds": [],
+  "billingError": "",
+  "pages": [
+    {
+      "key": "cover",
+      "chinese": "封面",
+      "english": "Cover",
+      "title": "封面 Cover",
+      "order": 0,
+      "pageType": "cover",
+      "isRequired": true,
+      "prompt": "Use the uploaded child photos only as loose visual-trait reference. Keep the child's broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual cover for the 0-3 year-old 日常行为认知书. Draw one single child as a friendly, slightly simplified hand-drawn flat cartoon character with rounded outlines and clean flat color fills. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Theme scene: the child in a cheerful illustrated everyday moment, surrounded by a few clearly separated daily-routine cartoon objects. Every visible subject, including the child, vehicles, animals, objects, icons, and decorations, must be drawn in this same flat hand-drawn cartoon style; do not mix in photographs, realistic product renders, realistic animals, or cutout photos. The main title should read exactly: \"My First Daily Routines\". The Chinese subtitle should read exactly: \"我的第一本日常行为认知书\". Beneath it, add the small English line: \"A Bilingual Book for Babies\" and the small Chinese line: \"中英双语 · 0-3岁宝宝启蒙\". Match the original photography-version cover typography treatment: rounded, highly legible sans-serif type; make the English title playful with a refined natural rainbow palette, while keeping all Chinese text dark and clear; add a small pink circular badge in the upper-right that reads exactly \"0-3岁适用\". Do not write \"Cartoon Edition\", \"手绘卡通版\", or any other style label anywhere in the image. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. No extra people, logos, watermark, border, crowded room, deep perspective, camera lighting, realistic skin pores, photographic collage, 3D rendering, or unreadable decorative text.",
+      "hasCustomPrompt": false,
+      "version": 1,
+      "jobId": "caa36ba3-b19a-4feb-a818-2f249b9c636f",
+      "status": "succeeded",
+      "references": [
+        {
+          "filename": "reference-1.png",
+          "mimeType": "image/png",
+          "size": 1918139,
+          "originalName": "result (12).png"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.png",
+        "mimeType": "image/png",
+        "size": 1918139,
+        "originalName": "result (12).png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/caa36ba3-b19a-4feb-a818-2f249b9c636f.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 2051,
+          "input_tokens_details": {
+            "image_tokens": 1521,
+            "text_tokens": 530
+          },
+          "output_tokens": 515,
+          "output_tokens_details": {
+            "image_tokens": 515,
+            "text_tokens": 0
+          },
+          "total_tokens": 2566
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/caa36ba3-b19a-4feb-a818-2f249b9c636f.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/caa36ba3-b19a-4feb-a818-2f249b9c636f.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "llmtoken",
+          "name": "llmtoken",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "wake-up",
+      "chinese": "起床",
+      "english": "Wake Up",
+      "copy": "I can wake up. 我会起床。",
+      "title": "起床 Wake Up",
+      "order": 1,
+      "prompt": "Use the uploaded child photos only as loose visual-trait reference. Retain broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual 日常行为认知书 learning card, page 1, for ages 0-3. The sole learning concept is \"Wake Up / 起床\". Render the heading exactly: \"起床 Wake Up\" and the supporting sentence exactly: \"I can wake up. 我会起床。\". Draw exactly one child as a friendly, slightly simplified hand-drawn flat cartoon character with rounded outlines and clean flat color fills. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Page scene: the child performing the Wake Up routine in one clear, safe, simplified cartoon action with only the necessary illustrated props. Every visible subject, including the child, vehicle, animal, prop, arrow, icon, and background decoration, must be the same flat hand-drawn cartoon illustration style. Never mix in photography, realistic animals, realistic vehicles, product renders, or photographic cutouts. Theme-appropriate clothing and props may take priority when needed, while retaining the child's hairstyle, skin-tone family, and a small recognizable clothing detail. Make the learning concept immediate and unmistakable, with at most one clear arrow or visual cue and one or two matching small daily-routine objects and gentle action marks. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. Never use photorealism, camera lighting, realistic skin pores, photographic collage, 3D animation, extra people, a busy room, deep background, watermark, border, unrelated objects, internal production labels, or unreadable decorative text.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "0a3b9a06-d700-4bd0-a4b8-a3572a6c2bb3",
+      "status": "succeeded",
+      "references": [
+        {
+          "filename": "reference-1.png",
+          "mimeType": "image/png",
+          "size": 1918139,
+          "originalName": "result (12).png"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.png",
+        "mimeType": "image/png",
+        "size": 1918139,
+        "originalName": "result (12).png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/0a3b9a06-d700-4bd0-a4b8-a3572a6c2bb3.png",
+        "mimeType": "image/png",
+        "usage": {
+          "input_tokens": 1909,
+          "input_tokens_details": {
+            "image_tokens": 1521,
+            "text_tokens": 388
+          },
+          "output_tokens": 229,
+          "output_tokens_details": {
+            "image_tokens": 229,
+            "text_tokens": 0
+          },
+          "total_tokens": 2138
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/0a3b9a06-d700-4bd0-a4b8-a3572a6c2bb3.webp",
+        "previewWidth": 1254,
+        "previewHeight": 1254,
+        "thumbnailUrl": "/generated-thumbnails/0a3b9a06-d700-4bd0-a4b8-a3572a6c2bb3.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "llmtoken",
+          "name": "llmtoken",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    }
+  ]
+}

@@ -489,6 +489,37 @@ body {
   color: #64756f;
 }
 
+.body-book-theme-groups {
+  display: grid;
+  gap: 30px;
+}
+
+.body-book-theme-group {
+  display: grid;
+  gap: 13px;
+}
+
+.body-book-theme-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #d8e3dc;
+}
+
+.body-book-theme-group-head span {
+  color: #25483e;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.body-book-theme-group-head p {
+  margin: 0;
+  color: #6b7b75;
+  font-size: 13px;
+}
+
 .body-book-theme-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1140,6 +1171,7 @@ body {
   .body-book-cover-review { grid-template-columns: minmax(0, 1fr); gap: 26px; padding: 34px 0; }
   .body-book-upload { width: min(460px, 100%); }
   .body-book-theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .body-book-theme-group-head { align-items: flex-start; flex-direction: column; gap: 4px; }
   .body-book-theme-layout { grid-template-columns: minmax(0, 1fr); }
   .body-book-wallet-panel { order: 2; width: min(460px, 100%); }
   .body-book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

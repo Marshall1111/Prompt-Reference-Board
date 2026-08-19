@@ -140,15 +140,28 @@ const GENERATION_STEPS = ["准备请求", "提交到中转站", "等待模型生
 const DRAW_CARD_SESSION_STORAGE_KEY = "pg.public-draw.session-id";
 const FRIDGE_MAGNET_SESSION_STORAGE_KEY = "pg.public-fridge.session-id";
 const BODY_BOOK_SESSION_STORAGE_KEY = "pg.body-book.session-id";
+const BODY_BOOK_THEME_BASE_FALLBACKS = [
+  { id: "body", name: "身体认知书", englishName: "My First Body Book", title: "我的第一本身体认知书", themeCategory: "realistic" },
+  { id: "career", name: "职业认知书", englishName: "My First Jobs", title: "我的第一本职业认知书", themeCategory: "realistic" },
+  { id: "color", name: "颜色认知书", englishName: "My First Colors", title: "我的第一本颜色认知书", themeCategory: "realistic" },
+  { id: "emotion", name: "情绪认知书", englishName: "My First Feelings", title: "我的第一本情绪认知书", themeCategory: "realistic" },
+  { id: "transport", name: "交通工具认知书", englishName: "My First Vehicles", title: "我的第一本交通工具认知书", themeCategory: "realistic" },
+  { id: "animal", name: "动物认知书", englishName: "My First Animals", title: "我的第一本动物认知书", themeCategory: "realistic" },
+  { id: "daily", name: "日常行为认知书", englishName: "My First Daily Routines", title: "我的第一本日常行为认知书", themeCategory: "realistic" },
+  { id: "kindergarten", name: "入园适应绘本", englishName: "My First Day at Kindergarten", title: "我的入园第一天", themeCategory: "picturebook" }
+];
 const BODY_BOOK_THEME_FALLBACKS = [
-  { id: "body", name: "身体认知书", englishName: "My First Body Book", title: "我的第一本身体认知书" },
-  { id: "career", name: "职业认知书", englishName: "My First Jobs", title: "我的第一本职业认知书" },
-  { id: "color", name: "颜色认知书", englishName: "My First Colors", title: "我的第一本颜色认知书" },
-  { id: "emotion", name: "情绪认知书", englishName: "My First Feelings", title: "我的第一本情绪认知书" },
-  { id: "transport", name: "交通工具认知书", englishName: "My First Vehicles", title: "我的第一本交通工具认知书" },
-  { id: "animal", name: "动物认知书", englishName: "My First Animals", title: "我的第一本动物认知书" },
-  { id: "daily", name: "日常行为认知书", englishName: "My First Daily Routines", title: "我的第一本日常行为认知书" },
-  { id: "kindergarten", name: "入园适应绘本", englishName: "My First Day at Kindergarten", title: "我的入园第一天" }
+  ...BODY_BOOK_THEME_BASE_FALLBACKS,
+  ...BODY_BOOK_THEME_BASE_FALLBACKS.filter((theme) => theme.id !== "kindergarten").map((theme) => ({
+    ...theme,
+    id: `${theme.id}-cartoon`,
+    baseThemeId: theme.id,
+    visualVariant: "flat-cartoon",
+    themeCategory: "cartoon",
+    name: `${theme.name}（手绘卡通版）`,
+    englishName: `${theme.englishName} · Cartoon Edition`,
+    title: `${theme.title}（手绘卡通版）`
+  }))
 ];
 const BODY_BOOK_THEME_EFFECT_SAMPLES = {
   color: [
@@ -188,6 +201,17 @@ const BODY_BOOK_THEME_EFFECT_SAMPLES = {
     { label: "入园故事内页", src: "/body-book-samples/effects/kindergarten-page-01-thumbnail.webp", type: "baby" }
   ]
 };
+const BODY_BOOK_CARTOON_EFFECT_SAMPLES = Object.fromEntries([
+  ["body", "身体认知书"], ["career", "职业认知书"], ["color", "颜色认知书"], ["emotion", "情绪认知书"],
+  ["transport", "交通工具认知书"], ["animal", "动物认知书"], ["daily", "日常行为认知书"]
+].map(([id, name]) => {
+  const preset = (BODY_BOOK_THEME_EFFECT_SAMPLES[id] || []).find((page) => page.type === "preset");
+  return [id, [
+    { label: `${name}手绘封面`, src: `/body-book-samples/cartoon-effects/${id}-cover.webp`, type: "cover" },
+    { label: `${name}手绘内页`, src: `/body-book-samples/cartoon-effects/${id}-page.webp`, type: "baby" },
+    ...(preset ? [{ ...preset, label: `内置${preset.label}` }] : [])
+  ]];
+}));
 const LATEST_MANUAL_ORDER_STORAGE_KEY = "pg.fridge.latest-manual-order";
 const DRAW_CARD_EXPERIENCE_CONFIG = {
   route: "public-draw",
@@ -1595,7 +1619,7 @@ function LegacyBodyBookPage() {
         <section className="body-book-theme-home body-book-theme-layout">
           <div className="body-book-theme-content">
             <div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>每本认知书包含一张封面和按主题扩展的认知卡。</p></div>
-            <div className="body-book-theme-grid">{themes.map((theme, index) => <button className="body-book-theme-card" key={theme.id} onClick={() => { setSelectedTheme(theme); setError(""); }} type="button">{theme.id === "kindergarten" ? <img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src="/body-book-samples/effects/kindergarten-cover-thumbnail.webp" /> : <img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={`/body-book-samples/${encodeURIComponent(theme.id)}-cover-thumbnail.webp`} />}<span className="body-book-theme-index">{String(index + 1).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small></button>)}</div>
+            <div className="body-book-theme-groups">{getBodyBookThemeGroups(themes).map((group) => <section className="body-book-theme-group" key={group.id}><div className="body-book-theme-group-head"><span>{group.title}</span><p>{group.description}</p></div><div className="body-book-theme-grid">{group.items.map(({ theme, index }) => <button className="body-book-theme-card" key={theme.id} onClick={() => { setSelectedTheme(theme); setError(""); }} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={getBodyBookThemePreviewSrc(theme)} /><span className="body-book-theme-index">{String(index).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small></button>)}</div></section>)}</div>
           </div>
           <aside className="body-book-wallet-panel">
             <span className="body-book-wallet-label">我的豆豆</span>
@@ -2600,7 +2624,7 @@ function BodyBookPage() {
 
       {home ? <>
         <section className="body-book-theme-home body-book-theme-layout">
-          <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先查看整本效果，再开始制作专属认知书。</p></div><div className="body-book-theme-grid">{themes.map((theme, originalIndex) => ({ theme, originalIndex })).sort((left, right) => getBodyBookThemeGenerationCost(left.theme) - getBodyBookThemeGenerationCost(right.theme) || left.originalIndex - right.originalIndex).map(({ theme }, index) => <button className="body-book-theme-card" disabled={busy} key={theme.id} onClick={() => { setThemePreview(theme); setError(""); }} type="button">{theme.id === "kindergarten" ? <img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading="eager" src="/body-book-samples/effects/kindergarten-cover-thumbnail.webp" /> : <img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={`/body-book-samples/${encodeURIComponent(theme.id)}-cover-thumbnail.webp`} />}<span className="body-book-theme-index">{String(index + 1).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small><em>预计消耗 {getBodyBookThemeGenerationCost(theme)} 豆</em></button>)}</div></div>
+          <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先查看整本效果，再开始制作专属认知书。</p></div><div className="body-book-theme-groups">{getBodyBookThemeGroups(themes).map((group) => <section className="body-book-theme-group" key={group.id}><div className="body-book-theme-group-head"><span>{group.title}</span><p>{group.description}</p></div><div className="body-book-theme-grid">{group.items.map(({ theme, index }) => <button className="body-book-theme-card" disabled={busy} key={theme.id} onClick={() => { setThemePreview(theme); setError(""); }} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={getBodyBookThemePreviewSrc(theme)} /><span className="body-book-theme-index">{String(index).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small><em>预计消耗 {getBodyBookThemeGenerationCost(theme)} 豆</em></button>)}</div></section>)}</div></div>
         </section>
         <section className="body-book-library"><div className="body-book-library-head"><span className="body-book-step">MY BOOKS</span><h2>我的认知书</h2></div>{error ? <p className="error-note">{error}</p> : null}{savedBooks.length ? <div className="body-book-library-grid">{savedBooks.map((book) => <article className="body-book-library-item" key={book.sessionId}><button className="body-book-library-cover" onClick={() => openProject(book.sessionId)} type="button">{book.thumbnail ? <img alt={`${book.title} 缩略图`} src={book.thumbnail} /> : <div className="body-book-library-placeholder">{book.theme?.name || "认知书"}</div>}<span>{book.title}</span><small>继续制作 · {formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></button><button aria-label={`删除《${book.title}》`} className="body-book-library-delete icon-button" disabled={deletingProjectId === book.sessionId} onClick={() => deleteProject(book)} title="删除" type="button">{deletingProjectId === book.sessionId ? <LoaderCircle className="spin" size={16} /> : <X size={17} />}</button></article>)}</div> : <p className="body-book-library-empty">成功生成第一张图片后，工程会自动保存在这里。</p>}</section>
       </> : showingThemePreview ? <BodyBookThemeEffectPreview busy={busy} onBack={() => setThemePreview(null)} onStart={() => selectTheme(themePreview)} theme={themePreview} /> : <section className="body-book-workspace body-book-project-workspace">
@@ -2664,11 +2688,66 @@ function getBodyBookThemeContents(theme) {
 function getBodyBookThemeGenerationCost(theme) {
   const fromServer = Number(theme?.generationPageCount);
   if (Number.isInteger(fromServer) && fromServer > 0) return fromServer;
-  return ["color", "body", "transport", "animal"].includes(String(theme?.id || "")) ? 9 : 17;
+  return ["color", "body", "transport", "animal"].includes(getBodyBookBaseThemeId(theme)) ? 9 : 17;
+}
+
+function getBodyBookBaseThemeId(theme) {
+  const id = String(theme?.baseThemeId || theme?.id || "").toLowerCase();
+  return id.endsWith("-cartoon") ? id.slice(0, -"-cartoon".length) : id;
+}
+
+function isBodyBookCartoonTheme(theme) {
+  return theme?.visualVariant === "flat-cartoon" || String(theme?.id || "").toLowerCase().endsWith("-cartoon");
+}
+
+function getBodyBookThemePreviewSrc(theme) {
+  if (isBodyBookCartoonTheme(theme)) return BODY_BOOK_CARTOON_EFFECT_SAMPLES[getBodyBookBaseThemeId(theme)]?.[0]?.src || "/body-book-samples/cartoon-effects/body-cover.webp";
+  if (theme?.id === "kindergarten") return "/body-book-samples/effects/kindergarten-cover-thumbnail.webp";
+  return `/body-book-samples/${encodeURIComponent(getBodyBookBaseThemeId(theme))}-cover-thumbnail.webp`;
+}
+
+function orderBodyBookThemes(themes) {
+  const items = Array.isArray(themes) ? themes : [];
+  const regularThemes = items.filter((theme) => !isBodyBookCartoonTheme(theme) && getBodyBookBaseThemeId(theme) !== "kindergarten");
+  const cartoonsByBaseTheme = new Map(items.filter((theme) => isBodyBookCartoonTheme(theme)).map((theme) => [getBodyBookBaseThemeId(theme), theme]));
+  const pairedThemes = regularThemes.flatMap((theme) => [theme, cartoonsByBaseTheme.get(getBodyBookBaseThemeId(theme))].filter(Boolean));
+  const kindergartenThemes = items.filter((theme) => getBodyBookBaseThemeId(theme) === "kindergarten");
+  const includedThemeIds = new Set([...pairedThemes, ...kindergartenThemes].map((theme) => theme.id));
+  return [...pairedThemes, ...kindergartenThemes, ...items.filter((theme) => !includedThemeIds.has(theme.id))];
+}
+
+const BODY_BOOK_THEME_CATEGORY_META = {
+  realistic: { title: "写实认知书", description: "保留宝宝真实照片特征，适合日常认知启蒙。" },
+  cartoon: { title: "卡通认知书", description: "保留发型、肤色和服装等主要特征，以手绘卡通方式呈现。" },
+  picturebook: { title: "手绘绘本", description: "以连续故事和手绘叙事，陪孩子探索新的成长体验。" }
+};
+
+function getBodyBookThemeCategory(theme) {
+  if (theme?.themeCategory && BODY_BOOK_THEME_CATEGORY_META[theme.themeCategory]) return theme.themeCategory;
+  if (isBodyBookCartoonTheme(theme)) return "cartoon";
+  return getBodyBookBaseThemeId(theme) === "kindergarten" ? "picturebook" : "realistic";
+}
+
+function getBodyBookThemeGroups(themes) {
+  const orderedThemes = orderBodyBookThemes(themes);
+  let themeIndex = 0;
+  return Object.keys(BODY_BOOK_THEME_CATEGORY_META).map((category) => {
+    const items = orderedThemes
+      .filter((theme) => getBodyBookThemeCategory(theme) === category)
+      .map((theme) => ({ theme, index: ++themeIndex }));
+    return { id: category, ...BODY_BOOK_THEME_CATEGORY_META[category], items };
+  }).filter((group) => group.items.length);
+}
+
+function getBodyBookThemeEffectSamples(theme) {
+  if (isBodyBookCartoonTheme(theme)) {
+    return BODY_BOOK_CARTOON_EFFECT_SAMPLES[getBodyBookBaseThemeId(theme)] || [];
+  }
+  return BODY_BOOK_THEME_EFFECT_SAMPLES[String(theme?.id || "")] || [];
 }
 
 function BodyBookThemeEffectPreview({ theme, busy, onBack, onStart }) {
-  const pages = BODY_BOOK_THEME_EFFECT_SAMPLES[String(theme?.id || "")] || [];
+  const pages = getBodyBookThemeEffectSamples(theme);
   const hasPresetPage = pages.some((page) => page.type === "preset");
   const isKindergartenTheme = theme?.id === "kindergarten";
   const generationCost = getBodyBookThemeGenerationCost(theme);

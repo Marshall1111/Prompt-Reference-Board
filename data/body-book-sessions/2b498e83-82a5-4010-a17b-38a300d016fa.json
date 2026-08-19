@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 2,
+  "sessionId": "2b498e83-82a5-4010-a17b-38a300d016fa",
+  "experienceType": "body-book",
+  "themeId": "color-cartoon",
+  "layoutVersion": "paired-preset-v2",
+  "personalization": {},
+  "ownerAccountId": "f4634ba1-79dd-4a06-9ce7-e070d7e6cb4f",
+  "ownerVisitorId": "5f323334-6528-4dfb-94e2-2dd326fd1673",
+  "stage": "ready",
+  "status": "succeeded",
+  "message": "图片已保存，可继续编辑或生成更多页面。",
+  "createdAt": "2026-08-19T03:08:56.954Z",
+  "updatedAt": "2026-08-19T04:30:03.533Z",
+  "completedAt": "2026-08-19T03:10:05.956Z",
+  "savedAt": "2026-08-19T03:09:39.736Z",
+  "share": {
+    "token": "",
+    "enabled": false,
+    "createdAt": null,
+    "referralToken": ""
+  },
+  "reference": {
+    "filename": "reference-1.png",
+    "mimeType": "image/png",
+    "size": 1918139,
+    "originalName": "result (12).png"
+  },
+  "references": [
+    {
+      "filename": "reference-1.png",
+      "mimeType": "image/png",
+      "size": 1918139,
+      "originalName": "result (12).png"
+    }
+  ],
+  "chargedJobIds": [
+    "918d319b-2b13-4105-bf23-bd790cd8f7ff",
+    "02619a12-51a3-486e-a2b6-bd28a8948f83"
+  ],
+  "refundedJobIds": [],
+  "billingError": "",
+  "pages": [
+    {
+      "key": "cover",
+      "chinese": "封面",
+      "english": "Cover",
+      "title": "封面 Cover",
+      "order": 0,
+      "pageType": "cover",
+      "isRequired": true,
+      "prompt": "Use the uploaded child photos only as loose visual-trait reference. Keep the child's broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual cover for the 0-3 year-old 颜色认知书. Draw one single child as a friendly, slightly simplified hand-drawn flat cartoon character with rounded outlines and clean flat color fills. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Theme scene: the child in a playful rainbow color-block outfit, surrounded by six clearly separated friendly everyday cartoon objects in different colors. Every visible subject, including the child, vehicles, animals, objects, icons, and decorations, must be drawn in this same flat hand-drawn cartoon style; do not mix in photographs, realistic product renders, realistic animals, or cutout photos. The main title should read exactly: \"My First Colors\". The Chinese subtitle should read exactly: \"我的第一本颜色认知书\". Beneath it, add the small English line: \"A Bilingual Book for Babies\" and the small Chinese line: \"中英双语 · 0-3岁宝宝启蒙\". Match the original photography-version cover typography treatment: rounded, highly legible sans-serif type; make the English title playful with a refined natural rainbow palette, while keeping all Chinese text dark and clear; add a small pink circular badge in the upper-right that reads exactly \"0-3岁适用\". Do not write \"Cartoon Edition\", \"手绘卡通版\", or any other style label anywhere in the image. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. No extra people, logos, watermark, border, crowded room, deep perspective, camera lighting, realistic skin pores, photographic collage, 3D rendering, or unreadable decorative text.",
+      "hasCustomPrompt": false,
+      "version": 1,
+      "jobId": "918d319b-2b13-4105-bf23-bd790cd8f7ff",
+      "status": "succeeded",
+      "references": [
+        {
+          "filename": "reference-1.png",
+          "mimeType": "image/png",
+          "size": 1918139,
+          "originalName": "result (12).png"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.png",
+        "mimeType": "image/png",
+        "size": 1918139,
+        "originalName": "result (12).png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/918d319b-2b13-4105-bf23-bd790cd8f7ff.png",
+        "mimeType": "image/png",
+        "usage": {
+          "prompt_tokens": 544,
+          "completion_tokens": 1056,
+          "total_tokens": 1600,
+          "input_tokens": 544,
+          "output_tokens": 1056,
+          "input_tokens_details": {
+            "text_tokens": 542,
+            "image_tokens": 2
+          },
+          "output_tokens_details": {
+            "image_tokens": 1056
+          }
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/918d319b-2b13-4105-bf23-bd790cd8f7ff.webp",
+        "previewWidth": 1024,
+        "previewHeight": 1024,
+        "thumbnailUrl": "/generated-thumbnails/918d319b-2b13-4105-bf23-bd790cd8f7ff.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "uuapi",
+          "name": "UUAPI",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    },
+    {
+      "key": "red-baby",
+      "chinese": "红色",
+      "english": "Red",
+      "copy": "This is Red. 这是红色。",
+      "conceptKey": "red",
+      "colorKey": "red",
+      "pageType": "baby",
+      "title": "红色 Red",
+      "order": 1,
+      "prompt": "Use the uploaded child photos only as loose visual-trait reference. Retain broad age impression, hairstyle silhouette, hair color, general skin-tone family, and one or two recognizable clothing details, but do NOT reproduce the exact face, photo pose, photographic skin texture, or a realistic likeness. Create one square 1:1 bilingual 颜色认知书 learning card, page 1, for ages 0-3. The sole learning concept is \"Red / 红色\". Render the heading exactly: \"红色 Red\" and the supporting sentence exactly: \"This is Red. 这是红色。\". Draw exactly one child as a friendly, slightly simplified hand-drawn flat cartoon character with rounded outlines and clean flat color fills. Use a pure solid white (#FFFFFF) full-bleed background: no warm yellow, cream, beige, ivory, off-white, paper texture, grain, gradient, shadow wash, or colored backdrop. Page scene: the child wearing the requested Red color and interacting with one clear matching-color illustrated learning object. Every visible subject, including the child, vehicle, animal, prop, arrow, icon, and background decoration, must be the same flat hand-drawn cartoon illustration style. Never mix in photography, realistic animals, realistic vehicles, product renders, or photographic cutouts. Theme-appropriate clothing and props may take priority when needed, while retaining the child's hairstyle, skin-tone family, and a small recognizable clothing detail. Make the learning concept immediate and unmistakable, with at most one clear arrow or visual cue and one or two matching matching-color everyday objects, fruits, animals, plants, toys, and simple color swatches. Keep the child, every word, arrow, prop, and important decoration entirely inside the central 80% by 80% safe area, at least 10% away from every canvas edge. Never use photorealism, camera lighting, realistic skin pores, photographic collage, 3D animation, extra people, a busy room, deep background, watermark, border, unrelated objects, internal production labels, or unreadable decorative text.",
+      "hasCustomPrompt": false,
+      "isRequired": false,
+      "version": 1,
+      "jobId": "02619a12-51a3-486e-a2b6-bd28a8948f83",
+      "status": "succeeded",
+      "references": [
+        {
+          "filename": "reference-1.png",
+          "mimeType": "image/png",
+          "size": 1918139,
+          "originalName": "result (12).png"
+        }
+      ],
+      "reference": {
+        "filename": "reference-1.png",
+        "mimeType": "image/png",
+        "size": 1918139,
+        "originalName": "result (12).png"
+      },
+      "result": {
+        "imageDataUrl": "",
+        "imageUrl": "/generated-images/02619a12-51a3-486e-a2b6-bd28a8948f83.png",
+        "mimeType": "image/png",
+        "usage": {
+          "prompt_tokens": 514,
+          "completion_tokens": 1056,
+          "total_tokens": 1570,
+          "input_tokens": 514,
+          "output_tokens": 1056,
+          "input_tokens_details": {
+            "text_tokens": 512,
+            "image_tokens": 2
+          },
+          "output_tokens_details": {
+            "image_tokens": 1056
+          }
+        },
+        "mode": "edit",
+        "previewUrl": "/generated-previews/02619a12-51a3-486e-a2b6-bd28a8948f83.webp",
+        "previewWidth": 1024,
+        "previewHeight": 1024,
+        "thumbnailUrl": "/generated-thumbnails/02619a12-51a3-486e-a2b6-bd28a8948f83.webp",
+        "thumbnailWidth": 384,
+        "thumbnailHeight": 384,
+        "provider": {
+          "id": "uuapi",
+          "name": "UUAPI",
+          "model": "gpt-image-2"
+        },
+        "originalImageUrl": ""
+      },
+      "errorMessage": "",
+      "historyJobIds": []
+    }
+  ]
+}

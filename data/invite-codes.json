@@ -464,5 +464,25 @@
     "redeemedByAccountIds": [],
     "createdAt": "2026-08-18T11:24:39.865Z",
     "updatedAt": "2026-08-18T11:24:39.865Z"
+  },
+  {
+    "id": "81ae2e52-98f3-4c2c-9bcc-a57e6a855437",
+    "code": "B15606CB",
+    "enabled": true,
+    "maxRedemptions": 1,
+    "quotaBonus": 5,
+    "coinBonus": 5,
+    "beanBonus": 50,
+    "fridgeMagnetItemCount": 0,
+    "bodyBookPrintCount": 0,
+    "redeemedCount": 1,
+    "redeemedByVisitorIds": [
+      "5f323334-6528-4dfb-94e2-2dd326fd1673"
+    ],
+    "redeemedByAccountIds": [
+      "f4634ba1-79dd-4a06-9ce7-e070d7e6cb4f"
+    ],
+    "createdAt": "2026-08-19T03:03:32.724Z",
+    "updatedAt": "2026-08-19T03:03:50.349Z"
   }
 ]
