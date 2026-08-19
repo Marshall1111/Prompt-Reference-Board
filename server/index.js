@@ -2214,6 +2214,33 @@ app.get("/api/body-book/themes", requireWebAccount, (_req, res) => {
   res.json({ themes: BOOK_THEME_DEFINITIONS.map((theme) => toPublicBookTheme(theme)), billingEnabled: BODY_BOOK_BILLING_ENABLED });
 });
 
+app.get("/api/body-book/shares/:token", async (req, res) => {
+  try {
+    const session = await findSharedBodyBookSession(req.params.token);
+    const current = await synchronizeBodyBookSession(session);
+    res.setHeader("Cache-Control", "no-store");
+    res.json(toPublicSharedBodyBook(current));
+  } catch (error) {
+    res.status(error.status || 500).json({ message: error.publicMessage || "分享内容暂时不可访问。" });
+  }
+});
+
+app.get("/api/body-book/shares/:token/pages/:pageKey/download", async (req, res, next) => {
+  try {
+    const session = await findSharedBodyBookSession(req.params.token);
+    const current = await synchronizeBodyBookSession(session);
+    const page = current.pages.find((item) => item.key === String(req.params.pageKey || "").toLowerCase());
+    if (!page || page.status !== "succeeded" || !page.result?.imageUrl) {
+      throw createHttpError(404, "该分享图片不存在或尚未完成。");
+    }
+    const file = await resolveBodyBookPageImageFile(page);
+    if (!file) throw createHttpError(404, "该分享图片不存在。");
+    await sendBodyBookOriginalImage(res, page, file, { inline: String(req.query?.inline || "") === "1" });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/body-book/projects", requireWebAccount, async (req, res) => {
   try {
     const themeId = String(req.query?.themeId || "").trim().toLowerCase();
@@ -2274,6 +2301,58 @@ app.get("/api/body-book/projects/:sessionId", requireWebAccount, async (req, res
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "读取认知书工程失败，请稍后再试。" });
+  }
+});
+
+app.post("/api/body-book/projects/:sessionId/share", requireWebAccount, async (req, res) => {
+  try {
+    assertRegisteredAccount(req);
+    const session = await readBodyBookSession(req.params.sessionId);
+    if (!session) throw createHttpError(404, "这本认知书工程不存在或已删除。");
+    assertWebAccountOwnsBodyBookSession(req, session);
+    const current = await synchronizeBodyBookSession(session);
+    if (!current.pages.some((page) => page.status === "succeeded" && page.result?.imageUrl)) {
+      throw createHttpError(409, "请至少完成一张图片后再分享。");
+    }
+    const referral = commerceStore.getOrCreateReferralLink(req.webAccount.id);
+    const now = new Date().toISOString();
+    const existingShare = normalizeBodyBookShare(current.share);
+    const next = await saveBodyBookSession({
+      ...current,
+      share: {
+        token: existingShare.enabled ? existingShare.token : createBodyBookShareToken(),
+        enabled: true,
+        createdAt: existingShare.enabled ? existingShare.createdAt || now : now,
+        referralToken: existingShare.referralToken || String(referral.token || "")
+      },
+      updatedAt: now
+    });
+    const shareUrl = new URL(`/book/share/${encodeURIComponent(next.share.token)}`, getRequestOrigin(req)).toString();
+    res.json({ shareUrl, share: toPublicBodyBookShare(next.share) });
+  } catch (error) {
+    res.status(error.status || 500).json({ message: error.publicMessage || "创建分享链接失败，请稍后重试。" });
+  }
+});
+
+app.delete("/api/body-book/projects/:sessionId/share", requireWebAccount, async (req, res) => {
+  try {
+    assertRegisteredAccount(req);
+    const session = await readBodyBookSession(req.params.sessionId);
+    if (!session) throw createHttpError(404, "这本认知书工程不存在或已删除。");
+    assertWebAccountOwnsBodyBookSession(req, session);
+    const next = await withBodyBookSessionSyncLock(session.sessionId, async () => {
+      const current = await readBodyBookSession(session.sessionId);
+      if (!current) throw createHttpError(404, "这本认知书工程不存在或已删除。");
+      assertWebAccountOwnsBodyBookSession(req, current);
+      return saveBodyBookSession({
+        ...current,
+        share: { token: "", enabled: false, createdAt: null, referralToken: "" },
+        updatedAt: new Date().toISOString()
+      });
+    });
+    res.json({ share: toPublicBodyBookShare(next.share) });
+  } catch (error) {
+    res.status(error.status || 500).json({ message: error.publicMessage || "关闭分享失败，请稍后重试。" });
   }
 });
 
@@ -11307,6 +11386,7 @@ function normalizeBodyBookSession(session) {
     updatedAt: session?.updatedAt || null,
     completedAt: session?.completedAt || null,
     savedAt: session?.savedAt || null,
+    share: normalizeBodyBookShare(session?.share),
     reference: references[0] || reference,
     references,
     chargedJobIds: Array.isArray(session?.chargedJobIds) ? session.chargedJobIds.map(String).filter(Boolean) : [],
@@ -11335,6 +11415,7 @@ function toPublicBodyBookSession(session) {
     updatedAt: current.updatedAt,
     completedAt: current.completedAt,
     savedAt: current.savedAt,
+    share: toPublicBodyBookShare(current.share),
     billingError: current.billingError,
     chargedCount: Math.max(0, current.chargedJobIds.length - new Set(current.refundedJobIds).size),
     refundedCount: current.refundedJobIds.length,
@@ -11352,6 +11433,72 @@ function toPublicBodyBookSession(session) {
     })),
     printPreviewPages: getBodyBookPrintPages(current),
     summary: summarizeBodyBookItems(current.pages)
+  };
+}
+
+function normalizeBodyBookShare(share) {
+  const token = String(share?.token || "").trim().toLowerCase();
+  const enabled = Boolean(share?.enabled) && isSafeBodyBookShareToken(token);
+  return {
+    token: enabled ? token : "",
+    enabled,
+    createdAt: enabled && share?.createdAt ? String(share.createdAt) : null,
+    referralToken: enabled ? String(share?.referralToken || "").trim() : ""
+  };
+}
+
+function toPublicBodyBookShare(share) {
+  return {
+    enabled: Boolean(share?.enabled),
+    createdAt: share?.enabled ? share.createdAt || null : null
+  };
+}
+
+function isSafeBodyBookShareToken(value) {
+  return /^[a-f0-9]{32}$/i.test(String(value || ""));
+}
+
+function createBodyBookShareToken() {
+  return randomUUID().replace(/-/g, "");
+}
+
+async function findSharedBodyBookSession(token) {
+  const safeToken = String(token || "").trim().toLowerCase();
+  if (!isSafeBodyBookShareToken(safeToken)) throw createHttpError(404, "分享链接已失效或不存在。");
+  const sessions = await listBodyBookSessions();
+  const session = sessions.find((item) => {
+    const share = normalizeBodyBookShare(item?.share);
+    return share.enabled && share.token === safeToken;
+  });
+  if (!session) throw createHttpError(404, "分享链接已失效或不存在。");
+  return session;
+}
+
+function toPublicSharedBodyBook(session) {
+  const current = normalizeBodyBookSession(session);
+  const theme = getBookTheme(current.themeId) || getBookTheme("body");
+  const share = normalizeBodyBookShare(current.share);
+  if (!share.enabled) throw createHttpError(404, "分享链接已失效或不存在。");
+  const pages = current.pages
+    .filter((page) => page.status === "succeeded" && page.result?.imageUrl)
+    .map((page) => ({
+      key: page.key,
+      title: page.title,
+      chinese: page.chinese,
+      english: page.english,
+      order: page.order,
+      thumbnailUrl: page.result?.thumbnailUrl || page.result?.previewUrl || `/api/body-book/shares/${encodeURIComponent(share.token)}/pages/${encodeURIComponent(page.key)}/download?inline=1`,
+      previewUrl: `/api/body-book/shares/${encodeURIComponent(share.token)}/pages/${encodeURIComponent(page.key)}/download?inline=1`,
+      downloadUrl: `/api/body-book/shares/${encodeURIComponent(share.token)}/pages/${encodeURIComponent(page.key)}/download`
+    }));
+  if (!pages.length) throw createHttpError(404, "分享内容暂时不可访问。");
+  return {
+    title: theme.title || theme.name,
+    themeName: theme.name,
+    englishName: theme.englishName,
+    pageCount: pages.length,
+    pages,
+    makeUrl: share.referralToken ? `/book?invite=${encodeURIComponent(share.referralToken)}` : "/book"
   };
 }
 

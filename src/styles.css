@@ -6713,6 +6713,93 @@ textarea {
   font-size: 24px;
 }
 
+.body-book-share-page {
+  min-height: 100vh;
+}
+
+.body-book-share-header {
+  align-items: center;
+}
+
+.body-book-share-content,
+.body-book-share-empty {
+  width: min(1040px, calc(100% - 32px));
+  margin: 32px auto 56px;
+}
+
+.body-book-share-intro,
+.body-book-share-empty,
+.body-book-share-cta {
+  border: 1px solid #d6e1d8;
+  border-radius: 18px;
+  background: #fffdf8;
+  padding: 22px;
+  text-align: center;
+}
+
+.body-book-share-intro span {
+  color: #497365;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.body-book-share-intro h2,
+.body-book-share-empty h2 {
+  margin: 7px 0;
+}
+
+.body-book-share-intro p,
+.body-book-share-empty p,
+.body-book-share-cta p {
+  margin: 0;
+  color: #586963;
+}
+
+.body-book-share-empty {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+
+.body-book-share-grid {
+  margin: 20px 0;
+}
+
+.body-book-share-image {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  border: 0;
+  border-radius: 12px;
+  background: #f6f0e4;
+  padding: 0;
+  cursor: zoom-in;
+}
+
+.body-book-share-image img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.body-book-share-grid .draw-card-secondary {
+  margin-top: 9px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.body-book-share-cta {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+}
+
+.body-book-share-modal {
+  width: min(500px, calc(100vw - 28px));
+}
+
 .body-book-bean-cost-note {
   margin: 0;
   color: #536660;
@@ -7578,7 +7665,7 @@ textarea {
   color: #7e5120;
 }
 
-.body-book-page :is(.body-book-bean-modal, .body-book-referral-modal, .body-book-delete-confirm, .body-book-balance-insufficient-panel, .draw-card-confirm-panel.body-book-contact-panel) {
+.body-book-page :is(.body-book-bean-modal, .body-book-referral-modal, .body-book-share-modal, .body-book-delete-confirm, .body-book-balance-insufficient-panel, .draw-card-confirm-panel.body-book-contact-panel) {
   border: 2px solid var(--body-book-clay-border);
   border-radius: 26px;
   background: linear-gradient(145deg, #ffffff, #ece8ff);
@@ -7590,7 +7677,7 @@ textarea {
   backdrop-filter: blur(7px);
 }
 
-.body-book-page :is(.body-book-bean-modal h2, .body-book-referral-modal h2, .body-book-delete-confirm h2, .body-book-balance-insufficient-panel h2, .body-book-contact-panel .draw-card-contact-copy h3) {
+.body-book-page :is(.body-book-bean-modal h2, .body-book-referral-modal h2, .body-book-share-modal h2, .body-book-delete-confirm h2, .body-book-balance-insufficient-panel h2, .body-book-contact-panel .draw-card-contact-copy h3) {
   color: #4439a5;
   font-family: "Nunito", "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
   font-weight: 900;
@@ -8159,6 +8246,34 @@ textarea {
   color: var(--body-book-apple-ink);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
   font-weight: 700;
+}
+
+/* 分享弹窗也属于认知书浅色界面，覆盖抽卡弹窗继承的深色文字。 */
+.body-book-page .body-book-share-modal {
+  color: var(--body-book-apple-ink);
+}
+
+.body-book-page .body-book-share-modal .draw-card-kicker {
+  color: #8a6a3f;
+}
+
+.body-book-page .body-book-share-modal > p:not(.draw-card-kicker) {
+  color: #566861;
+  line-height: 1.7;
+}
+
+.body-book-page .body-book-share-modal .body-book-wallet-field span {
+  color: #4d625a;
+}
+
+.body-book-page .body-book-share-modal .body-book-wallet-field input {
+  border-color: #b7c8bc;
+  background: #fff;
+  color: #172a26;
+}
+
+.body-book-page .body-book-share-modal .icon-button {
+  color: #25413c;
 }
 
 .body-book-theme-effect {
