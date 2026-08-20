@@ -46,7 +46,8 @@ const ORDER_STATUS_LABELS = {
   shipped: "已发货",
   completed: "已完成",
   cancelled: "已取消",
-  expired: "已过期"
+  expired: "已过期",
+  refunded: "已退款"
 };
 const GENERATION_DEFAULTS = {
   quality: "medium",
@@ -320,7 +321,8 @@ function readRoute() {
   if (pathname === "/admin/orders") return "admin-orders";
   if (/^\/admin\/users\/[^/]+\/clip\/?$/.test(pathname)) return "admin-user-clip";
   if (pathname === "/admin/users") return "admin-users";
-  if (pathname === "/admin/merchants") return "admin-merchants";
+  if (pathname === "/admin/merchants") return "admin-referrals";
+  if (pathname === "/admin/referrals") return "admin-referrals";
   if (pathname === "/admin/styles") return "admin-gallery";
   if (pathname === "/admin/tasks") return "admin-tasks";
   if (pathname === "/admin/batch") return "admin-batch";
@@ -352,6 +354,7 @@ function App() {
       "public-referrals": "我的邀请",
       "public-fridge-orders": "我的冰箱贴订单",
       "admin-api-providers": "API 配置",
+      "admin-referrals": "推荐管理",
       "admin-user-clip": "用户卡夹"
     };
     document.title = titleByRoute[route] || "AI小画家";
@@ -373,7 +376,7 @@ function App() {
       "admin-login": "/admin/login",
       "admin-orders": "/admin/orders",
       "admin-users": "/admin/users",
-      "admin-merchants": "/admin/merchants",
+      "admin-referrals": "/admin/referrals",
       "admin-tasks": "/admin/tasks",
       "admin-batch": "/admin/batch",
       "admin-invites": "/admin/invites",
@@ -451,13 +454,15 @@ function ReferralPage() {
   const detailLabel = (detail) => {
     if (detail.type === "registration_bean") return `好友注册奖励 +${detail.amount} 豆豆`;
     if (detail.type === "registration_coin") return `好友注册奖励 +${detail.amount} 币`;
+    if (detail.type === "referral_withdrawal") return `推荐币提现 ${formatCurrencyCents(detail.amount)}`;
+    if (detail.type === "referral_payment_refund_reversal") return `订单退款扣回 ${formatCurrencyCents(detail.amount)}`;
     const kind = {
       physical_order: "冰箱贴订单",
       body_book_order: "认知书实体书",
       coin_purchase: "购买普通币",
       bean_purchase: "购买豆豆"
     }[detail.paymentKind] || "实付订单";
-    return `${kind}推荐奖励 +${formatCurrencyCents(detail.amount)}${detail.status === "pending" ? "（预发放）" : ""}`;
+    return `${kind}推荐奖励 ${detail.amount >= 0 ? "+" : ""}${formatCurrencyCents(detail.amount)}${detail.status === "pending" ? "（预发放）" : ""}`;
   };
   const visibleDetails = (summary?.details || []).filter((detail) =>
     !((isDrawReferralView && detail.type === "registration_bean") || (!isDrawReferralView && detail.type === "registration_coin"))
@@ -494,7 +499,7 @@ function ReferralPage() {
         </section>
         <section className="referral-panel">
           <h2>奖励明细</h2>
-          {visibleDetails.length ? <div className="referral-detail-list">{visibleDetails.map((detail, index) => <article key={`${detail.type}-${detail.createdAt}-${index}`}><div><strong>{detailLabel(detail)}</strong>{detail.type === "payment_referral" ? <small>好友实付 {formatCurrencyCents(detail.orderAmountCents)}</small> : null}</div><time>{formatDateTime(detail.createdAt)}</time></article>)}</div> : <p className="storage-note">分享邀请链接后，奖励会显示在这里。</p>}
+          {visibleDetails.length ? <div className="referral-detail-list">{visibleDetails.map((detail, index) => <article key={`${detail.type}-${detail.createdAt}-${index}`}><div><strong>{detailLabel(detail)}</strong>{detail.type === "referral_payment_reward" ? <small>好友实付 {formatCurrencyCents(detail.orderAmountCents)}</small> : null}{detail.note ? <small>{detail.note}</small> : null}</div><time>{formatDateTime(detail.createdAt)}</time></article>)}</div> : <p className="storage-note">分享邀请链接后，奖励会显示在这里。</p>}
         </section>
       </> : null}
     </main>
@@ -780,7 +785,6 @@ function AdminApp({ navigate, route }) {
   const [styleGroups, setStyleGroups] = useState([]);
   const [inviteCodes, setInviteCodes] = useState([]);
   const [visitorRecords, setVisitorRecords] = useState([]);
-  const [merchants, setMerchants] = useState([]);
   const [orders, setOrders] = useState([]);
   const [ordersMeta, setOrdersMeta] = useState({
     total: 0,
@@ -830,7 +834,6 @@ function AdminApp({ navigate, route }) {
     refreshStyleGroups().then(setStyleGroups).catch(() => setStyleGroups([]));
     refreshInviteCodes().then(setInviteCodes).catch(() => setInviteCodes([]));
     refreshVisitorRecords().then(setVisitorRecords).catch(() => setVisitorRecords([]));
-    refreshAdminMerchants({ page: 1, limit: 500 }).then((payload) => setMerchants(payload.merchants || [])).catch(() => setMerchants([]));
     refreshAdminOrders()
       .then((payload) => {
         setOrders(payload.orders || []);
@@ -975,7 +978,6 @@ function AdminApp({ navigate, route }) {
         refreshStyleGroups().then(setStyleGroups),
         refreshInviteCodes().then(setInviteCodes),
         refreshVisitorRecords().then(setVisitorRecords),
-        refreshAdminMerchants({ page: 1, limit: 500 }).then((payload) => setMerchants(payload.merchants || [])),
         refreshAdminSettings().then(setSettings),
         refreshStorageSummary().then(setStorageSummary)
       ]);
@@ -1000,27 +1002,17 @@ function AdminApp({ navigate, route }) {
     <main className="app-shell">
       <section className="workspace">
         <header className="topbar">
-          <div className="topbar-main">
+          <div className="topbar-main admin-title-row">
             <p className="eyebrow">Prompt reference board</p>
             <h1>后台管理</h1>
-            <div className="subtle-entry-row" aria-label="公开页面入口">
-              <span>公开页</span>
-              <a className="subtle-entry-link" href="/">
-                抽卡页
-              </a>
-              <a className="subtle-entry-link" href="/fridge">
-                冰箱贴页
-              </a>
-              <a className="subtle-entry-link" href="/book">
-                认知书页
-              </a>
-            </div>
           </div>
-          <div className="top-actions">
-            <label className="search-box">
-              <Search size={18} />
-              <input aria-label="搜索标签或提示词" onChange={(event) => setQuery(event.target.value)} placeholder="搜索标签" value={query} />
-            </label>
+          <div className="subtle-entry-row admin-public-row" aria-label="公开页面入口">
+            <span>公共页</span>
+            <a className="subtle-entry-link" href="/">抽卡页</a>
+            <a className="subtle-entry-link" href="/fridge">冰箱贴页</a>
+            <a className="subtle-entry-link" href="/book">认知书页</a>
+          </div>
+          <nav className="top-actions admin-page-nav" aria-label="后台页面导航">
             <button className="nav-button" onClick={() => navigate("admin-gallery")} type="button">
               <Home size={18} />
               <span>图库</span>
@@ -1037,9 +1029,9 @@ function AdminApp({ navigate, route }) {
               <Eye size={18} />
               <span>用户管理</span>
             </button>
-            <button className="nav-button" onClick={() => navigate("admin-merchants")} type="button">
-              <QrCode size={18} />
-              <span>合作商户</span>
+            <button className="nav-button" onClick={() => navigate("admin-referrals")} type="button">
+              <Sparkles size={18} />
+              <span>推荐</span>
             </button>
             <button className="nav-button" onClick={() => navigate("admin-batch")} type="button">
               <Layers3 size={18} />
@@ -1061,7 +1053,7 @@ function AdminApp({ navigate, route }) {
               <Home size={18} />
               <span>退出登录</span>
             </button>
-          </div>
+          </nav>
         </header>
 
         {route === "admin-gallery" ? (
@@ -1074,6 +1066,8 @@ function AdminApp({ navigate, route }) {
             onStyleChange={updateStyle}
             onUploadImage={uploadStyleImage}
             onViewPrompt={setActivePrompt}
+            searchQuery={query}
+            onSearchChange={setQuery}
             styles={filteredStyles}
           />
         ) : route === "admin-tasks" ? (
@@ -1093,15 +1087,11 @@ function AdminApp({ navigate, route }) {
                 return payload;
               })
             }
-            merchants={merchants}
             onRefreshSettings={() => refreshAdminSettings().then(setSettings)}
             settings={settings}
           />
-        ) : route === "admin-merchants" ? (
-          <MerchantAdminPage
-            allMerchants={merchants}
-            onRefreshAllMerchants={() => refreshAdminMerchants({ page: 1, limit: 500 }).then((payload) => setMerchants(payload.merchants || []))}
-          />
+        ) : route === "admin-referrals" ? (
+          <ReferralAdminPage />
         ) : route === "admin-users" ? (
           <UserAdminPage onOpenClip={openUserClip} />
         ) : route === "admin-user-clip" ? (
@@ -1140,6 +1130,8 @@ function AdminApp({ navigate, route }) {
             onStyleChange={updateStyle}
             onUploadImage={uploadStyleImage}
             onViewPrompt={setActivePrompt}
+            searchQuery={query}
+            onSearchChange={setQuery}
             styles={filteredStyles}
           />
         )}
@@ -1976,6 +1968,7 @@ function BodyBookPage() {
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("invite");
     if (!token) return;
+    recordReferralVisit(token).catch(() => {});
     captureReferral(token)
       .catch(() => {})
       .finally(() => {
@@ -5576,7 +5569,7 @@ function getStyleDisplayName(style) {
   return String(style?.title || style?.name || style?.tags?.join("、") || style?.id || "").trim();
 }
 
-function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles, onReorderStyles, onStyleChange, onUploadImage, onViewPrompt, styles }) {
+function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles, onReorderStyles, onStyleChange, onUploadImage, onViewPrompt, searchQuery, onSearchChange, styles }) {
   const [drafts, setDrafts] = useState({});
   const [savingId, setSavingId] = useState("");
   const [draggingId, setDraggingId] = useState("");
@@ -5678,6 +5671,10 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
             <Plus size={18} />
             <span>新增风格</span>
           </button>
+          <label className="search-box gallery-search-box">
+            <Search size={18} />
+            <input aria-label="搜索标签或提示词" onChange={(event) => onSearchChange(event.target.value)} placeholder="搜索标签、风格或提示词" value={searchQuery} />
+          </label>
           <p className="storage-note">直接拖拽卡片左上角手柄可以排序，点击“编辑”会弹出窗口修改风格内容。</p>
         </div>
         <div className="gallery-grid" aria-label="风格提示词列表">
@@ -7478,6 +7475,15 @@ async function captureReferral(token) {
   return payload;
 }
 
+async function recordReferralVisit(token) {
+  const response = await fetch("/api/referrals/visit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token })
+  });
+  if (!response.ok) throw new Error("记录推荐访问失败。");
+}
+
 async function readAuthJsonResponse(response, fallbackPayload = {}) {
   try {
     return await response.json();
@@ -7978,6 +7984,40 @@ async function updateAdminOrder(orderId, payload) {
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || "更新订单失败。");
   return data.order;
+}
+
+async function refundAdminPurchase(paymentIntentId, adminRemark = "") {
+  const response = await fetch(`/api/admin/commerce/payments/${encodeURIComponent(paymentIntentId)}/refund`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ adminRemark })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "登记退款失败。");
+  return data.payment;
+}
+
+async function fetchAdminReferralLedger(params = {}) {
+  const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && String(value) !== "").map(([key, value]) => [key, String(value)]));
+  const response = await fetch(`/api/admin/referrals/ledger${query.size ? `?${query}` : ""}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取推荐明细失败。");
+  return payload;
+}
+
+async function fetchAdminReferralRankings(params = {}) {
+  const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && String(value) !== "").map(([key, value]) => [key, String(value)]));
+  const response = await fetch(`/api/admin/referrals/rankings${query.size ? `?${query}` : ""}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取推荐排名失败。");
+  return payload;
+}
+
+async function createAdminReferralWithdrawal(payload) {
+  const response = await fetch("/api/admin/referrals/withdrawals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "扣除推荐币失败。");
+  return data;
 }
 
 async function deleteInviteCodeRequest(id) {
@@ -8971,13 +9011,12 @@ function UserClipAdminPage({ onBack, userId }) {
   );
 }
 
-function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onRefreshSettings, settings, merchants }) {
+function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onRefreshSettings, settings }) {
   const [orders, setOrders] = useState(initialOrders || []);
   const [orderQuery, setOrderQuery] = useState(DEFAULT_ADMIN_ORDER_QUERY);
   const [orderType, setOrderType] = useState(DEFAULT_ADMIN_ORDER_QUERY.orderType);
   const [orderStatus, setOrderStatus] = useState(DEFAULT_ADMIN_ORDER_QUERY.orderStatus);
   const [search, setSearch] = useState(DEFAULT_ADMIN_ORDER_QUERY.search);
-  const [merchantId, setMerchantId] = useState(DEFAULT_ADMIN_ORDER_QUERY.merchantId);
   const [startDate, setStartDate] = useState(DEFAULT_ADMIN_ORDER_QUERY.startDate);
   const [endDate, setEndDate] = useState(DEFAULT_ADMIN_ORDER_QUERY.endDate);
   const [orderTotal, setOrderTotal] = useState(Number(initialOrdersMeta?.total || 0));
@@ -9047,7 +9086,6 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
         orderType: nextQuery.orderType || "",
         orderStatus: nextQuery.orderStatus,
         search: nextQuery.search,
-        merchantId: nextQuery.merchantId || "",
         startDate: nextQuery.startDate || "",
         endDate: nextQuery.endDate || ""
       });
@@ -9071,7 +9109,6 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
       orderType,
       orderStatus,
       search: search.trim(),
-      merchantId,
       startDate,
       endDate
     }).catch((nextError) => {
@@ -9178,6 +9215,23 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
     }
   }
 
+  async function refundPurchase(payment) {
+    if (!payment?.id || payment.orderStatus !== "paid") return;
+    if (!window.confirm(`确认该购买单已在线下退款吗？系统将回收已发放的${payment.kind === "coin_purchase" ? "币" : "豆豆"}及对应推荐币。`)) return;
+    setIsBusy(true); setError(""); setStatusMessage("");
+    try {
+      await refundAdminPurchase(payment.id);
+      await refreshList({}, { showLoading: false });
+      setStatusMessage("已登记退款并完成相关余额回收。");
+    } catch (nextError) { setError(nextError.message || "登记退款失败。"); } finally { setIsBusy(false); }
+  }
+
+  async function refundSelectedOrder() {
+    if (!selectedOrder?.id || selectedOrder.orderStatus === "refunded") return;
+    if (!window.confirm("确认已在线下完成退款吗？系统会扣回本单相关推荐币；此订单将成为已退款终态。")) return;
+    await updateOrderStatus({ adminRemark, shippingCarrier, shippingTrackingNo, orderStatus: "refunded" });
+  }
+
   async function downloadOrderOriginals() {
     if (!selectedOrder?.id) return;
     setIsBusy(true);
@@ -9202,7 +9256,6 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
         orderType: orderQuery.orderType,
         orderStatus: orderQuery.orderStatus,
         search: orderQuery.search,
-        merchantId: orderQuery.merchantId,
         startDate: orderQuery.startDate,
         endDate: orderQuery.endDate
       });
@@ -9234,9 +9287,10 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
         </div>
       </div>
 
-      <div className="draw-card-upload-panel">
+      <div className="order-settings-panel">
         <div className="task-toolbar compact-toolbar">
           <div>
+            <p className="eyebrow">Commerce settings</p>
             <h3>下单配置</h3>
             <p className="storage-note">默认折叠，展开后可修改价格、支付方式和客服信息。</p>
           </div>
@@ -9251,47 +9305,26 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
           </button>
         </div>
         {isOrderSettingsExpanded ? (
-          <>
-            <label className="toggle-field">
-              <input checked={fridgeMagnetOrderingEnabled} onChange={(event) => setFridgeMagnetOrderingEnabled(event.target.checked)} type="checkbox" />
-              <span>开启冰箱贴下单</span>
-            </label>
-            <label className="field-label">
-              单张价格（分）
-              <input min="0" onChange={(event) => setFridgeMagnetUnitPriceCents(Number(event.target.value) || 0)} type="number" value={fridgeMagnetUnitPriceCents} />
-            </label>
-            <label className="field-label">
-              单张邮费（分）
-              <input min="0" onChange={(event) => setSingleItemShippingFeeCents(Number(event.target.value) || 0)} type="number" value={singleItemShippingFeeCents} />
-            </label>
-            <label className="field-label">
-              支付方式
-              <select onChange={(event) => setPaymentMode(event.target.value)} value={paymentMode}>
-                <option value="manual">人工收款码</option>
-                <option value="wechat">微信支付（微信内 JSAPI，其他环境 Native 扫码）</option>
-              </select>
-            </label>
-            <p className="storage-note">微信支付会自动锁定订单金额并由回调更新订单状态；人工收款码仍需用户手动输入金额并由管理员确认。金额规则固定为：1 枚收邮费，2 枚及以上包邮。</p>
-            <label className="toggle-field">
-              <input checked={bodyBookOrderingEnabled} onChange={(event) => setBodyBookOrderingEnabled(event.target.checked)} type="checkbox" />
-              <span>开启认知书实体书下单</span>
-            </label>
-            <label className="field-label">
-              实体书固定售价（分）
-              <input min="0" onChange={(event) => setBodyBookPriceCents(Number(event.target.value) || 0)} type="number" value={bodyBookPriceCents} />
-            </label>
-            <label className="field-label">
-              实体书固定邮费（分）
-              <input min="0" onChange={(event) => setBodyBookShippingFeeCents(Number(event.target.value) || 0)} type="number" value={bodyBookShippingFeeCents} />
-            </label>
-            <p className="storage-note">认知书实体书按固定售价与固定邮费结算；售价大于 0 后才可对用户开放。</p>
-            <div className="card-actions generator-actions">
+          <div className="order-settings-content">
+            <section className="order-settings-group">
+              <div className="order-settings-group-head"><div><h4>冰箱贴定制</h4><p>1 枚收邮费，2 枚及以上包邮。</p></div><label className="apple-toggle"><input checked={fridgeMagnetOrderingEnabled} onChange={(event) => setFridgeMagnetOrderingEnabled(event.target.checked)} type="checkbox" /><span aria-hidden="true" /><b>{fridgeMagnetOrderingEnabled ? "已开启" : "已关闭"}</b></label></div>
+              <div className="order-settings-fields"><label className="field-label">单张价格（分）<input min="0" onChange={(event) => setFridgeMagnetUnitPriceCents(Number(event.target.value) || 0)} type="number" value={fridgeMagnetUnitPriceCents} /></label><label className="field-label">单张邮费（分）<input min="0" onChange={(event) => setSingleItemShippingFeeCents(Number(event.target.value) || 0)} type="number" value={singleItemShippingFeeCents} /></label></div>
+            </section>
+            <section className="order-settings-group">
+              <div className="order-settings-group-head"><div><h4>认知书实体书</h4><p>售价大于 0 后才会对用户开放。</p></div><label className="apple-toggle"><input checked={bodyBookOrderingEnabled} onChange={(event) => setBodyBookOrderingEnabled(event.target.checked)} type="checkbox" /><span aria-hidden="true" /><b>{bodyBookOrderingEnabled ? "已开启" : "已关闭"}</b></label></div>
+              <div className="order-settings-fields"><label className="field-label">固定售价（分）<input min="0" onChange={(event) => setBodyBookPriceCents(Number(event.target.value) || 0)} type="number" value={bodyBookPriceCents} /></label><label className="field-label">固定邮费（分）<input min="0" onChange={(event) => setBodyBookShippingFeeCents(Number(event.target.value) || 0)} type="number" value={bodyBookShippingFeeCents} /></label></div>
+            </section>
+            <section className="order-settings-group order-settings-payment-group">
+              <div className="order-settings-group-head"><div><h4>支付与确认</h4><p>微信支付由回调更新订单；人工收款由管理员确认。</p></div></div>
+              <div className="order-settings-fields"><label className="field-label">支付方式<select onChange={(event) => setPaymentMode(event.target.value)} value={paymentMode}><option value="manual">人工收款码</option><option value="wechat">微信支付（JSAPI / Native）</option></select></label><label className="field-label">人工收款有效期（天）<input min="1" onChange={(event) => setManualPaymentExpireDays(Number(event.target.value) || 1)} type="number" value={manualPaymentExpireDays} /></label><label className="field-label">客服微信<input onChange={(event) => setContactWechatId(event.target.value)} type="text" value={contactWechatId} /></label></div>
+            </section>
+            <div className="order-settings-save">
               <button className="secondary-button" disabled={isBusy} onClick={saveOrderSettings} type="button">
                 <Save size={18} />
                 <span>保存下单配置</span>
               </button>
             </div>
-          </>
+          </div>
         ) : null}
       </div>
 
@@ -9311,13 +9344,8 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
           <option value="completed">已完成</option>
           <option value="cancelled">已取消</option>
           <option value="expired">已过期</option>
+          <option value="refunded">已退款</option>
           <option value="paid">已支付（购买币/豆豆）</option>
-        </select>
-        <select onChange={(event) => setMerchantId(event.target.value)} value={merchantId}>
-          <option value="">全部来源商户</option>
-          {merchants.map((merchant) => (
-            <option key={`order-merchant-${merchant.id}`} value={merchant.id}>{merchant.name}</option>
-          ))}
         </select>
         <label className="field-label task-query-field">
           开始日期
@@ -9355,6 +9383,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
                 <td>{formatDateTime(order.createdAt)}</td>
                 <td className="order-table-actions">
                   {order.recordType === "purchase" && order.canConfirmManual ? <button className="secondary-button" disabled={isBusy} onClick={() => confirmManualBeanPurchase(order)} type="button">确认收款</button> : null}
+                  {order.recordType === "purchase" && order.orderStatus === "paid" ? <button className="danger-button" disabled={isBusy} onClick={() => refundPurchase(order)} type="button">登记退款</button> : null}
                   {order.recordType !== "purchase" ? <button className="secondary-button" onClick={() => loadOrderDetail(order.id)} type="button"><Eye size={16} /><span>详情</span></button> : null}
                   {order.recordType === "purchase" && !order.canConfirmManual ? <span className="order-table-empty-action">—</span> : null}
                 </td>
@@ -9398,12 +9427,6 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
             </div>
             <p className="storage-note">{selectedOrder.receiverName} · {selectedOrder.receiverPhone}</p>
             <p className="storage-note">{selectedOrder.addressDetail}</p>
-            <p className="storage-note">来源商户：{selectedOrder.sourceMerchantName || "无"}</p>
-            {selectedOrder.sourceMerchantId ? (
-              <p className="storage-note">
-                商户 ID {selectedOrder.sourceMerchantId}，佣金比例 {formatCommissionRateBps(selectedOrder.commissionRateBps)}，当前订单佣金 {formatCurrencyCents(calculateOrderCommissionCents(selectedOrder))}
-              </p>
-            ) : null}
             {selectedOrder.remark ? <p className="storage-note">备注：{selectedOrder.remark}</p> : null}
             <div className="draw-card-order-items">
               {selectedOrder.items.map((item, index) => (
@@ -9451,12 +9474,107 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
               <button className="danger-button" onClick={() => updateOrderStatus({ adminRemark, shippingCarrier, shippingTrackingNo, orderStatus: "cancelled" })} type="button">
                 <span>取消订单</span>
               </button>
+              {selectedOrder.orderStatus !== "refunded" ? <button className="danger-button" disabled={isBusy || selectedOrder.paymentStatus !== "paid"} onClick={() => { void refundSelectedOrder(); }} type="button"><span>登记已退款</span></button> : null}
             </div>
           </section>
         </div>
       ) : null}
     </section>
   );
+}
+
+function ReferralAdminPage() {
+  const [ledger, setLedger] = useState([]);
+  const [ledgerMeta, setLedgerMeta] = useState({ total: 0, page: 1, limit: 30 });
+  const [rankings, setRankings] = useState([]);
+  const [rankingMeta, setRankingMeta] = useState({ total: 0, page: 1, limit: 30 });
+  const [ledgerFilters, setLedgerFilters] = useState({ search: "", type: "", status: "", startDate: "", endDate: "", sortBy: "createdAt", sortDir: "desc" });
+  const [rankingFilters, setRankingFilters] = useState({ search: "", sortBy: "totalEarned", sortDir: "desc" });
+  const [withdrawal, setWithdrawal] = useState({ accountId: "", amountYuan: "", note: "" });
+  const [withdrawalTarget, setWithdrawalTarget] = useState(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const identity = (account) => {
+    if (!account) return "—";
+    const name = account.username || account.wechatNickname || "微信用户";
+    return `${name} · #${String(account.id || "").slice(-8)}`;
+  };
+  const reasonLabel = (reason) => ({
+    referral_payment_reward: "订单推荐奖励",
+    referral_payment_refund_reversal: "退款扣回推荐币",
+    referral_withdrawal: "提现扣除"
+  }[reason] || reason || "推荐币变动");
+
+  async function loadLedger(next = {}, options = {}) {
+    const filters = { ...ledgerFilters, ...next };
+    const payload = await fetchAdminReferralLedger({ ...filters, page: options.page || ledgerMeta.page, limit: ledgerMeta.limit });
+    setLedger(payload.items || []);
+    setLedgerMeta({ total: Number(payload.total || 0), page: Number(payload.page || 1), limit: Number(payload.limit || 30) });
+    if (!options.keepFilters) setLedgerFilters(filters);
+    return payload;
+  }
+  async function loadRankings(next = {}, options = {}) {
+    const filters = { ...rankingFilters, ...next };
+    const payload = await fetchAdminReferralRankings({ ...filters, page: options.page || rankingMeta.page, limit: rankingMeta.limit });
+    setRankings(payload.items || []);
+    setRankingMeta({ total: Number(payload.total || 0), page: Number(payload.page || 1), limit: Number(payload.limit || 30) });
+    if (!options.keepFilters) setRankingFilters(filters);
+    return payload;
+  }
+  async function refreshAll() {
+    setBusy(true); setError("");
+    try { await Promise.all([loadLedger({}, { page: 1 }), loadRankings({}, { page: 1 })]); } catch (nextError) { setError(nextError.message || "读取推荐数据失败。"); } finally { setBusy(false); }
+  }
+  useEffect(() => { void refreshAll(); }, []);
+
+  async function submitWithdrawal() {
+    if (!withdrawal.accountId || !Number(withdrawal.amountYuan) || !withdrawal.note.trim()) return;
+    if (!window.confirm(`确认已线下完成提现，并扣除 ¥${Number(withdrawal.amountYuan).toFixed(2)} 推荐币吗？该操作会写入不可删除的流水。`)) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await createAdminReferralWithdrawal(withdrawal);
+      setWithdrawal((current) => ({ ...current, amountYuan: "", note: "" }));
+      setWithdrawalTarget(null);
+      await Promise.all([loadLedger({}, { page: 1 }), loadRankings({}, { page: 1 })]);
+      setNotice("推荐币提现扣除已记录。");
+    } catch (nextError) { setError(nextError.message || "扣除推荐币失败。"); } finally { setBusy(false); }
+  }
+  const ledgerPages = Math.max(1, Math.ceil(ledgerMeta.total / Math.max(ledgerMeta.limit, 1)));
+  const rankingPages = Math.max(1, Math.ceil(rankingMeta.total / Math.max(rankingMeta.limit, 1)));
+  function openWithdrawal(item) {
+    setWithdrawalTarget(item);
+    setWithdrawal({ accountId: item.account.id, amountYuan: "", note: "" });
+  }
+
+  return <section className="task-page referral-admin-page" aria-label="推荐管理">
+    <div className="task-toolbar"><div><p className="eyebrow">Referrals</p><h2>推荐</h2><p className="storage-note">推荐币流水、用户排名与线下提现扣除。昵称相同的用户以账户尾号区分。</p></div><button className="secondary-button" disabled={busy} onClick={refreshAll} type="button"><RefreshCw size={18} /><span>{busy ? "刷新中" : "刷新"}</span></button></div>
+    {error ? <p className="error-note">{error}</p> : null}{notice ? <p className="success-note">{notice}</p> : null}
+
+    <div className="referral-admin-card referral-ranking-card">
+      <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Ranking</p><h3>用户推荐排名</h3></div></div>
+      <div className="task-filters"><label className="search-box"><Search size={18} /><input onChange={(event) => setRankingFilters((current) => ({ ...current, search: event.target.value }))} placeholder="昵称、邮箱或账户 ID" value={rankingFilters.search} /></label><select onChange={(event) => setRankingFilters((current) => ({ ...current, sortBy: event.target.value }))} value={rankingFilters.sortBy}><option value="totalEarned">累计获得推荐币</option><option value="withdrawable">当前可提现推荐币</option><option value="registrations">推荐注册数</option><option value="visits">推荐访问数</option></select><select onChange={(event) => setRankingFilters((current) => ({ ...current, sortDir: event.target.value }))} value={rankingFilters.sortDir}><option value="desc">从高到低</option><option value="asc">从低到高</option></select><button className="secondary-button" onClick={() => loadRankings({}, { page: 1 }).catch((nextError) => setError(nextError.message))} type="button">筛选</button></div>
+      <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table referral-ranking-table"><thead><tr><th>用户</th><th>累计获得推荐币</th><th>当前可提现推荐币</th><th>推荐注册数</th><th>推荐访问数</th><th /></tr></thead><tbody>{rankings.map((item) => <tr key={item.account.id}><td><div className="user-admin-identity"><strong>{identity(item.account)}</strong><span>{item.account.email || "微信账户"}</span></div></td><td>{formatCurrencyCents(item.totalEarnedCents)}</td><td className={item.withdrawableCents < 0 ? "error-note" : ""}>{formatCurrencyCents(item.withdrawableCents)}{item.pendingCents ? <small>预发放 {formatCurrencyCents(item.pendingCents)}</small> : null}</td><td>{item.registeredCount}</td><td>{item.visitCount}</td><td><button className="secondary-button referral-withdraw-button" disabled={item.withdrawableCents <= 0} onClick={() => openWithdrawal(item)} type="button">提现</button></td></tr>)}{!rankings.length ? <tr><td colSpan="6" className="order-table-empty">暂无推荐数据。</td></tr> : null}</tbody></table></div>
+      <div className="task-pagination"><p className="storage-note">共 {rankingMeta.total} 位，当前第 {rankingMeta.page} / {rankingPages} 页。</p><div className="task-pagination-actions"><button className="secondary-button" disabled={rankingMeta.page <= 1} onClick={() => loadRankings({}, { page: rankingMeta.page - 1 }).catch((nextError) => setError(nextError.message))} type="button">上一页</button><button className="secondary-button" disabled={rankingMeta.page >= rankingPages} onClick={() => loadRankings({}, { page: rankingMeta.page + 1 }).catch((nextError) => setError(nextError.message))} type="button">下一页</button></div></div>
+    </div>
+
+    <div className="referral-admin-card referral-ledger-card">
+      <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Ledger</p><h3>推荐明细</h3></div></div>
+      <div className="task-filters"><label className="search-box"><Search size={18} /><input onChange={(event) => setLedgerFilters((current) => ({ ...current, search: event.target.value }))} placeholder="推荐人、受邀用户、邮箱或 ID" value={ledgerFilters.search} /></label><select onChange={(event) => setLedgerFilters((current) => ({ ...current, type: event.target.value }))} value={ledgerFilters.type}><option value="">全部类型</option><option value="referral_payment_reward">订单推荐奖励</option><option value="referral_payment_refund_reversal">退款扣回</option><option value="referral_withdrawal">提现扣除</option></select><select onChange={(event) => setLedgerFilters((current) => ({ ...current, status: event.target.value }))} value={ledgerFilters.status}><option value="">全部状态</option><option value="available">可提现</option><option value="pending">预发放</option></select><select onChange={(event) => setLedgerFilters((current) => ({ ...current, sortBy: event.target.value }))} value={ledgerFilters.sortBy}><option value="createdAt">按时间</option><option value="amount">按金额</option><option value="balance">按余额</option></select><select onChange={(event) => setLedgerFilters((current) => ({ ...current, sortDir: event.target.value }))} value={ledgerFilters.sortDir}><option value="desc">从高到低</option><option value="asc">从低到高</option></select><label className="field-label task-query-field">开始日期<input onChange={(event) => setLedgerFilters((current) => ({ ...current, startDate: event.target.value }))} type="date" value={ledgerFilters.startDate} /></label><label className="field-label task-query-field">结束日期<input onChange={(event) => setLedgerFilters((current) => ({ ...current, endDate: event.target.value }))} type="date" value={ledgerFilters.endDate} /></label><button className="secondary-button" onClick={() => loadLedger({}, { page: 1 }).catch((nextError) => setError(nextError.message))} type="button">筛选</button></div>
+      <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table referral-ledger-table"><thead><tr><th>时间</th><th>推荐人</th><th>受邀用户</th><th>事件</th><th>关联订单</th><th>变动</th><th>状态 / 余额</th><th>备注</th></tr></thead><tbody>{ledger.map((item) => <tr key={item.id}><td className="user-admin-date">{formatDateTime(item.createdAt)}</td><td>{identity(item.account)}</td><td>{identity(item.invitee)}</td><td>{reasonLabel(item.reason)}</td><td>{item.paymentKind ? `${item.paymentKind} · ${formatCurrencyCents(item.orderAmountCents)}` : "—"}</td><td className={item.deltaCents < 0 ? "error-note" : "success-note"}>{item.deltaCents < 0 ? "" : "+"}{formatCurrencyCents(item.deltaCents)}</td><td>{item.status === "pending" ? "预发放" : "可提现"}<small>{formatCurrencyCents(item.balanceAfterCents)}</small></td><td title={item.note}>{item.note || "—"}</td></tr>)}{!ledger.length ? <tr><td colSpan="8" className="order-table-empty">暂无推荐币流水。</td></tr> : null}</tbody></table></div>
+      <div className="task-pagination"><p className="storage-note">共 {ledgerMeta.total} 条，当前第 {ledgerMeta.page} / {ledgerPages} 页。</p><div className="task-pagination-actions"><button className="secondary-button" disabled={ledgerMeta.page <= 1} onClick={() => loadLedger({}, { page: ledgerMeta.page - 1 }).catch((nextError) => setError(nextError.message))} type="button">上一页</button><button className="secondary-button" disabled={ledgerMeta.page >= ledgerPages} onClick={() => loadLedger({}, { page: ledgerMeta.page + 1 }).catch((nextError) => setError(nextError.message))} type="button">下一页</button></div></div>
+    </div>
+    {withdrawalTarget ? <div className="modal-backdrop referral-withdrawal-backdrop" onClick={() => !busy && setWithdrawalTarget(null)} role="presentation">
+      <section className="prompt-modal referral-withdrawal-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="扣除推荐币">
+        <div className="modal-head"><div><p className="eyebrow">Withdrawal</p><h2>扣除推荐币</h2></div><button className="icon-button" disabled={busy} onClick={() => setWithdrawalTarget(null)} type="button"><X size={18} /></button></div>
+        <div className="referral-withdrawal-user"><strong>{identity(withdrawalTarget.account)}</strong><span>当前可提现 {formatCurrencyCents(withdrawalTarget.withdrawableCents)}{withdrawalTarget.pendingCents ? ` · 预发放 ${formatCurrencyCents(withdrawalTarget.pendingCents)}` : ""}</span></div>
+        <label className="field-label">扣除推荐币数量（元）<input autoFocus max={Math.max(0, Number(withdrawalTarget.withdrawableCents || 0)) / 100} min="0.01" onChange={(event) => setWithdrawal((current) => ({ ...current, amountYuan: event.target.value }))} step="0.01" type="number" value={withdrawal.amountYuan} /></label>
+        <label className="field-label">备注<textarea onChange={(event) => setWithdrawal((current) => ({ ...current, note: event.target.value }))} placeholder="例如：微信转账，流水号 xxx" rows="3" value={withdrawal.note} /></label>
+        <div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={() => setWithdrawalTarget(null)} type="button">取消</button><button className="draw-card-primary" disabled={busy || !Number(withdrawal.amountYuan) || !withdrawal.note.trim()} onClick={submitWithdrawal} type="button">确认扣除</button></div>
+      </section>
+    </div> : null}
+  </section>;
 }
 
 function MerchantAdminPage({ allMerchants, onRefreshAllMerchants }) {
@@ -10252,24 +10370,26 @@ function orderStatusLabel(status) {
 
 function orderStatusTone(status) {
   if (status === "paid" || status === "completed" || status === "pending_shipment" || status === "shipped") return "succeeded";
-  if (status === "cancelled" || status === "expired") return "cancelled";
+  if (status === "cancelled" || status === "expired" || status === "refunded") return "cancelled";
   return "queued";
 }
 
 function getBeanPurchaseListStatus(purchase) {
   if (purchase?.status === "paid") return "paid";
+  if (purchase?.status === "refunded") return "refunded";
   if (purchase?.status === "cancelled" || (purchase?.expiresAt && Date.parse(purchase.expiresAt) <= Date.now())) return "expired";
   return "pending_payment";
 }
 
 function getBeanPurchaseListTone(status) {
   if (status === "paid") return "succeeded";
-  if (status === "expired") return "cancelled";
+  if (status === "expired" || status === "refunded") return "cancelled";
   return "queued";
 }
 
 function getBeanPurchaseListStatusLabel(purchase, status) {
   if (status === "paid") return "已支付";
+  if (status === "refunded") return "已退款";
   if (status === "expired") return "已过期";
   return purchase?.channel === "manual_collection" ? "待确认收款" : "待付款";
 }

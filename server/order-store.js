@@ -64,6 +64,7 @@ function mapOrderRow(row) {
     shippingTrackingNo: String(row.shipping_tracking_no || ""),
     completedAt: row.completed_at || null,
     cancelledAt: row.cancelled_at || null,
+    refundedAt: row.refunded_at || null,
     userDeletedAt: row.user_deleted_at || null,
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null
@@ -158,9 +159,10 @@ export function createOrderStore({ dbPath }) {
       shipped_at TEXT,
       shipping_carrier TEXT NOT NULL DEFAULT '',
     shipping_tracking_no TEXT NOT NULL DEFAULT '',
-    completed_at TEXT,
-    cancelled_at TEXT,
-    user_deleted_at TEXT,
+      completed_at TEXT,
+      cancelled_at TEXT,
+      refunded_at TEXT,
+      user_deleted_at TEXT,
     created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -243,6 +245,9 @@ export function createOrderStore({ dbPath }) {
   if (!orderColumns.some((column) => String(column.name || "") === "user_deleted_at")) {
     db.exec("ALTER TABLE orders ADD COLUMN user_deleted_at TEXT");
   }
+  if (!orderColumns.some((column) => String(column.name || "") === "refunded_at")) {
+    db.exec("ALTER TABLE orders ADD COLUMN refunded_at TEXT");
+  }
 
   const insertOrderStatement = db.prepare(`
     INSERT INTO orders (
@@ -253,7 +258,7 @@ export function createOrderStore({ dbPath }) {
       source_merchant_id, source_merchant_name, commission_rate_bps, source_claimed_at,
       admin_remark, wechat_open_id, wechat_transaction_id, out_trade_no,
       last_payment_channel, last_payment_error, expires_at, paid_at, shipped_at, shipping_carrier, shipping_tracking_no,
-      completed_at, cancelled_at, user_deleted_at, created_at, updated_at
+      completed_at, cancelled_at, refunded_at, user_deleted_at, created_at, updated_at
     ) VALUES (
       @id, @orderNo, @visitorId, @accountId, @publicToken, @experienceType, @bodyBookThemeName,
       @paymentStatus, @fulfillmentStatus, @itemCount,
@@ -262,7 +267,7 @@ export function createOrderStore({ dbPath }) {
       @sourceMerchantId, @sourceMerchantName, @commissionRateBps, @sourceClaimedAt,
       @adminRemark, @wechatOpenId, @wechatTransactionId, @outTradeNo,
       @lastPaymentChannel, @lastPaymentError, @expiresAt, @paidAt, @shippedAt, @shippingCarrier, @shippingTrackingNo,
-      @completedAt, @cancelledAt, @userDeletedAt, @createdAt, @updatedAt
+      @completedAt, @cancelledAt, @refundedAt, @userDeletedAt, @createdAt, @updatedAt
     )
   `);
 
@@ -332,6 +337,7 @@ export function createOrderStore({ dbPath }) {
         adminRemark: "",
         cancelledAt: null,
         completedAt: null,
+        refundedAt: null,
         userDeletedAt: null,
         lastPaymentChannel: order.lastPaymentChannel || "",
         lastPaymentError: order.lastPaymentError || "",
@@ -423,6 +429,7 @@ export function createOrderStore({ dbPath }) {
       shippingTrackingNo: next.shippingTrackingNo,
       completedAt: next.completedAt,
       cancelledAt: next.cancelledAt,
+      refundedAt: next.refundedAt,
       userDeletedAt: next.userDeletedAt,
       updatedAt: next.updatedAt
     };
@@ -454,6 +461,7 @@ export function createOrderStore({ dbPath }) {
         shipping_tracking_no = @shippingTrackingNo,
         completed_at = @completedAt,
         cancelled_at = @cancelledAt,
+        refunded_at = @refundedAt,
         user_deleted_at = @userDeletedAt,
         updated_at = @updatedAt
       WHERE id = @id
@@ -536,6 +544,8 @@ export function createOrderStore({ dbPath }) {
         conditions.push("fulfillment_status = 'cancelled'");
       } else if (orderStatus === "expired") {
         conditions.push("payment_status = 'expired' AND fulfillment_status != 'cancelled'");
+      } else if (orderStatus === "refunded") {
+        conditions.push("(payment_status = 'refunded' OR fulfillment_status = 'refunded')");
       }
     }
     if (search) {
@@ -615,6 +625,8 @@ export function createOrderStore({ dbPath }) {
         conditions.push("fulfillment_status = 'cancelled'");
       } else if (orderStatus === "expired") {
         conditions.push("payment_status = 'expired' AND fulfillment_status != 'cancelled'");
+      } else if (orderStatus === "refunded") {
+        conditions.push("(payment_status = 'refunded' OR fulfillment_status = 'refunded')");
       }
     }
     if (search) {

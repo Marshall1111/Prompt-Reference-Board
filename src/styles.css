@@ -3083,11 +3083,40 @@ button:disabled {
 }
 
 .topbar {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 20px;
+  display: grid;
+  gap: 10px;
   margin-bottom: 22px;
+}
+
+/* 后台顶部按信息层级分为三行：标题、公共页入口、后台页面导航。 */
+.admin-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.admin-title-row .eyebrow {
+  margin: 0;
+}
+
+.admin-title-row h1 {
+  font-size: clamp(1.45rem, 2.2vw, 1.8rem);
+  line-height: 1;
+}
+
+.admin-public-row {
+  min-height: 28px;
+}
+
+.admin-page-nav {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+
+.admin-page-nav .nav-button {
+  flex: 0 0 auto;
 }
 
 .eyebrow {
@@ -3437,6 +3466,10 @@ h2 {
 
 .gallery-toolbar .storage-note {
   margin-left: auto;
+}
+
+.gallery-search-box {
+  width: min(340px, 100%);
 }
 
 .gallery-grid {
@@ -4977,6 +5010,212 @@ h2 {
   background: #fafcf9;
 }
 
+/* Recommendation administration: compact, wide, Apple-inspired information panels. */
+.referral-admin-page {
+  gap: 12px;
+}
+
+.referral-admin-page > .task-toolbar {
+  align-items: center;
+  padding: 4px 2px;
+}
+
+.referral-admin-page > .task-toolbar h2 {
+  margin: 2px 0 4px;
+  letter-spacing: -0.035em;
+}
+
+.referral-admin-card {
+  min-width: 0;
+  padding: 14px 16px 12px;
+  border: 1px solid rgba(60, 60, 67, 0.14);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 8px 28px rgba(28, 28, 30, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.referral-admin-card .compact-toolbar {
+  min-height: 34px;
+  margin-bottom: 10px;
+}
+
+.referral-admin-card .compact-toolbar h3 {
+  margin: 0;
+  color: #1d1d1f;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.referral-admin-card .eyebrow {
+  margin-bottom: 2px;
+  color: #86868b;
+  font-size: 0.66rem;
+}
+
+.referral-admin-card .task-filters {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 10px;
+}
+
+.referral-admin-card .task-filters :is(select, input, button) {
+  min-height: 32px;
+  border-radius: 9px;
+  font-size: 0.78rem;
+}
+
+.referral-admin-card .task-filters .field-label {
+  gap: 3px;
+  color: #6e6e73;
+  font-size: 0.66rem;
+}
+
+.referral-admin-card .task-filters .search-box {
+  flex: 1 1 240px;
+  min-width: 210px;
+  max-width: 360px;
+}
+
+.referral-admin-card .task-filters > select {
+  width: auto;
+  min-width: 104px;
+  flex: 0 1 148px;
+}
+
+.referral-admin-card .task-filters > .task-query-field {
+  min-width: 112px;
+  flex: 0 1 142px;
+}
+
+.referral-admin-card .task-filters > .task-query-field input {
+  min-width: 0;
+  padding-inline: 8px;
+}
+
+.referral-table-wrap {
+  border-color: rgba(60, 60, 67, 0.12);
+  border-radius: 13px;
+  box-shadow: none;
+}
+
+.referral-admin-card .user-admin-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.referral-admin-card .user-admin-table th,
+.referral-admin-card .user-admin-table td {
+  padding: 8px 10px;
+  border-color: rgba(60, 60, 67, 0.09);
+  font-size: 0.76rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.referral-admin-card .user-admin-table th {
+  color: #6e6e73;
+  background: #f5f5f7;
+  font-size: 0.65rem;
+}
+
+.referral-admin-card .user-admin-table tbody tr:hover {
+  background: #f7faff;
+}
+
+.referral-admin-card .user-admin-table td small {
+  display: inline;
+  margin-left: 4px;
+  color: #86868b;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.referral-ranking-table th:nth-child(1) { width: 25%; }
+.referral-ranking-table th:nth-child(2) { width: 18%; }
+.referral-ranking-table th:nth-child(3) { width: 22%; }
+.referral-ranking-table th:nth-child(4),
+.referral-ranking-table th:nth-child(5) { width: 13%; }
+.referral-ranking-table th:nth-child(6) { width: 9%; }
+
+.referral-ledger-table th:nth-child(1) { width: 12%; }
+.referral-ledger-table th:nth-child(2),
+.referral-ledger-table th:nth-child(3) { width: 14%; }
+.referral-ledger-table th:nth-child(4) { width: 12%; }
+.referral-ledger-table th:nth-child(5) { width: 14%; }
+.referral-ledger-table th:nth-child(6) { width: 9%; }
+.referral-ledger-table th:nth-child(7) { width: 12%; }
+.referral-ledger-table th:nth-child(8) { width: 13%; }
+
+.referral-admin-card .task-pagination {
+  min-height: 30px;
+  margin-top: 9px;
+}
+
+.referral-admin-card .task-pagination :is(button, p) {
+  font-size: 0.72rem;
+}
+
+.referral-withdraw-button {
+  min-width: 54px;
+  min-height: 30px;
+  border-color: rgba(0, 122, 255, 0.22);
+  color: #007aff;
+  background: rgba(0, 122, 255, 0.08);
+}
+
+.referral-withdrawal-backdrop {
+  background: rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(14px) saturate(1.12);
+}
+
+.referral-withdrawal-modal {
+  width: min(440px, calc(100% - 32px));
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  border-radius: 22px;
+  background: rgba(250, 250, 252, 0.96);
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.24);
+}
+
+.referral-withdrawal-modal .modal-head h2 {
+  margin: 2px 0 0;
+  color: #1d1d1f;
+  letter-spacing: -0.035em;
+}
+
+.referral-withdrawal-user {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin: 4px 0 16px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: #f1f5fb;
+  color: #1d1d1f;
+  font-size: 0.8rem;
+}
+
+.referral-withdrawal-user span {
+  color: #6e6e73;
+  font-size: 0.72rem;
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .referral-admin-card { padding: 12px; border-radius: 14px; }
+  .referral-admin-page > .task-toolbar { align-items: stretch; }
+  .referral-admin-card .task-filters { flex-wrap: wrap; }
+  .referral-admin-card .task-filters .search-box { max-width: none; }
+  .referral-admin-card .user-admin-table { min-width: 820px; table-layout: auto; }
+  .referral-withdrawal-user { align-items: flex-start; flex-direction: column; }
+  .referral-withdrawal-user span { text-align: left; }
+}
+
 .user-admin-status {
   min-height: 26px;
   padding: 0 8px;
@@ -5249,6 +5488,173 @@ textarea {
 
 .settings-collapse-toggle {
   align-self: start;
+}
+
+/* Order settings: compact Apple-style grouped preferences. */
+.order-settings-panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(60, 60, 67, 0.14);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 10px 30px rgba(28, 28, 30, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.order-settings-panel .compact-toolbar {
+  min-height: 38px;
+  margin: 0;
+}
+
+.order-settings-panel .eyebrow {
+  margin: 0 0 2px;
+  color: #86868b;
+  font-size: 0.66rem;
+}
+
+.order-settings-panel h3 {
+  margin: 0 0 3px;
+  color: #1d1d1f;
+  letter-spacing: -0.025em;
+}
+
+.order-settings-panel .storage-note {
+  color: #6e6e73;
+}
+
+.order-settings-panel .settings-collapse-toggle {
+  min-height: 34px;
+  border-color: rgba(0, 122, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(0, 122, 255, 0.08);
+  color: #007aff;
+}
+
+.order-settings-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.order-settings-group {
+  display: grid;
+  gap: 11px;
+  padding: 13px;
+  border: 1px solid rgba(60, 60, 67, 0.1);
+  border-radius: 14px;
+  background: #f8f8fa;
+}
+
+.order-settings-payment-group,
+.order-settings-save {
+  grid-column: 1 / -1;
+}
+
+.order-settings-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.order-settings-group-head h4 {
+  margin: 0;
+  color: #1d1d1f;
+  font-size: 0.88rem;
+  letter-spacing: -0.015em;
+}
+
+.order-settings-group-head p {
+  margin: 3px 0 0;
+  color: #86868b;
+  font-size: 0.7rem;
+}
+
+.order-settings-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 9px;
+}
+
+.order-settings-fields .field-label {
+  gap: 5px;
+  color: #6e6e73;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.order-settings-fields :is(input, select) {
+  min-height: 36px;
+  padding-inline: 10px;
+  border-color: rgba(60, 60, 67, 0.16);
+  border-radius: 9px;
+  background: #fff;
+  color: #1d1d1f;
+  font-size: 0.8rem;
+}
+
+.apple-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #6e6e73;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.apple-toggle input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+}
+
+.apple-toggle span {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 23px;
+  border-radius: 99px;
+  background: #d1d1d6;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  transition: background 160ms ease;
+}
+
+.apple-toggle span::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  content: "";
+  transition: transform 160ms ease;
+}
+
+.apple-toggle input:checked + span { background: #34c759; }
+.apple-toggle input:checked + span::after { transform: translateX(15px); }
+.apple-toggle input:focus-visible + span { outline: 3px solid rgba(0, 122, 255, 0.32); outline-offset: 2px; }
+
+.order-settings-save {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1px;
+}
+
+.order-settings-save .secondary-button {
+  min-height: 36px;
+  border-color: rgba(0, 122, 255, 0.2);
+  border-radius: 10px;
+  background: #007aff;
+  color: #fff;
+}
+
+@media (max-width: 760px) {
+  .order-settings-content { grid-template-columns: 1fr; }
+  .order-settings-payment-group, .order-settings-save { grid-column: auto; }
+  .order-settings-group-head { align-items: flex-start; }
 }
 
 .file-button {
@@ -6142,6 +6548,15 @@ textarea {
   .nav-button,
   .add-button {
     width: 100%;
+  }
+
+  .topbar .admin-page-nav {
+    align-items: center;
+    flex-direction: row;
+  }
+
+  .admin-page-nav .nav-button {
+    width: auto;
   }
 
   .draw-card-utility-bar {

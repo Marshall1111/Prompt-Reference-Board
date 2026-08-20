@@ -106,10 +106,10 @@ const MERCHANT_STATUS_VALUES = new Set(["active", "inactive"]);
 const ORDER_PAYMENT_EXPIRE_MS = 30 * 60 * 1000;
 const ORDER_SEARCH_LIMIT = 100;
 const MERCHANT_SEARCH_LIMIT = 500;
-const ORDER_PAYMENT_STATUS_VALUES = new Set(["unpaid", "paid", "failed", "expired"]);
-const ORDER_FULFILLMENT_STATUS_VALUES = new Set(["new", "in_production", "shipped", "completed", "cancelled"]);
+const ORDER_PAYMENT_STATUS_VALUES = new Set(["unpaid", "paid", "failed", "expired", "refunded"]);
+const ORDER_FULFILLMENT_STATUS_VALUES = new Set(["new", "in_production", "shipped", "completed", "cancelled", "refunded"]);
 const ORDER_PAYMENT_MODE_VALUES = new Set(["manual", "wechat"]);
-const ORDER_STATUS_VALUES = new Set(["pending_payment", "pending_shipment", "shipped", "completed", "cancelled", "expired"]);
+const ORDER_STATUS_VALUES = new Set(["pending_payment", "pending_shipment", "shipped", "completed", "cancelled", "expired", "refunded"]);
 const SHIPPING_CARRIER_OPTIONS = [
   { code: "shunfeng", name: "顺丰速运", aliases: ["顺丰", "顺丰快递"] },
   { code: "zhongtong", name: "中通快递", aliases: ["中通"] },
@@ -1064,6 +1064,18 @@ app.post("/api/referrals/capture", requireWebAccount, (req, res, next) => {
   }
 });
 
+app.post("/api/referrals/visit", requireWebAccount, (req, res, next) => {
+  try {
+    res.json(commerceStore.recordReferralVisit({
+      token: String(req.body?.token || ""),
+      visitorId: req.visitorId,
+      accountId: req.webAccount?.id || ""
+    }));
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/auth/email-code", async (req, res, next) => {
   try {
     const email = normalizeEmail(req.body?.email);
@@ -1538,7 +1550,9 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
     const amount = calculateOrderAmounts(totalRequestedItemCount, pricing);
     const redemptionEntitlements = commerceStore.getRedemptionEntitlementSummary(req.webAccount.id);
     const usesFridgeRedemption = redemptionEntitlements.fridgeMagnetItemCount >= amount.itemCount;
-    const merchantSource = await resolveOrderMerchantSource(req);
+    // Partner commission attribution has been retired. New collaborators use
+    // the normal account referral link, while old order snapshots stay intact.
+    const merchantSource = { sourceMerchantId: "", sourceMerchantName: "", commissionRateBps: 0, sourceClaimedAt: null };
     const now = new Date();
     const createdAt = now.toISOString();
     const paymentMode = normalizeOrderPaymentMode(pricing.paymentMode);
@@ -3582,6 +3596,53 @@ app.post("/api/admin/users/:id/wallet", requireAdmin, (req, res, next) => {
   }
 });
 
+app.get("/api/admin/referrals/ledger", requireAdmin, (req, res, next) => {
+  try {
+    res.json(commerceStore.listAdminReferralLedger({
+      page: req.query?.page,
+      limit: req.query?.limit,
+      search: req.query?.search,
+      type: req.query?.type,
+      status: req.query?.status,
+      startDate: req.query?.startDate,
+      endDate: req.query?.endDate,
+      sortBy: req.query?.sortBy,
+      sortDir: req.query?.sortDir
+    }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/referrals/rankings", requireAdmin, (req, res, next) => {
+  try {
+    res.json(commerceStore.listAdminReferralRankings({
+      page: req.query?.page,
+      limit: req.query?.limit,
+      search: req.query?.search,
+      sortBy: req.query?.sortBy,
+      sortDir: req.query?.sortDir
+    }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/referrals/withdrawals", requireAdmin, (req, res, next) => {
+  try {
+    const accountId = String(req.body?.accountId || "").trim();
+    const amountCents = Math.round(Number(req.body?.amountYuan || 0) * 100);
+    const note = String(req.body?.note || "").trim();
+    const account = commerceStore.readAccount(accountId);
+    if (!account?.isRegistered) throw createHttpError(404, "推荐用户不存在。");
+    if (!amountCents || !note) throw createHttpError(400, "请填写提现金额和备注。");
+    const result = commerceStore.withdrawReferralBalance({ accountId, amountCents, note });
+    res.status(201).json({ account: toPublicAdminUser(result.account), ledger: result.ledger || null });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/admin/orders", requireAdmin, async (req, res) => {
   try {
     const page = Math.max(Number(req.query.page || 1), 1);
@@ -3682,6 +3743,9 @@ app.patch("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
   try {
     const order = orderStore.readOrderWithRelations(req.params.orderId);
     if (!order) return res.status(404).json({ message: "订单不存在。" });
+    if (getOrderStatus(order) === "refunded" && req.body?.orderStatus !== undefined && req.body.orderStatus !== "refunded") {
+      throw createHttpError(409, "已退款订单为终态，不能再修改状态。");
+    }
 
     const patch = {};
     if (req.body?.orderStatus !== undefined) {
@@ -3726,11 +3790,26 @@ app.patch("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
       } else if (nextOrderStatus === "expired") {
         patch.paymentStatus = "expired";
         patch.lastPaymentError = patch.lastPaymentError || "订单已过期";
+      } else if (nextOrderStatus === "refunded") {
+        if (getOrderStatus(order) === "refunded") throw createHttpError(409, "订单已退款，无需重复操作。");
+        const intent = commerceStore.readPaymentIntentByOutTradeNo(order.outTradeNo);
+        if (intent?.id) {
+          commerceStore.refundPaymentIntent(intent.id, { note: String(req.body?.adminRemark || order.adminRemark || "") });
+        } else if (getOrderPayableCents(order) > 0) {
+          throw createHttpError(409, "订单支付记录不存在，无法登记退款。");
+        }
+        patch.paymentStatus = "refunded";
+        patch.fulfillmentStatus = "refunded";
+        patch.refundedAt = new Date().toISOString();
+        patch.completedAt = "";
+        patch.cancelledAt = "";
+        patch.lastPaymentError = "";
       }
     }
 
     if (req.body?.paymentStatus !== undefined) {
       const nextPaymentStatus = normalizeOrderPaymentStatus(req.body.paymentStatus, order.paymentStatus);
+      if (nextPaymentStatus === "refunded") throw createHttpError(400, "请通过订单状态登记退款。");
       if (nextPaymentStatus === "paid" && order.paymentStatus === "unpaid") {
         patch.paymentStatus = "paid";
         patch.paidAt = order.paidAt || new Date().toISOString();
@@ -3741,6 +3820,7 @@ app.patch("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
 
     if (req.body?.fulfillmentStatus !== undefined) {
       const nextFulfillmentStatus = normalizeOrderFulfillmentStatus(req.body.fulfillmentStatus, order.fulfillmentStatus);
+      if (nextFulfillmentStatus === "refunded") throw createHttpError(400, "请通过订单状态登记退款。");
       patch.fulfillmentStatus = nextFulfillmentStatus;
       if (nextFulfillmentStatus === "shipped" && !order.shippedAt) patch.shippedAt = new Date().toISOString();
       if (nextFulfillmentStatus === "completed" && !order.completedAt) patch.completedAt = new Date().toISOString();
@@ -3819,6 +3899,17 @@ app.post("/api/admin/commerce/payments/:paymentIntentId/confirm-manual", require
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "确认收款失败。" });
+  }
+});
+
+app.post("/api/admin/commerce/payments/:paymentIntentId/refund", requireAdmin, (req, res, next) => {
+  try {
+    const intent = commerceStore.readPaymentIntent(req.params.paymentIntentId);
+    if (!intent || !["coin_purchase", "bean_purchase"].includes(intent.kind)) throw createHttpError(404, "购买单不存在。");
+    const result = commerceStore.refundPaymentIntent(intent.id, { note: String(req.body?.adminRemark || "").trim() });
+    res.json({ payment: toPublicAdminPaymentIntent(result.intent) });
+  } catch (error) {
+    next(error);
   }
 });
 
@@ -8029,6 +8120,7 @@ function toPublicPaymentIntent(intent) {
     metadata: intent.metadata,
     expiresAt: intent.expiresAt,
     paidAt: intent.paidAt,
+    refundedAt: intent.refundedAt || null,
     createdAt: intent.createdAt
   };
 }
@@ -8078,6 +8170,7 @@ function normalizeAdminOrderListStatus(value) {
 
 function getAdminPurchaseOrderStatus(intent) {
   if (intent?.status === "paid") return "paid";
+  if (intent?.status === "refunded") return "refunded";
   if (intent?.status === "cancelled") return "cancelled";
   if (intent?.expiresAt && Date.parse(intent.expiresAt) <= Date.now()) return "expired";
   return "pending_payment";
@@ -8086,6 +8179,7 @@ function getAdminPurchaseOrderStatus(intent) {
 function getAdminPurchaseOrderStatusLabel(intent) {
   const status = getAdminPurchaseOrderStatus(intent);
   if (status === "paid") return "已支付";
+  if (status === "refunded") return "已退款";
   if (status === "cancelled") return "已取消";
   if (status === "expired") return "已过期";
   return intent?.channel === "manual_collection" ? "待确认收款" : "待付款";
@@ -8532,6 +8626,7 @@ function toPublicOrder(order, options = {}) {
     shippingTrackingNo: safeOrder.shippingTrackingNo,
     completedAt: safeOrder.completedAt,
     cancelledAt: safeOrder.cancelledAt,
+    refundedAt: safeOrder.refundedAt || null,
     createdAt: safeOrder.createdAt,
     updatedAt: safeOrder.updatedAt,
     wechatTransactionId: includePrivate ? safeOrder.wechatTransactionId : "",
@@ -8595,6 +8690,7 @@ function confirmManualOrderPayment(order) {
 function getOrderStatus(order) {
   const fulfillmentStatus = normalizeOrderFulfillmentStatus(order?.fulfillmentStatus, "new");
   const paymentStatus = normalizeOrderPaymentStatus(order?.paymentStatus, "unpaid");
+  if (fulfillmentStatus === "refunded" || paymentStatus === "refunded") return "refunded";
   if (fulfillmentStatus === "cancelled") return "cancelled";
   if (fulfillmentStatus === "completed") return "completed";
   if (fulfillmentStatus === "shipped") return "shipped";
@@ -8611,6 +8707,7 @@ function getOrderStatusLabel(order) {
   if (status === "completed") return "已完成";
   if (status === "cancelled") return "已取消";
   if (status === "expired") return "已过期";
+  if (status === "refunded") return "已退款";
   return status || "未知";
 }
 
