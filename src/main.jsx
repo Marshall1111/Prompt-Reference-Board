@@ -1879,6 +1879,7 @@ function BodyBookPage() {
   const [activePageReferenceKey, setActivePageReferenceKey] = useState("");
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [contactCopied, setContactCopied] = useState(false);
   const [showBeanInfo, setShowBeanInfo] = useState(false);
   const [showBeanPurchase, setShowBeanPurchase] = useState(false);
   const [beanPurchaseCount, setBeanPurchaseCount] = useState(40);
@@ -1918,6 +1919,9 @@ function BodyBookPage() {
   const pendingBookShareRef = useRef(false);
   const pendingBookOriginalDownloadRef = useRef(null);
   const bodyBookEditorRef = useRef(false);
+  const bodyBookThemePreviewRef = useRef(null);
+  const bodyBookThemesRef = useRef(themes);
+  const contactCopiedTimeoutRef = useRef(null);
   const bookVisitSource = useMemo(() => {
     const query = new URLSearchParams(window.location.search);
     const shareToken = String(query.get("share") || "").trim();
@@ -1932,6 +1936,8 @@ function BodyBookPage() {
   const activeTheme = project?.theme || selectedTheme;
   const isKindergartenBook = activeTheme?.id === "kindergarten";
   bodyBookEditorRef.current = Boolean(activeTheme);
+  bodyBookThemePreviewRef.current = themePreview;
+  bodyBookThemesRef.current = themes;
   const contents = getBodyBookThemeContents(activeTheme);
   const selectableContents = useMemo(() => contents.filter((content) => !content.isBuiltIn && content.pageType !== "back-cover"), [contents]);
   const selectedKeys = (project?.pages?.map((page) => page.key) || draftKeys).filter((key) => selectableContents.some((content) => content.key === key));
@@ -2029,6 +2035,10 @@ function BodyBookPage() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => () => {
+    if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
+  }, []);
+
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("invite");
     if (!token) return;
@@ -2060,8 +2070,18 @@ function BodyBookPage() {
     if (currentState.bodyBookHistoryView !== "home") {
       window.history.replaceState({ ...currentState, bodyBookHistoryView: "home" }, "", window.location.href);
     }
-    const handleBrowserBack = () => {
-      if (bodyBookEditorRef.current) backToHome();
+    const handleBrowserBack = (event) => {
+      const historyView = String(event.state?.bodyBookHistoryView || "home");
+      if (historyView === "theme-preview") {
+        const themeId = String(event.state?.bodyBookThemeId || "");
+        const theme = bodyBookThemesRef.current.find((item) => item.id === themeId);
+        if (theme) {
+          bodyBookEditorRef.current = false;
+          setThemePreview(theme);
+        }
+        return;
+      }
+      if (historyView === "home" && (bodyBookEditorRef.current || bodyBookThemePreviewRef.current)) backToHome();
     };
     window.addEventListener("popstate", handleBrowserBack);
     return () => window.removeEventListener("popstate", handleBrowserBack);
@@ -2146,6 +2166,36 @@ function BodyBookPage() {
     setHistoryProjects([]);
     setError("");
     pushBodyBookEditorHistory();
+  }
+
+  function openThemePreview(theme) {
+    const currentState = window.history.state || {};
+    if (currentState.bodyBookHistoryView !== "theme-preview") {
+      window.history.replaceState({ ...currentState, bodyBookHistoryView: "home" }, "", window.location.href);
+      window.history.pushState({ ...currentState, bodyBookHistoryView: "theme-preview", bodyBookThemeId: theme.id }, "", window.location.href);
+    }
+    setThemePreview(theme);
+    setError("");
+  }
+
+  function closeThemePreview() {
+    if (window.history.state?.bodyBookHistoryView === "theme-preview") {
+      window.history.back();
+      return;
+    }
+    setThemePreview(null);
+    setError("");
+  }
+
+  async function copyBookContactWechat() {
+    try {
+      await copyText(getContactWechatId(orderConfig));
+      setContactCopied(true);
+      if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
+      contactCopiedTimeoutRef.current = window.setTimeout(() => setContactCopied(false), 2000);
+    } catch (nextError) {
+      setError(nextError.message || "复制微信号失败，请手动复制。");
+    }
   }
 
   async function selectTheme(theme) {
@@ -2710,10 +2760,10 @@ function BodyBookPage() {
 
       {home ? <>
         <section className="body-book-theme-home body-book-theme-layout">
-          <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先查看整本效果，再开始制作专属认知书。</p></div><div className="body-book-theme-groups">{getBodyBookThemeGroups(themes).map((group) => <section className="body-book-theme-group" key={group.id}><div className="body-book-theme-group-head"><span>{group.title}</span><p>{group.description}</p></div><div className="body-book-theme-grid">{group.items.map(({ theme, index }) => <button className="body-book-theme-card" disabled={busy} key={theme.id} onClick={() => { setThemePreview(theme); setError(""); }} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={getBodyBookThemePreviewSrc(theme)} /><span className="body-book-theme-index">{String(index).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small><em>预计消耗 {getBodyBookThemeGenerationCost(theme)} 豆</em></button>)}</div></section>)}</div></div>
+          <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先查看整本效果，再开始制作专属认知书。</p></div><div className="body-book-theme-groups">{getBodyBookThemeGroups(themes).map((group) => <section className="body-book-theme-group" key={group.id}><div className="body-book-theme-group-head"><span>{group.title}</span><p>{group.description}</p></div><div className="body-book-theme-grid">{group.items.map(({ theme, index }) => <button className="body-book-theme-card" disabled={busy} key={theme.id} onClick={() => openThemePreview(theme)} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={getBodyBookThemePreviewSrc(theme)} /><span className="body-book-theme-index">{String(index).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small><em>预计消耗 {getBodyBookThemeGenerationCost(theme)} 豆</em></button>)}</div></section>)}</div></div>
         </section>
         <section className="body-book-library"><div className="body-book-library-head"><span className="body-book-step">MY BOOKS</span><h2>我的认知书</h2></div>{error ? <p className="error-note">{error}</p> : null}{savedBooks.length ? <div className="body-book-library-grid">{savedBooks.map((book) => <article className="body-book-library-item" key={book.sessionId}><button className="body-book-library-cover" onClick={() => openProject(book.sessionId)} type="button">{book.thumbnail ? <img alt={`${book.title} 缩略图`} src={book.thumbnail} /> : <div className="body-book-library-placeholder">{book.theme?.name || "认知书"}</div>}<span>{book.title}</span><small>继续制作 · {formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></button><button aria-label={`删除《${book.title}》`} className="body-book-library-delete icon-button" disabled={deletingProjectId === book.sessionId} onClick={() => deleteProject(book)} title="删除" type="button">{deletingProjectId === book.sessionId ? <LoaderCircle className="spin" size={16} /> : <X size={17} />}</button></article>)}</div> : <p className="body-book-library-empty">成功生成第一张图片后，工程会自动保存在这里。</p>}</section>
-      </> : showingThemePreview ? <BodyBookThemeEffectPreview busy={busy} onBack={() => setThemePreview(null)} onStart={() => selectTheme(themePreview)} theme={themePreview} /> : <section className="body-book-workspace body-book-project-workspace">
+      </> : showingThemePreview ? <BodyBookThemeEffectPreview busy={busy} onBack={closeThemePreview} onStart={() => selectTheme(themePreview)} theme={themePreview} /> : <section className="body-book-workspace body-book-project-workspace">
         <div className="body-book-status-row"><div><span className="body-book-step">02</span><h2>{project?.message || "配置你的认知书页面"}</h2></div></div>
         {error ? <p className="error-note">{error}</p> : null}
         {isKindergartenBook ? <section className="body-book-kindergarten-profile"><div><span className="body-book-step">STORY HERO</span><h3>孩子昵称</h3><p>会出现在封面上，例如“乐乐去幼儿园啦”。</p></div>{project ? <strong>{draftChildName || "小朋友"}</strong> : <label><span>昵称（必填）</span><input disabled={busy} maxLength={12} onChange={(event) => setDraftChildName(event.target.value)} placeholder="例如：乐乐" value={draftChildName} /></label>}</section> : null}
@@ -2745,7 +2795,7 @@ function BodyBookPage() {
       {showBookOriginalUnlockPrompt ? <div className="modal-backdrop draw-card-confirm" onClick={() => !bookShareBusy && setShowBookOriginalUnlockPrompt(false)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal body-book-original-unlock-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享获得下载权限"><button className="icon-button" disabled={bookShareBusy} onClick={() => setShowBookOriginalUnlockPrompt(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><p className="draw-card-kicker">Original images</p><h2>分享获得下载权限</h2><ul className="body-book-bean-benefits body-book-original-unlock-rules"><li>分享给新用户，且新用户点击查看后，可获得本工程全部原图下载权限。</li><li>本站实际消费 n 元，获得 n 次免分享下载权益。</li><li>本站累计消费 20 元，获得永久下载权益。</li></ul>{bookShareBusy ? <p className="storage-note">正在生成分享链接…</p> : null}{bookShareUrl ? <><label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={bookShareUrl} /></label><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={async () => { try { await copyText(bookShareUrl); setBookShareNotice("分享链接已复制，可发送给好友。"); setBookShareError(""); } catch (nextError) { setBookShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制分享链接</span></button></div></> : null}{bookShareNotice ? <p className="success-note">{bookShareNotice}</p> : null}{bookShareError ? <p className="error-note">{bookShareError}</p> : null}</section></div> : null}
       {showBookCheckout ? <div className="modal-backdrop" onClick={() => !bookOrderBusy && setShowBookCheckout(false)} role="presentation"><section className="body-book-project-modal body-book-checkout-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="下单认知书实体书"><button className="icon-button" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Print your book</p><h2>{bookOrderBlockReason ? "暂时无法下单" : "下单认知书实体书"}</h2>{bookOrderBlockReason ? <><div className="body-book-checkout-blocked"><AlertTriangle size={24} /><p>{bookOrderBlockReason}</p></div><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={() => setShowBookCheckout(false)} type="button">知道了</button></div></> : <><p>以下为将要印刷的全部页面，共 {bookPreviewPages.length} 页；成书时会自动插入对应的内置认知页，不含固定封底。</p><div className="body-book-checkout-preview" aria-label="成书预览">{bookPreviewPages.map((page, index) => <figure className="body-book-checkout-preview-item" key={`${page.key}-${index}`}><img alt={`${page.title} 成书预览`} decoding="async" loading="lazy" src={getBodyBookThumbnail(page)} /><figcaption><span>第 {index + 1} 页</span><strong>{page.title}</strong></figcaption></figure>)}</div><div className="draw-card-order-summary"><p>实体书 {formatCurrencyCents(bodyBookPricing.priceCents)}</p><p>邮费 {Number(bodyBookPricing.shippingFeeCents || 0) > 0 ? formatCurrencyCents(bodyBookPricing.shippingFeeCents) : "包邮"}</p>{bookOrderDiscountPreviewCents > 0 ? <p>豆豆优惠 -{formatCurrencyCents(bookOrderDiscountPreviewCents)}（每单最多抵扣 40 元）</p> : null}<strong>实付 {formatCurrencyCents(bookOrderPayablePreviewCents)}</strong></div><div className="draw-card-order-form"><label className="field-label">收件人<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={bookOrderForm.receiverName} /></label><label className="field-label">手机号<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverPhone: event.target.value }))} type="tel" value={bookOrderForm.receiverPhone} /></label><label className="field-label">收货地址<input onChange={(event) => setBookOrderForm((current) => ({ ...current, address: event.target.value, addressDetail: event.target.value }))} type="text" value={bookOrderForm.address || bookOrderForm.addressDetail || ""} /></label><label className="field-label">备注<textarea onChange={(event) => setBookOrderForm((current) => ({ ...current, remark: event.target.value }))} rows="2" value={bookOrderForm.remark} /></label></div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button">取消</button><button className="draw-card-primary" disabled={bookOrderBusy} onClick={submitBookOrder} type="button">{bookOrderBusy ? "创建订单中" : "确定"}</button></div></>}</section></div> : null}
       {showAuthModal ? <AuthModal description={pendingBookOriginalDownloadRef.current ? "下载认知书原图前，请先注册并登录。" : pendingBookShareRef.current ? "分享认知书前，请先注册并登录。" : ""} onAuthenticated={async () => { setShowAuthModal(false); const nextVisitorState = await fetchVisitorState(); setVisitorState(nextVisitorState); setBookOrderForm((current) => fillOrderAddressFromSaved(current, nextVisitorState?.account)); await loadSavedBooks(); if (pendingReferralRef.current) { pendingReferralRef.current = false; await showReferralDialog(); } if (pendingBookCheckoutRef.current) { pendingBookCheckoutRef.current = false; setShowBookCheckout(true); } if (pendingBeanPurchaseRef.current) { pendingBeanPurchaseRef.current = false; openBeanPurchase(); } if (pendingBookShareRef.current) { pendingBookShareRef.current = false; await createAndShareBookProject(); } const pendingDownload = pendingBookOriginalDownloadRef.current; pendingBookOriginalDownloadRef.current = null; if (pendingDownload) await downloadBookOriginal(pendingDownload.page, pendingDownload.projectId); }} onClose={() => { pendingReferralRef.current = false; pendingBookCheckoutRef.current = false; pendingBeanPurchaseRef.current = false; pendingBookShareRef.current = false; pendingBookOriginalDownloadRef.current = null; setShowAuthModal(false); }} reloadOnLogin={false} /> : null}
-      {showContactModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowContactModal(false)} role="presentation"><section className="draw-card-confirm-panel draw-card-contact-panel body-book-contact-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="icon-button" onClick={() => setShowContactModal(false)} type="button"><X size={18} /></button><div className="draw-card-contact-copy"><h3>联系客服</h3><p>请加微信</p><button className="draw-card-contact-id" onClick={() => copyText(getContactWechatId(orderConfig))} type="button"><span>{getContactWechatId(orderConfig)}</span><Clipboard size={16} /></button></div></section></div> : null}
+      {showContactModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowContactModal(false)} role="presentation"><section className="draw-card-confirm-panel draw-card-contact-panel body-book-contact-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="联系客服"><button className="icon-button" onClick={() => setShowContactModal(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><div className="draw-card-contact-copy"><h3>联系客服</h3><p>复制客服微信，返回微信添加</p><div className="draw-card-contact-id"><span>{getContactWechatId(orderConfig)}</span></div></div><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={copyBookContactWechat} type="button"><Clipboard size={16} /><span>{contactCopied ? "已复制" : "复制微信号"}</span></button></div></section></div> : null}
       <footer className="body-book-page-footer"><a className="body-book-admin-entry" href="/admin" aria-label="进入后台管理">后台入口</a></footer>
     </main>
   );
@@ -5543,7 +5593,7 @@ function PublicExperiencePage({ config }) {
         </div>
       ) : null}
 
-      {showCoinInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowCoinInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的币"><button className="icon-button" onClick={() => setShowCoinInfo(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><p className="draw-card-kicker">My coins</p><h2>我的币</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.coinBalance || 0 : "--"}</strong> 币</p><p className="body-book-bean-cost-note">已购币剩余可抵扣额度：<strong>{formatCurrencyCents(Math.max(0, Number(visitorState?.coinPurchaseDiscount?.availableCents || 0)))}</strong></p><ul className="body-book-bean-benefits"><li>成功购买 1 元币，可获得 1 元冰箱贴优惠额度。</li><li>每枚冰箱贴最多抵扣 15 元；同一订单可按数量累计抵扣。</li><li>冰箱贴订单支付成功后，按抵扣后实付金额赠送等额币。</li><li>邀请新用户注册可获得 5 豆和 5 币；好友每笔实付订单返 20% 推荐币。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openCoinPurchase} type="button">购买币</button><button className="draw-card-secondary" onClick={() => { setShowCoinInfo(false); openReferral(); }} type="button">邀请好友</button></div><label className="body-book-wallet-field"><span>兑换码</span><input disabled={isSubmitting} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入兑换码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={isSubmitting || !inviteCode.trim()} onClick={async () => { try { setIsSubmitting(true); const payload = await redeemInviteCode(inviteCode); setVisitorState(payload); setInviteCode(""); setError(""); } catch (nextError) { setError(nextError.message || inviteErrorMessage); } finally { setIsSubmitting(false); } }} type="button">兑换</button></div></section></div> : null}
+      {showCoinInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowCoinInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的币"><button className="icon-button" onClick={() => setShowCoinInfo(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><p className="draw-card-kicker">My coins</p><h2>我的币</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.coinBalance || 0 : "--"}</strong> 币</p><p className="body-book-bean-cost-note">已购币剩余可抵扣额度：<strong>{formatCurrencyCents(Math.max(0, Number(visitorState?.coinPurchaseDiscount?.availableCents || 0)))}</strong></p><ul className="body-book-bean-benefits"><li>成功购买 1 元币，可获得 1 元冰箱贴优惠额度。</li><li>每枚冰箱贴最多抵扣 15 元；同一订单可按数量累计抵扣。</li><li>冰箱贴订单支付成功后，按抵扣后实付金额赠送等额币。</li><li>邀请新用户注册可获得 5 豆和 5 币；好友每笔实付订单返 20% 推荐币。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openCoinPurchase} type="button">购买币</button><button className="draw-card-secondary" onClick={() => { setShowCoinInfo(false); openReferral(); }} type="button">邀请好友</button><button className="draw-card-secondary" onClick={() => { setShowCoinInfo(false); setShowContactModal(true); }} type="button">联系客服</button></div><label className="body-book-wallet-field"><span>兑换码</span><input disabled={isSubmitting} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入兑换码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={isSubmitting || !inviteCode.trim()} onClick={async () => { try { setIsSubmitting(true); const payload = await redeemInviteCode(inviteCode); setVisitorState(payload); setInviteCode(""); setError(""); } catch (nextError) { setError(nextError.message || inviteErrorMessage); } finally { setIsSubmitting(false); } }} type="button">兑换</button></div></section></div> : null}
       {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀请好友"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀请好友</h2><p>邀请新用户注册，即得 <strong>5 豆 + 5 币</strong>；好友每笔实付订单还可返你 <strong>20% 推荐币</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
       {showCoinPurchase ? <CoinPurchaseModal coinCount={coinPurchaseCount} busy={coinPurchaseBusy} error={coinPurchaseError} payment={coinPurchasePayment} purchase={coinPurchase} onClose={() => setShowCoinPurchase(false)} onCountChange={setCoinPurchaseCount} onRestart={restartCoinPurchase} onRetry={() => prepareCoinPurchase(coinPurchase?.id)} onSubmit={submitCoinPurchase} /> : null}
 

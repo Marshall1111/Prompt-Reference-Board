@@ -10973,6 +10973,41 @@ textarea {
   color: #fff8eb;
 }
 
+/* 小画页沿用的币钱包、购买币和邀请弹窗使用白色卡片，覆盖深色弹窗的白色文字规则。 */
+.draw-card-shell.theme-draw-card :is(.body-book-bean-modal, .body-book-referral-modal) {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.98);
+  color: #1d1d1f;
+}
+
+.draw-card-shell.theme-draw-card :is(.body-book-bean-modal, .body-book-referral-modal) h2 {
+  color: #1d1d1f;
+}
+
+.draw-card-shell.theme-draw-card :is(.body-book-bean-modal, .body-book-referral-modal) :is(.storage-note, .body-book-bean-balance, .body-book-bean-cost-note, .body-book-bean-benefits, .body-book-wallet-field, .manual-payment-guide, .native-payment-panel) {
+  color: #4b5563;
+}
+
+.draw-card-shell.theme-draw-card :is(.body-book-bean-modal, .body-book-referral-modal) > p:not(.draw-card-kicker) {
+  color: #4b5563;
+}
+
+.draw-card-shell.theme-draw-card :is(.body-book-bean-modal, .body-book-referral-modal) .draw-card-kicker {
+  color: #8a5b2a;
+}
+
+.draw-card-shell.theme-draw-card :is(.body-book-bean-modal, .body-book-referral-modal) > .icon-button {
+  border-color: rgba(0, 0, 0, 0.12);
+  background: #f5f5f7;
+  color: #1d1d1f;
+}
+
+.draw-card-shell.theme-draw-card :is(.body-book-bean-modal, .body-book-referral-modal) > .icon-button:not(:disabled):hover {
+  border-color: rgba(0, 0, 0, 0.18);
+  background: #e8e8ed;
+  color: #1d1d1f;
+}
+
 .draw-card-shell.theme-draw-card .original-download-unlock-modal .body-book-wallet-field {
   color: #fff8eb;
 }
