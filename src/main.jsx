@@ -34,10 +34,6 @@ const API_PROVIDER_ROUTE_OPTIONS = [
   { value: "responses", label: "Responses API (/responses)" },
   { value: "chat_completions", label: "Chat Completions (/chat/completions)" }
 ];
-const API_FAILOVER_MODE_OPTIONS = [
-  { value: "auto", label: "高优先级失败后，自动切换到更低优先级供应商" },
-  { value: "stop", label: "高优先级失败后，直接报错退出" }
-];
 const MAX_ORDER_ITEM_QUANTITY = 99;
 const MAX_BEAN_PURCHASE_COUNT = 1000;
 const ORDER_STATUS_LABELS = {
@@ -991,7 +987,7 @@ function AdminApp({ navigate, route }) {
   }
 
   if (!adminReady) {
-    return <main className="app-shell"><section className="workspace"><p className="storage-note">正在检查后台登录状态...</p></section></main>;
+    return <main className="app-shell admin-shell"><section className="workspace admin-workspace"><p className="storage-note">正在检查后台登录状态...</p></section></main>;
   }
 
   if (!isAuthenticated) {
@@ -999,8 +995,8 @@ function AdminApp({ navigate, route }) {
   }
 
   return (
-    <main className="app-shell">
-      <section className="workspace">
+    <main className="app-shell admin-shell">
+      <section className="workspace admin-workspace">
         <header className="topbar">
           <div className="topbar-main admin-title-row">
             <p className="eyebrow">Prompt reference board</p>
@@ -1013,39 +1009,39 @@ function AdminApp({ navigate, route }) {
             <a className="subtle-entry-link" href="/book">认知书页</a>
           </div>
           <nav className="top-actions admin-page-nav" aria-label="后台页面导航">
-            <button className="nav-button" onClick={() => navigate("admin-gallery")} type="button">
+            <button aria-current={route === "admin-gallery" ? "page" : undefined} className={`nav-button ${route === "admin-gallery" ? "is-active" : ""}`} onClick={() => navigate("admin-gallery")} type="button">
               <Home size={18} />
               <span>图库</span>
             </button>
-            <button className="nav-button" onClick={() => navigate("admin-tasks")} type="button">
+            <button aria-current={route === "admin-tasks" ? "page" : undefined} className={`nav-button ${route === "admin-tasks" ? "is-active" : ""}`} onClick={() => navigate("admin-tasks")} type="button">
               <ListTodo size={18} />
               <span>任务记录</span>
             </button>
-            <button className="nav-button" onClick={() => navigate("admin-orders")} type="button">
+            <button aria-current={route === "admin-orders" ? "page" : undefined} className={`nav-button ${route === "admin-orders" ? "is-active" : ""}`} onClick={() => navigate("admin-orders")} type="button">
               <Clipboard size={18} />
               <span>订单管理</span>
             </button>
-            <button className="nav-button" onClick={() => navigate("admin-users")} type="button">
+            <button aria-current={route === "admin-users" ? "page" : undefined} className={`nav-button ${route === "admin-users" ? "is-active" : ""}`} onClick={() => navigate("admin-users")} type="button">
               <Eye size={18} />
               <span>用户管理</span>
             </button>
-            <button className="nav-button" onClick={() => navigate("admin-referrals")} type="button">
+            <button aria-current={route === "admin-referrals" ? "page" : undefined} className={`nav-button ${route === "admin-referrals" ? "is-active" : ""}`} onClick={() => navigate("admin-referrals")} type="button">
               <Sparkles size={18} />
               <span>推荐</span>
             </button>
-            <button className="nav-button" onClick={() => navigate("admin-batch")} type="button">
+            <button aria-current={route === "admin-batch" ? "page" : undefined} className={`nav-button ${route === "admin-batch" ? "is-active" : ""}`} onClick={() => navigate("admin-batch")} type="button">
               <Layers3 size={18} />
               <span>批量生成</span>
             </button>
-            <button className="nav-button" onClick={() => navigate("admin-invites")} type="button">
+            <button aria-current={route === "admin-invites" ? "page" : undefined} className={`nav-button ${route === "admin-invites" ? "is-active" : ""}`} onClick={() => navigate("admin-invites")} type="button">
               <Sparkles size={18} />
               <span>兑换码</span>
             </button>
-            <button className="nav-button" onClick={() => navigate("admin-api-providers")} type="button">
+            <button aria-current={route === "admin-api-providers" ? "page" : undefined} className={`nav-button ${route === "admin-api-providers" ? "is-active" : ""}`} onClick={() => navigate("admin-api-providers")} type="button">
               <ImageUp size={18} />
               <span>API配置</span>
             </button>
-            <button className="nav-button" onClick={() => navigate("admin-storage")} type="button">
+            <button aria-current={route === "admin-storage" ? "page" : undefined} className={`nav-button ${route === "admin-storage" ? "is-active" : ""}`} onClick={() => navigate("admin-storage")} type="button">
               <HardDrive size={18} />
               <span>存储管理</span>
             </button>
@@ -7514,6 +7510,29 @@ async function registerWithEmail(payload) {
   return data;
 }
 
+async function testAdminApiProviderConnection(provider) {
+  const response = await fetch("/api/admin/api-providers/test/connection", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "供应商连通性测试失败。");
+  return data;
+}
+
+async function testAdminApiProviderGeneration(provider, { prompt, reference, size }) {
+  const formData = new FormData();
+  formData.append("provider", JSON.stringify(provider));
+  formData.append("prompt", prompt);
+  formData.append("size", size);
+  if (reference) formData.append("reference", reference);
+  const response = await fetch("/api/admin/api-providers/test/generation", { method: "POST", body: formData });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "供应商生图测试失败。");
+  return data;
+}
+
 async function loginWithEmail(email, password) {
   const response = await fetch("/api/auth/login", {
     method: "POST",
@@ -8233,8 +8252,8 @@ function AdminLoginPage({ onLogin }) {
   }
 
   return (
-    <main className="app-shell">
-      <section className="workspace">
+    <main className="app-shell admin-shell">
+      <section className="workspace admin-workspace">
         <form className="prompt-modal generator-modal" onSubmit={handleSubmit}>
           <div className="modal-head">
             <div>
@@ -8406,17 +8425,17 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
 
 function ApiProviderAdminPage() {
   const [providers, setProviders] = useState([]);
-  const [defaultProviderId, setDefaultProviderId] = useState("");
-  const [savedDefaultProviderId, setSavedDefaultProviderId] = useState("");
-  const [failoverMode, setFailoverMode] = useState("auto");
-  const [savedFailoverMode, setSavedFailoverMode] = useState("auto");
-  const [savedPriorityIds, setSavedPriorityIds] = useState([]);
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState(() => createEmptyApiProviderFormState());
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [testPrompt, setTestPrompt] = useState("一只可爱的橙色小猫，纯白背景，简洁的儿童绘本插画风格。");
+  const [testSize, setTestSize] = useState("1024x1024");
+  const [testReference, setTestReference] = useState(null);
+  const [testResult, setTestResult] = useState(null);
+  const [testBusyAction, setTestBusyAction] = useState("");
 
   useEffect(() => {
     let isActive = true;
@@ -8425,7 +8444,6 @@ function ApiProviderAdminPage() {
       .then((payload) => {
         if (!isActive) return;
         setProviders(Array.isArray(payload.providers) ? payload.providers : []);
-        setDefaultProviderId(String(payload.defaultProviderId || ""));
       })
       .catch((nextError) => {
         if (!isActive) return;
@@ -8453,17 +8471,7 @@ function ApiProviderAdminPage() {
 
   function applyPayload(payload) {
     const nextProviders = Array.isArray(payload?.providers) ? payload.providers : [];
-    const nextDefaultProviderId = String(payload?.defaultProviderId || "");
-    const nextFailoverMode = String(payload?.failoverMode || "auto");
-    const nextPriorityIds = Array.isArray(payload?.providerPriorityIds)
-      ? payload.providerPriorityIds.map((item) => String(item || "")).filter(Boolean)
-      : nextProviders.map((provider) => provider.id);
     setProviders(nextProviders);
-    setDefaultProviderId(nextDefaultProviderId);
-    setSavedDefaultProviderId(nextDefaultProviderId);
-    setFailoverMode(nextFailoverMode);
-    setSavedFailoverMode(nextFailoverMode);
-    setSavedPriorityIds(nextPriorityIds);
   }
 
   function startCreate() {
@@ -8471,6 +8479,8 @@ function ApiProviderAdminPage() {
     setForm(createEmptyApiProviderFormState());
     setError("");
     setStatusMessage("");
+    setTestReference(null);
+    setTestResult(null);
   }
 
   function startEdit(provider) {
@@ -8478,20 +8488,69 @@ function ApiProviderAdminPage() {
     setForm(toApiProviderFormState(provider));
     setError("");
     setStatusMessage("");
+    setTestReference(null);
+    setTestResult(null);
   }
 
-  function moveProvider(providerId, direction) {
-    setProviders((current) => {
-      const index = current.findIndex((provider) => provider.id === providerId);
-      const nextIndex = index + direction;
-      if (index < 0 || nextIndex < 0 || nextIndex >= current.length) return current;
-      const next = [...current];
-      const [item] = next.splice(index, 1);
-      next.splice(nextIndex, 0, item);
-      return next;
-    });
+  async function testConnection() {
+    setTestBusyAction("connection");
+    setError("");
+    setTestResult(null);
+    try {
+      const result = await testAdminApiProviderConnection(form);
+      setTestResult({ kind: "success", message: `连通性测试通过（${result.endpoint}）。` });
+    } catch (nextError) {
+      setTestResult({ kind: "error", message: nextError.message || "供应商连通性测试失败。" });
+    } finally {
+      setTestBusyAction("");
+    }
+  }
+
+  async function testGeneration() {
+    if (!testPrompt.trim()) {
+      setTestResult({ kind: "error", message: "请输入生图测试提示词。" });
+      return;
+    }
+    setTestBusyAction("generation");
+    setError("");
+    setTestResult(null);
+    try {
+      const result = await testAdminApiProviderGeneration(form, {
+        prompt: testPrompt.trim(),
+        reference: testReference,
+        size: testSize
+      });
+      setTestResult({
+        kind: "success",
+        message: `生图测试已提交（${result.endpoint}），任务编号：${shortJobId(result.jobId)}。可在“任务记录”查看进度、结果和报错。`,
+        jobId: result.jobId || ""
+      });
+    } catch (nextError) {
+      setTestResult({ kind: "error", message: nextError.message || "供应商生图测试失败。" });
+    } finally {
+      setTestBusyAction("");
+    }
+  }
+
+  async function moveProvider(providerId, direction) {
+    const index = providers.findIndex((provider) => provider.id === providerId);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= providers.length) return;
+    const nextProviders = [...providers];
+    const [item] = nextProviders.splice(index, 1);
+    nextProviders.splice(nextIndex, 0, item);
+    setIsSubmitting(true);
     setError("");
     setStatusMessage("");
+    try {
+      const payload = await updateAdminApiProviderSettingsRequest({ providerPriorityIds: nextProviders.map((provider) => provider.id) });
+      applyPayload(payload);
+      setStatusMessage(`已更新供应商顺序，“${nextProviders[0]?.name || nextProviders[0]?.id || "第一项"}”现在是默认供应商。`);
+    } catch (nextError) {
+      setError(nextError.message || "更新供应商顺序失败。");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function saveProvider() {
@@ -8507,25 +8566,6 @@ function ApiProviderAdminPage() {
       setStatusMessage(editingId ? "API 供应商已更新。" : "API 供应商已创建。");
     } catch (nextError) {
       setError(nextError.message || "保存 API 供应商失败。");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  async function saveApiSettings() {
-    setIsSubmitting(true);
-    setError("");
-    setStatusMessage("");
-    try {
-      const payload = await updateAdminApiProviderSettingsRequest({
-        defaultProviderId,
-        failoverMode,
-        providerPriorityIds: providers.map((provider) => provider.id)
-      });
-      applyPayload(payload);
-      setStatusMessage("API 全局配置已更新。");
-    } catch (nextError) {
-      setError(nextError.message || "保存 API 全局配置失败。");
     } finally {
       setIsSubmitting(false);
     }
@@ -8554,12 +8594,7 @@ function ApiProviderAdminPage() {
   }
 
   const isEditing = Boolean(editingId);
-  const enabledProviders = providers.filter((provider) => provider.enabled);
-  const currentPriorityIds = providers.map((provider) => provider.id);
-  const hasPendingApiSettingsChanges =
-    defaultProviderId !== savedDefaultProviderId ||
-    failoverMode !== savedFailoverMode ||
-    currentPriorityIds.join(",") !== savedPriorityIds.join(",");
+  const canTestProvider = Boolean(form.id.trim() && form.baseUrl.trim() && form.apiKey.trim() && form.model.trim());
 
   return (
     <section className="task-page" aria-label="API 配置">
@@ -8567,7 +8602,7 @@ function ApiProviderAdminPage() {
         <div>
           <p className="eyebrow">API providers</p>
           <h2>API 配置</h2>
-          <p className="storage-note">这里统一管理生图供应商、默认供应商、优先级和失败策略。保存后会直接改写 `.env`，并立即对当前服务生效。</p>
+          <p className="storage-note">供应商按列表顺序调用：第一项为默认供应商，失败后自动尝试后续供应商。调整顺序会立即生效。</p>
         </div>
         <div className="task-actions">
           <button className="add-button" disabled={isSubmitting} onClick={startCreate} type="button">
@@ -8581,62 +8616,14 @@ function ApiProviderAdminPage() {
       {error ? <p className="error-note">{error}</p> : null}
 
       <div className="api-provider-layout">
-        <div className="draw-card-upload-panel api-provider-form-panel">
-          <div className="task-toolbar compact-toolbar">
-            <div>
-              <h3>全局生图策略</h3>
-              <p className="storage-note">默认供应商和优先级都在这里维护，不再放到“下单配置”里。</p>
-            </div>
-          </div>
-
-          <div className="api-provider-form-grid">
-            <label className="field-label">
-              默认图片供应商
-              <select onChange={(event) => setDefaultProviderId(event.target.value)} value={defaultProviderId}>
-                <option value="">自动（按优先级使用第一可用供应商）</option>
-                {enabledProviders.map((provider) => (
-                  <option key={`api-default-provider-${provider.id}`} value={provider.id}>
-                    {provider.name} · {provider.model}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field-label api-provider-form-span">
-              高优先级失败后的策略
-              <select onChange={(event) => setFailoverMode(event.target.value)} value={failoverMode}>
-                {API_FAILOVER_MODE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          {!providers.length ? (
-            <p className="storage-note">还没有可排序的供应商，先在下方新增一个。</p>
-          ) : hasPendingApiSettingsChanges ? (
-            <p className="storage-note">当前有未保存的默认供应商、优先级或失败策略变更。</p>
-          ) : (
-            <p className="storage-note">当前按列表顺序决定优先级；未手选供应商时，会先使用默认供应商或第一可用供应商。</p>
-          )}
-
-          <div className="card-actions generator-actions">
-            <button className="secondary-button" disabled={isSubmitting || !hasPendingApiSettingsChanges} onClick={saveApiSettings} type="button">
-              <Save size={18} />
-              <span>保存全局策略</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="task-list">
+        <div className="task-list api-provider-list">
           {isLoading ? <p className="empty-note">正在读取 API 供应商配置…</p> : null}
           {!isLoading && !providers.length ? <p className="empty-note">当前还没有可管理的供应商。你可以先新建一个 `.env` 供应商配置。</p> : null}
           {!isLoading
             ? providers.map((provider) => {
-                const isDefault = provider.id === defaultProviderId;
                 const providerStatusClass = provider.enabled ? "succeeded" : "cancelled";
                 const providerIndex = providers.findIndex((item) => item.id === provider.id);
+                const isDefault = providerIndex === 0;
                 return (
                   <article className={`api-provider-card ${provider.enabled ? "" : "is-disabled"}`} key={provider.id}>
                     <div className="api-provider-card-head">
@@ -8740,6 +8727,44 @@ function ApiProviderAdminPage() {
               <span>启用这个供应商</span>
             </label>
           </div>
+
+          <section className="api-provider-test-panel" aria-label="供应商测试">
+            <div className="api-provider-test-head">
+              <div>
+                <h4>供应商测试</h4>
+                <p className="storage-note">使用当前表单的配置测试，不会自动保存。生图测试会消耗供应商额度。</p>
+              </div>
+              <button className="secondary-button" disabled={!canTestProvider || Boolean(testBusyAction)} onClick={testConnection} type="button">
+                {testBusyAction === "connection" ? <LoaderCircle className="spin" size={16} /> : <Check size={16} />}
+                <span>{testBusyAction === "connection" ? "测试中" : "测试连通性"}</span>
+              </button>
+            </div>
+            <div className="api-provider-test-fields">
+              <label className="field-label api-provider-test-prompt">
+                生图测试提示词
+                <textarea onChange={(event) => setTestPrompt(event.target.value)} rows="3" value={testPrompt} />
+              </label>
+              <label className="field-label">
+                测试尺寸
+                <select onChange={(event) => setTestSize(event.target.value)} value={testSize}>
+                  <option value="1024x1024">1024 × 1024</option>
+                  <option value="1024x1536">1024 × 1536</option>
+                  <option value="1536x1024">1536 × 1024</option>
+                  <option value="auto">自动</option>
+                </select>
+              </label>
+              <label className="field-label">
+                参考图（可选）
+                <input accept="image/jpeg,image/png,image/webp" onChange={(event) => setTestReference(event.target.files?.[0] || null)} type="file" />
+              </label>
+              <button className="copy-button api-provider-generation-test" disabled={!canTestProvider || Boolean(testBusyAction) || !testPrompt.trim()} onClick={testGeneration} type="button">
+                {testBusyAction === "generation" ? <LoaderCircle className="spin" size={16} /> : <ImageUp size={16} />}
+                <span>{testBusyAction === "generation" ? "生图测试中" : "生图测试"}</span>
+              </button>
+            </div>
+            {testReference ? <p className="storage-note">已选择参考图：{testReference.name}。本次将进行图生图测试。</p> : null}
+            {testResult ? <div className={`api-provider-test-result ${testResult.kind}`}><p>{testResult.message}</p></div> : null}
+          </section>
 
           <p className="storage-note">保存后会直接更新 `.env` 中对应供应商的配置，不再只是页面覆盖。</p>
           <p className="storage-note">如果你需要让某个供应商参与自动切换，把它保持启用，并在左侧列表里调整到合适优先级。</p>
@@ -10023,9 +10048,9 @@ function StorageAdminPage({ storageSummary, onRefreshStorage }) {
         </article>
       </div>
 
-      <div className="task-list">
+      <div className="task-list storage-directory-grid">
         {directories.map((item) => (
-          <article className="task-card" key={item.key}>
+          <article className="task-card storage-directory-card" key={item.key}>
             <div className="task-status queued">{item.files} 个文件</div>
             <div className="task-detail">
               <div className="task-meta-row">
@@ -10438,6 +10463,7 @@ function modeLabel(mode) {
 }
 
 function publicExperienceLabel(experienceType) {
+  if (experienceType === "admin-provider-test") return "供应商测试";
   if (experienceType === "body-book") return "宝宝身体认知书";
   if (experienceType === "fridge-magnet") return "冰箱贴";
   if (experienceType === "draw-card") return "抽卡";

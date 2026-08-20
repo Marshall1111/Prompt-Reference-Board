@@ -2162,6 +2162,88 @@ app.patch("/api/admin/api-providers/settings", requireAdmin, async (req, res) =>
   }
 });
 
+app.post("/api/admin/api-providers/test/connection", requireAdmin, async (req, res) => {
+  try {
+    const provider = normalizeAdminApiProviderPayload(req.body?.provider || {});
+    await callImageProviderApi(provider, "/models", { method: "GET" });
+    res.json({ endpoint: "/models", message: "网络、鉴权与 /models 响应均正常。" });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 400).json({ message: error.publicMessage || error.message || "供应商连通性测试失败。" });
+  }
+});
+
+app.post("/api/admin/api-providers/test/generation", requireAdmin, upload.single("reference"), async (req, res) => {
+  try {
+    const rawProvider = typeof req.body?.provider === "string" ? JSON.parse(req.body.provider) : req.body?.provider;
+    const provider = normalizeAdminApiProviderPayload(rawProvider || {});
+    const prompt = String(req.body?.prompt || "").trim().slice(0, 2000);
+    if (!prompt) throw createPublicError("请输入生图测试提示词。", 400);
+
+    const body = {
+      size: normalizeSize(req.body?.size || "1024x1024"),
+      quality: "low",
+      background: "auto",
+      moderation: "auto"
+    };
+    const jobId = randomUUID();
+    const files = req.file ? [req.file] : [];
+    const originalReferences = await persistImageJobReferences(jobId, files);
+    const now = new Date().toISOString();
+    await saveImageJob({
+      jobId,
+      experienceType: "admin-provider-test",
+      status: "queued",
+      message: "API 供应商生图测试已提交。",
+      result: null,
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+      prompt,
+      size: body.size,
+      referenceCount: files.length,
+      originalReferences,
+      styleId: "api-provider-test",
+      styleName: "API 供应商测试",
+      styleGroupId: "admin",
+      styleGroupName: "后台管理",
+      provider: { id: provider.id, name: provider.name, model: provider.model },
+      mode: files.length ? "edit" : "generation",
+      ownerAdmin: true,
+      visibility: "admin",
+      telemetry: {
+        styleId: "api-provider-test",
+        styleName: "API 供应商测试",
+        requestedProviderIdRaw: provider.id,
+        requestedProvider: toTelemetryProvider(provider),
+        providerChain: toTelemetryProviderList([provider])
+      }
+    });
+    runImageJob({
+      jobId,
+      body,
+      files,
+      outputFormat: "png",
+      prompt,
+      provider,
+      providers: [provider],
+      telemetry: {
+        styleId: "api-provider-test",
+        styleName: "API 供应商测试",
+        requestedProviderIdRaw: provider.id
+      }
+    }).catch((error) => console.error("API provider test job failed.", error));
+    res.status(202).json({
+      jobId,
+      endpoint: resolveImageProviderEndpoint(provider, Boolean(req.file)),
+      message: "生图测试已加入任务记录。"
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 400).json({ message: error.publicMessage || error.message || "供应商生图测试失败。" });
+  }
+});
+
 app.post("/api/admin/api-providers", requireAdmin, async (req, res) => {
   try {
     const provider = normalizeAdminApiProviderPayload(req.body);
@@ -5297,7 +5379,7 @@ function toAdminApiProvider(provider) {
 }
 
 function getImageProviderFailoverMode() {
-  return normalizeImageFailoverMode(process.env.IMAGE_API_FAILOVER_MODE, "auto");
+  return "auto";
 }
 
 function mergeConfiguredProviders(envProviders, storedProviders) {
@@ -5452,6 +5534,8 @@ async function saveAdminApiProviderToEnv(provider, options = {}) {
   const key = providerEnvKey(provider.id);
   await mutateLocalEnv((env) => {
     env.set("IMAGE_API_PROVIDERS", nextPriorityIds.join(","));
+    env.remove("IMAGE_API_PROVIDER");
+    env.set("IMAGE_API_FAILOVER_MODE", "auto");
     env.set(`IMAGE_API_${key}_NAME`, provider.name);
     env.set(`IMAGE_API_${key}_BASE_URL`, provider.baseUrl);
     env.set(`IMAGE_API_${key}_KEY`, provider.apiKey);
@@ -5513,18 +5597,11 @@ async function saveAdminApiProviderSettings(payload) {
     .filter((item) => knownIds.has(item))
     .concat(currentPriorityIds.filter((item) => !requestedPriorityIds.includes(item)));
 
-  const enabledProviders = getImageProviders();
-  const defaultProviderId = normalizeImageProviderId(payload?.defaultProviderId, enabledProviders);
-  const failoverMode = normalizeImageFailoverMode(payload?.failoverMode, getImageProviderFailoverMode());
-
   await mutateLocalEnv((env) => {
     if (orderedPriorityIds.length) env.set("IMAGE_API_PROVIDERS", orderedPriorityIds.join(","));
     else env.remove("IMAGE_API_PROVIDERS");
-
-    if (defaultProviderId) env.set("IMAGE_API_PROVIDER", defaultProviderId);
-    else env.remove("IMAGE_API_PROVIDER");
-
-    env.set("IMAGE_API_FAILOVER_MODE", failoverMode);
+    env.remove("IMAGE_API_PROVIDER");
+    env.set("IMAGE_API_FAILOVER_MODE", "auto");
   });
 
   const settings = await readAppSettings();
@@ -12393,6 +12470,9 @@ function buildImageJobOwnerContext(accounts, visitors) {
 }
 
 function resolveImageJobOwner(job, context) {
+  if (job?.ownerAdmin === true) {
+    return { key: "admin", type: "admin", accountId: "", visitorId: "", name: "后台管理", email: "" };
+  }
   const accountId = String(job?.ownerAccountId || "");
   const visitorId = String(job?.ownerVisitorId || "");
   const visitorAccount = visitorId ? context.accountByVisitorId.get(visitorId) : null;
@@ -12589,7 +12669,7 @@ function toPublicImageJob(job) {
   const result = normalizeJobResult(job.result);
   return {
     jobId: String(job.jobId || ""),
-    experienceType: normalizePublicExperienceType(job.experienceType),
+    experienceType: job.experienceType === "admin-provider-test" ? "admin-provider-test" : normalizePublicExperienceType(job.experienceType),
     status: job.status,
     message: job.message || "",
     result,
@@ -12612,6 +12692,7 @@ function toPublicImageJob(job) {
     likedAt: job.likedAt || null,
     ownerAccountId: String(job.ownerAccountId || ""),
     ownerVisitorId: String(job.ownerVisitorId || ""),
+    ownerAdmin: job.ownerAdmin === true,
     visibility: String(job.visibility || "admin"),
     telemetry: normalizeJobTelemetry(job.telemetry)
   };
@@ -13489,10 +13570,6 @@ function getProviderFallbackChain(requestedId, providers, settings = null) {
 }
 
 function getDefaultProviderId(providers, settings = null) {
-  const configured = normalizeImageProviderId(process.env.IMAGE_API_PROVIDER, providers);
-  if (configured && providers.some((provider) => provider.id === configured)) return configured;
-  const saved = normalizeImageProviderId(settings?.defaultImageProviderId, providers);
-  if (saved) return saved;
   return providers[0]?.id || "";
 }
 
