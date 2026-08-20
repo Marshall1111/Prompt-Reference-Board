@@ -11070,6 +11070,11 @@ textarea {
   margin: 0 auto;
 }
 
+.body-book-flip-rotator {
+  display: grid;
+  place-items: center;
+}
+
 .body-book-flip-page {
   overflow: hidden;
   background: #fff;
@@ -11100,19 +11105,6 @@ textarea {
   object-fit: cover;
   pointer-events: none;
   user-select: none;
-}
-
-.body-book-flip-page-preset {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  padding: 5px 8px;
-  border-radius: 999px;
-  background: rgba(29, 29, 31, 0.78);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  pointer-events: none;
 }
 
 .body-book-flip-page-placeholder {
@@ -11155,6 +11147,53 @@ textarea {
   white-space: nowrap;
 }
 
+.body-book-flip-orientation {
+  grid-column: 1 / -1;
+  justify-self: center;
+  min-height: 38px;
+  border-color: rgba(0, 113, 227, 0.24);
+  background: rgba(0, 113, 227, 0.07);
+  color: #0071e3;
+}
+
+.body-book-flip-reader.is-landscape-mode {
+  width: 100%;
+}
+
+.body-book-flip-reader.is-landscape-mode .body-book-flip-stage {
+  background: radial-gradient(circle at 50% 15%, #ffffff 0%, #e6e8ee 74%);
+  /* Vertical swipes are reserved for the rotated book's page turns. */
+  touch-action: none;
+}
+
+.body-book-preview-share-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.body-book-preview-share-actions > button {
+  width: 100%;
+}
+
+.body-book-flip-preview-modal {
+  display: grid;
+  gap: 14px;
+  width: min(1020px, calc(100vw - 28px));
+  max-width: 1020px;
+  max-height: min(92vh, 940px);
+  overflow: auto;
+}
+
+.body-book-flip-preview-modal > p:not(.body-book-kicker) {
+  margin: 0;
+  color: var(--body-book-apple-muted);
+  line-height: 1.6;
+}
+
+.body-book-flip-preview-modal .body-book-flip-reader {
+  margin-block: 0;
+}
+
 .body-book-flip-empty {
   margin: 22px auto;
   color: #6e6e73;
@@ -11166,6 +11205,49 @@ textarea {
   .body-book-flip-stage { min-height: min(94vw, 440px); padding: 12px; }
   .body-book-flip-controls { gap: 8px; }
   .body-book-flip-control { min-height: 40px; padding-inline: 11px; }
+  .body-book-flip-reader.is-landscape-mode {
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    box-sizing: border-box;
+    width: 100vw;
+    height: 100dvh;
+    min-height: 0;
+    margin: 0;
+    padding: 10px 12px 14px;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 10px;
+    background: #ffffff;
+  }
+  .body-book-flip-reader.is-landscape-mode .body-book-flip-stage {
+    position: relative;
+    /* The rotated 2-page spread is 2× as tall in the upright phone view. */
+    min-height: 0;
+    height: auto;
+    padding: 0;
+    border-radius: 18px;
+  }
+  .body-book-flip-reader.is-landscape-mode .body-book-flip-rotator {
+    /* PageFlip remains unrotated and performs its own layout in this fixed
+       horizontal frame.  Rotating this outer frame keeps its injected
+       positioning from moving the book off to the right. */
+    width: calc(var(--body-book-landscape-page-size) * 2);
+    height: var(--body-book-landscape-page-size);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: block;
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center;
+  }
+  .body-book-flip-reader.is-landscape-mode .body-book-flip-book {
+    width: calc(var(--body-book-landscape-page-size) * 2) !important;
+    min-width: calc(var(--body-book-landscape-page-size) * 2) !important;
+    max-width: none !important;
+    height: var(--body-book-landscape-page-size) !important;
+    min-height: var(--body-book-landscape-page-size) !important;
+  }
+  .body-book-preview-share-actions { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

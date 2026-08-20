@@ -11810,14 +11810,11 @@ function getBuiltInPresetBookPageResult(definition, theme) {
   const imageUrl = isBackCover || isColorBook
     ? `/body-book-color-pages/${filename}`
     : `/body-book-preset-pages/${baseThemeId || "body"}-${String(definition?.conceptKey || "item")}.png`;
-  const isBodyPresetPage = baseThemeId === "body" && !isBackCover;
   const thumbnailUrl = isBackCover
     ? imageUrl
     : isColorBook
       ? `/body-book-color-pages/thumbnails/${definition?.colorKey || "red"}-objects.webp`
-      : isBodyPresetPage
-        ? `/body-book-preset-pages/thumbnails/body-${String(definition?.conceptKey || "item")}.webp`
-        : imageUrl;
+      : `/body-book-preset-pages/thumbnails/${baseThemeId || "body"}-${String(definition?.conceptKey || "item")}.webp`;
   return {
     imageDataUrl: "",
     imageUrl,
@@ -12370,14 +12367,24 @@ function toPublicSharedBodyBook(session) {
   const theme = getBookTheme(current.themeId) || getBookTheme("body");
   const share = normalizeBodyBookShare(current.share);
   if (!share.enabled) throw createHttpError(404, "分享链接已失效或不存在。");
-  const pages = current.pages
-    .filter((page) => page.status === "succeeded" && page.result?.imageUrl)
+  const succeededBabyKeys = new Set(current.pages
+    .filter((page) => !page.isBuiltIn && page.status === "succeeded" && page.result?.imageUrl)
+    .map((page) => String(page.key || "").toLowerCase()));
+  const pages = getBodyBookPrintPages(current)
+    .filter((page) => {
+      if (page.isBuiltIn) {
+        const conceptKey = String(page.conceptKey || page.colorKey || "").trim().toLowerCase();
+        return Boolean(conceptKey) && succeededBabyKeys.has(`${conceptKey}-baby`);
+      }
+      return page.status === "succeeded" && page.result?.imageUrl;
+    })
     .map((page) => ({
       key: page.key,
       title: page.title,
       chinese: page.chinese,
       english: page.english,
       order: page.order,
+      isBuiltIn: Boolean(page.isBuiltIn),
       thumbnailUrl: page.result?.thumbnailUrl || page.result?.previewUrl || "",
       previewUrl: page.result?.previewUrl || page.result?.thumbnailUrl || ""
     }));
