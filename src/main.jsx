@@ -2,6 +2,7 @@
 import { useCallback } from "react";
 import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, QrCode, RefreshCw, Save, Search, Settings, Share2, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
+import HTMLFlipBook from "react-pageflip";
 import { createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
 import "./styles.css";
 
@@ -1825,7 +1826,6 @@ function BodyBookSharePage() {
   const visitSource = useMemo(() => ({ type: "share", token }), [token]);
   const [sharedBook, setSharedBook] = useState(null);
   const [error, setError] = useState("");
-  const [activePage, setActivePage] = useState(null);
 
   useVisitSessionTracking("body-book", true, visitSource);
 
@@ -1849,8 +1849,7 @@ function BodyBookSharePage() {
     </header>
     {error ? <section className="body-book-share-empty"><AlertTriangle size={30} /><h2>分享链接已失效</h2><p>{error}</p><a className="draw-card-primary" href="/book">我也要做</a></section> : null}
     {!sharedBook && !error ? <section className="body-book-share-empty"><LoaderCircle className="spin" size={30} /><p>正在打开好友分享的认知书…</p></section> : null}
-    {sharedBook ? <section className="body-book-share-content"><div className="body-book-share-intro"><span>来自好友分享</span><h2>{sharedBook.title}</h2><p>{sharedBook.themeName} · 已完成 {sharedBook.pageCount} 页</p></div><div className="body-book-checkout-preview body-book-share-grid">{sharedBook.pages.map((page, index) => <figure className="body-book-checkout-preview-item" key={page.key}><button className="body-book-share-image" onClick={() => setActivePage(page)} type="button"><img alt={page.title || `认知书第 ${index + 1} 页`} decoding="async" loading={index > 2 ? "lazy" : "eager"} src={page.thumbnailUrl} /></button><figcaption><span>第 {index + 1} 页</span><strong>{page.title}</strong><small>仅供在线预览</small></figcaption></figure>)}</div><div className="body-book-share-cta"><p>也来制作一本属于自己的认知书吧。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
-    {activePage ? <div className="modal-backdrop body-book-lightbox" onClick={() => setActivePage(null)} role="presentation"><section className="body-book-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={activePage.title} aria-modal="true"><button aria-label="关闭预览" className="icon-button" onClick={() => setActivePage(null)} type="button"><X size={18} /></button><img alt={activePage.title} src={activePage.previewUrl} /><div className="body-book-lightbox-meta"><strong>{activePage.title}</strong><p>仅供在线预览</p></div></section></div> : null}
+    {sharedBook ? <section className="body-book-share-content"><div className="body-book-share-intro"><span>来自好友分享</span><h2>{sharedBook.title}</h2><p>{sharedBook.themeName} · 已完成 {sharedBook.pageCount} 页</p></div><BodyBookFlipBook ariaLabel={`${sharedBook.title || "好友分享的认知书"}翻页预览`} pages={sharedBook.pages.map((page, index) => ({ id: page.key || String(index), src: page.thumbnailUrl, title: page.title || `第 ${index + 1} 页` }))} /><div className="body-book-share-cta"><p>也来制作一本属于自己的认知书吧。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
   </main>;
 }
 
@@ -2883,6 +2882,103 @@ function getBodyBookThemeEffectSamples(theme) {
   return BODY_BOOK_THEME_EFFECT_SAMPLES[String(theme?.id || "")] || [];
 }
 
+const BodyBookFlipPage = React.forwardRef(function BodyBookFlipPage({ page, index }, ref) {
+  return <article className="body-book-flip-page" data-density={index === 0 ? "hard" : "soft"} ref={ref}>
+    <div className="body-book-flip-page-inner">
+      {page.src ? <img alt={page.title || `认知书第 ${index + 1} 页`} decoding="async" loading={index < 3 ? "eager" : "lazy"} src={page.src} /> : <div className="body-book-flip-page-placeholder"><LoaderCircle className="spin" size={24} /><span>正在加载书页…</span></div>}
+      {page.isPreset ? <span className="body-book-flip-page-preset">内置预设</span> : null}
+    </div>
+  </article>;
+});
+
+function BodyBookFlipBook({ pages, ariaLabel = "认知书翻页预览" }) {
+  const bookRef = useRef(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const safePages = (pages || []).filter((page) => String(page?.src || "").trim());
+  const pageCount = safePages.length;
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setPrefersReducedMotion(mediaQuery.matches);
+    sync();
+    mediaQuery.addEventListener("change", sync);
+    return () => mediaQuery.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    setCurrentPage((current) => Math.min(current, Math.max(0, pageCount - 1)));
+  }, [pageCount]);
+
+  const turnPage = useCallback((direction) => {
+    const pageFlip = bookRef.current?.pageFlip?.();
+    if (!pageFlip) return;
+    if (direction === "previous") {
+      if (prefersReducedMotion) pageFlip.turnToPrevPage();
+      else pageFlip.flipPrev("bottom");
+      return;
+    }
+    if (prefersReducedMotion) pageFlip.turnToNextPage();
+    else pageFlip.flipNext("bottom");
+  }, [prefersReducedMotion]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(String(event.target?.tagName || ""))) return;
+      if (event.key === "ArrowLeft" && currentPage > 0) {
+        event.preventDefault();
+        turnPage("previous");
+      }
+      if (event.key === "ArrowRight" && currentPage < pageCount - 1) {
+        event.preventDefault();
+        turnPage("next");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentPage, pageCount, turnPage]);
+
+  if (!pageCount) return <div className="body-book-flip-empty">暂时没有可预览的书页。</div>;
+
+  return <section aria-label={ariaLabel} className="body-book-flip-reader">
+    <div className="body-book-flip-stage">
+      <HTMLFlipBook
+        autoSize={true}
+        className="body-book-flip-book"
+        clickEventForward={false}
+        disableFlipByClick={false}
+        drawShadow={!prefersReducedMotion}
+        flippingTime={prefersReducedMotion ? 1 : 620}
+        height={360}
+        maxHeight={440}
+        maxShadowOpacity={0.28}
+        maxWidth={440}
+        minHeight={260}
+        minWidth={260}
+        mobileScrollSupport={true}
+        onFlip={(event) => setCurrentPage(Number(event.data || 0))}
+        ref={bookRef}
+        showCover={true}
+        showPageCorners={!prefersReducedMotion}
+        size="stretch"
+        startPage={0}
+        startZIndex={1}
+        swipeDistance={30}
+        useMouseEvents={true}
+        usePortrait={true}
+        width={360}
+      >
+        {safePages.map((page, index) => <BodyBookFlipPage index={index} key={page.id || `${page.src}-${index}`} page={page} />)}
+      </HTMLFlipBook>
+    </div>
+    <div className="body-book-flip-controls">
+      <button aria-label="上一页" className="draw-card-secondary body-book-flip-control" disabled={currentPage <= 0} onClick={() => turnPage("previous")} type="button"><ArrowLeft size={17} /><span>上一页</span></button>
+      <span aria-live="polite" className="body-book-flip-progress">第 {currentPage + 1} / {pageCount} 页</span>
+      <button aria-label="下一页" className="draw-card-secondary body-book-flip-control" disabled={currentPage >= pageCount - 1} onClick={() => turnPage("next")} type="button"><span>下一页</span><ArrowRight size={17} /></button>
+    </div>
+  </section>;
+}
+
 function BodyBookThemeEffectPreview({ theme, busy, onBack, onStart }) {
   const pages = getBodyBookThemeEffectSamples(theme);
   const hasPresetPage = pages.some((page) => page.type === "preset");
@@ -2895,7 +2991,7 @@ function BodyBookThemeEffectPreview({ theme, busy, onBack, onStart }) {
       <span className="body-book-theme-effect-cost">预计消耗 {generationCost} 豆</span>
     </div>
     <div className="body-book-theme-effect-copy"><strong>先看成书效果</strong><p>{isKindergartenTheme ? "上传孩子照片并填写昵称后，将生成一整天连续叙事的专属入园适应绘本。" : hasPresetPage ? "封面和专属认知页将根据上传照片生成；对应的内置认知页会自动插入成书与订单 ZIP。" : "上传照片后，将生成同一风格的封面和专属认知内页，做成一本专属认知书。"}</p></div>
-    <div className={`body-book-theme-effect-pages count-${pages.length}`}>{pages.map((page, index) => <figure className="body-book-theme-effect-page" key={page.src || page.label}><div className="body-book-theme-effect-image"><img alt={`${theme.name}${page.label}`} decoding="async" fetchPriority={index === 0 ? "high" : "auto"} loading={index === 0 ? "eager" : "lazy"} src={page.src} />{page.type === "preset" ? <span>内置预设</span> : null}</div><figcaption><span>第 {index + 1} 页示例</span><strong>{page.label}</strong></figcaption></figure>)}</div>
+    <BodyBookFlipBook ariaLabel={`${theme.name}成书效果预览`} pages={pages.map((page, index) => ({ id: page.src || page.label || String(index), isPreset: page.type === "preset", src: page.src, title: `${theme.name}${page.label || `第 ${index + 1} 页`}` }))} />
     <div className="body-book-theme-effect-actions"><button className="draw-card-secondary" disabled={busy} onClick={onBack} type="button">换个主题</button><button className="draw-card-primary" disabled={busy} onClick={onStart} type="button"><Sparkles size={18} /><span>{busy ? "准备中" : "开始制作"}</span></button></div>
   </section>;
 }

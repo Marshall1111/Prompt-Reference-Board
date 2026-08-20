@@ -11045,3 +11045,130 @@ textarea {
     width: 100%;
   }
 }
+
+/* 认知书翻页阅读器：主题效果与公开分享页共用。 */
+.body-book-flip-reader {
+  display: grid;
+  gap: 16px;
+  width: min(100%, 940px);
+  margin: 22px auto;
+}
+
+.body-book-flip-stage {
+  display: grid;
+  min-height: clamp(290px, 53vw, 470px);
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 24px;
+  background: radial-gradient(circle at 50% 15%, #ffffff 0%, #f0f1f5 74%);
+  padding: clamp(14px, 3vw, 32px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86), 0 16px 36px rgba(29, 29, 31, 0.08);
+}
+
+.body-book-flip-book {
+  margin: 0 auto;
+}
+
+.body-book-flip-page {
+  overflow: hidden;
+  background: #fff;
+}
+
+.body-book-flip-page-inner {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.body-book-flip-page-inner::after {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  content: "";
+  pointer-events: none;
+}
+
+.body-book-flip-page img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.body-book-flip-page-preset {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(29, 29, 31, 0.78);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.body-book-flip-page-placeholder {
+  display: grid;
+  place-items: center;
+  gap: 9px;
+  color: #6e6e73;
+  font-size: 13px;
+}
+
+.body-book-flip-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.body-book-flip-control {
+  min-height: 42px;
+  border-color: rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.9);
+  color: #1d1d1f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.body-book-flip-control:last-child {
+  justify-self: end;
+}
+
+.body-book-flip-control:disabled {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(235, 235, 240, 0.7);
+  color: #a1a1a6;
+}
+
+.body-book-flip-progress {
+  color: #6e6e73;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.body-book-flip-empty {
+  margin: 22px auto;
+  color: #6e6e73;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .body-book-flip-reader { margin-block: 16px; }
+  .body-book-flip-stage { min-height: min(94vw, 440px); padding: 12px; }
+  .body-book-flip-controls { gap: 8px; }
+  .body-book-flip-control { min-height: 40px; padding-inline: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .body-book-flip-stage,
+  .body-book-flip-page-inner { scroll-behavior: auto; }
+}
