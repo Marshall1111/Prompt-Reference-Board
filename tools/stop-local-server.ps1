@@ -15,12 +15,12 @@ if (-not $targets) {
 $targets |
   Sort-Object ProcessId -Descending |
   ForEach-Object {
-    $pid = $_.ProcessId
+    $processId = $_.ProcessId
     $name = $_.ProcessName
     try {
-      Stop-Process -Id $pid -Force -ErrorAction Stop
-      Write-Host ("Stopped PID " + $pid + " (" + $name + ")")
+      Stop-Process -Id $processId -Force -ErrorAction Stop
+      Write-Host ("Stopped PID " + $processId + " (" + $name + ")")
     } catch {
-      Write-Host ("Failed to stop PID " + $pid + ": " + $_.Exception.Message)
+      Write-Host ("Failed to stop PID " + $processId + ": " + $_.Exception.Message)
     }
   }

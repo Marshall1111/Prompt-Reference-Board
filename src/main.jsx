@@ -303,6 +303,7 @@ function createClientTraceId() {
 function readRoute() {
   const pathname = window.location.pathname;
   if (pathname === "/draw/order") return "public-draw-checkout";
+  if (pathname.startsWith("/draw/share/")) return "public-draw-share";
   if (pathname === "/fridge/orders") return "public-fridge-orders";
   if (pathname.startsWith("/fridge/orders/")) return "public-fridge-order";
   if (pathname === "/fridge/magnet") return "public-draw";
@@ -345,6 +346,7 @@ function App() {
       "public-fridge-product": "照片冰箱贴 · 产品详情",
       "public-body-book": "宝宝的认知书",
       "public-draw-checkout": "选图定制",
+      "public-draw-share": "好友分享的小画",
       "public-fridge-order": "冰箱贴订单",
       "public-body-book-order": "宝宝的认知书",
       "public-body-book-orders": "宝宝的认知书",
@@ -390,6 +392,9 @@ function App() {
 
   if (route === "public-draw") {
     return <LuckDrawCardPage />;
+  }
+  if (route === "public-draw-share") {
+    return <DrawSharePage />;
   }
   if (route === "public-fridge-order" || route === "public-body-book-order") {
     return <FridgeMagnetOrderPage />;
@@ -1783,6 +1788,38 @@ function downloadBodyBook(book) {
   });
 }
 
+function DrawSharePage() {
+  const token = window.location.pathname.split("/").filter(Boolean).pop() || "";
+  const visitSource = useMemo(() => ({ type: "share", token }), [token]);
+  const [sharedImage, setSharedImage] = useState(null);
+  const [error, setError] = useState("");
+
+  useVisitSessionTracking("draw-card", true, visitSource);
+
+  useEffect(() => {
+    let active = true;
+    fetchPublicDrawShare(token)
+      .then(async (payload) => {
+        if (!active) return;
+        setSharedImage(payload);
+        try { await recordPublicDrawShareVisit(token); } catch {}
+      })
+      .catch((nextError) => { if (active) setError(nextError.message || "分享内容暂时不可访问。"); });
+    return () => { active = false; };
+  }, [token]);
+
+  const makeUrl = sharedImage?.makeUrl || "/";
+  return <main className="draw-card-page body-book-share-page">
+    <header className="body-book-header body-book-share-header">
+      <div className="body-book-header-copy"><p className="body-book-kicker">Shared artwork</p><h1>好友分享的小画</h1><p>看看好友刚刚制作的 AI 小画吧。</p></div>
+      <a className="draw-card-secondary" href={makeUrl}>我也要做</a>
+    </header>
+    {error ? <section className="body-book-share-empty"><AlertTriangle size={30} /><h2>分享链接已失效</h2><p>{error}</p><a className="draw-card-primary" href="/">我也要做</a></section> : null}
+    {!sharedImage && !error ? <section className="body-book-share-empty"><LoaderCircle className="spin" size={30} /><p>正在打开好友分享的小画…</p></section> : null}
+    {sharedImage ? <section className="body-book-share-content"><div className="body-book-share-intro"><span>来自好友分享</span><h2>{sharedImage.styleName || "AI 小画"}</h2><p>仅供在线预览</p></div><figure className="body-book-checkout-preview-item body-book-share-single-image"><img alt={sharedImage.styleName || "好友分享的小画"} src={sharedImage.imageUrl || sharedImage.thumbnailUrl} /></figure><div className="body-book-share-cta"><p>也来制作一张属于自己的小画吧。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
+  </main>;
+}
+
 function BodyBookSharePage() {
   const token = window.location.pathname.split("/").filter(Boolean).pop() || "";
   const visitSource = useMemo(() => ({ type: "share", token }), [token]);
@@ -1795,7 +1832,11 @@ function BodyBookSharePage() {
   useEffect(() => {
     let active = true;
     fetchPublicBodyBookShare(token)
-      .then((payload) => { if (active) setSharedBook(payload); })
+      .then(async (payload) => {
+        if (!active) return;
+        setSharedBook(payload);
+        try { await recordPublicBodyBookShareVisit(token); } catch {}
+      })
       .catch((nextError) => { if (active) setError(nextError.message || "分享内容暂时不可访问。"); });
     return () => { active = false; };
   }, [token]);
@@ -1808,8 +1849,8 @@ function BodyBookSharePage() {
     </header>
     {error ? <section className="body-book-share-empty"><AlertTriangle size={30} /><h2>分享链接已失效</h2><p>{error}</p><a className="draw-card-primary" href="/book">我也要做</a></section> : null}
     {!sharedBook && !error ? <section className="body-book-share-empty"><LoaderCircle className="spin" size={30} /><p>正在打开好友分享的认知书…</p></section> : null}
-    {sharedBook ? <section className="body-book-share-content"><div className="body-book-share-intro"><span>来自好友分享</span><h2>{sharedBook.title}</h2><p>{sharedBook.themeName} · 已完成 {sharedBook.pageCount} 页</p></div><div className="body-book-checkout-preview body-book-share-grid">{sharedBook.pages.map((page, index) => <figure className="body-book-checkout-preview-item" key={page.key}><button className="body-book-share-image" onClick={() => setActivePage(page)} type="button"><img alt={page.title || `认知书第 ${index + 1} 页`} decoding="async" loading={index > 2 ? "lazy" : "eager"} src={page.thumbnailUrl} /></button><figcaption><span>第 {index + 1} 页</span><strong>{page.title}</strong><a className="draw-card-secondary" download href={page.downloadUrl}><Download size={15} />下载图片</a></figcaption></figure>)}</div><div className="body-book-share-cta"><p>也来制作一本属于自己的认知书吧。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
-    {activePage ? <div className="modal-backdrop body-book-lightbox" onClick={() => setActivePage(null)} role="presentation"><section className="body-book-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={activePage.title} aria-modal="true"><button aria-label="关闭预览" className="icon-button" onClick={() => setActivePage(null)} type="button"><X size={18} /></button><img alt={activePage.title} src={activePage.previewUrl} /><div className="body-book-lightbox-meta"><strong>{activePage.title}</strong><a className="draw-card-primary" download href={activePage.downloadUrl}><Download size={17} />下载图片</a></div></section></div> : null}
+    {sharedBook ? <section className="body-book-share-content"><div className="body-book-share-intro"><span>来自好友分享</span><h2>{sharedBook.title}</h2><p>{sharedBook.themeName} · 已完成 {sharedBook.pageCount} 页</p></div><div className="body-book-checkout-preview body-book-share-grid">{sharedBook.pages.map((page, index) => <figure className="body-book-checkout-preview-item" key={page.key}><button className="body-book-share-image" onClick={() => setActivePage(page)} type="button"><img alt={page.title || `认知书第 ${index + 1} 页`} decoding="async" loading={index > 2 ? "lazy" : "eager"} src={page.thumbnailUrl} /></button><figcaption><span>第 {index + 1} 页</span><strong>{page.title}</strong><small>仅供在线预览</small></figcaption></figure>)}</div><div className="body-book-share-cta"><p>也来制作一本属于自己的认知书吧。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
+    {activePage ? <div className="modal-backdrop body-book-lightbox" onClick={() => setActivePage(null)} role="presentation"><section className="body-book-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={activePage.title} aria-modal="true"><button aria-label="关闭预览" className="icon-button" onClick={() => setActivePage(null)} type="button"><X size={18} /></button><img alt={activePage.title} src={activePage.previewUrl} /><div className="body-book-lightbox-meta"><strong>{activePage.title}</strong><p>仅供在线预览</p></div></section></div> : null}
   </main>;
 }
 
@@ -1855,6 +1896,7 @@ function BodyBookPage() {
   const [bookShareNotice, setBookShareNotice] = useState("");
   const [bookShareError, setBookShareError] = useState("");
   const [bookShareBusy, setBookShareBusy] = useState(false);
+  const [showBookOriginalUnlockPrompt, setShowBookOriginalUnlockPrompt] = useState(false);
   const [bookOrderForm, setBookOrderForm] = useState(DEFAULT_ORDER_ADDRESS);
   const [bookOrderBusy, setBookOrderBusy] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -2319,21 +2361,37 @@ function BodyBookPage() {
       setBookShareUrl(nextUrl);
       setProject((current) => current ? { ...current, share: payload?.share || current.share } : current);
       setShowBookShareModal(true);
-      if (navigator.share && nextUrl) {
+      if (nextUrl) {
         try {
-          await navigator.share({ title: "好友分享的认知书", text: "来看看我正在制作的专属认知书吧！", url: nextUrl });
-          setBookShareNotice("分享面板已打开。你也可以复制链接后发送给好友。");
-        } catch (shareError) {
-          try { await copyText(nextUrl); } catch {}
-          setBookShareNotice(shareError?.name === "AbortError" ? "分享已取消。链接已复制，可发送给好友。" : "链接已复制，可发送给好友。");
+          await copyText(nextUrl);
+          setBookShareNotice("链接已复制，可发送给好友。");
+        } catch {
+          setBookShareNotice("链接已生成，请点击下方按钮复制。");
         }
-      } else if (nextUrl) {
-        await copyText(nextUrl);
-        setBookShareNotice("链接已复制，可发送给好友。");
       }
     } catch (nextError) {
       setBookShareError(nextError.message || "创建分享链接失败，请稍后重试。");
       setShowBookShareModal(true);
+    } finally {
+      setBookShareBusy(false);
+    }
+  }
+
+  async function openBookOriginalUnlockPrompt() {
+    if (!project?.sessionId || bookShareBusy) return;
+    setBookShareBusy(true);
+    setBookShareUrl("");
+    setBookShareError("");
+    setBookShareNotice("");
+    setShowBookOriginalUnlockPrompt(true);
+    try {
+      const payload = await createBodyBookProjectShare(project.sessionId);
+      const nextUrl = String(payload?.shareUrl || "");
+      if (!nextUrl) throw new Error("分享链接生成失败，请刷新后重试。");
+      setBookShareUrl(nextUrl);
+      setProject((current) => current ? { ...current, share: payload?.share || current.share } : current);
+    } catch (nextError) {
+      setBookShareError(nextError.message || "创建分享链接失败，请稍后重试。");
     } finally {
       setBookShareBusy(false);
     }
@@ -2611,6 +2669,19 @@ function BodyBookPage() {
       setShowAuthModal(true);
       return;
     }
+    try {
+      const latestProject = await fetchBodyBookProject(projectId);
+      applyProject(latestProject);
+      const latestPage = latestProject?.pages?.find((item) => item.key === page.key);
+      if (!latestPage?.originalDownloadAvailable) {
+        setError("");
+        await openBookOriginalUnlockPrompt();
+        return;
+      }
+    } catch (nextError) {
+      setError(nextError.message || "读取原图下载权限失败，请稍后再试。");
+      return;
+    }
     setOriginalPreview({ url: getBodyBookProjectPageOriginalUrl(projectId, page), title: page.title || "认知书原图" });
   }
 
@@ -2670,7 +2741,8 @@ function BodyBookPage() {
       {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀请好友"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀请好友</h2><p>邀请新用户注册，即得 <strong>5 豆 + 5 币</strong>；好友每笔实付订单还可返你 <strong>20% 推荐币</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
       {showBeanInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowBeanInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的豆豆"><button className="icon-button" onClick={() => setShowBeanInfo(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">My beans</p><h2>我的豆豆</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong> 豆</p><p className="body-book-bean-cost-note">已购豆豆剩余可抵扣额度：<strong>{formatCurrencyCents(Math.max(0, Number(beanPurchaseDiscount.availableCents || 0)))}</strong></p><p className="body-book-bean-cost-note">{billingEnabled ? "每张成功生成的图片消耗 1 个豆豆。" : "内测阶段，认知书暂不消耗豆豆。"}</p><ul className="body-book-bean-benefits"><li>成功购买 1 元豆豆，可获得 1 元认知书优惠额度。</li><li>认知书每单最多抵扣 40 元；赠送豆豆不参与抵扣。</li><li>认知书按实付金额赠豆，每实付满 1 元赠 1 豆。</li><li>邀请新用户注册可获得 5 豆和 5 币；好友每笔实付订单返 20% 推荐币。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openBeanPurchase} type="button">购买豆豆</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); openReferral(); }} type="button">邀请好友</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); setShowContactModal(true); }} type="button">联系客服</button></div><label className="body-book-wallet-field"><span>兑换码</span><input disabled={busy} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入兑换码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={busy || !inviteCode.trim()} onClick={redeemBookInvite} type="button">兑换</button></div></section></div> : null}
       {showBeanPurchase ? <BeanPurchaseModal beanCount={beanPurchaseCount} busy={beanPurchaseBusy} error={beanPurchaseError} onClose={() => !beanPurchaseBusy && setShowBeanPurchase(false)} onCountChange={setBeanPurchaseCount} onRestart={restartBeanPurchase} onRetry={() => prepareBeanPurchase(beanPurchase?.id)} onSubmit={submitBeanPurchase} payment={beanPurchasePayment} purchase={beanPurchase} /> : null}
-      {showBookShareModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => !bookShareBusy && setShowBookShareModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享认知书"><button className="icon-button" disabled={bookShareBusy} onClick={() => setShowBookShareModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Share your book</p><h2>分享给好友</h2><p>好友可免登录查看和下载已完成页面，但不能修改这本认知书。</p>{bookShareUrl ? <label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={bookShareUrl} /></label> : null}{bookShareUrl ? <div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={bookShareBusy} onClick={async () => { try { await copyText(bookShareUrl); setBookShareNotice("链接已复制，可发送给好友。"); } catch (nextError) { setBookShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制链接</span></button><button className="draw-card-secondary" disabled={bookShareBusy} onClick={() => { void closeBookShare(); }} type="button">关闭分享</button></div> : null}{bookShareNotice ? <p className="success-note">{bookShareNotice}</p> : null}{bookShareError ? <p className="error-note">{bookShareError}</p> : null}</section></div> : null}
+      {showBookShareModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => !bookShareBusy && setShowBookShareModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享认知书"><button className="icon-button" disabled={bookShareBusy} onClick={() => setShowBookShareModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Share your book</p><h2>分享给好友</h2><p>好友可免登录查看压缩预览，不能修改或下载原图。首位新访客打开链接后，本工程即可下载全部原图。</p>{bookShareUrl ? <label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={bookShareUrl} /></label> : null}{bookShareUrl ? <div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={bookShareBusy} onClick={async () => { try { await copyText(bookShareUrl); setBookShareNotice("链接已复制，可发送给好友。"); } catch (nextError) { setBookShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制链接</span></button><button className="draw-card-secondary" disabled={bookShareBusy} onClick={() => { if (window.confirm("停止分享后，已复制的链接将立即失效。确定停止分享吗？")) void closeBookShare(); }} type="button">停止分享</button></div> : null}{bookShareNotice ? <p className="success-note">{bookShareNotice}</p> : null}{bookShareError ? <p className="error-note">{bookShareError}</p> : null}</section></div> : null}
+      {showBookOriginalUnlockPrompt ? <div className="modal-backdrop draw-card-confirm" onClick={() => !bookShareBusy && setShowBookOriginalUnlockPrompt(false)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal body-book-original-unlock-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享获得下载权限"><button className="icon-button" disabled={bookShareBusy} onClick={() => setShowBookOriginalUnlockPrompt(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><p className="draw-card-kicker">Original images</p><h2>分享获得下载权限</h2><ul className="body-book-bean-benefits body-book-original-unlock-rules"><li>分享给新用户，且新用户点击查看后，可获得本工程全部原图下载权限。</li><li>本站实际消费 n 元，获得 n 次免分享下载权益。</li><li>本站累计消费 20 元，获得永久下载权益。</li></ul>{bookShareBusy ? <p className="storage-note">正在生成分享链接…</p> : null}{bookShareUrl ? <><label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={bookShareUrl} /></label><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={async () => { try { await copyText(bookShareUrl); setBookShareNotice("分享链接已复制，可发送给好友。"); setBookShareError(""); } catch (nextError) { setBookShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制分享链接</span></button></div></> : null}{bookShareNotice ? <p className="success-note">{bookShareNotice}</p> : null}{bookShareError ? <p className="error-note">{bookShareError}</p> : null}</section></div> : null}
       {showBookCheckout ? <div className="modal-backdrop" onClick={() => !bookOrderBusy && setShowBookCheckout(false)} role="presentation"><section className="body-book-project-modal body-book-checkout-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="下单认知书实体书"><button className="icon-button" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Print your book</p><h2>{bookOrderBlockReason ? "暂时无法下单" : "下单认知书实体书"}</h2>{bookOrderBlockReason ? <><div className="body-book-checkout-blocked"><AlertTriangle size={24} /><p>{bookOrderBlockReason}</p></div><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={() => setShowBookCheckout(false)} type="button">知道了</button></div></> : <><p>以下为将要印刷的全部页面，共 {bookPreviewPages.length} 页；成书时会自动插入对应的内置认知页，不含固定封底。</p><div className="body-book-checkout-preview" aria-label="成书预览">{bookPreviewPages.map((page, index) => <figure className="body-book-checkout-preview-item" key={`${page.key}-${index}`}><img alt={`${page.title} 成书预览`} decoding="async" loading="lazy" src={getBodyBookThumbnail(page)} /><figcaption><span>第 {index + 1} 页</span><strong>{page.title}</strong></figcaption></figure>)}</div><div className="draw-card-order-summary"><p>实体书 {formatCurrencyCents(bodyBookPricing.priceCents)}</p><p>邮费 {Number(bodyBookPricing.shippingFeeCents || 0) > 0 ? formatCurrencyCents(bodyBookPricing.shippingFeeCents) : "包邮"}</p>{bookOrderDiscountPreviewCents > 0 ? <p>豆豆优惠 -{formatCurrencyCents(bookOrderDiscountPreviewCents)}（每单最多抵扣 40 元）</p> : null}<strong>实付 {formatCurrencyCents(bookOrderPayablePreviewCents)}</strong></div><div className="draw-card-order-form"><label className="field-label">收件人<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={bookOrderForm.receiverName} /></label><label className="field-label">手机号<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverPhone: event.target.value }))} type="tel" value={bookOrderForm.receiverPhone} /></label><label className="field-label">收货地址<input onChange={(event) => setBookOrderForm((current) => ({ ...current, address: event.target.value, addressDetail: event.target.value }))} type="text" value={bookOrderForm.address || bookOrderForm.addressDetail || ""} /></label><label className="field-label">备注<textarea onChange={(event) => setBookOrderForm((current) => ({ ...current, remark: event.target.value }))} rows="2" value={bookOrderForm.remark} /></label></div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button">取消</button><button className="draw-card-primary" disabled={bookOrderBusy} onClick={submitBookOrder} type="button">{bookOrderBusy ? "创建订单中" : "确定"}</button></div></>}</section></div> : null}
       {showAuthModal ? <AuthModal description={pendingBookOriginalDownloadRef.current ? "下载认知书原图前，请先注册并登录。" : pendingBookShareRef.current ? "分享认知书前，请先注册并登录。" : ""} onAuthenticated={async () => { setShowAuthModal(false); const nextVisitorState = await fetchVisitorState(); setVisitorState(nextVisitorState); setBookOrderForm((current) => fillOrderAddressFromSaved(current, nextVisitorState?.account)); await loadSavedBooks(); if (pendingReferralRef.current) { pendingReferralRef.current = false; await showReferralDialog(); } if (pendingBookCheckoutRef.current) { pendingBookCheckoutRef.current = false; setShowBookCheckout(true); } if (pendingBeanPurchaseRef.current) { pendingBeanPurchaseRef.current = false; openBeanPurchase(); } if (pendingBookShareRef.current) { pendingBookShareRef.current = false; await createAndShareBookProject(); } const pendingDownload = pendingBookOriginalDownloadRef.current; pendingBookOriginalDownloadRef.current = null; if (pendingDownload) await downloadBookOriginal(pendingDownload.page, pendingDownload.projectId); }} onClose={() => { pendingReferralRef.current = false; pendingBookCheckoutRef.current = false; pendingBeanPurchaseRef.current = false; pendingBookShareRef.current = false; pendingBookOriginalDownloadRef.current = null; setShowAuthModal(false); }} reloadOnLogin={false} /> : null}
       {showContactModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowContactModal(false)} role="presentation"><section className="draw-card-confirm-panel draw-card-contact-panel body-book-contact-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="icon-button" onClick={() => setShowContactModal(false)} type="button"><X size={18} /></button><div className="draw-card-contact-copy"><h3>联系客服</h3><p>请加微信</p><button className="draw-card-contact-id" onClick={() => copyText(getContactWechatId(orderConfig))} type="button"><span>{getContactWechatId(orderConfig)}</span><Clipboard size={16} /></button></div></section></div> : null}
@@ -3572,7 +3644,17 @@ function PublicExperiencePage({ config }) {
   const [activeClipPreview, setActiveClipPreview] = useState(null);
   const [originalPreview, setOriginalPreview] = useState(null);
   const [showOriginalUnlockPrompt, setShowOriginalUnlockPrompt] = useState(false);
+  const [originalUnlockTarget, setOriginalUnlockTarget] = useState(null);
+  const [originalUnlockShareUrl, setOriginalUnlockShareUrl] = useState("");
+  const [originalUnlockShareBusy, setOriginalUnlockShareBusy] = useState(false);
+  const [originalUnlockShareError, setOriginalUnlockShareError] = useState("");
+  const [originalUnlockShareNotice, setOriginalUnlockShareNotice] = useState("");
   const [originalPreviewLoadingJobId, setOriginalPreviewLoadingJobId] = useState("");
+  const [drawShareTarget, setDrawShareTarget] = useState(null);
+  const [drawShareUrl, setDrawShareUrl] = useState("");
+  const [drawShareBusy, setDrawShareBusy] = useState(false);
+  const [drawShareNotice, setDrawShareNotice] = useState("");
+  const [drawShareError, setDrawShareError] = useState("");
   const [pendingRemoval, setPendingRemoval] = useState(null);
   const [flyingCard, setFlyingCard] = useState(null);
   const [clipReceiving, setClipReceiving] = useState(false);
@@ -3633,6 +3715,8 @@ function PublicExperiencePage({ config }) {
   }, [experienceType]);
   const pendingCoinPurchaseRef = useRef(false);
   const pendingReferralRef = useRef(false);
+  const pendingDrawShareRef = useRef(null);
+  const pendingOriginalDownloadRef = useRef(null);
 
   useEffect(() => {
     return () => {
@@ -4053,7 +4137,9 @@ function PublicExperiencePage({ config }) {
       originalImageUrl: item.result.originalImageUrl,
       previewUrl: item.result.previewUrl,
       isLiked: Boolean(item.result.isLiked),
-      likedAt: item.result.likedAt || null
+      likedAt: item.result.likedAt || null,
+      originalDownloadAccess: Boolean(item.result.originalDownloadAccess),
+      originalDownloadAvailable: Boolean(item.result.originalDownloadAvailable)
     };
   }
 
@@ -4635,14 +4721,9 @@ function PublicExperiencePage({ config }) {
       setVisitorState(latestVisitorState);
     } catch {}
 
-    if (!latestVisitorState?.authenticated) {
-      if (!redirectToWechatAuthorization(latestVisitorState?.authorizationUrl)) {
-        setError("请在微信内完成授权后再下载原图。");
-      }
-      return;
-    }
-    if (!latestVisitorState?.account?.canRedeemOriginalDownloads) {
-      setShowOriginalUnlockPrompt(true);
+    if (!latestVisitorState?.authenticated || !latestVisitorState?.account?.isRegistered) {
+      pendingOriginalDownloadRef.current = item;
+      setShowAuthModal(true);
       return;
     }
 
@@ -4663,7 +4744,16 @@ function PublicExperiencePage({ config }) {
       setError("");
     } catch (nextError) {
       const message = nextError.message || "下载原图失败，请稍后再试。";
-      if (isInsufficientBalanceMessage(message)) setBalanceAlert(message);
+      if (
+        message.includes("免分享下载次数已用完")
+        || message.includes("分享给一位新访客")
+        || message.includes("累计实付满 20 元")
+        || message.includes("购买币累计满 20 元")
+        || message.includes("定制订单支付成功")
+      ) {
+        await openOriginalUnlockPrompt(item);
+      }
+      else if (isInsufficientBalanceMessage(message)) setBalanceAlert(message);
       else setError(message);
     } finally {
       setOriginalPreviewLoadingJobId("");
@@ -4774,6 +4864,86 @@ function PublicExperiencePage({ config }) {
     }
 
     setPendingRemoval(result);
+  }
+
+  async function openOriginalUnlockPrompt(item) {
+    if (!item?.jobId) return;
+    setOriginalUnlockTarget(item);
+    setOriginalUnlockShareUrl("");
+    setOriginalUnlockShareError("");
+    setOriginalUnlockShareNotice("");
+    setShowOriginalUnlockPrompt(true);
+    await requestOriginalUnlockShare(item);
+  }
+
+  async function requestOriginalUnlockShare(item) {
+    if (!item?.jobId) return "";
+    setOriginalUnlockShareBusy(true);
+    setOriginalUnlockShareError("");
+    try {
+      const payload = await createDrawImageShare(item.jobId);
+      const shareToken = String(payload?.shareToken || payload?.token || "").trim();
+      const fallbackUrl = shareToken
+        ? new URL(`/draw/share/${encodeURIComponent(shareToken)}`, window.location.origin).toString()
+        : "";
+      const nextUrl = String(payload?.shareUrl || payload?.url || fallbackUrl || "").trim();
+      if (!nextUrl) throw new Error("分享链接生成失败，请刷新后重试。");
+      setOriginalUnlockShareUrl(nextUrl);
+      return nextUrl;
+    } catch (nextError) {
+      setOriginalUnlockShareError(nextError.message || "创建分享链接失败，请稍后重试。");
+      return "";
+    } finally {
+      setOriginalUnlockShareBusy(false);
+    }
+  }
+
+  async function openDrawShare(item) {
+    if (!item?.jobId || drawShareBusy) return;
+    const latest = await fetchVisitorState().catch(() => visitorState);
+    if (!latest?.account?.isRegistered) {
+      pendingDrawShareRef.current = item;
+      setShowAuthModal(true);
+      return;
+    }
+    setVisitorState(latest);
+    setDrawShareTarget(item);
+    setDrawShareBusy(true);
+    setDrawShareUrl("");
+    setDrawShareError("");
+    setDrawShareNotice("");
+    try {
+      const payload = await createDrawImageShare(item.jobId);
+      const nextUrl = String(payload?.shareUrl || "");
+      setDrawShareUrl(nextUrl);
+      if (nextUrl) {
+        try {
+          await copyText(nextUrl);
+          setDrawShareNotice("链接已复制，可发送给好友。");
+        } catch {
+          setDrawShareNotice("链接已生成，请点击下方按钮复制。");
+        }
+      }
+    } catch (nextError) {
+      setDrawShareError(nextError.message || "创建分享链接失败，请稍后重试。");
+    } finally {
+      setDrawShareBusy(false);
+    }
+  }
+
+  async function closeDrawShare() {
+    if (!drawShareTarget?.jobId || drawShareBusy) return;
+    setDrawShareBusy(true);
+    setDrawShareError("");
+    try {
+      await closeDrawImageShare(drawShareTarget.jobId);
+      setDrawShareUrl("");
+      setDrawShareNotice("分享链接已关闭，原链接将无法再访问。");
+    } catch (nextError) {
+      setDrawShareError(nextError.message || "关闭分享失败，请稍后重试。");
+    } finally {
+      setDrawShareBusy(false);
+    }
   }
 
   function renderDrawCardUtilityBar() {
@@ -4894,7 +5064,7 @@ function PublicExperiencePage({ config }) {
           <div className="draw-card-account-summary">
             <span>账户币</span>
             <strong>{visitorState ? `${visitorState.account?.coinBalance || 0} 币` : "--"}</strong>
-            <p>{visitorState?.account?.canRedeemOriginalDownloads ? "已获得原图下载权限，可下载账户下全部图片" : "购买币累计满 20 元或定制订单支付成功后即可下载原图"}</p>
+            <p>{visitorState?.account?.canRedeemOriginalDownloads ? "已获得全账户永久原图下载权限" : `累计实付每满 1 元可免分享下载 1 张原图（剩余 ${visitorState?.account?.originalDownloadAllowance?.remaining || 0} 次）；分享被访问也可解锁对应内容`}</p>
             <p>冰箱贴订单支付成功后，按实付金额赠送等额币。</p>
           </div>
           {visitorState?.sourceMerchantName ? <p>来源商户：{visitorState.sourceMerchantName}</p> : null}
@@ -5288,6 +5458,7 @@ function PublicExperiencePage({ config }) {
                     <button className="draw-card-clip-download" disabled={originalPreviewLoadingJobId === activeResult.jobId} onClick={() => handleDownloadClipOriginal(activeResult)} type="button">
                       {originalPreviewLoadingJobId === activeResult.jobId ? "加载中" : "下载原图"}
                     </button>
+                    <button className="draw-card-secondary" onClick={() => { void openDrawShare(activeResult); }} type="button"><Share2 size={16} /><span>分享</span></button>
                   </div>
                 ) : (
                   <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(activeResult)} type="button">
@@ -5404,18 +5575,64 @@ function PublicExperiencePage({ config }) {
         </div>
       ) : null}
       {showOriginalUnlockPrompt ? (
-        <div className="modal-backdrop draw-card-confirm" onClick={() => setShowOriginalUnlockPrompt(false)} role="presentation">
-          <section className="draw-card-confirm-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="解锁原图">
+        <div className="modal-backdrop draw-card-confirm" onClick={() => { setShowOriginalUnlockPrompt(false); setOriginalUnlockTarget(null); setOriginalUnlockShareUrl(""); setOriginalUnlockShareError(""); setOriginalUnlockShareNotice(""); }} role="presentation">
+          <section className="draw-card-confirm-panel original-download-unlock-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享获得下载权限">
+            <button className="icon-button original-download-unlock-close" onClick={() => { setShowOriginalUnlockPrompt(false); setOriginalUnlockTarget(null); setOriginalUnlockShareUrl(""); setOriginalUnlockShareError(""); setOriginalUnlockShareNotice(""); }} type="button" aria-label="关闭弹窗">
+              <X size={18} />
+            </button>
             <p className="draw-card-kicker">Original images</p>
-            <h2>下载原图</h2>
-            <p className="storage-note">成功购买币累计满 20 元，或任意定制订单支付成功后，即可下载同一账户下的全部原图，无需额外消耗币。</p>
-            <div className="draw-card-confirm-actions">
-              <button className="draw-card-secondary" onClick={() => { setShowOriginalUnlockPrompt(false); openCoinPurchase(); }} type="button">购买币</button>
-              <button className="draw-card-primary" onClick={() => window.location.assign("/draw/order")} type="button">选图定制</button>
-            </div>
+            <h2>分享获得下载权限</h2>
+            <ul className="original-download-rules">
+              <li>分享给新用户，且新用户点击查看后，可获得本原图下载权限。</li>
+              <li>本站实际消费 n 元，获得 n 次免分享下载权益。</li>
+              <li>本站累计消费 20 元，获得永久下载权益。</li>
+            </ul>
+            {originalUnlockShareBusy ? <p className="storage-note">正在生成分享链接…</p> : null}
+            {originalUnlockShareUrl ? (
+              <div className="original-download-share-row">
+                <label className="body-book-wallet-field">
+                  <span>分享链接</span>
+                  <input readOnly value={originalUnlockShareUrl} />
+                </label>
+                <button className="draw-card-primary" disabled={originalUnlockShareBusy} onClick={async () => {
+                  try {
+                    await copyText(originalUnlockShareUrl);
+                    setOriginalUnlockShareNotice("分享链接已复制，可发送给好友。");
+                    setOriginalUnlockShareError("");
+                  } catch (nextError) {
+                    setOriginalUnlockShareError(nextError.message || "复制失败，请手动复制链接。");
+                    setOriginalUnlockShareNotice("");
+                  }
+                }} type="button">
+                  <Clipboard size={17} />
+                  <span>复制分享链接</span>
+                </button>
+              </div>
+            ) : null}
+            {!originalUnlockShareUrl ? <div className="draw-card-confirm-actions">
+              <button className="draw-card-primary" disabled={!originalUnlockTarget || originalUnlockShareBusy} onClick={async () => {
+                try {
+                  const nextUrl = originalUnlockShareUrl || await requestOriginalUnlockShare(originalUnlockTarget);
+                  if (!nextUrl) return;
+                  await copyText(nextUrl);
+                  setOriginalUnlockShareNotice("分享链接已复制，可发送给好友。");
+                  setOriginalUnlockShareError("");
+                } catch (nextError) {
+                  setOriginalUnlockShareError(nextError.message || "复制失败，请手动复制链接。");
+                  setOriginalUnlockShareNotice("");
+                }
+              }} type="button">
+                <Clipboard size={17} />
+                <span>复制分享链接</span>
+              </button>
+            </div> : null}
+            {originalUnlockShareNotice ? <p className="success-note">{originalUnlockShareNotice}</p> : null}
+            {originalUnlockShareError ? <p className="error-note">{originalUnlockShareError}</p> : null}
           </section>
         </div>
       ) : null}
+
+      {drawShareTarget ? <div className="modal-backdrop draw-card-confirm" onClick={() => !drawShareBusy && setDrawShareTarget(null)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享小画"><button className="icon-button" disabled={drawShareBusy} onClick={() => setDrawShareTarget(null)} type="button"><X size={18} /></button><p className="draw-card-kicker">Share your artwork</p><h2>分享给好友</h2><p>好友可查看压缩预览。首位新访客打开链接后，即可下载这张小画的原图。</p>{drawShareUrl ? <label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={drawShareUrl} /></label> : null}{drawShareUrl ? <div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={drawShareBusy} onClick={async () => { try { await copyText(drawShareUrl); setDrawShareNotice("链接已复制，可发送给好友。"); } catch (nextError) { setDrawShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制链接</span></button><button className="draw-card-secondary" disabled={drawShareBusy} onClick={() => { if (window.confirm("停止分享后，已复制的链接将立即失效。确定停止分享吗？")) void closeDrawShare(); }} type="button">停止分享</button></div> : null}{drawShareNotice ? <p className="success-note">{drawShareNotice}</p> : null}{drawShareError ? <p className="error-note">{drawShareError}</p> : null}</section></div> : null}
 
       {showPhotoChangeConfirm ? (
         <div className="modal-backdrop draw-card-confirm" onClick={() => setShowPhotoChangeConfirm(false)} role="presentation">
@@ -5451,8 +5668,14 @@ function PublicExperiencePage({ config }) {
               setCoinPurchaseError("");
               setShowCoinPurchase(true);
             }
+            const pendingDrawShare = pendingDrawShareRef.current;
+            pendingDrawShareRef.current = null;
+            if (pendingDrawShare) await openDrawShare(pendingDrawShare);
+            const pendingOriginalDownload = pendingOriginalDownloadRef.current;
+            pendingOriginalDownloadRef.current = null;
+            if (pendingOriginalDownload) await handleDownloadClipOriginal(pendingOriginalDownload);
           }}
-          onClose={() => { pendingReferralRef.current = false; pendingCoinPurchaseRef.current = false; setShowAuthModal(false); }}
+          onClose={() => { pendingReferralRef.current = false; pendingCoinPurchaseRef.current = false; pendingDrawShareRef.current = null; pendingOriginalDownloadRef.current = null; setShowAuthModal(false); }}
         />
       ) : null}
 
@@ -10449,6 +10672,39 @@ async function fetchPublicBodyBookShare(token) {
   const response = await fetch(`/api/body-book/shares/${encodeURIComponent(token)}`, { credentials: "omit" });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.message || "分享链接已失效或不存在。");
+  return payload;
+}
+
+async function recordPublicBodyBookShareVisit(token) {
+  const response = await fetch(`/api/body-book/shares/${encodeURIComponent(token)}/visit`, { method: "POST" });
+  if (!response.ok) throw new Error("记录分享访问失败。");
+  return response.json();
+}
+
+async function fetchPublicDrawShare(token) {
+  const response = await fetch(`/api/draw/shares/${encodeURIComponent(token)}`, { credentials: "omit" });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.message || "分享链接已失效或不存在。");
+  return payload;
+}
+
+async function recordPublicDrawShareVisit(token) {
+  const response = await fetch(`/api/draw/shares/${encodeURIComponent(token)}/visit`, { method: "POST" });
+  if (!response.ok) throw new Error("记录分享访问失败。");
+  return response.json();
+}
+
+async function createDrawImageShare(jobId) {
+  const response = await fetch(`/api/public/clip-items/${encodeURIComponent(jobId)}/share`, { method: "POST" });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.message || "创建分享链接失败，请稍后重试。");
+  return payload;
+}
+
+async function closeDrawImageShare(jobId) {
+  const response = await fetch(`/api/public/clip-items/${encodeURIComponent(jobId)}/share`, { method: "DELETE" });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.message || "关闭分享失败，请稍后重试。");
   return payload;
 }
 

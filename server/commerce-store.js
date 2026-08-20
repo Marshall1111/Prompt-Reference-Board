@@ -184,6 +184,43 @@ export function createCommerceStore({ dbPath }) {
       FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
     );
 
+    -- Original-image rights are granted either per shared resource or by an
+    -- account's current paid total. Paid access is deliberately calculated at
+    -- read time so a refunded payment cannot leave a stale global unlock.
+    CREATE TABLE IF NOT EXISTS commerce_original_download_grants (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      scope TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      source_share_token TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      UNIQUE(account_id, scope, resource_id),
+      FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
+    -- Below ¥20, each full yuan of effective payment unlocks one distinct
+    -- original resource without requiring a share visit. A redeemed resource
+    -- remains readable; only new resources consume the remaining allowance.
+    CREATE TABLE IF NOT EXISTS commerce_original_download_uses (
+      account_id TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (account_id, resource_type, resource_id),
+      FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS commerce_content_share_visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      share_type TEXT NOT NULL,
+      share_token TEXT NOT NULL,
+      visitor_id TEXT NOT NULL,
+      owner_account_id TEXT NOT NULL,
+      visited_at TEXT NOT NULL,
+      UNIQUE(share_type, share_token, visitor_id),
+      FOREIGN KEY (owner_account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS commerce_payment_intents (
       id TEXT PRIMARY KEY,
       out_trade_no TEXT NOT NULL UNIQUE,
@@ -339,6 +376,9 @@ export function createCommerceStore({ dbPath }) {
     CREATE INDEX IF NOT EXISTS idx_commerce_bean_ledger_account ON commerce_bean_ledger(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_referral_ledger_account ON commerce_referral_ledger(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_original_image_redemptions_order ON commerce_original_image_redemptions(source_order_id);
+    CREATE INDEX IF NOT EXISTS idx_commerce_original_download_grants_account ON commerce_original_download_grants(account_id, scope, resource_id);
+    CREATE INDEX IF NOT EXISTS idx_commerce_original_download_uses_account ON commerce_original_download_uses(account_id, resource_type);
+    CREATE INDEX IF NOT EXISTS idx_commerce_content_share_visits_token ON commerce_content_share_visits(share_type, share_token);
     CREATE INDEX IF NOT EXISTS idx_commerce_user_sessions_account ON commerce_user_sessions(account_id, expires_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_email_verifications_lookup ON commerce_email_verifications(email, purpose, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_referrals_referrer ON commerce_referrals(referrer_account_id, captured_at DESC);
@@ -512,8 +552,170 @@ export function createCommerceStore({ dbPath }) {
     `).get(String(accountId || ""))?.total || 0);
   }
 
+  function getPaidOriginalDownloadCents(accountId) {
+    return Number(db.prepare(`
+      SELECT COALESCE(SUM(amount_cents), 0) AS total
+      FROM commerce_payment_intents
+      WHERE account_id = ?
+        AND kind IN ('physical_order', 'body_book_order', 'coin_purchase', 'bean_purchase')
+        AND status = 'paid'
+    `).get(String(accountId || ""))?.total || 0);
+  }
+
   function hasOriginalImageDownloadAccess(accountId) {
-    return hasPaidPhysicalOrder(accountId) || getPaidCoinPurchaseCents(accountId) >= ORIGINAL_IMAGE_DOWNLOAD_UNLOCK_CENTS;
+    return getPaidOriginalDownloadCents(accountId) >= ORIGINAL_IMAGE_DOWNLOAD_UNLOCK_CENTS;
+  }
+
+  function getOriginalDownloadAllowance(accountId) {
+    const paidCents = getPaidOriginalDownloadCents(accountId);
+    if (paidCents >= ORIGINAL_IMAGE_DOWNLOAD_UNLOCK_CENTS) {
+      return { paidCents, unlimited: true, total: null, used: 0, remaining: null };
+    }
+    const total = Math.max(0, Math.floor(paidCents / 100));
+    const used = Number(db.prepare(`
+      SELECT COUNT(*) AS total FROM commerce_original_download_uses WHERE account_id = ?
+    `).get(String(accountId || ""))?.total || 0);
+    return { paidCents, unlimited: false, total, used, remaining: Math.max(0, total - used) };
+  }
+
+  function hasOriginalDownloadGrant(accountId, scope, resourceId) {
+    return Boolean(db.prepare(`
+      SELECT 1 FROM commerce_original_download_grants
+      WHERE account_id = ? AND scope = ? AND resource_id = ?
+      LIMIT 1
+    `).get(String(accountId || ""), String(scope || ""), String(resourceId || "")));
+  }
+
+  function buildOriginalDownloadResourceId(type, resourceId, pageKey = "") {
+    return type === "book_page"
+      ? `${String(resourceId || "")}:${String(pageKey || "")}`
+      : String(resourceId || "");
+  }
+
+  function hasOriginalDownloadUse(accountId, resourceType, resourceId) {
+    const allowedUseCount = Math.max(0, Math.floor(getPaidOriginalDownloadCents(accountId) / 100));
+    if (allowedUseCount <= 0) return false;
+    return Boolean(db.prepare(`
+      SELECT 1
+      FROM commerce_original_download_uses target
+      WHERE target.account_id = ? AND target.resource_type = ? AND target.resource_id = ?
+        AND (
+          SELECT COUNT(*)
+          FROM commerce_original_download_uses earlier
+          WHERE earlier.account_id = target.account_id AND earlier.rowid <= target.rowid
+        ) <= ?
+      LIMIT 1
+    `).get(String(accountId || ""), String(resourceType || ""), String(resourceId || ""), allowedUseCount));
+  }
+
+  function canDownloadBookOriginal(accountId, projectId, pageKey = "") {
+    const resourceId = buildOriginalDownloadResourceId("book_page", projectId, pageKey);
+    return hasOriginalImageDownloadAccess(accountId)
+      || hasOriginalDownloadGrant(accountId, "book_project_share", projectId)
+      || hasOriginalDownloadUse(accountId, "book_page", resourceId);
+  }
+
+  function canDownloadDrawOriginal(accountId, jobId) {
+    return hasOriginalImageDownloadAccess(accountId)
+      || hasOriginalDownloadGrant(accountId, "draw_image_share", jobId)
+      || hasOriginalDownloadUse(accountId, "draw_image", jobId);
+  }
+
+  function authorizeOriginalDownload({ accountId, resourceType, resourceId, shareScope = "", shareResourceId = "" }) {
+    const safeAccountId = String(accountId || "");
+    const safeResourceType = String(resourceType || "");
+    const safeResourceId = String(resourceId || "");
+    if (!safeAccountId || !["book_page", "draw_image"].includes(safeResourceType) || !safeResourceId) {
+      throw new Error("Invalid original download resource.");
+    }
+    return withTransaction(db, () => {
+      if (hasOriginalImageDownloadAccess(safeAccountId)) return { allowed: true, source: "paid_unlimited", usedNow: false };
+      if (shareScope && hasOriginalDownloadGrant(safeAccountId, shareScope, shareResourceId)) {
+        return { allowed: true, source: "share", usedNow: false };
+      }
+      if (hasOriginalDownloadUse(safeAccountId, safeResourceType, safeResourceId)) {
+        return { allowed: true, source: "paid_allowance", usedNow: false };
+      }
+      const allowance = getOriginalDownloadAllowance(safeAccountId);
+      if (allowance.remaining <= 0) return { allowed: false, source: "none", usedNow: false, allowance };
+      db.prepare(`
+        INSERT INTO commerce_original_download_uses (account_id, resource_type, resource_id, created_at)
+        VALUES (?, ?, ?, ?)
+      `).run(safeAccountId, safeResourceType, safeResourceId, nowIso());
+      return { allowed: true, source: "paid_allowance", usedNow: true, allowance: getOriginalDownloadAllowance(safeAccountId) };
+    });
+  }
+
+  function authorizeBookOriginalDownload(accountId, projectId, pageKey) {
+    return authorizeOriginalDownload({
+      accountId,
+      resourceType: "book_page",
+      resourceId: buildOriginalDownloadResourceId("book_page", projectId, pageKey),
+      shareScope: "book_project_share",
+      shareResourceId: projectId
+    });
+  }
+
+  function authorizeDrawOriginalDownload(accountId, jobId) {
+    return authorizeOriginalDownload({
+      accountId,
+      resourceType: "draw_image",
+      resourceId: String(jobId || ""),
+      shareScope: "draw_image_share",
+      shareResourceId: jobId
+    });
+  }
+
+  function grantOriginalDownload({ accountId, scope, resourceId, sourceShareToken = "" }) {
+    const safeAccountId = String(accountId || "");
+    const safeScope = String(scope || "");
+    const safeResourceId = String(resourceId || "");
+    if (!safeAccountId || !["book_project_share", "draw_image_share"].includes(safeScope) || !safeResourceId) {
+      throw new Error("Invalid original download grant.");
+    }
+    const result = db.prepare(`
+      INSERT OR IGNORE INTO commerce_original_download_grants
+        (id, account_id, scope, resource_id, source_share_token, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(randomUUID(), safeAccountId, safeScope, safeResourceId, String(sourceShareToken || ""), nowIso());
+    return Number(result.changes || 0) > 0;
+  }
+
+  function recordContentShareVisit({ shareType, shareToken, visitorId, ownerAccountId, resourceId, viewerAccountId = "" }) {
+    const safeShareType = String(shareType || "");
+    const safeToken = String(shareToken || "").trim();
+    const safeVisitorId = String(visitorId || "").trim();
+    const safeOwnerAccountId = String(ownerAccountId || "").trim();
+    const safeResourceId = String(resourceId || "").trim();
+    const scope = safeShareType === "book" ? "book_project_share" : safeShareType === "draw" ? "draw_image_share" : "";
+    if (!scope || !safeToken || !safeVisitorId || !safeOwnerAccountId || !safeResourceId) {
+      return { recorded: false, granted: false, reason: "invalid" };
+    }
+    if (safeOwnerAccountId === String(viewerAccountId || "")) {
+      return { recorded: false, granted: false, reason: "owner" };
+    }
+    return withTransaction(db, () => {
+      const ownerVisitor = db.prepare(`
+        SELECT 1 FROM commerce_account_visitors WHERE account_id = ? AND visitor_id = ? LIMIT 1
+      `).get(safeOwnerAccountId, safeVisitorId);
+      if (ownerVisitor) return { recorded: false, granted: false, reason: "owner" };
+      const result = db.prepare(`
+        INSERT OR IGNORE INTO commerce_content_share_visits
+          (share_type, share_token, visitor_id, owner_account_id, visited_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(safeShareType, safeToken, safeVisitorId, safeOwnerAccountId, nowIso());
+      if (Number(result.changes || 0) <= 0) return { recorded: false, granted: false, reason: "duplicate" };
+      return {
+        recorded: true,
+        granted: grantOriginalDownload({
+          accountId: safeOwnerAccountId,
+          scope,
+          resourceId: safeResourceId,
+          sourceShareToken: safeToken
+        }),
+        reason: "recorded"
+      };
+    });
   }
 
   function releaseExpiredBodyBookDiscountReservations(referenceTime = nowIso()) {
@@ -1564,7 +1766,9 @@ export function createCommerceStore({ dbPath }) {
       if (existing) {
         return { account: readAccount(safeAccountId), redeemedNow: false, redemptionType: String(existing.redemption_type || "") };
       }
-      if (!hasOriginalImageDownloadAccess(safeAccountId)) {
+      // Permission is checked by the resource endpoint. Keep this legacy
+      // redemption table as an audit trail without applying its old gate.
+      if (false) {
         const error = new Error("购买币累计满 20 元或定制订单支付成功后，才可下载原图。");
         error.code = "ORIGINAL_REDEMPTION_REQUIRES_PAID_ORDER";
         error.publicMessage = "购买币累计满 20 元或定制订单支付成功后，才可下载原图。";
@@ -2154,6 +2358,14 @@ export function createCommerceStore({ dbPath }) {
     withdrawReferralBalance,
     releaseReferralPaymentForOrder,
     releaseCompletedReferralPayments,
+    authorizeBookOriginalDownload,
+    authorizeDrawOriginalDownload,
+    canDownloadBookOriginal,
+    canDownloadDrawOriginal,
+    getPaidOriginalDownloadCents,
+    getOriginalDownloadAllowance,
+    grantOriginalDownload,
+    hasOriginalDownloadGrant,
     hasOriginalImageDownloadAccess,
     hasPaidPhysicalOrder,
     isOriginalImageRedeemed,
@@ -2179,6 +2391,7 @@ export function createCommerceStore({ dbPath }) {
     readPaymentIntentByOutTradeNo,
     replacePaymentIntentOutTradeNo,
     recordPaymentEvent,
+    recordContentShareVisit,
     redeemOriginalImage,
     restoreRedemptionEntitlement,
     releaseBodyBookDiscountReservation,

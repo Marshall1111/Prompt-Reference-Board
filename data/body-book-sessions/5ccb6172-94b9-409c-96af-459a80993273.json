@@ -11,15 +11,15 @@
   "status": "succeeded",
   "message": "图片已保存，可继续编辑或生成更多页面。",
   "createdAt": "2026-08-19T03:04:33.896Z",
-  "updatedAt": "2026-08-20T04:34:08.290Z",
+  "updatedAt": "2026-08-20T07:04:33.875Z",
   "lastContentUpdatedAt": null,
   "completedAt": "2026-08-19T06:36:18.899Z",
   "savedAt": "2026-08-19T03:05:10.479Z",
   "share": {
-    "token": "",
-    "enabled": false,
-    "createdAt": null,
-    "referralToken": ""
+    "token": "3a89a27baf2342b29793695e327926bd",
+    "enabled": true,
+    "createdAt": "2026-08-20T06:55:55.882Z",
+    "referralToken": "020540"
   },
   "reference": {
     "filename": "reference-1.png",

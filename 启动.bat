@@ -18,6 +18,8 @@ if errorlevel 1 goto failed
 call :ensure_build
 if errorlevel 1 goto failed
 
+call :stop_existing_server
+
 echo Starting local server...
 echo Browser will open automatically: %APP_URL%
 echo Close this window or press Ctrl+C to stop the tool.
@@ -125,6 +127,12 @@ exit /b 0
 :run_build
 call npm.cmd run build
 exit /b %errorlevel%
+
+:stop_existing_server
+echo Stopping any previous local server...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\stop-local-server.ps1"
+echo.
+exit /b 0
 
 :repair_dist
 if not exist dist (

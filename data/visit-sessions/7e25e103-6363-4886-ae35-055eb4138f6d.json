@@ -1,0 +1,19 @@
+{
+  "sessionId": "7e25e103-6363-4886-ae35-055eb4138f6d",
+  "visitorId": "5f323334-6528-4dfb-94e2-2dd326fd1673",
+  "accountId": "f4634ba1-79dd-4a06-9ce7-e070d7e6cb4f",
+  "sourceType": "organic",
+  "sourceAccountId": "",
+  "experienceType": "body-book",
+  "route": "/book",
+  "browser": "Edge · Windows",
+  "sourceMerchantId": "",
+  "sourceMerchantName": "",
+  "startedAt": "2026-08-20T06:59:13.365Z",
+  "lastHeartbeatAt": "2026-08-20T06:59:13.365Z",
+  "endedAt": "2026-08-20T06:59:14.503Z",
+  "durationSeconds": 1,
+  "status": "ended",
+  "createdAt": "2026-08-20T06:59:13.365Z",
+  "updatedAt": "2026-08-20T06:59:14.503Z"
+}

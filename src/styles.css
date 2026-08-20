@@ -10780,3 +10780,104 @@ textarea {
   padding-inline: 10px;
   font-size: 0.78rem;
 }
+
+/* Dark 小画 dialogs sit below the global light-page heading rules. Restore a
+   deliberate high-contrast text palette for original-download and share
+   prompts, including when artwork is visible behind the modal. */
+.draw-card-shell.theme-draw-card .draw-card-confirm-panel h2 {
+  color: #fff8eb;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-confirm-panel .storage-note,
+.draw-card-shell.theme-draw-card .draw-card-confirm-panel > p:not(.draw-card-kicker) {
+  color: rgba(248, 241, 228, 0.9);
+}
+
+.draw-card-shell.theme-draw-card .draw-card-confirm-panel .draw-card-kicker {
+  color: rgba(255, 232, 190, 0.88);
+}
+
+.draw-card-shell.theme-draw-card .draw-card-confirm-panel .icon-button {
+  color: #fff8eb;
+}
+
+/* Keep every close control in 小画 dialogs visually identical. */
+.draw-card-shell.theme-draw-card :is(.draw-card-confirm-panel, .draw-card-lightbox-panel) > .icon-button {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.draw-card-shell.theme-draw-card :is(.draw-card-confirm-panel, .draw-card-lightbox-panel) > .icon-button:not(:disabled):hover {
+  border-color: rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.draw-card-shell.theme-draw-card .original-download-unlock-modal .original-download-unlock-close {
+  border-color: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.draw-card-shell.theme-draw-card .original-download-unlock-modal .original-download-unlock-close svg {
+  stroke: currentColor;
+}
+
+.draw-card-shell.theme-draw-card .original-download-unlock-modal .original-download-rules {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 20px;
+  color: rgba(248, 241, 228, 0.93);
+  line-height: 1.55;
+}
+
+.draw-card-shell.theme-draw-card .original-download-unlock-modal .original-download-rules li::marker {
+  color: #fff8eb;
+}
+
+.draw-card-shell.theme-draw-card .original-download-unlock-modal .body-book-wallet-field {
+  color: #fff8eb;
+}
+
+.draw-card-shell.theme-draw-card .original-download-unlock-modal .body-book-wallet-field input {
+  border-color: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.95);
+  color: #1d1d1f;
+}
+
+.draw-card-shell.theme-draw-card .original-download-unlock-modal .original-download-share-row {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.draw-card-shell.theme-draw-card .original-download-unlock-modal .original-download-share-row .body-book-wallet-field {
+  min-width: 0;
+  flex: 1;
+}
+
+.draw-card-shell.theme-draw-card .original-download-unlock-modal .original-download-share-row .draw-card-primary {
+  min-height: 42px;
+  flex: 0 0 auto;
+  margin-bottom: 0;
+}
+
+@media (max-width: 560px) {
+  .draw-card-shell.theme-draw-card .original-download-unlock-modal .original-download-share-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .draw-card-shell.theme-draw-card .original-download-unlock-modal .original-download-share-row .draw-card-primary {
+    width: 100%;
+  }
+}
