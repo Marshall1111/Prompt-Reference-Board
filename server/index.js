@@ -3712,9 +3712,18 @@ app.get("/api/admin/users/:id/export-details", requireAdmin, async (req, res, ne
 app.get("/api/admin/users/:id/clip-items", requireAdmin, async (req, res, next) => {
   try {
     const account = commerceStore.readAccount(req.params.id);
-    if (!account?.isRegistered) throw createHttpError(404, "用户不存在。");
-    const assets = await listAdminUserImageAssets(account.id);
-    res.json({ user: toPublicAdminUser(account), ...assets });
+    if (account?.isRegistered) {
+      const assets = await listAdminUserImageAssets({ accountId: account.id });
+      return res.json({ user: toPublicAdminUser(account), ...assets });
+    }
+    const visitorId = String(req.params.id || "");
+    const visitor = (await listVisitorStates()).map(normalizeVisitorState).find((item) => item.visitorId === visitorId);
+    if (!visitor) throw createHttpError(404, "用户或访客不存在。");
+    const assets = await listAdminUserImageAssets({ visitorId });
+    res.json({
+      user: { id: visitorId, recordType: "visitor", visitorId, username: `访客 ${visitorId.slice(0, 8)}`, email: "" },
+      ...assets
+    });
   } catch (error) {
     next(error);
   }
@@ -3723,8 +3732,10 @@ app.get("/api/admin/users/:id/clip-items", requireAdmin, async (req, res, next) 
 app.get("/api/admin/users/:id/clip-items/:jobId/download-original", requireAdmin, async (req, res, next) => {
   try {
     const account = commerceStore.readAccount(req.params.id);
-    if (!account?.isRegistered) throw createHttpError(404, "用户不存在。");
-    const assets = await listAdminUserImageAssets(account.id);
+    const visitorId = String(req.params.id || "");
+    const assets = account?.isRegistered
+      ? await listAdminUserImageAssets({ accountId: account.id })
+      : await listAdminUserImageAssets({ visitorId });
     const jobId = String(req.params.jobId || "");
     const asset = [...assets.clipItems, ...assets.bodyBookItems, ...assets.historyItems].find((item) => item.jobId === jobId);
     if (!asset) throw createHttpError(404, "图片资产不存在。");
@@ -8144,6 +8155,7 @@ function toPublicAdminUser(account) {
     updatedAt: account.updatedAt || null,
     visitorCount: Number(account.visitorCount || 0),
     orderCount: Number(account.orderCount || 0),
+    generationCount: Number(account.generationCount || 0),
     paidTotalCents: Number(account.paidTotalCents || 0),
     originalDownloadAllowance,
     visitorTier: String(account.visitorTier || ""),
@@ -8380,13 +8392,28 @@ async function listAdminUserRecords({ page = 1, limit = 20, search = "", status 
   ]);
   const accountByVisitorId = new Map();
   const visitorGenerationCount = new Map();
+  const accountGenerationCount = new Map();
+  const registeredVisitorOwnerCount = new Map();
   const latestSessionByVisitorId = new Map();
   const visitorById = new Map(visitors.map((visitor) => {
     const safeVisitor = normalizeVisitorState(visitor);
     return [safeVisitor.visitorId, safeVisitor];
   }));
+  accounts.filter((account) => account.isRegistered).forEach((account) => {
+    new Set(Array.isArray(account.visitorIds) ? account.visitorIds : []).forEach((visitorId) => {
+      const safeVisitorId = String(visitorId || "");
+      if (!safeVisitorId) return;
+      registeredVisitorOwnerCount.set(safeVisitorId, Number(registeredVisitorOwnerCount.get(safeVisitorId) || 0) + 1);
+    });
+  });
   jobs.forEach((job) => {
+    if (job?.ownerAdmin === true) return;
     const visitorId = String(job?.ownerVisitorId || "");
+    const accountId = String(job?.ownerAccountId || "");
+    if (accountId) {
+      accountGenerationCount.set(accountId, Number(accountGenerationCount.get(accountId) || 0) + 1);
+      return;
+    }
     if (!visitorId) return;
     visitorGenerationCount.set(visitorId, Number(visitorGenerationCount.get(visitorId) || 0) + 1);
   });
@@ -8443,6 +8470,10 @@ async function listAdminUserRecords({ page = 1, limit = 20, search = "", status 
         recordType: "registered",
         accountId: account.id,
         visitorId: "",
+        generationCount: Number(accountGenerationCount.get(account.id) || 0) + (Array.isArray(account.visitorIds) ? account.visitorIds.reduce((total, visitorId) => {
+          const safeVisitorId = String(visitorId || "");
+          return total + (Number(registeredVisitorOwnerCount.get(safeVisitorId) || 0) <= 1 ? Number(visitorGenerationCount.get(safeVisitorId) || 0) : 0);
+        }, 0) : 0),
         lastLoginAt: latestActivityByAccountId.get(account.id) || account.lastLoginAt
       })),
     ...visitors
@@ -8454,9 +8485,7 @@ async function listAdminUserRecords({ page = 1, limit = 20, search = "", status 
       const safeVisitor = normalizeVisitorState(visitor);
       const linkedAccount = accountByVisitorId.get(safeVisitor.visitorId) || null;
       const latestSession = latestSessionByVisitorId.get(safeVisitor.visitorId) || null;
-      const visitorLabel = linkedAccount
-        ? `访客 · ${getAccountDisplayName(linkedAccount, `访客 ${safeVisitor.visitorId.slice(0, 8)}`)}`
-        : `访客 ${safeVisitor.visitorId.slice(0, 8)}`;
+      const visitorLabel = `访客 ${safeVisitor.visitorId.slice(0, 8)}`;
       return {
         ...(linkedAccount || {}),
         id: safeVisitor.visitorId,
@@ -8469,7 +8498,8 @@ async function listAdminUserRecords({ page = 1, limit = 20, search = "", status 
         creditBalance: Number(linkedAccount?.creditBalance || 0),
         beanBalance: Number(linkedAccount?.beanBalance || 0),
         visitorCount: 0,
-        orderCount: Number(visitorGenerationCount.get(safeVisitor.visitorId) || 0),
+        orderCount: 0,
+        generationCount: Number(visitorGenerationCount.get(safeVisitor.visitorId) || 0),
         paidTotalCents: 0,
         visitorTier: safeVisitor.tier,
         browser: latestSession?.browser || "未知（历史访问未记录）",
@@ -8716,14 +8746,22 @@ function listAdminOrderRecords({ merchantId = "", orderStatus = "", orderType = 
   const includePhysicalOrders = !orderType || ["fridge", "body_book"].includes(orderType);
   const includePurchases = !merchantId && (!orderType || ["coin_purchase", "bean_purchase"].includes(orderType));
   const physicalOrderStatus = ORDER_STATUS_VALUES.has(orderStatus) ? orderStatus : "";
+  const searchText = String(search || "").trim().toLocaleLowerCase();
 
   if (includePhysicalOrders) {
-    const physicalOrders = orderStore.listOrdersForExport({ merchantId, orderStatus: physicalOrderStatus, search, startDate, endDate });
+    // The order store owns only physical-order fields. Load the filtered date /
+    // status set first, then match the registered account here so the admin
+    // search box can also find the actual person who placed the order.
+    const physicalOrders = orderStore.listOrdersForExport({ merchantId, orderStatus: physicalOrderStatus, startDate, endDate });
     physicalOrders.forEach((order) => {
       if (orderType === "fridge" && order.experienceType === "body-book") return;
       if (orderType === "body_book" && order.experienceType !== "body-book") return;
       const account = commerceStore.readAccount(order.accountId);
       const accountName = String(getAccountDisplayName(account) || account?.email || account?.id || "用户");
+      if (searchText && ![
+        order.orderNo, order.outTradeNo, order.receiverName, order.receiverPhone,
+        order.sourceMerchantName, accountName, account?.email, account?.id, order.accountId
+      ].some((value) => String(value || "").toLocaleLowerCase().includes(searchText))) return;
       records.push({
         ...toPublicOrder(order, { includePrivate: true }),
         recordType: "order",
@@ -8736,7 +8774,6 @@ function listAdminOrderRecords({ merchantId = "", orderStatus = "", orderType = 
   }
 
   if (includePurchases) {
-    const searchText = String(search || "").trim().toLocaleLowerCase();
     commerceStore.listAllPaymentIntents(500).forEach((intent) => {
       if (!["coin_purchase", "bean_purchase"].includes(intent.kind)) return;
       if (orderType && intent.kind !== orderType) return;
@@ -8747,7 +8784,7 @@ function listAdminOrderRecords({ merchantId = "", orderStatus = "", orderType = 
       const accountName = String(getAccountDisplayName(account) || account?.email || account?.id || "用户");
       const purchaseNo = String(intent.metadata?.purchaseNo || intent.outTradeNo || intent.id);
       const purchaseQuantity = Math.max(0, Number(intent.kind === "coin_purchase" ? intent.metadata?.coinCount : intent.metadata?.beanCount) || Number(intent.creditAmount || 0));
-      if (searchText && ![purchaseNo, intent.outTradeNo, accountName, intent.accountId].some((value) => String(value || "").toLocaleLowerCase().includes(searchText))) return;
+      if (searchText && ![purchaseNo, intent.outTradeNo, accountName, account?.email, intent.accountId].some((value) => String(value || "").toLocaleLowerCase().includes(searchText))) return;
       records.push({
         ...toPublicAdminPaymentIntent(intent),
         recordType: "purchase",
@@ -9583,8 +9620,9 @@ function toPublicClipItem(job) {
   };
 }
 
-async function listAdminUserImageAssets(accountId) {
+async function listAdminUserImageAssets({ accountId = "", visitorId = "" } = {}) {
   const safeAccountId = String(accountId || "");
+  const safeVisitorId = String(visitorId || "");
   const [jobs, accounts] = await Promise.all([
     listImageJobs(),
     Promise.resolve(commerceStore.listAdminAccounts())
@@ -9597,15 +9635,16 @@ async function listAdminUserImageAssets(accountId) {
       visitorOwnerCounts.set(safeVisitorId, Number(visitorOwnerCounts.get(safeVisitorId) || 0) + 1);
     });
   });
-  const legacyVisitorIds = new Set(
+  const legacyVisitorIds = new Set(safeAccountId ? (
     commerceStore.listVisitorIds(safeAccountId)
       .map((visitorId) => String(visitorId || ""))
       .filter((visitorId) => visitorId && Number(visitorOwnerCounts.get(visitorId) || 0) <= 1)
-  );
+  ) : [safeVisitorId]);
   const ownsAsset = (job) => {
     if (!job || job.ownerAdmin === true || job.status !== "succeeded") return false;
     const ownerAccountId = String(job.ownerAccountId || "");
-    if (ownerAccountId) return ownerAccountId === safeAccountId;
+    if (safeAccountId && ownerAccountId) return ownerAccountId === safeAccountId;
+    if (!safeAccountId && ownerAccountId) return false;
     // A legacy browser-only task can be recovered only when that browser ID
     // was never linked to another registered user; shared-browser history is
     // deliberately not guessed and therefore cannot leak across accounts.

@@ -5501,49 +5501,53 @@ h2 {
 
 .user-admin-table {
   width: 100%;
-  min-width: 930px;
+  min-width: 0;
   border-collapse: collapse;
   table-layout: fixed;
 }
 
 .user-admin-status-column {
-  width: 60px;
+  width: 4.8%;
 }
 
 .user-admin-table col:nth-child(2) {
-  width: 64px;
+  width: 5.2%;
 }
 
 .user-admin-identity-column {
-  width: 142px;
+  width: 13.5%;
 }
 
 .user-admin-table col:nth-child(4) {
-  width: 118px;
+  width: 11%;
 }
 
 .user-admin-credit-column {
-  width: 88px;
+  width: 9.5%;
 }
 
 .user-admin-download-column {
-  width: 64px;
+  width: 6.5%;
 }
 
 .user-admin-date-column {
-  width: 94px;
+  width: 9%;
 }
 
 .user-admin-orders-column {
-  width: 70px;
+  width: 6%;
+}
+
+.user-admin-tasks-column {
+  width: 6.5%;
 }
 
 .user-admin-clip-column {
-  width: 78px;
+  width: 6.5%;
 }
 
 .user-admin-action-column {
-  width: 52px;
+  width: 5.5%;
 }
 
 .user-admin-table th,
@@ -5876,7 +5880,7 @@ h2 {
 
 @media (max-width: 1180px) {
   .user-admin-table {
-    min-width: 860px;
+    min-width: 0;
   }
 
   .user-admin-table th,

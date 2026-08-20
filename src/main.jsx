@@ -9371,6 +9371,7 @@ function UserAdminPage({ onOpenClip }) {
               <col className="user-admin-date-column" />
               <col className="user-admin-date-column" />
               <col className="user-admin-orders-column" />
+              <col className="user-admin-tasks-column" />
               <col className="user-admin-clip-column" />
               <col className="user-admin-action-column" />
             </colgroup>
@@ -9384,7 +9385,8 @@ function UserAdminPage({ onOpenClip }) {
                 <th scope="col">下载额度</th>
                 <th scope="col">注册时间</th>
                 <th scope="col">最近登录</th>
-                <th scope="col">订单 / 生成任务</th>
+                <th scope="col">订单</th>
+                <th scope="col">生成任务</th>
                 <th scope="col">图片资产</th>
                 <th scope="col" aria-label="操作" />
               </tr>
@@ -9405,8 +9407,9 @@ function UserAdminPage({ onOpenClip }) {
                   <td className="user-admin-download">{user.recordType === "registered" ? (user.originalDownloadAllowance?.unlimited ? "永久" : `${Math.max(0, Number(user.originalDownloadAllowance?.remaining || 0))} 次`) : "—"}</td>
                   <td className="user-admin-date">{formatDateTime(user.registeredAt || user.createdAt)}</td>
                   <td className="user-admin-date">{formatDateTime(user.lastLoginAt)}</td>
-                  <td>{user.recordType === "visitor" ? <div className="user-admin-orders"><strong>{user.orderCount} 个</strong><span>生成任务</span></div> : <div className="user-admin-orders"><strong>{user.orderCount} 笔</strong><span>{formatCurrencyCents(user.paidTotalCents)}</span></div>}</td>
-                  <td>{user.recordType === "registered" ? <button className="secondary-button user-admin-clip-button" onClick={() => onOpenClip(user.accountId || user.id)} type="button"><Layers3 size={15} /><span>查看</span></button> : <span className="storage-note">—</span>}</td>
+                  <td>{user.recordType === "visitor" ? <span className="storage-note">—</span> : <div className="user-admin-orders"><strong>{user.orderCount} 笔</strong><span>{formatCurrencyCents(user.paidTotalCents)}</span></div>}</td>
+                  <td><div className="user-admin-orders"><strong>{user.generationCount || 0} 个</strong><span>生成任务</span></div></td>
+                  <td>{user.recordType === "registered" || user.generationCount > 0 ? <button className="secondary-button user-admin-clip-button" onClick={() => onOpenClip(user.recordType === "visitor" ? user.visitorId : user.accountId || user.id)} type="button"><Layers3 size={15} /><span>查看</span></button> : <span className="storage-note">—</span>}</td>
                   <td className="user-admin-action"><button className="secondary-button user-admin-detail-button" onClick={() => openDetail(user)} type="button"><Eye size={15} /><span>详情</span></button></td>
                 </tr>
               ))}
