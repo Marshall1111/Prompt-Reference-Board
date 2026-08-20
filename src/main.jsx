@@ -3031,12 +3031,16 @@ function BodyBookFlipBook({ pages, ariaLabel = "认知书翻页预览" }) {
     Math.max(160, viewportSize.width - 32),
     Math.max(160, (viewportSize.height - 132) / 2)
   )));
-  const compactPageSize = landscapeMode ? landscapePageSize : 146;
+  const portraitPageSize = Math.max(150, Math.floor(Math.min(220, (viewportSize.width - 58) / 2)));
+  const compactPageSize = landscapeMode ? landscapePageSize : portraitPageSize;
   const pageMinSize = isCompactViewport ? compactPageSize : 260;
   const landscapeBookStyle = landscapeMode ? { "--body-book-landscape-page-size": `${compactPageSize}px` } : undefined;
+  const portraitStageStyle = isCompactViewport && !landscapeMode
+    ? { minHeight: `${compactPageSize + 24}px`, padding: "8px" }
+    : undefined;
 
   return <section aria-label={ariaLabel} className={`body-book-flip-reader${landscapeMode ? " is-landscape-mode" : ""}`}>
-    <div className="body-book-flip-stage" onTouchCancelCapture={() => { landscapeTouchStartRef.current = null; }} onTouchEndCapture={handleLandscapeTouchEnd} onTouchMoveCapture={handleLandscapeTouchMove} onTouchStartCapture={handleLandscapeTouchStart}>
+    <div className="body-book-flip-stage" onTouchCancelCapture={() => { landscapeTouchStartRef.current = null; }} onTouchEndCapture={handleLandscapeTouchEnd} onTouchMoveCapture={handleLandscapeTouchMove} onTouchStartCapture={handleLandscapeTouchStart} style={portraitStageStyle}>
       <div className="body-book-flip-rotator" style={landscapeBookStyle}>
       <HTMLFlipBook
         /* react-pageflip only reads its dimensions on initialization.  The key
