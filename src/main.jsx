@@ -356,7 +356,7 @@ function App() {
       "admin-api-providers": "API 配置",
       "admin-referrals": "推荐管理",
       "admin-visits": "访问记录",
-      "admin-user-clip": "用户卡夹"
+      "admin-user-clip": "图片资产"
     };
     document.title = titleByRoute[route] || "AI小画家";
   }, [route]);
@@ -8063,7 +8063,7 @@ async function deleteAdminUser(userId) {
 async function fetchAdminUserClipItems(userId) {
   const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/clip-items`);
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message || "读取用户卡夹失败。");
+  if (!response.ok) throw new Error(payload.message || "读取用户图片资产失败。");
   return payload;
 }
 
@@ -8082,15 +8082,45 @@ async function updateAdminUserStatus(userId, status) {
   return payload;
 }
 
-async function adjustAdminUserWallet(userId, delta, currency, remark) {
+async function adjustAdminUserWallet(userId, delta, currency, remark, isRechargeRefund = false) {
   const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/wallet`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ delta, currency, remark })
+    body: JSON.stringify({ delta, currency, remark, isRechargeRefund })
   });
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "调整余额失败。");
   return payload;
+}
+
+async function adjustAdminUserDownloadAllowance(userId, delta, remark) {
+  const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/download-allowance`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ delta, remark })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "调整下载额度失败。");
+  return payload;
+}
+
+async function exportAdminUserDetails(userId) {
+  const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/export-details`, { cache: "no-store" });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.message || "导出用户明细失败。");
+  }
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+  if (!contentType.includes("spreadsheetml")) throw new Error("导出文件格式异常，请刷新并重新登录后台后再试。");
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = parseDownloadFilename(response.headers.get("content-disposition"), "user-details.xlsx");
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }
 
 async function adminLogin(username, password) {
@@ -9200,6 +9230,10 @@ function UserAdminPage({ onOpenClip }) {
   const [delta, setDelta] = useState("");
   const [remark, setRemark] = useState("");
   const [currency, setCurrency] = useState("coin");
+  const [isRechargeRefund, setIsRechargeRefund] = useState(true);
+  const [downloadDelta, setDownloadDelta] = useState("");
+  const [downloadRemark, setDownloadRemark] = useState("");
+  const [isExportingDetails, setIsExportingDetails] = useState(false);
   const limit = 20;
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
@@ -9226,6 +9260,9 @@ function UserAdminPage({ onOpenClip }) {
     setDelta("");
     setRemark("");
     setCurrency("coin");
+    setIsRechargeRefund(true);
+    setDownloadDelta("");
+    setDownloadRemark("");
     if (user.recordType === "visitor") {
       setDetail({ user });
       return;
@@ -9252,14 +9289,41 @@ function UserAdminPage({ onOpenClip }) {
   async function adjustWallet() {
     if (!selected) return;
     try {
-      const payload = await adjustAdminUserWallet(selected.id, Number(delta), currency, remark);
+      const payload = await adjustAdminUserWallet(selected.id, Number(delta), currency, remark, Number(delta) < 0 && isRechargeRefund);
       setSelected(payload.user);
       setDetail((current) => current ? { ...current, user: payload.user, ledger: payload.ledger, beanLedger: payload.beanLedger } : current);
       setDelta("");
       setRemark("");
+      setIsRechargeRefund(true);
       await load();
     } catch (nextError) {
       setError(nextError.message || "调整余额失败。");
+    }
+  }
+
+  async function adjustDownloadAllowance() {
+    if (!selected) return;
+    try {
+      const payload = await adjustAdminUserDownloadAllowance(selected.id, Number(downloadDelta), downloadRemark);
+      setSelected(payload.user);
+      setDetail((current) => current ? { ...current, user: payload.user, downloadAllowanceAdjustments: payload.downloadAllowanceAdjustments } : current);
+      setDownloadDelta("");
+      setDownloadRemark("");
+      await load();
+    } catch (nextError) {
+      setError(nextError.message || "调整下载额度失败。");
+    }
+  }
+
+  async function exportDetails() {
+    if (!selected || isExportingDetails) return;
+    setIsExportingDetails(true);
+    try {
+      await exportAdminUserDetails(selected.id);
+    } catch (nextError) {
+      setError(nextError.message || "导出用户明细失败。");
+    } finally {
+      setIsExportingDetails(false);
     }
   }
 
@@ -9303,9 +9367,9 @@ function UserAdminPage({ onOpenClip }) {
               <col className="user-admin-identity-column" />
               <col className="user-admin-identity-column" />
               <col className="user-admin-credit-column" />
+              <col className="user-admin-download-column" />
               <col className="user-admin-date-column" />
               <col className="user-admin-date-column" />
-              <col className="user-admin-browser-column" />
               <col className="user-admin-orders-column" />
               <col className="user-admin-clip-column" />
               <col className="user-admin-action-column" />
@@ -9317,11 +9381,11 @@ function UserAdminPage({ onOpenClip }) {
                 <th scope="col">用户</th>
                 <th scope="col">邀请人</th>
                 <th scope="col">币 / 豆豆</th>
+                <th scope="col">下载额度</th>
                 <th scope="col">注册时间</th>
                 <th scope="col">最近登录</th>
-                <th scope="col">浏览器</th>
                 <th scope="col">订单 / 生成任务</th>
-                <th scope="col">用户卡夹</th>
+                <th scope="col">图片资产</th>
                 <th scope="col" aria-label="操作" />
               </tr>
             </thead>
@@ -9338,11 +9402,11 @@ function UserAdminPage({ onOpenClip }) {
                   </td>
                   <td><div className="user-admin-identity"><strong title={user.inviter?.name || user.invitationSource || ""}>{user.inviter?.name || user.invitationSource || "—"}</strong>{user.inviter?.email ? <span title={user.inviter.email}>{user.inviter.email}</span> : null}</div></td>
                   <td className="user-admin-number">{user.coinBalance} 币 / {user.beanBalance} 豆豆</td>
+                  <td className="user-admin-download">{user.recordType === "registered" ? (user.originalDownloadAllowance?.unlimited ? "永久" : `${Math.max(0, Number(user.originalDownloadAllowance?.remaining || 0))} 次`) : "—"}</td>
                   <td className="user-admin-date">{formatDateTime(user.registeredAt || user.createdAt)}</td>
                   <td className="user-admin-date">{formatDateTime(user.lastLoginAt)}</td>
-                  <td className="user-admin-browser" title={user.browser || ""}>{user.recordType === "visitor" ? user.browser || "未知" : "—"}</td>
                   <td>{user.recordType === "visitor" ? <div className="user-admin-orders"><strong>{user.orderCount} 个</strong><span>生成任务</span></div> : <div className="user-admin-orders"><strong>{user.orderCount} 笔</strong><span>{formatCurrencyCents(user.paidTotalCents)}</span></div>}</td>
-                  <td>{user.recordType === "registered" ? <button className="secondary-button user-admin-clip-button" onClick={() => onOpenClip(user.accountId || user.id)} type="button"><Layers3 size={15} /><span>查看卡夹</span></button> : <span className="storage-note">—</span>}</td>
+                  <td>{user.recordType === "registered" ? <button className="secondary-button user-admin-clip-button" onClick={() => onOpenClip(user.accountId || user.id)} type="button"><Layers3 size={15} /><span>查看</span></button> : <span className="storage-note">—</span>}</td>
                   <td className="user-admin-action"><button className="secondary-button user-admin-detail-button" onClick={() => openDetail(user)} type="button"><Eye size={15} /><span>详情</span></button></td>
                 </tr>
               ))}
@@ -9355,13 +9419,12 @@ function UserAdminPage({ onOpenClip }) {
         <div className="modal-backdrop" onClick={() => setSelected(null)} role="presentation">
           <section className="prompt-modal order-admin-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="用户详情">
             <div className="modal-head"><div><p className="eyebrow">User detail</p><h2>{detail?.user?.username || selected.username}</h2></div><button className="icon-button" onClick={() => setSelected(null)} type="button"><X size={18} /></button></div>
-            <p className="storage-note">{detail?.user?.email || (detail?.user?.visitorId ? `访客 ID：${detail.user.visitorId}` : selected.email)} · {detail?.user?.coinBalance ?? selected.coinBalance} 币 / {detail?.user?.beanBalance ?? selected.beanBalance} 豆豆 · 邀请人：{detail?.user?.inviter?.name || detail?.user?.invitationSource || "无"}</p>
+            <p className="storage-note">{detail?.user?.email || (detail?.user?.visitorId ? `访客 ID：${detail.user.visitorId}` : selected.email)} · {detail?.user?.coinBalance ?? selected.coinBalance} 币 / {detail?.user?.beanBalance ?? selected.beanBalance} 豆豆 · 下载额度：{detail?.user?.originalDownloadAllowance?.unlimited ? "永久" : `${Math.max(0, Number(detail?.user?.originalDownloadAllowance?.remaining || 0))} 次`} · 邀请人：{detail?.user?.inviter?.name || detail?.user?.invitationSource || "无"}</p>
             {selected.recordType === "registered" ? <>
               <div className="task-actions"><button className={detail?.user?.status === "disabled" ? "secondary-button" : "danger-button"} disabled={isDeleting} onClick={() => updateStatus(detail?.user?.status === "disabled" ? "active" : "disabled")} type="button">{detail?.user?.status === "disabled" ? "恢复用户" : "禁用用户"}</button><button className="danger-button" disabled={isDeleting} onClick={deleteUser} type="button">{isDeleting ? "正在永久删除..." : "永久删除用户"}</button></div>
-              <div className="draw-card-order-form"><label className="field-label">币种<select onChange={(event) => setCurrency(event.target.value)} value={currency}><option value="coin">币</option><option value="bean">豆豆</option></select></label><label className="field-label">调整余额（正数增加、负数扣减）<input onChange={(event) => setDelta(event.target.value)} type="number" value={delta} /></label><label className="field-label">调整备注<textarea onChange={(event) => setRemark(event.target.value)} rows="2" value={remark} /></label><button className="secondary-button" disabled={!Number(delta) || !remark.trim()} onClick={adjustWallet} type="button">保存余额调整</button></div>
-              <h3>币流水</h3><div className="task-list">{(detail?.ledger || []).slice(0, 20).map((item) => <div className="task-meta-row" key={item.id}><strong>{item.delta > 0 ? "+" : ""}{item.delta} 币</strong><span>{item.reason}{item.note ? `：${item.note}` : ""}</span><span>{formatDateTime(item.createdAt)}</span></div>)}</div>
-              <h3>豆豆流水</h3><div className="task-list">{(detail?.beanLedger || []).slice(0, 20).map((item) => <div className="task-meta-row" key={item.id}><strong>{item.delta > 0 ? "+" : ""}{item.delta} 豆豆</strong><span>{item.reason}{item.note ? `：${item.note}` : ""}</span><span>{formatDateTime(item.createdAt)}</span></div>)}</div>
-              <h3>订单摘要</h3><div className="task-list">{(detail?.orders || []).slice(0, 20).map((order) => <div className="task-meta-row" key={order.id}><strong>{order.orderNo}</strong><span>{order.paymentStatus === "paid" ? "已支付" : "未支付"}</span><span>{formatCurrencyCents(order.totalCents)}</span></div>)}</div>
+              <div className="draw-card-order-form"><label className="field-label">币种<select onChange={(event) => setCurrency(event.target.value)} value={currency}><option value="coin">币</option><option value="bean">豆豆</option></select></label><label className="field-label">调整余额（正数增加、负数扣减）<input onChange={(event) => { const value = event.target.value; setDelta(value); if (Number(value) < 0) setIsRechargeRefund(true); else setIsRechargeRefund(false); }} type="number" value={delta} /></label><label className="field-label">调整备注<textarea onChange={(event) => setRemark(event.target.value)} rows="2" value={remark} /></label><label className="field-label admin-wallet-refund-toggle"><span>权益处理</span><span className="checkbox-row"><input checked={isRechargeRefund} disabled={Number(delta) >= 0} onChange={(event) => setIsRechargeRefund(event.target.checked)} type="checkbox" />是否为充值退款</span><small>勾选后，扣减币/豆豆会同步扣除购买充值带来的下载和优惠权益。</small></label><button className="secondary-button" disabled={!Number(delta) || !remark.trim()} onClick={adjustWallet} type="button">保存余额调整</button></div>
+              {detail?.user?.originalDownloadAllowance?.unlimited ? <p className="storage-note">该用户已获得永久原图下载资格，无需再调整下载次数。</p> : <div className="draw-card-order-form admin-download-allowance-form"><label className="field-label">下载额度调整（正数增加、负数扣减）<input onChange={(event) => setDownloadDelta(event.target.value)} type="number" value={downloadDelta} /></label><label className="field-label">调整备注<textarea onChange={(event) => setDownloadRemark(event.target.value)} rows="2" value={downloadRemark} /></label><button className="secondary-button" disabled={!Number(downloadDelta) || !downloadRemark.trim()} onClick={adjustDownloadAllowance} type="button">保存下载额度</button></div>}
+              <div className="admin-user-detail-export"><button className="secondary-button" disabled={isExportingDetails} onClick={exportDetails} type="button"><Download size={16} /><span>{isExportingDetails ? "正在导出…" : "导出明细（Excel）"}</span></button></div>
             </> : <p className="storage-note">访客记录为匿名会话信息，暂无可管理的钱包、订单或卡夹。</p>}
           </section>
         </div>
@@ -9372,7 +9435,7 @@ function UserAdminPage({ onOpenClip }) {
 
 function UserClipAdminPage({ onBack, userId }) {
   const [user, setUser] = useState(null);
-  const [items, setItems] = useState([]);
+  const [assets, setAssets] = useState({ clipItems: [], bodyBookItems: [], historyItems: [] });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -9386,10 +9449,14 @@ function UserClipAdminPage({ onBack, userId }) {
     try {
       const payload = await fetchAdminUserClipItems(userId);
       setUser(payload.user || null);
-      setItems(payload.items || []);
+      setAssets({
+        clipItems: payload.clipItems || [],
+        bodyBookItems: payload.bodyBookItems || [],
+        historyItems: payload.historyItems || []
+      });
       setError("");
     } catch (nextError) {
-      setError(nextError.message || "读取用户卡夹失败。");
+      setError(nextError.message || "读取用户图片资产失败。");
     } finally {
       setIsLoading(false);
     }
@@ -9398,12 +9465,12 @@ function UserClipAdminPage({ onBack, userId }) {
   useEffect(() => { void load(); }, [userId]);
 
   return (
-    <section className="task-page user-clip-admin-page" aria-label="用户卡夹">
+    <section className="task-page user-clip-admin-page" aria-label="用户图片资产">
       <div className="task-toolbar">
         <div>
-          <p className="eyebrow">User clip</p>
-          <h2>{user?.username ? `${user.username} 的卡夹` : "用户卡夹"}</h2>
-          <p className="storage-note">{user?.email || "查看该用户已收藏的生成图片，可下载原始生成文件。"}</p>
+          <p className="eyebrow">Image assets</p>
+          <h2>{user?.username ? `${user.username} 的图片资产` : "图片资产"}</h2>
+          <p className="storage-note">{user?.email || "按卡夹、认知书工程及其他历史生成图片分类查看，并可下载原图。"}</p>
         </div>
         <div className="task-actions user-clip-admin-actions">
           <button className="secondary-button" onClick={onBack} type="button"><ArrowLeft size={18} /><span>返回用户列表</span></button>
@@ -9411,22 +9478,12 @@ function UserClipAdminPage({ onBack, userId }) {
         </div>
       </div>
       {error ? <p className="error-note">{error}</p> : null}
-      {isLoading ? <p className="storage-note">正在读取用户卡夹...</p> : null}
-      {!isLoading && !error && !items.length ? <p className="empty-note">该用户的卡夹中暂无图片。</p> : null}
-      {items.length ? (
-        <div className="user-clip-admin-grid">
-          {items.map((item) => (
-            <article className="user-clip-admin-card" key={item.jobId}>
-              <img alt={item.styleName || "用户卡夹图片"} className="user-clip-admin-image" src={item.imageUrl || item.thumbnailUrl} />
-              <div className="user-clip-admin-copy">
-                <strong>{item.styleName || "未命名风格"}</strong>
-                <span>{publicExperienceLabel(item.experienceType)} · 收藏于 {formatDateTime(item.likedAt || item.completedAt || item.createdAt)}</span>
-              </div>
-              <a className="secondary-button user-clip-admin-download" href={getAdminUserClipDownloadUrl(userId, item.jobId)}><Download size={16} /><span>下载原图</span></a>
-            </article>
-          ))}
-        </div>
-      ) : null}
+      {isLoading ? <p className="storage-note">正在读取用户图片资产...</p> : null}
+      {!isLoading && !error ? <div className="user-asset-groups">{[
+        ["卡夹内图片", assets.clipItems, "用户收藏到卡夹的图片"],
+        ["认知书工程图片", assets.bodyBookItems, "认知书工程中生成的图片"],
+        ["其他历史生成图片", assets.historyItems, "未收藏、且不属于认知书工程的历史生成图片"]
+      ].map(([title, items, description]) => <section className="user-asset-group" key={title}><div className="user-asset-group-head"><div><h3>{title}</h3><p>{description}</p></div><span>{items.length} 张</span></div>{items.length ? <div className="user-clip-admin-grid">{items.map((item) => <article className="user-clip-admin-card" key={item.jobId}><img alt={item.styleName || title} className="user-clip-admin-image" src={item.imageUrl || item.thumbnailUrl} /><div className="user-clip-admin-copy"><strong>{item.styleName || "未命名风格"}</strong><span>{publicExperienceLabel(item.experienceType)} · 生成于 {formatDateTime(item.completedAt || item.createdAt)}</span></div><a className="secondary-button user-clip-admin-download" href={getAdminUserClipDownloadUrl(userId, item.jobId)}><Download size={16} /><span>下载原图</span></a></article>)}</div> : <p className="storage-note user-asset-empty">暂无图片。</p>}</section>)}</div> : null}
     </section>
   );
 }
@@ -9790,26 +9847,26 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
       <div className="order-table-wrap">
         <table className="order-table">
           <thead>
-            <tr><th>订单类型</th><th>订单号</th><th>用户 / 收件人</th><th>金额</th><th>状态</th><th>创建时间</th><th aria-label="操作"></th></tr>
+            <tr><th>订单类型</th><th>订单号</th><th>下单用户</th><th>收件人</th><th>金额</th><th>状态</th><th>创建时间</th><th aria-label="操作"></th></tr>
           </thead>
           <tbody>
             {orders.map((order) => (
               <tr key={`${order.recordType || "order"}:${order.id}`}>
                 <td><span className="order-type-tag">{getAdminOrderTypeLabel(order)}</span></td>
                 <td className="order-number-cell"><strong>{order.orderNo}</strong>{order.recordType !== "purchase" && order.experienceType !== "body-book" ? <small>共 {order.itemCount} 枚</small> : null}{order.recordType === "purchase" ? <small>{order.purchaseQuantityText}</small> : null}</td>
-                <td>{order.recordType === "purchase" ? <>{order.accountName || "用户"}</> : <>{order.receiverName || "--"}<small>{order.receiverPhone || ""}</small></>}</td>
+                <td className="order-user-cell"><strong>{order.accountName || "用户"}</strong><small>{order.accountEmail || (order.accountId ? `账户 ${String(order.accountId).slice(-8)}` : "")}</small></td>
+                <td>{order.recordType === "purchase" ? <span className="order-table-empty-action">—</span> : <>{order.receiverName || "--"}<small>{order.receiverPhone || ""}</small></>}</td>
                 <td>{formatCurrencyCents(Number(order.amountCents ?? order.payableCents ?? order.totalCents ?? 0))}</td>
                 <td><span className={`task-status ${getAdminOrderPrimaryStatusTone(order)}`}>{getAdminOrderPrimaryStatusLabel(order)}</span></td>
                 <td>{formatDateTime(order.createdAt)}</td>
                 <td className="order-table-actions">
                   {order.recordType === "purchase" && order.canConfirmManual ? <button className="secondary-button" disabled={isBusy} onClick={() => confirmManualBeanPurchase(order)} type="button">确认收款</button> : null}
-                  {order.recordType === "purchase" && order.orderStatus === "paid" ? <button className="danger-button" disabled={isBusy} onClick={() => refundPurchase(order)} type="button">登记退款</button> : null}
                   {order.recordType !== "purchase" ? <button className="secondary-button" onClick={() => loadOrderDetail(order.id)} type="button"><Eye size={16} /><span>详情</span></button> : null}
                   {order.recordType === "purchase" && !order.canConfirmManual ? <span className="order-table-empty-action">—</span> : null}
                 </td>
               </tr>
             ))}
-            {!orders.length ? <tr><td className="order-table-empty" colSpan="7">当前没有符合条件的订单。</td></tr> : null}
+            {!orders.length ? <tr><td className="order-table-empty" colSpan="8">当前没有符合条件的订单。</td></tr> : null}
           </tbody>
         </table>
       </div>

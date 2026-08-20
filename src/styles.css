@@ -3056,6 +3056,35 @@ body {
   min-height: 96px;
 }
 
+.admin-wallet-refund-toggle {
+  display: grid;
+  gap: 5px;
+  align-content: start;
+}
+
+.admin-wallet-refund-toggle .checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  color: #1d1d1f;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.admin-wallet-refund-toggle input[type="checkbox"] {
+  width: 16px;
+  min-height: 16px;
+  height: 16px;
+  accent-color: #0071e3;
+}
+
+.admin-wallet-refund-toggle small {
+  color: #6e6e73;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .draw-card-shell.theme-fridge-magnet {
   background:
     radial-gradient(circle at 18% 14%, rgba(221, 234, 236, 0.9), transparent 28%),
@@ -4983,7 +5012,7 @@ h2 {
 
 .order-table {
   width: 100%;
-  min-width: 860px;
+  min-width: 980px;
   border-collapse: collapse;
   color: #30413d;
   font-size: 0.82rem;
@@ -5036,6 +5065,10 @@ h2 {
 .order-number-cell strong {
   color: #25413c;
   font-size: 0.8rem;
+}
+
+.order-user-cell {
+  min-width: 116px;
 }
 
 .order-type-tag {
@@ -5468,54 +5501,54 @@ h2 {
 
 .user-admin-table {
   width: 100%;
-  min-width: 1460px;
+  min-width: 930px;
   border-collapse: collapse;
   table-layout: fixed;
 }
 
 .user-admin-status-column {
-  width: 92px;
+  width: 60px;
 }
 
 .user-admin-table col:nth-child(2) {
-  width: 110px;
+  width: 64px;
 }
 
 .user-admin-identity-column {
-  width: 220px;
+  width: 142px;
 }
 
 .user-admin-table col:nth-child(4) {
-  width: 190px;
+  width: 118px;
 }
 
 .user-admin-credit-column {
-  width: 126px;
+  width: 88px;
+}
+
+.user-admin-download-column {
+  width: 64px;
 }
 
 .user-admin-date-column {
-  width: 134px;
-}
-
-.user-admin-browser-column {
-  width: 126px;
+  width: 94px;
 }
 
 .user-admin-orders-column {
-  width: 96px;
+  width: 70px;
 }
 
 .user-admin-clip-column {
-  width: 120px;
+  width: 78px;
 }
 
 .user-admin-action-column {
-  width: 76px;
+  width: 52px;
 }
 
 .user-admin-table th,
 .user-admin-table td {
-  padding: 10px 12px;
+  padding: 8px 8px;
   border-bottom: 1px solid #ebe6de;
   color: #42524d;
   font-size: 0.84rem;
@@ -5786,12 +5819,11 @@ h2 {
   white-space: nowrap;
 }
 
-.user-admin-browser {
-  overflow: hidden;
-  color: #60706d;
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-overflow: ellipsis;
+.user-admin-download {
+  color: #1d1d1f;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
   white-space: nowrap;
 }
 
@@ -5815,10 +5847,53 @@ h2 {
 
 .user-admin-clip-button {
   min-height: 30px;
-  padding: 0 9px;
+  padding: 0 7px;
   gap: 5px;
   font-size: 0.78rem;
   white-space: nowrap;
+}
+
+.user-admin-clip-button span,
+.user-admin-detail-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-download-allowance-form {
+  grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1.4fr) auto;
+  align-items: end;
+}
+
+.admin-download-allowance-form textarea {
+  min-height: 44px;
+}
+
+.admin-user-detail-export {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+
+@media (max-width: 1180px) {
+  .user-admin-table {
+    min-width: 860px;
+  }
+
+  .user-admin-table th,
+  .user-admin-table td {
+    padding-inline: 6px;
+    font-size: 0.78rem;
+  }
+
+  .user-admin-table th {
+    font-size: 0.64rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-download-allowance-form {
+    grid-template-columns: 1fr;
+  }
 }
 
 .user-clip-admin-actions {
@@ -5840,6 +5915,56 @@ h2 {
 
 .user-clip-admin-actions > button {
   flex: 0 0 auto;
+}
+
+.user-asset-groups {
+  display: grid;
+  gap: 20px;
+}
+
+.user-asset-group {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(60, 60, 67, 0.13);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 8px 24px rgba(28, 28, 30, 0.05);
+}
+
+.user-asset-group-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.user-asset-group-head h3 {
+  margin: 0 0 3px;
+  color: #1d1d1f;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.user-asset-group-head p,
+.user-asset-empty {
+  margin: 0;
+  color: #6e6e73;
+  font-size: 0.8rem;
+}
+
+.user-asset-group-head > span {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f2f2f7;
+  color: #6e6e73;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.user-asset-empty {
+  padding: 12px 0 2px;
 }
 
 .user-clip-admin-grid {

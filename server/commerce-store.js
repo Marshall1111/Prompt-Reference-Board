@@ -210,6 +210,17 @@ export function createCommerceStore({ dbPath }) {
       FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
     );
 
+    -- Administrators can add or remove the non-share download allowance
+    -- without changing the user's payment records.
+    CREATE TABLE IF NOT EXISTS commerce_original_download_allowance_adjustments (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      delta INTEGER NOT NULL,
+      note TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS commerce_content_share_visits (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       share_type TEXT NOT NULL,
@@ -219,6 +230,20 @@ export function createCommerceStore({ dbPath }) {
       visited_at TEXT NOT NULL,
       UNIQUE(share_type, share_token, visitor_id),
       FOREIGN KEY (owner_account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
+    -- A recharge refund is recorded from the administrator's wallet-adjustment
+    -- screen.  Purchase payments remain paid for accounting purposes; this
+    -- table deducts the matching purchase-only benefits proportionally.
+    CREATE TABLE IF NOT EXISTS commerce_manual_recharge_refunds (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      currency TEXT NOT NULL CHECK(currency IN ('coin', 'bean')),
+      amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
+      wallet_ledger_id TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS commerce_payment_intents (
@@ -378,7 +403,9 @@ export function createCommerceStore({ dbPath }) {
     CREATE INDEX IF NOT EXISTS idx_commerce_original_image_redemptions_order ON commerce_original_image_redemptions(source_order_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_original_download_grants_account ON commerce_original_download_grants(account_id, scope, resource_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_original_download_uses_account ON commerce_original_download_uses(account_id, resource_type);
+    CREATE INDEX IF NOT EXISTS idx_commerce_original_download_allowance_adjustments_account ON commerce_original_download_allowance_adjustments(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_content_share_visits_token ON commerce_content_share_visits(share_type, share_token);
+    CREATE INDEX IF NOT EXISTS idx_commerce_manual_recharge_refunds_account ON commerce_manual_recharge_refunds(account_id, currency, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_user_sessions_account ON commerce_user_sessions(account_id, expires_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_email_verifications_lookup ON commerce_email_verifications(email, purpose, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_referrals_referrer ON commerce_referrals(referrer_account_id, captured_at DESC);
@@ -545,37 +572,64 @@ export function createCommerceStore({ dbPath }) {
   }
 
   function getPaidCoinPurchaseCents(accountId) {
-    return Number(db.prepare(`
+    const paidCents = Number(db.prepare(`
       SELECT COALESCE(SUM(amount_cents), 0) AS total
       FROM commerce_payment_intents
       WHERE account_id = ? AND kind = 'coin_purchase' AND status = 'paid'
     `).get(String(accountId || ""))?.total || 0);
+    return Math.max(0, paidCents - getManualRechargeRefundCents(accountId, "coin"));
+  }
+
+  function getManualRechargeRefundCents(accountId, currency = "") {
+    const safeCurrency = String(currency || "");
+    const condition = safeCurrency ? " AND currency = ?" : "";
+    const params = safeCurrency ? [String(accountId || ""), safeCurrency] : [String(accountId || "")];
+    return Number(db.prepare(`
+      SELECT COALESCE(SUM(amount_cents), 0) AS total
+      FROM commerce_manual_recharge_refunds
+      WHERE account_id = ?${condition}
+    `).get(...params)?.total || 0);
   }
 
   function getPaidOriginalDownloadCents(accountId) {
-    return Number(db.prepare(`
-      SELECT COALESCE(SUM(amount_cents), 0) AS total
+    const totals = db.prepare(`
+      SELECT
+        COALESCE(SUM(CASE WHEN kind IN ('physical_order', 'body_book_order') THEN amount_cents ELSE 0 END), 0) AS physical_total,
+        COALESCE(SUM(CASE WHEN kind = 'coin_purchase' THEN amount_cents ELSE 0 END), 0) AS coin_total,
+        COALESCE(SUM(CASE WHEN kind = 'bean_purchase' THEN amount_cents ELSE 0 END), 0) AS bean_total
       FROM commerce_payment_intents
       WHERE account_id = ?
         AND kind IN ('physical_order', 'body_book_order', 'coin_purchase', 'bean_purchase')
         AND status = 'paid'
-    `).get(String(accountId || ""))?.total || 0);
+    `).get(String(accountId || "")) || {};
+    return Math.max(0, Number(totals.physical_total || 0))
+      + Math.max(0, Number(totals.coin_total || 0) - getManualRechargeRefundCents(accountId, "coin"))
+      + Math.max(0, Number(totals.bean_total || 0) - getManualRechargeRefundCents(accountId, "bean"));
   }
 
   function hasOriginalImageDownloadAccess(accountId) {
     return getPaidOriginalDownloadCents(accountId) >= ORIGINAL_IMAGE_DOWNLOAD_UNLOCK_CENTS;
   }
 
+  function getOriginalDownloadAllowanceAdjustment(accountId) {
+    return Number(db.prepare(`
+      SELECT COALESCE(SUM(delta), 0) AS total
+      FROM commerce_original_download_allowance_adjustments
+      WHERE account_id = ?
+    `).get(String(accountId || ""))?.total || 0);
+  }
+
   function getOriginalDownloadAllowance(accountId) {
     const paidCents = getPaidOriginalDownloadCents(accountId);
     if (paidCents >= ORIGINAL_IMAGE_DOWNLOAD_UNLOCK_CENTS) {
-      return { paidCents, unlimited: true, total: null, used: 0, remaining: null };
+      return { paidCents, unlimited: true, total: null, used: 0, remaining: null, adjustment: getOriginalDownloadAllowanceAdjustment(accountId) };
     }
-    const total = Math.max(0, Math.floor(paidCents / 100));
+    const adjustment = getOriginalDownloadAllowanceAdjustment(accountId);
+    const total = Math.max(0, Math.floor(paidCents / 100) + adjustment);
     const used = Number(db.prepare(`
       SELECT COUNT(*) AS total FROM commerce_original_download_uses WHERE account_id = ?
     `).get(String(accountId || ""))?.total || 0);
-    return { paidCents, unlimited: false, total, used, remaining: Math.max(0, total - used) };
+    return { paidCents, unlimited: false, total, used, remaining: Math.max(0, total - used), adjustment };
   }
 
   function hasOriginalDownloadGrant(accountId, scope, resourceId) {
@@ -593,7 +647,8 @@ export function createCommerceStore({ dbPath }) {
   }
 
   function hasOriginalDownloadUse(accountId, resourceType, resourceId) {
-    const allowedUseCount = Math.max(0, Math.floor(getPaidOriginalDownloadCents(accountId) / 100));
+    const allowance = getOriginalDownloadAllowance(accountId);
+    const allowedUseCount = allowance.unlimited ? Number.MAX_SAFE_INTEGER : Math.max(0, Number(allowance.total || 0));
     if (allowedUseCount <= 0) return false;
     return Boolean(db.prepare(`
       SELECT 1
@@ -742,11 +797,13 @@ export function createCommerceStore({ dbPath }) {
       return { purchasedCents: 0, reservedCents: 0, usedCents: 0, availableCents: 0 };
     }
     releaseExpiredBodyBookDiscountReservations();
-    const purchasedCents = Number(db.prepare(`
+    const paidPurchaseCents = Number(db.prepare(`
       SELECT COALESCE(SUM(amount_cents), 0) AS total
       FROM commerce_payment_intents
       WHERE account_id = ? AND kind = 'bean_purchase' AND status = 'paid'
     `).get(safeAccountId)?.total || 0);
+    const refundedCents = getManualRechargeRefundCents(safeAccountId, "bean");
+    const purchasedCents = Math.max(0, paidPurchaseCents - refundedCents);
     const reservation = db.prepare(`
       SELECT
         COALESCE(SUM(CASE WHEN status = 'reserved' THEN discount_cents ELSE 0 END), 0) AS reserved_cents,
@@ -758,6 +815,7 @@ export function createCommerceStore({ dbPath }) {
     const usedCents = Number(reservation.used_cents || 0);
     return {
       purchasedCents,
+      refundedCents,
       reservedCents,
       usedCents,
       availableCents: Math.max(0, purchasedCents - reservedCents - usedCents)
@@ -830,11 +888,13 @@ export function createCommerceStore({ dbPath }) {
       return { purchasedCents: 0, reservedCents: 0, usedCents: 0, availableCents: 0 };
     }
     releaseExpiredFridgeCoinDiscountReservations();
-    const purchasedCents = Number(db.prepare(`
+    const paidPurchaseCents = Number(db.prepare(`
       SELECT COALESCE(SUM(amount_cents), 0) AS total
       FROM commerce_payment_intents
       WHERE account_id = ? AND kind = 'coin_purchase' AND status = 'paid'
     `).get(safeAccountId)?.total || 0);
+    const refundedCents = getManualRechargeRefundCents(safeAccountId, "coin");
+    const purchasedCents = Math.max(0, paidPurchaseCents - refundedCents);
     const reservation = db.prepare(`
       SELECT
         COALESCE(SUM(CASE WHEN status = 'reserved' THEN discount_cents ELSE 0 END), 0) AS reserved_cents,
@@ -846,6 +906,7 @@ export function createCommerceStore({ dbPath }) {
     const usedCents = Number(reservation.used_cents || 0);
     return {
       purchasedCents,
+      refundedCents,
       reservedCents,
       usedCents,
       availableCents: Math.max(0, purchasedCents - reservedCents - usedCents)
@@ -1977,6 +2038,64 @@ export function createCommerceStore({ dbPath }) {
     }));
   }
 
+  function refundRechargeBalance({ accountId, currency, amount, referenceId, note = "" }) {
+    const safeAccountId = String(accountId || "");
+    const safeCurrency = String(currency || "");
+    const safeAmount = Math.max(0, Math.trunc(Number(amount || 0)));
+    const safeReferenceId = String(referenceId || randomUUID());
+    if (!safeAccountId || !safeAmount || !["coin", "bean"].includes(safeCurrency)) {
+      throw new Error("Invalid manual recharge refund.");
+    }
+    return withTransaction(db, () => {
+      const adjust = safeCurrency === "bean" ? appendBeanLedger : appendLedger;
+      const result = adjust(safeAccountId, -safeAmount, {
+        reason: safeCurrency === "bean" ? "bean_purchase_manual_refund" : "coin_purchase_manual_refund",
+        note: String(note || ""),
+        referenceType: "manual_recharge_refund",
+        referenceId: safeReferenceId
+      });
+      db.prepare(`
+        INSERT INTO commerce_manual_recharge_refunds
+          (id, account_id, currency, amount_cents, wallet_ledger_id, note, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), safeAccountId, safeCurrency, safeAmount * 100, result.ledger.id, String(note || ""), nowIso());
+      return result;
+    });
+  }
+
+  function adjustOriginalDownloadAllowance({ accountId, delta, note = "" }) {
+    const safeAccountId = String(accountId || "");
+    const safeDelta = Math.trunc(Number(delta || 0));
+    const safeNote = String(note || "").trim();
+    if (!safeAccountId || !safeDelta || !safeNote) throw new Error("Invalid original download allowance adjustment.");
+    return withTransaction(db, () => {
+      const account = readAccount(safeAccountId);
+      if (!account) throw new Error("Account not found.");
+      db.prepare(`
+        INSERT INTO commerce_original_download_allowance_adjustments (id, account_id, delta, note, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(randomUUID(), safeAccountId, safeDelta, safeNote.slice(0, 300), nowIso());
+      return { account, allowance: getOriginalDownloadAllowance(safeAccountId) };
+    });
+  }
+
+  function listOriginalDownloadAllowanceAdjustments(accountId, limit = 100) {
+    const safeLimit = Math.min(Math.max(Math.trunc(Number(limit || 100)), 1), 500);
+    return db.prepare(`
+      SELECT id, account_id, delta, note, created_at
+      FROM commerce_original_download_allowance_adjustments
+      WHERE account_id = ?
+      ORDER BY created_at DESC, id DESC
+      LIMIT ?
+    `).all(String(accountId || ""), safeLimit).map((row) => ({
+      id: String(row.id || ""),
+      accountId: String(row.account_id || ""),
+      delta: Number(row.delta || 0),
+      note: String(row.note || ""),
+      createdAt: row.created_at || null
+    }));
+  }
+
   function listCreditLedger(accountId, limit = 100) {
     const safeLimit = Math.min(Math.max(Math.trunc(Number(limit || 100)), 1), 500);
     return db.prepare(`
@@ -2186,12 +2305,12 @@ export function createCommerceStore({ dbPath }) {
     const rows = db.prepare(`
       SELECT a.*,
         (SELECT COUNT(DISTINCT av.visitor_id) FROM commerce_account_visitors av WHERE av.account_id = a.id) AS visitor_count,
-        (SELECT COUNT(*) FROM orders o WHERE o.account_id = a.id OR EXISTS (
+        (SELECT COUNT(*) FROM orders o WHERE o.account_id = a.id OR ((o.account_id IS NULL OR o.account_id = '') AND EXISTS (
           SELECT 1 FROM commerce_account_visitors av WHERE av.account_id = a.id AND av.visitor_id = o.visitor_id
-        )) AS order_count,
-        COALESCE((SELECT SUM(CASE WHEN o.payment_status = 'paid' THEN o.total_cents ELSE 0 END) FROM orders o WHERE o.account_id = a.id OR EXISTS (
+        ))) AS order_count,
+        COALESCE((SELECT SUM(CASE WHEN o.payment_status = 'paid' THEN o.total_cents ELSE 0 END) FROM orders o WHERE o.account_id = a.id OR ((o.account_id IS NULL OR o.account_id = '') AND EXISTS (
           SELECT 1 FROM commerce_account_visitors av WHERE av.account_id = a.id AND av.visitor_id = o.visitor_id
-        )), 0) AS paid_total_cents,
+        ))), 0) AS paid_total_cents,
         r.referrer_account_id AS inviter_account_id,
         inviter.username AS inviter_username,
         inviter.email AS inviter_email,
@@ -2224,12 +2343,12 @@ export function createCommerceStore({ dbPath }) {
     const rows = db.prepare(`
       SELECT a.*,
         (SELECT COUNT(DISTINCT av.visitor_id) FROM commerce_account_visitors av WHERE av.account_id = a.id) AS visitor_count,
-        (SELECT COUNT(*) FROM orders o WHERE o.account_id = a.id OR EXISTS (
+        (SELECT COUNT(*) FROM orders o WHERE o.account_id = a.id OR ((o.account_id IS NULL OR o.account_id = '') AND EXISTS (
           SELECT 1 FROM commerce_account_visitors av WHERE av.account_id = a.id AND av.visitor_id = o.visitor_id
-        )) AS order_count,
-        COALESCE((SELECT SUM(CASE WHEN o.payment_status = 'paid' THEN o.total_cents ELSE 0 END) FROM orders o WHERE o.account_id = a.id OR EXISTS (
+        ))) AS order_count,
+        COALESCE((SELECT SUM(CASE WHEN o.payment_status = 'paid' THEN o.total_cents ELSE 0 END) FROM orders o WHERE o.account_id = a.id OR ((o.account_id IS NULL OR o.account_id = '') AND EXISTS (
           SELECT 1 FROM commerce_account_visitors av WHERE av.account_id = a.id AND av.visitor_id = o.visitor_id
-        )), 0) AS paid_total_cents,
+        ))), 0) AS paid_total_cents,
         r.referrer_account_id AS inviter_account_id,
         inviter.username AS inviter_username,
         inviter.email AS inviter_email,
@@ -2290,24 +2409,24 @@ export function createCommerceStore({ dbPath }) {
     const summary = db.prepare(`
       SELECT
         (SELECT COUNT(DISTINCT av.visitor_id) FROM commerce_account_visitors av WHERE av.account_id = a.id) AS visitor_count,
-        (SELECT COUNT(*) FROM orders o WHERE o.account_id = a.id OR EXISTS (
+        (SELECT COUNT(*) FROM orders o WHERE o.account_id = a.id OR ((o.account_id IS NULL OR o.account_id = '') AND EXISTS (
           SELECT 1 FROM commerce_account_visitors av WHERE av.account_id = a.id AND av.visitor_id = o.visitor_id
-        )) AS order_count,
-        COALESCE((SELECT SUM(CASE WHEN o.payment_status = 'paid' THEN o.total_cents ELSE 0 END) FROM orders o WHERE o.account_id = a.id OR EXISTS (
+        ))) AS order_count,
+        COALESCE((SELECT SUM(CASE WHEN o.payment_status = 'paid' THEN o.total_cents ELSE 0 END) FROM orders o WHERE o.account_id = a.id OR ((o.account_id IS NULL OR o.account_id = '') AND EXISTS (
           SELECT 1 FROM commerce_account_visitors av WHERE av.account_id = a.id AND av.visitor_id = o.visitor_id
-        )), 0) AS paid_total_cents
+        ))), 0) AS paid_total_cents
       FROM commerce_accounts a
       WHERE a.id = ?
     `).get(account.id) || {};
     const orders = db.prepare(`
-      SELECT id, order_no, payment_status, fulfillment_status, item_count, total_cents, paid_at, created_at
+      SELECT id, order_no, experience_type, payment_status, fulfillment_status, item_count, total_cents, paid_at, created_at
       FROM orders
-      WHERE account_id = ? OR EXISTS (
+      WHERE account_id = ? OR ((account_id IS NULL OR account_id = '') AND EXISTS (
         SELECT 1 FROM commerce_account_visitors av WHERE av.account_id = ? AND av.visitor_id = orders.visitor_id
-      )
-      ORDER BY created_at DESC LIMIT 50
+      ))
+      ORDER BY created_at DESC LIMIT 500
     `).all(account.id, account.id).map((row) => ({
-      id: String(row.id || ""), orderNo: String(row.order_no || ""), paymentStatus: String(row.payment_status || ""),
+      id: String(row.id || ""), orderNo: String(row.order_no || ""), experienceType: String(row.experience_type || ""), paymentStatus: String(row.payment_status || ""),
       fulfillmentStatus: String(row.fulfillment_status || ""), itemCount: Number(row.item_count || 0),
       totalCents: Number(row.total_cents || 0), paidAt: row.paid_at || null, createdAt: row.created_at || null
     }));
@@ -2340,6 +2459,8 @@ export function createCommerceStore({ dbPath }) {
     refundBeansForGenerationJobs,
     adjustCredits,
     adjustBeans,
+    refundRechargeBalance,
+    adjustOriginalDownloadAllowance,
     deleteUserSession,
     permanentlyDeleteRegisteredAccount,
     grantCredits,
@@ -2364,6 +2485,7 @@ export function createCommerceStore({ dbPath }) {
     canDownloadDrawOriginal,
     getPaidOriginalDownloadCents,
     getOriginalDownloadAllowance,
+    listOriginalDownloadAllowanceAdjustments,
     grantOriginalDownload,
     hasOriginalDownloadGrant,
     hasOriginalImageDownloadAccess,

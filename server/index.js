@@ -3659,8 +3659,51 @@ app.get("/api/admin/users/:id", requireAdmin, (req, res, next) => {
       user: toPublicAdminUser({ ...detail.account, visitorCount: detail.visitorCount, orderCount: detail.orderCount, paidTotalCents: detail.paidTotalCents }),
       ledger: detail.ledger.map(toPublicCreditLedger),
       beanLedger: detail.beanLedger.map(toPublicCreditLedger),
+      downloadAllowanceAdjustments: commerceStore.listOriginalDownloadAllowanceAdjustments(detail.account.id, 100),
       orders: detail.orders
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/users/:id/export-details", requireAdmin, async (req, res, next) => {
+  try {
+    const detail = commerceStore.readRegisteredUserDetail(req.params.id);
+    if (!detail) throw createHttpError(404, "用户不存在。");
+    const accountId = detail.account.id;
+    const rechargeOrders = commerceStore.listPaymentIntents(accountId, 500)
+      .filter((intent) => ["coin_purchase", "bean_purchase"].includes(intent.kind))
+      .map((intent) => {
+        const quantity = intent.kind === "coin_purchase"
+          ? Number(intent.metadata?.coinCount || intent.creditAmount || 0)
+          : Number(intent.metadata?.beanCount || intent.creditAmount || 0);
+        return [
+          intent.kind === "coin_purchase" ? "购买币" : "购买豆豆",
+          intent.createdAt, String(intent.metadata?.purchaseNo || intent.outTradeNo || intent.id), intent.status,
+          quantity, Number(intent.amountCents || 0) / 100, intent.transactionId || ""
+        ];
+      });
+    const workbookPath = await createXlsxWorkbookFile([
+      { name: "币流水", rows: [["时间", "变动", "余额", "原因", "关联编号", "备注"], ...commerceStore.listCreditLedger(accountId, 500).map((entry) => [entry.createdAt, entry.delta, entry.balanceAfter, entry.reason, entry.referenceId, entry.note])] },
+      { name: "豆豆流水", rows: [["时间", "变动", "余额", "原因", "关联编号", "备注"], ...commerceStore.listBeanLedger(accountId, 500).map((entry) => [entry.createdAt, entry.delta, entry.balanceAfter, entry.reason, entry.referenceId, entry.note])] },
+      { name: "实体订单", rows: [["创建时间", "订单号", "类型", "支付状态", "履约状态", "数量", "订单金额（元）", "支付时间"], ...detail.orders.map((order) => [order.createdAt, order.orderNo, getExportPhysicalOrderTypeLabel(order), getExportPaymentStatusLabel(order.paymentStatus), getExportFulfillmentStatusLabel(order.fulfillmentStatus), order.itemCount, Number(order.totalCents || 0) / 100, order.paidAt || ""]) ] },
+      { name: "充值订单", rows: [["类型", "创建时间", "充值单号", "状态", "数量", "金额（元）", "支付流水号"], ...rechargeOrders] },
+      { name: "下载额度变化", rows: [["时间", "变动次数", "备注"], ...commerceStore.listOriginalDownloadAllowanceAdjustments(accountId, 500).map((entry) => [entry.createdAt, entry.delta, entry.note])] }
+    ]);
+    const filename = `user-details-${formatFilenameDate(new Date())}.xlsx`;
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    const cleanup = () => { void rm(workbookPath, { force: true }); };
+    const stream = createReadStream(workbookPath);
+    stream.on("error", (error) => {
+      cleanup();
+      if (!res.headersSent) next(error);
+      else res.end();
+    });
+    res.on("close", cleanup);
+    stream.pipe(res);
   } catch (error) {
     next(error);
   }
@@ -3670,8 +3713,8 @@ app.get("/api/admin/users/:id/clip-items", requireAdmin, async (req, res, next) 
   try {
     const account = commerceStore.readAccount(req.params.id);
     if (!account?.isRegistered) throw createHttpError(404, "用户不存在。");
-    const items = await listAdminUserClipItems(account.id);
-    res.json({ user: toPublicAdminUser(account), items });
+    const assets = await listAdminUserImageAssets(account.id);
+    res.json({ user: toPublicAdminUser(account), ...assets });
   } catch (error) {
     next(error);
   }
@@ -3681,8 +3724,12 @@ app.get("/api/admin/users/:id/clip-items/:jobId/download-original", requireAdmin
   try {
     const account = commerceStore.readAccount(req.params.id);
     if (!account?.isRegistered) throw createHttpError(404, "用户不存在。");
-    const job = await readImageJob(req.params.jobId);
-    if (!isAdminUserClipItem(account.id, job)) throw createHttpError(404, "卡夹图片不存在。");
+    const assets = await listAdminUserImageAssets(account.id);
+    const jobId = String(req.params.jobId || "");
+    const asset = [...assets.clipItems, ...assets.bodyBookItems, ...assets.historyItems].find((item) => item.jobId === jobId);
+    if (!asset) throw createHttpError(404, "图片资产不存在。");
+    const job = await readImageJob(jobId);
+    if (!job) throw createHttpError(404, "图片原图不存在。");
     await sendAdminJobImage(res, job, { asDownload: true });
   } catch (error) {
     next(error);
@@ -3720,18 +3767,45 @@ app.post("/api/admin/users/:id/wallet", requireAdmin, (req, res, next) => {
     const delta = Math.trunc(Number(req.body?.delta || 0));
     const currency = String(req.body?.currency || "coin");
     const remark = String(req.body?.remark || "").trim().slice(0, 300);
+    const isRechargeRefund = Boolean(req.body?.isRechargeRefund);
     if (!delta || !remark || !["coin", "bean"].includes(currency)) throw createHttpError(400, "请填写非零余额调整、币种和备注。");
-    const adjust = currency === "bean" ? commerceStore.adjustBeans : commerceStore.adjustCredits;
-    const updatedAccount = adjust({
-      accountId: account.id,
-      delta,
-      reason: "admin_adjustment",
-      note: remark,
-      referenceId: randomUUID()
-    }).account;
+    if (isRechargeRefund && delta >= 0) throw createHttpError(400, "充值退款只能用于扣减币或豆豆。");
+    const updatedAccount = isRechargeRefund
+      ? commerceStore.refundRechargeBalance({
+        accountId: account.id,
+        currency,
+        amount: Math.abs(delta),
+        note: remark,
+        referenceId: randomUUID()
+      }).account
+      : (currency === "bean" ? commerceStore.adjustBeans : commerceStore.adjustCredits)({
+        accountId: account.id,
+        delta,
+        reason: "admin_adjustment",
+        note: remark,
+        referenceId: randomUUID()
+      }).account;
     res.status(201).json({ user: toPublicAdminUser(updatedAccount), ledger: commerceStore.listCreditLedger(account.id, 100).map(toPublicCreditLedger), beanLedger: commerceStore.listBeanLedger(account.id, 100).map(toPublicCreditLedger) });
   } catch (error) {
     if (["INSUFFICIENT_CREDITS", "INSUFFICIENT_BEANS"].includes(error?.code)) return next(createHttpError(400, "扣减后的余额不能小于零。"));
+    next(error);
+  }
+});
+
+app.post("/api/admin/users/:id/download-allowance", requireAdmin, (req, res, next) => {
+  try {
+    const account = commerceStore.readAccount(req.params.id);
+    if (!account?.isRegistered) throw createHttpError(404, "用户不存在。");
+    const delta = Math.trunc(Number(req.body?.delta || 0));
+    const remark = String(req.body?.remark || "").trim().slice(0, 300);
+    if (!delta || !remark) throw createHttpError(400, "请填写非零下载额度调整和备注。");
+    const result = commerceStore.adjustOriginalDownloadAllowance({ accountId: account.id, delta, note: remark });
+    res.status(201).json({
+      user: toPublicAdminUser(result.account),
+      downloadAllowance: result.allowance,
+      downloadAllowanceAdjustments: commerceStore.listOriginalDownloadAllowanceAdjustments(account.id, 100)
+    });
+  } catch (error) {
     next(error);
   }
 });
@@ -3822,14 +3896,15 @@ app.get("/api/admin/orders/export", requireAdmin, async (req, res) => {
     const orders = listAdminOrderRecords({ merchantId, orderStatus, orderType, search, startDate, endDate });
 
     const rows = [
-      ["下单日期", "付款日期", "订单类型", "订单号", "订单状态", "用户/收件人", "电话", "地址", "备注", "商品小计", "邮费", "豆豆优惠", "已购币优惠", "实付金额", "来源商户"],
+      ["下单日期", "付款日期", "订单类型", "订单号", "订单状态", "下单用户", "收件人", "收件电话", "地址", "备注", "商品小计", "邮费", "豆豆优惠", "已购币优惠", "实付金额", "来源商户"],
       ...orders.map((order) => [
         formatOrderExportDate(order.createdAt),
         formatOrderExportDate(order.paidAt),
         getAdminOrderRecordTypeLabel(order),
         String(order.orderNo || ""),
         getAdminOrderRecordStatusLabel(order),
-        String(order.recordType === "purchase" ? order.accountName : order.receiverName || ""),
+        String(order.accountName || ""),
+        String(order.recordType === "purchase" ? "" : order.receiverName || ""),
         String(order.receiverPhone || ""),
         order.recordType === "purchase" ? "" : formatOrderExportAddress(order),
         order.recordType === "purchase" ? order.purchaseQuantityText : String(order.remark || ""),
@@ -4043,14 +4118,7 @@ app.post("/api/admin/commerce/payments/:paymentIntentId/confirm-manual", require
 });
 
 app.post("/api/admin/commerce/payments/:paymentIntentId/refund", requireAdmin, (req, res, next) => {
-  try {
-    const intent = commerceStore.readPaymentIntent(req.params.paymentIntentId);
-    if (!intent || !["coin_purchase", "bean_purchase"].includes(intent.kind)) throw createHttpError(404, "购买单不存在。");
-    const result = commerceStore.refundPaymentIntent(intent.id, { note: String(req.body?.adminRemark || "").trim() });
-    res.json({ payment: toPublicAdminPaymentIntent(result.intent) });
-  } catch (error) {
-    next(error);
-  }
+  next(createHttpError(410, "购买币和购买豆豆不再通过订单登记退款，请在用户详情中手动扣减余额。"));
 });
 
 app.get("/api/admin/settings", requireAdmin, async (_req, res) => {
@@ -7079,6 +7147,79 @@ async function createZipFromDirectory(sourceDir, outputPath) {
   await execFileAsync(pythonCommand, ["-c", script, sourceDir, outputPath]);
 }
 
+async function createXlsxWorkbookFile(sheets) {
+  // Keep this dependency-free: the service already relies on Python's standard
+  // library for ZIP exports, and XLSX is a ZIP package of XML worksheets.
+  const exportId = randomUUID();
+  const inputPath = path.join(storageExportTempRoot, `xlsx-${exportId}.json`);
+  const outputPath = path.join(storageExportTempRoot, `xlsx-${exportId}.xlsx`);
+  const pythonCommand = process.platform === "win32" ? "python" : "python3";
+  const script = [
+    "import html, json, pathlib, sys, zipfile",
+    "payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))",
+    "output = pathlib.Path(sys.argv[2])",
+    "def esc(value): return html.escape(str(value if value is not None else ''), quote=False)",
+    "def col(index):",
+    "    result = ''",
+    "    while index:",
+    "        index, remainder = divmod(index - 1, 26)",
+    "        result = chr(65 + remainder) + result",
+    "    return result",
+    "def cell(ref, value, style):",
+    "    if isinstance(value, bool): return f'<c r=\\\"{ref}\\\" s=\\\"{style}\\\" t=\\\"b\\\"><v>{1 if value else 0}</v></c>'",
+    "    if isinstance(value, (int, float)) and not isinstance(value, bool): return f'<c r=\\\"{ref}\\\" s=\\\"{style}\\\"><v>{value}</v></c>'",
+    "    return f'<c r=\\\"{ref}\\\" s=\\\"{style}\\\" t=\\\"inlineStr\\\"><is><t>{esc(value)}</t></is></c>'",
+    "def sheet_xml(rows):",
+    "    width = max([len(row) for row in rows] or [1])",
+    "    height = max(1, len(rows))",
+    "    xml_rows = []",
+    "    for row_number, row in enumerate(rows or [[]], 1):",
+    "        cells = ''.join(cell(f'{col(column_number)}{row_number}', value, 1 if row_number == 1 else 0) for column_number, value in enumerate(row, 1))",
+    "        xml_rows.append(f'<row r=\\\"{row_number}\\\">{cells}</row>')",
+    "    columns = ''.join(f'<col min=\\\"{index}\\\" max=\\\"{index}\\\" width=\\\"{min(42, max(12, 14))}\\\" customWidth=\\\"1\\\"/>' for index in range(1, width + 1))",
+    "    return f'<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\" standalone=\\\"yes\\\"?><worksheet xmlns=\\\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\\\"><dimension ref=\\\"A1:{col(width)}{height}\\\"/><sheetViews><sheetView workbookViewId=\\\"0\\\"><pane ySplit=\\\"1\\\" topLeftCell=\\\"A2\\\" activePane=\\\"bottomLeft\\\" state=\\\"frozen\\\"/></sheetView></sheetViews><cols>{columns}</cols><sheetData>{''.join(xml_rows)}</sheetData></worksheet>'",
+    "safe_sheets = payload[:31] or [{'name': '明细', 'rows': [[]]}]",
+    "sheet_entries = []",
+    "used_names = set()",
+    "for index, item in enumerate(safe_sheets, 1):",
+    "    base = str(item.get('name') or f'Sheet{index}')[:31]",
+    "    name = base",
+    "    suffix = 2",
+    "    while name in used_names:",
+    "        name = f'{base[:28]}_{suffix}'",
+    "        suffix += 1",
+    "    used_names.add(name)",
+    "    sheet_entries.append((name, item.get('rows') or [[]]))",
+    "content_types = ['<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\" standalone=\\\"yes\\\"?><Types xmlns=\\\"http://schemas.openxmlformats.org/package/2006/content-types\\\"><Default Extension=\\\"rels\\\" ContentType=\\\"application/vnd.openxmlformats-package.relationships+xml\\\"/><Default Extension=\\\"xml\\\" ContentType=\\\"application/xml\\\"/><Override PartName=\\\"/xl/workbook.xml\\\" ContentType=\\\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\\\"/><Override PartName=\\\"/xl/styles.xml\\\" ContentType=\\\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\\\"/>']",
+    "content_types += [f'<Override PartName=\\\"/xl/worksheets/sheet{index}.xml\\\" ContentType=\\\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\\\"/>' for index in range(1, len(sheet_entries) + 1)]",
+    "content_types.append('</Types>')",
+    "workbook_sheets = ''.join(f'<sheet name=\\\"{esc(name)}\\\" sheetId=\\\"{index}\\\" r:id=\\\"rId{index}\\\"/>' for index, (name, _) in enumerate(sheet_entries, 1))",
+    "workbook = f'<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\" standalone=\\\"yes\\\"?><workbook xmlns=\\\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\\\" xmlns:r=\\\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\\\"><sheets>{workbook_sheets}</sheets></workbook>'",
+    "rels = ''.join(f'<Relationship Id=\\\"rId{index}\\\" Type=\\\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\\\" Target=\\\"worksheets/sheet{index}.xml\\\"/>' for index in range(1, len(sheet_entries) + 1)) + f'<Relationship Id=\\\"rId{len(sheet_entries) + 1}\\\" Type=\\\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\\\" Target=\\\"styles.xml\\\"/>'",
+    "workbook_rels = f'<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\" standalone=\\\"yes\\\"?><Relationships xmlns=\\\"http://schemas.openxmlformats.org/package/2006/relationships\\\">{rels}</Relationships>'",
+    "root_rels = '<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\" standalone=\\\"yes\\\"?><Relationships xmlns=\\\"http://schemas.openxmlformats.org/package/2006/relationships\\\"><Relationship Id=\\\"rId1\\\" Type=\\\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\\\" Target=\\\"xl/workbook.xml\\\"/></Relationships>'",
+    "styles = '<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\" standalone=\\\"yes\\\"?><styleSheet xmlns=\\\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\\\"><fonts count=\\\"2\\\"><font><sz val=\\\"11\\\"/><name val=\\\"Arial\\\"/></font><font><b/><color rgb=\\\"FFFFFFFF\\\"/><sz val=\\\"11\\\"/><name val=\\\"Arial\\\"/></font></fonts><fills count=\\\"3\\\"><fill><patternFill patternType=\\\"none\\\"/></fill><fill><patternFill patternType=\\\"gray125\\\"/></fill><fill><patternFill patternType=\\\"solid\\\"><fgColor rgb=\\\"FF0071E3\\\"/><bgColor indexed=\\\"64\\\"/></patternFill></fill></fills><borders count=\\\"1\\\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count=\\\"1\\\"><xf numFmtId=\\\"0\\\" fontId=\\\"0\\\" fillId=\\\"0\\\" borderId=\\\"0\\\"/></cellStyleXfs><cellXfs count=\\\"2\\\"><xf numFmtId=\\\"0\\\" fontId=\\\"0\\\" fillId=\\\"0\\\" borderId=\\\"0\\\" xfId=\\\"0\\\"/><xf numFmtId=\\\"0\\\" fontId=\\\"1\\\" fillId=\\\"2\\\" borderId=\\\"0\\\" xfId=\\\"0\\\" applyFont=\\\"1\\\" applyFill=\\\"1\\\"/></cellXfs></styleSheet>'",
+    "with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:",
+    "    archive.writestr('[Content_Types].xml', ''.join(content_types))",
+    "    archive.writestr('_rels/.rels', root_rels)",
+    "    archive.writestr('xl/workbook.xml', workbook)",
+    "    archive.writestr('xl/_rels/workbook.xml.rels', workbook_rels)",
+    "    archive.writestr('xl/styles.xml', styles)",
+    "    for index, (_, rows) in enumerate(sheet_entries, 1): archive.writestr(f'xl/worksheets/sheet{index}.xml', sheet_xml(rows))"
+  ].join("\n");
+  await mkdir(storageExportTempRoot, { recursive: true });
+  await writeFile(inputPath, JSON.stringify(Array.isArray(sheets) ? sheets : []), "utf-8");
+  let created = false;
+  try {
+    await execFileAsync(pythonCommand, ["-c", script, inputPath, outputPath]);
+    created = true;
+    return outputPath;
+  } finally {
+    await rm(inputPath, { force: true });
+    if (!created) await rm(outputPath, { force: true });
+  }
+}
+
 function getZipBackupSidecarPath(zipFilePath) {
   const parsed = path.parse(zipFilePath);
   return path.join(parsed.dir, `${parsed.name}.backup.json`);
@@ -7984,6 +8125,9 @@ function toPublicCreditLedger(entry) {
 
 function toPublicAdminUser(account) {
   const recordType = String(account?.recordType || "registered");
+  const originalDownloadAllowance = recordType === "registered" && account?.id
+    ? commerceStore.getOriginalDownloadAllowance(account.id)
+    : null;
   return {
     id: account.id,
     recordType,
@@ -8001,6 +8145,7 @@ function toPublicAdminUser(account) {
     visitorCount: Number(account.visitorCount || 0),
     orderCount: Number(account.orderCount || 0),
     paidTotalCents: Number(account.paidTotalCents || 0),
+    originalDownloadAllowance,
     visitorTier: String(account.visitorTier || ""),
     browser: String(account.browser || ""),
     inviter: toPublicAdminInviter(account),
@@ -8577,10 +8722,15 @@ function listAdminOrderRecords({ merchantId = "", orderStatus = "", orderType = 
     physicalOrders.forEach((order) => {
       if (orderType === "fridge" && order.experienceType === "body-book") return;
       if (orderType === "body_book" && order.experienceType !== "body-book") return;
+      const account = commerceStore.readAccount(order.accountId);
+      const accountName = String(getAccountDisplayName(account) || account?.email || account?.id || "用户");
       records.push({
         ...toPublicOrder(order, { includePrivate: true }),
         recordType: "order",
-        orderType: order.experienceType === "body-book" ? "body_book" : "fridge"
+        orderType: order.experienceType === "body-book" ? "body_book" : "fridge",
+        accountName,
+        accountEmail: String(account?.email || ""),
+        accountId: String(account?.id || order.accountId || "")
       });
     });
   }
@@ -8607,6 +8757,8 @@ function listAdminOrderRecords({ merchantId = "", orderStatus = "", orderType = 
         purchaseStatusLabel: getAdminPurchaseOrderStatusLabel(intent),
         purchaseQuantityText: `${purchaseQuantity} ${intent.kind === "coin_purchase" ? "币" : "豆"}`,
         accountName,
+        accountEmail: String(account?.email || ""),
+        accountId: String(account?.id || intent.accountId || ""),
         canConfirmManual: purchaseStatus === "pending_payment" && intent.channel === "manual_collection"
       });
     });
@@ -9074,6 +9226,33 @@ function getOrderStatusLabel(order) {
   return status || "未知";
 }
 
+function getExportPhysicalOrderTypeLabel(order) {
+  return String(order?.experienceType || "") === "body-book" ? "认知书" : "冰箱贴";
+}
+
+function getExportPaymentStatusLabel(status) {
+  const labels = {
+    unpaid: "待付款",
+    paid: "已支付",
+    failed: "支付失败",
+    expired: "已过期",
+    refunded: "已退款"
+  };
+  return labels[String(status || "")] || "未知";
+}
+
+function getExportFulfillmentStatusLabel(status) {
+  const labels = {
+    new: "待处理",
+    in_production: "制作中",
+    shipped: "已发货",
+    completed: "已完成",
+    cancelled: "已取消",
+    refunded: "已退款"
+  };
+  return labels[String(status || "")] || "未知";
+}
+
 function formatOrderExportDate(value) {
   if (!value) return "";
   const date = new Date(value);
@@ -9404,31 +9583,46 @@ function toPublicClipItem(job) {
   };
 }
 
-async function listAdminUserClipItems(accountId) {
-  const visitorIds = new Set(commerceStore.listVisitorIds(accountId));
-  const jobs = await listImageJobs();
-  return jobs
-    .filter((job) => isAdminUserClipItem(accountId, job, visitorIds))
-    .sort((a, b) => String(b.likedAt || b.updatedAt || b.createdAt || "").localeCompare(String(a.likedAt || a.updatedAt || a.createdAt || "")))
-    .map((job) => {
-      const item = toPublicClipItem(job);
-      return {
-        ...item,
-        createdAt: job.createdAt || null,
-        completedAt: job.completedAt || null
-      };
+async function listAdminUserImageAssets(accountId) {
+  const safeAccountId = String(accountId || "");
+  const [jobs, accounts] = await Promise.all([
+    listImageJobs(),
+    Promise.resolve(commerceStore.listAdminAccounts())
+  ]);
+  const visitorOwnerCounts = new Map();
+  accounts.filter((account) => account.isRegistered).forEach((account) => {
+    new Set(Array.isArray(account.visitorIds) ? account.visitorIds : []).forEach((visitorId) => {
+      const safeVisitorId = String(visitorId || "");
+      if (!safeVisitorId) return;
+      visitorOwnerCounts.set(safeVisitorId, Number(visitorOwnerCounts.get(safeVisitorId) || 0) + 1);
     });
-}
-
-function isAdminUserClipItem(accountId, job, visitorIds = null) {
-  const ownedVisitorIds = visitorIds || new Set(commerceStore.listVisitorIds(accountId));
-  return Boolean(
-    job &&
-      job.visibility === "public" &&
-      job.status === "succeeded" &&
-      job.isLiked &&
-      (String(job.ownerAccountId || "") ? String(job.ownerAccountId) === String(accountId) : ownedVisitorIds.has(job.ownerVisitorId))
+  });
+  const legacyVisitorIds = new Set(
+    commerceStore.listVisitorIds(safeAccountId)
+      .map((visitorId) => String(visitorId || ""))
+      .filter((visitorId) => visitorId && Number(visitorOwnerCounts.get(visitorId) || 0) <= 1)
   );
+  const ownsAsset = (job) => {
+    if (!job || job.ownerAdmin === true || job.status !== "succeeded") return false;
+    const ownerAccountId = String(job.ownerAccountId || "");
+    if (ownerAccountId) return ownerAccountId === safeAccountId;
+    // A legacy browser-only task can be recovered only when that browser ID
+    // was never linked to another registered user; shared-browser history is
+    // deliberately not guessed and therefore cannot leak across accounts.
+    return legacyVisitorIds.has(String(job.ownerVisitorId || ""));
+  };
+  const toAsset = (job) => ({
+    ...toPublicClipItem(job),
+    createdAt: job.createdAt || null,
+    completedAt: job.completedAt || null
+  });
+  const sortByRecent = (left, right) => String(right.likedAt || right.completedAt || right.createdAt || "").localeCompare(String(left.likedAt || left.completedAt || left.createdAt || ""));
+  const ownedJobs = jobs.filter(ownsAsset);
+  return {
+    clipItems: ownedJobs.filter((job) => job.isLiked).sort(sortByRecent).map(toAsset),
+    bodyBookItems: ownedJobs.filter((job) => !job.isLiked && normalizePublicExperienceType(job.experienceType) === "body-book").sort(sortByRecent).map(toAsset),
+    historyItems: ownedJobs.filter((job) => !job.isLiked && normalizePublicExperienceType(job.experienceType) !== "body-book").sort(sortByRecent).map(toAsset)
+  };
 }
 
 async function permanentlyDeleteAdminUser(account) {
