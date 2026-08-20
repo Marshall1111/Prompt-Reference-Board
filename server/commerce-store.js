@@ -739,6 +739,16 @@ export function createCommerceStore({ dbPath }) {
     });
   }
 
+  function resolveReferralLink(token) {
+    const safeToken = String(token || "").trim();
+    if (!safeToken) return null;
+    const link = readReferralLinkByShortCodeStatement.get(safeToken) || readReferralLinkByTokenStatement.get(safeToken);
+    if (!link) return null;
+    const referrer = readAccount(String(link.referrer_account_id || ""));
+    if (!referrer?.isRegistered) return null;
+    return { token: String(link.token || ""), referrerAccountId: referrer.id };
+  }
+
   function captureReferral({ token, inviteeAccountId, allowRegistered = false }) {
     const safeToken = String(token || "").trim();
     return withTransaction(db, () => {
@@ -2135,6 +2145,7 @@ export function createCommerceStore({ dbPath }) {
     getRedemptionEntitlementSummary,
     grantRedemptionEntitlements,
     getOrCreateReferralLink,
+    resolveReferralLink,
     getReferralSummary,
     listAdminReferralLedger,
     listAdminReferralRankings,

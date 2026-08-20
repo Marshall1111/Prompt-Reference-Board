@@ -128,7 +128,7 @@
   margin-left: auto;
 }
 
-.admin-workspace :is(.style-card, .manage-card, .batch-panel, .group-card, .task-card, .draw-card-upload-panel, .api-provider-card, .redemption-control-card, .redemption-code-section, .order-table-wrap, .user-admin-table-wrap, .referral-admin-card, .order-settings-panel, .draw-observability-panel, .draw-observability-card, .draw-observability-metric, .draw-observability-job, .user-clip-admin-card) {
+.admin-workspace :is(.style-card, .manage-card, .batch-panel, .group-card, .task-card, .draw-card-upload-panel, .api-provider-card, .redemption-control-card, .redemption-code-section, .order-table-wrap, .user-admin-table-wrap, .referral-admin-card, .order-settings-panel, .draw-observability-panel, .draw-observability-card, .draw-observability-metric, .draw-observability-job, .user-clip-admin-card, .visit-records-card) {
   border-color: rgba(60, 60, 67, 0.13);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.86);
@@ -4018,7 +4018,7 @@ h2 {
 
 .batch-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 
@@ -5271,6 +5271,129 @@ h2 {
 
 .visitor-record-row strong.visitor-record-cell {
   color: #182022;
+}
+
+/* Visit records: one compact row per actual page visit. */
+.visit-records-page {
+  gap: 12px;
+}
+
+.visit-records-card {
+  overflow: hidden;
+  padding: 0;
+}
+
+.visit-record-table {
+  display: grid;
+}
+
+.visit-record-head,
+.visit-record-row {
+  display: grid;
+  grid-template-columns: minmax(126px, 1.2fr) 60px minmax(106px, 0.95fr) 74px 54px 78px 70px minmax(110px, 1fr) 56px 78px;
+  align-items: center;
+  column-gap: 10px;
+}
+
+.visit-record-head {
+  min-height: 36px;
+  padding: 0 14px;
+  background: #f5f5f7;
+  color: #6e6e73;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.visit-record-row {
+  min-height: 54px;
+  padding: 7px 14px;
+  border-top: 1px solid rgba(60, 60, 67, 0.09);
+  color: #3a3a3c;
+  font-size: 0.76rem;
+}
+
+.visit-record-row:hover {
+  background: #f7faff;
+}
+
+.visit-record-row > :not(.visit-record-user) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visit-record-user {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.visit-record-user strong,
+.visit-record-user small,
+.visit-record-inviter strong,
+.visit-record-inviter small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visit-record-user strong {
+  color: #1d1d1f;
+  font-size: 0.78rem;
+}
+
+.visit-record-user small {
+  color: #86868b;
+  font-size: 0.67rem;
+}
+
+.visit-record-inviter {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.visit-record-inviter strong {
+  color: #3a3a3c;
+  font-size: 0.75rem;
+}
+
+.visit-record-inviter small {
+  color: #86868b;
+  font-size: 0.65rem;
+}
+
+.visit-type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: #f2f2f7;
+  color: #636366;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.visit-type-badge.registered {
+  background: #e8f2ff;
+  color: #0071e3;
+}
+
+.visit-record-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 10px 14px;
+  border-top: 1px solid rgba(60, 60, 67, 0.09);
+  color: #6e6e73;
+  font-size: 0.73rem;
 }
 
 .task-actions > button,
@@ -7023,6 +7146,39 @@ textarea {
     font-weight: 800;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+  }
+
+  .visit-record-head {
+    display: none;
+  }
+
+  .visit-record-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+    padding: 12px 14px;
+  }
+
+  .visit-record-row > *,
+  .visit-record-row > :not(.visit-record-user) {
+    display: grid;
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .visit-record-row > *::before {
+    content: attr(data-label);
+    color: #6e6e73;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.025em;
+  }
+
+  .visit-record-user {
+    grid-column: 1 / -1;
+  }
+
+  .visit-record-user::before {
+    content: "用户";
   }
 
   .manage-order-tools {
@@ -10448,4 +10604,112 @@ textarea {
   .admin-workspace .api-provider-test-fields {
     grid-template-columns: 1fr;
   }
+}
+
+/* Batch group editor: reserve the vertical working area for choosing styles. */
+.admin-workspace .batch-layout > .batch-panel:first-child {
+  gap: 8px;
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child > .task-toolbar {
+  min-height: 0;
+  margin-bottom: 1px;
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child > .task-toolbar .eyebrow {
+  margin-bottom: 1px;
+  font-size: 0.64rem;
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child > .task-toolbar h2 {
+  font-size: 1.32rem;
+  line-height: 1.05;
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child > .field-label {
+  gap: 3px;
+  color: #6e6e73;
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child > .field-label :is(input, select) {
+  min-height: 34px;
+  height: 34px;
+  padding-block: 4px;
+  font-size: 0.8rem;
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child .style-picker-section {
+  min-height: 0;
+  gap: 5px;
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child .style-picker-section .compact-toolbar {
+  min-height: 0;
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child .style-picker-section .eyebrow {
+  margin-bottom: 1px;
+  font-size: 0.64rem;
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child .style-picker-section .storage-note {
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child .style-picker-scroll {
+  max-height: min(68vh, 760px);
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child .style-picker-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child .style-picker-card {
+  gap: 5px;
+  padding: 7px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child .style-picker-card img {
+  border-radius: 8px;
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child .style-picker-card input {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 1120px) {
+  .admin-workspace .batch-layout > .batch-panel:first-child .style-picker-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .admin-workspace .batch-layout > .batch-panel:first-child .style-picker-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-workspace .batch-layout > .batch-panel:first-child .style-picker-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child > .card-actions {
+  gap: 7px;
+  margin-top: 1px;
+}
+
+.admin-workspace .batch-layout > .batch-panel:first-child > .card-actions > button {
+  min-height: 34px;
+  padding-inline: 10px;
+  font-size: 0.78rem;
 }

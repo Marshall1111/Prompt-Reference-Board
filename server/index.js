@@ -329,7 +329,7 @@ const SUBJECT_OTHER = "other";
 const SUBJECT_UNKNOWN = "unknown";
 const SUBJECT_BOTH = "both";
 const VISIT_SESSION_TIMEOUT_MS = 90 * 1000;
-const ADMIN_VISITOR_RECORD_LIMIT = 50;
+const ADMIN_VISIT_RECORD_LIMIT = 50;
 const PUBLIC_EXPERIENCE_CONFIGS = {
   "draw-card": {
     experienceType: "draw-card",
@@ -1366,9 +1366,13 @@ app.post("/api/visit-sessions/report", async (req, res) => {
       }
 
       const activeSource = getActiveVisitorMerchantSource(visitor);
+      const visitSource = await resolveVisitSessionSource(req.body?.visitSource, req.webAccount);
       const session = await saveVisitSession({
         sessionId: randomUUID(),
         visitorId: visitor.visitorId,
+        accountId: req.webAccount?.isRegistered ? req.webAccount.id : "",
+        sourceType: visitSource.type,
+        sourceAccountId: visitSource.accountId,
         experienceType: req.body?.experienceType,
         route: req.body?.route,
         browser: describeRequestBrowser(req),
@@ -3367,91 +3371,11 @@ app.get("/api/admin/visitors", requireAdmin, async (_req, res) => {
 
 app.get("/api/admin/visitor-records", requireAdmin, async (_req, res) => {
   try {
-    await closeTimedOutVisitSessions();
-    const [visitors, visitSessions, drawCardSessions] = await Promise.all([
-      listVisitorStates(),
-      listVisitSessions(),
-      listDrawCardSessions()
-    ]);
-    const orders = orderStore.listOrdersForExport();
-
-    const visitorById = new Map(visitors.map((visitor) => [visitor.visitorId, normalizeVisitorState(visitor)]));
-    const sessionsByVisitorId = new Map();
-    const latestOrderSourceByVisitorId = new Map();
-    const orderTotalByVisitorId = new Map();
-    const generationCountByVisitorId = new Map();
-    const visitorIds = new Set(visitorById.keys());
-
-    visitSessions.forEach((session) => {
-      const safeSession = normalizeVisitSession(session);
-      if (!safeSession.visitorId) return;
-      visitorIds.add(safeSession.visitorId);
-      const current = sessionsByVisitorId.get(safeSession.visitorId) || [];
-      current.push(safeSession);
-      sessionsByVisitorId.set(safeSession.visitorId, current);
+    const payload = await listAdminVisitRecords({
+      page: _req.query?.page,
+      limit: _req.query?.limit
     });
-
-    drawCardSessions.forEach((session) => {
-      const visitorId = String(session?.ownerVisitorId || "");
-      if (!visitorId) return;
-      visitorIds.add(visitorId);
-      generationCountByVisitorId.set(visitorId, Number(generationCountByVisitorId.get(visitorId) || 0) + 1);
-    });
-
-    orders.forEach((order) => {
-      const visitorId = String(order?.visitorId || "");
-      if (!visitorId) return;
-      visitorIds.add(visitorId);
-      if (String(order?.fulfillmentStatus || "") !== "cancelled" && !order?.cancelledAt) {
-        orderTotalByVisitorId.set(visitorId, Number(orderTotalByVisitorId.get(visitorId) || 0) + Number(order?.totalCents || 0));
-      }
-      const hasMerchantSource = String(order?.sourceMerchantId || "").trim() || String(order?.sourceMerchantName || "").trim();
-      const currentOrder = latestOrderSourceByVisitorId.get(visitorId);
-      const currentCreatedAt = String(currentOrder?.createdAt || "");
-      const nextCreatedAt = String(order?.createdAt || "");
-      if (hasMerchantSource && (!currentOrder || nextCreatedAt.localeCompare(currentCreatedAt) > 0)) {
-        latestOrderSourceByVisitorId.set(visitorId, {
-          sourceMerchantId: String(order?.sourceMerchantId || ""),
-          sourceMerchantName: String(order?.sourceMerchantName || ""),
-          createdAt: nextCreatedAt
-        });
-      }
-    });
-
-    const records = Array.from(visitorIds)
-      .map((visitorId) => {
-        const visitor = visitorById.get(visitorId) || normalizeVisitorState({
-          visitorId,
-          tier: "anonymous",
-          quotaLimit: DEFAULT_VISITOR_ANONYMOUS_LIMIT,
-          quotaUsed: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-        const visitorSessions = (sessionsByVisitorId.get(visitorId) || []).sort((left, right) =>
-          String(getVisitSessionLastActivityAt(right) || "").localeCompare(String(getVisitSessionLastActivityAt(left) || ""))
-        );
-        const latestVisitSession = visitorSessions[0] || null;
-        const latestOrderSource = latestOrderSourceByVisitorId.get(visitorId) || null;
-        const sourceMerchantId = visitor.sourceMerchantId || latestVisitSession?.sourceMerchantId || latestOrderSource?.sourceMerchantId || "";
-        const sourceMerchantName = visitor.sourceMerchantName || latestVisitSession?.sourceMerchantName || latestOrderSource?.sourceMerchantName || "";
-        const lastActiveAt = getVisitSessionLastActivityAt(latestVisitSession) || visitor.lastActiveAt || visitor.updatedAt || visitor.createdAt || null;
-        return toPublicAdminVisitorRecord({
-          visitorId,
-          sourceMerchantId,
-          sourceMerchantName,
-          lastActiveAt,
-          lastVisitDurationSeconds: latestVisitSession?.durationSeconds ?? null,
-          generationCount: Number(generationCountByVisitorId.get(visitorId) || 0),
-          orderTotalCents: Number(orderTotalByVisitorId.get(visitorId) || 0),
-          createdAt: visitor.createdAt || null,
-          updatedAt: lastActiveAt || visitor.updatedAt || visitor.createdAt || null
-        });
-      })
-      .sort((left, right) => String(right.lastActiveAt || "").localeCompare(String(left.lastActiveAt || "")))
-      .slice(0, ADMIN_VISITOR_RECORD_LIMIT);
-
-    res.json({ records });
+    res.json(payload);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "读取访问记录失败。" });
@@ -4357,7 +4281,10 @@ app.use((req, res) => {
   if (pathname === "/body-book" || pathname === "/body-book/") {
     return res.redirect(302, "/book");
   }
-  if (pathname === "/" || pathname === "/book" || pathname === "/book/" || pathname === "/book/orders" || pathname === "/book/orders/" || pathname.startsWith("/book/orders/") || pathname === "/fridge" || pathname === "/fridge/" || pathname === "/fridge/orders" || pathname === "/fridge/orders/" || pathname.startsWith("/fridge/orders/") || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
+  if (pathname === "/fridge" || pathname === "/fridge/" || pathname === "/fridge/magnet" || pathname === "/fridge/magnet/") {
+    return res.redirect(302, "/");
+  }
+  if (pathname === "/" || pathname === "/book" || pathname === "/book/" || pathname === "/book/orders" || pathname === "/book/orders/" || pathname.startsWith("/book/orders/") || pathname === "/fridge/orders" || pathname === "/fridge/orders/" || pathname.startsWith("/fridge/orders/") || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
     return res.sendFile(path.join(rootDir, "dist", "index.html"));
   }
   if (pathname === "/luck" || pathname === "/manage" || pathname === "/tasks" || pathname === "/batch") {
@@ -5028,6 +4955,28 @@ function getVisitSessionLastActivityAt(session) {
   return session.lastHeartbeatAt || session.endedAt || session.startedAt || session.updatedAt || session.createdAt || null;
 }
 
+async function resolveVisitSessionSource(rawSource, currentAccount) {
+  const requestedType = String(rawSource?.type || "").trim().toLowerCase();
+  const token = String(rawSource?.token || "").trim();
+  const currentAccountId = String(currentAccount?.id || "");
+  if (requestedType === "invite" && token) {
+    const referral = commerceStore.resolveReferralLink(token);
+    if (referral?.referrerAccountId && referral.referrerAccountId !== currentAccountId) {
+      return { type: "invite", accountId: String(referral.referrerAccountId) };
+    }
+  }
+  if (requestedType === "share" && token) {
+    try {
+      const sharedSession = await findSharedBodyBookSession(token);
+      const owner = commerceStore.readAccount(sharedSession.ownerAccountId);
+      if (owner?.isRegistered && owner.id !== currentAccountId) {
+        return { type: "share", accountId: String(owner.id) };
+      }
+    } catch {}
+  }
+  return { type: "organic", accountId: "" };
+}
+
 function normalizeVisitSession(session) {
   const now = new Date().toISOString();
   const startedAt = session?.startedAt || session?.createdAt || now;
@@ -5047,6 +4996,9 @@ function normalizeVisitSession(session) {
   return {
     sessionId: String(session?.sessionId || randomUUID()),
     visitorId: String(session?.visitorId || ""),
+    accountId: String(session?.accountId || ""),
+    sourceType: ["invite", "share", "organic"].includes(String(session?.sourceType || "").trim()) ? String(session.sourceType).trim() : "organic",
+    sourceAccountId: String(session?.sourceAccountId || ""),
     experienceType: normalizePublicExperienceType(session?.experienceType),
     route: normalizeVisitSessionRoute(session?.route),
     browser: normalizeBrowserDescription(session?.browser),
@@ -7932,6 +7884,140 @@ function toPublicAdminInviter(account) {
     id,
     name: getAccountDisplayName(raw, raw.email || `用户 ${id.slice(0, 8)}`),
     email: raw.email
+  };
+}
+
+function getVisitRecordPageLabel(experienceType) {
+  return normalizePublicExperienceType(experienceType) === "body-book" ? "认知书" : "小画";
+}
+
+function getVisitBrowserType(browser) {
+  const value = String(browser || "");
+  if (value.includes("微信")) return "微信浏览器";
+  if (/Android|iOS/i.test(value)) return "手机浏览器";
+  return "PC浏览器";
+}
+
+function getVisitSessionDurationSeconds(session) {
+  const current = normalizeVisitSession(session);
+  if (current.durationSeconds !== null && current.durationSeconds !== undefined && current.durationSeconds !== "" && Number.isFinite(Number(current.durationSeconds))) {
+    return Math.max(0, Math.round(Number(current.durationSeconds)));
+  }
+  return computeElapsedSeconds(current.startedAt, current.lastHeartbeatAt || current.endedAt || current.startedAt);
+}
+
+function visitRecordEventIsInSession(eventTime, session) {
+  const eventAt = parseIsoTime(eventTime);
+  const startedAt = parseIsoTime(session?.startedAt);
+  const endedAt = parseIsoTime(session?.endedAt || session?.lastHeartbeatAt || session?.startedAt);
+  if (!Number.isFinite(eventAt) || !Number.isFinite(startedAt) || !Number.isFinite(endedAt)) return false;
+  return eventAt >= startedAt && eventAt <= endedAt;
+}
+
+function resolveVisitSessionAccount(session, accountById, registeredAccountByVisitorId) {
+  const directAccount = accountById.get(String(session?.accountId || ""));
+  if (directAccount?.isRegistered) return directAccount;
+  return registeredAccountByVisitorId.get(String(session?.visitorId || "")) || null;
+}
+
+function isVisitRecordOwnedBySession(record, session, account) {
+  const recordAccountId = String(record?.ownerAccountId || record?.accountId || "");
+  const recordVisitorId = String(record?.ownerVisitorId || record?.visitorId || "");
+  if (account?.id && recordAccountId === String(account.id)) return true;
+  return Boolean(recordVisitorId) && recordVisitorId === String(session?.visitorId || "");
+}
+
+async function listAdminVisitRecords({ page = 1, limit = ADMIN_VISIT_RECORD_LIMIT } = {}) {
+  await closeTimedOutVisitSessions();
+  const safeLimit = Math.min(Math.max(Math.trunc(Number(limit || ADMIN_VISIT_RECORD_LIMIT)), 1), 100);
+  const requestedPage = Math.max(Math.trunc(Number(page || 1)), 1);
+  const [visitSessions, accounts, jobs, drawCardSessions] = await Promise.all([
+    listVisitSessions(),
+    Promise.resolve(commerceStore.listAdminAccounts()),
+    listImageJobs(),
+    listDrawCardSessions()
+  ]);
+  const orders = orderStore.listOrdersForExport();
+  const accountById = new Map(accounts.map((account) => [String(account.id || ""), account]));
+  const registeredAccountByVisitorId = new Map();
+  accounts.filter((account) => account.isRegistered).forEach((account) => {
+    (Array.isArray(account.visitorIds) ? account.visitorIds : []).forEach((visitorId) => {
+      registeredAccountByVisitorId.set(String(visitorId || ""), account);
+    });
+  });
+  // Older task records can already identify a registered owner even when the
+  // visitor binding was not persisted yet. Use that ownership to classify the
+  // historical visit as the same actual user.
+  jobs.forEach((job) => {
+    const account = accountById.get(String(job?.ownerAccountId || ""));
+    if (account?.isRegistered && job?.ownerVisitorId) {
+      registeredAccountByVisitorId.set(String(job.ownerVisitorId), account);
+    }
+  });
+
+  const records = visitSessions
+    .map(normalizeVisitSession)
+    .filter((session) => ["draw-card", "fridge-magnet", "body-book"].includes(session.experienceType))
+    .filter((session) => getVisitSessionDurationSeconds(session) > 5)
+    .map((session) => {
+      const account = resolveVisitSessionAccount(session, accountById, registeredAccountByVisitorId);
+      const experienceType = session.experienceType;
+      const generationCount = experienceType === "body-book"
+        ? jobs.filter((job) =>
+            !job?.ownerAdmin &&
+            normalizePublicExperienceType(job?.experienceType) === experienceType &&
+            isVisitRecordOwnedBySession(job, session, account) &&
+            visitRecordEventIsInSession(job?.createdAt, session)
+          ).length
+        : drawCardSessions.filter((drawSession) =>
+            normalizePublicExperienceType(drawSession?.experienceType) === experienceType &&
+            isVisitRecordOwnedBySession(drawSession, session, account) &&
+            visitRecordEventIsInSession(drawSession?.createdAt, session)
+          ).length;
+      const orderTotalCents = orders
+        .filter((order) =>
+          String(order?.fulfillmentStatus || "") !== "cancelled" &&
+          String(order?.fulfillmentStatus || "") !== "refunded" &&
+          !order?.cancelledAt &&
+          !order?.refundedAt &&
+          isVisitRecordOwnedBySession(order, session, account) &&
+          visitRecordEventIsInSession(order?.createdAt, session)
+        )
+        .reduce((total, order) => total + Math.max(0, Number(order?.totalCents || 0)), 0);
+      const accountDisplayName = account
+        ? getAccountDisplayName(account, account.email || `用户 ${String(account.id || "").slice(0, 8)}`)
+        : "";
+      const sourceAccount = accountById.get(String(session.sourceAccountId || ""));
+      const sourceAccountDisplayName = sourceAccount?.isRegistered
+        ? getAccountDisplayName(sourceAccount, sourceAccount.email || `用户 ${String(sourceAccount.id || "").slice(0, 8)}`)
+        : "";
+      return {
+        sessionId: session.sessionId,
+        userType: account ? "registered" : "visitor",
+        userName: accountDisplayName || String(session.visitorId || "访客 ID 未记录"),
+        userEmail: account ? String(account.email || "") : "",
+        visitorId: String(session.visitorId || ""),
+        visitedAt: session.startedAt,
+        durationSeconds: getVisitSessionDurationSeconds(session),
+        isActive: session.status === "active",
+        page: getVisitRecordPageLabel(experienceType),
+        browserType: getVisitBrowserType(session.browser),
+        sourceType: session.sourceType || "organic",
+        sourceUserName: sourceAccountDisplayName,
+        sourceUserEmail: sourceAccount?.isRegistered ? String(sourceAccount.email || "") : "",
+        generationCount,
+        orderTotalCents
+      };
+    })
+    .sort((left, right) => String(right.visitedAt || "").localeCompare(String(left.visitedAt || "")));
+  const total = records.length;
+  const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+  const safePage = Math.min(requestedPage, totalPages);
+  return {
+    records: records.slice((safePage - 1) * safeLimit, safePage * safeLimit),
+    total,
+    page: safePage,
+    limit: safeLimit
   };
 }
 
@@ -11767,7 +11853,9 @@ function toPublicSharedBodyBook(session) {
     englishName: theme.englishName,
     pageCount: pages.length,
     pages,
-    makeUrl: share.referralToken ? `/book?invite=${encodeURIComponent(share.referralToken)}` : "/book"
+    makeUrl: share.referralToken
+      ? `/book?invite=${encodeURIComponent(share.referralToken)}&share=${encodeURIComponent(share.token)}`
+      : "/book"
   };
 }
 

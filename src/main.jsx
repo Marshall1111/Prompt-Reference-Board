@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback } from "react";
 import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, QrCode, RefreshCw, Save, Search, Settings, Share2, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import { createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
@@ -248,7 +249,7 @@ const DRAW_CARD_EXPERIENCE_CONFIG = {
   lightboxOriginalAlt: "抽卡原图大图",
   resultNameFallback: "结果",
   clipItemFallback: "卡片",
-  pendingRemovalBody: "这张图片不属于本次生成结果，移出卡夹后将无法在当前抽卡页再次加入。确认移出吗？"
+  pendingRemovalBody: "这张图片不属于本次生成结果，移出卡夹后将无法在当前小画页再次加入。确认移出吗？"
 };
 const FRIDGE_MAGNET_EXPERIENCE_CONFIG = {
   route: "public-fridge",
@@ -304,12 +305,12 @@ function readRoute() {
   if (pathname === "/draw/order") return "public-draw-checkout";
   if (pathname === "/fridge/orders") return "public-fridge-orders";
   if (pathname.startsWith("/fridge/orders/")) return "public-fridge-order";
-  if (pathname === "/fridge/magnet") return "public-fridge-product";
+  if (pathname === "/fridge/magnet") return "public-draw";
   if (pathname === "/book/orders") return "public-body-book-orders";
   if (pathname.startsWith("/book/orders/")) return "public-body-book-order";
   if (pathname.startsWith("/book/share/")) return "public-body-book-share";
   if (pathname === "/book/referrals") return "public-referrals";
-  if (pathname === "/fridge") return "public-fridge";
+  if (pathname === "/fridge") return "public-draw";
   if (pathname === "/book") return "public-body-book";
   if (pathname === "/gallery") return "admin-gallery";
   if (pathname === "/admin" || pathname === "/admin/") return "admin-gallery";
@@ -317,6 +318,7 @@ function readRoute() {
   if (pathname === "/admin/orders") return "admin-orders";
   if (/^\/admin\/users\/[^/]+\/clip\/?$/.test(pathname)) return "admin-user-clip";
   if (pathname === "/admin/users") return "admin-users";
+  if (pathname === "/admin/visits") return "admin-visits";
   if (pathname === "/admin/merchants") return "admin-referrals";
   if (pathname === "/admin/referrals") return "admin-referrals";
   if (pathname === "/admin/styles") return "admin-gallery";
@@ -351,6 +353,7 @@ function App() {
       "public-fridge-orders": "我的冰箱贴订单",
       "admin-api-providers": "API 配置",
       "admin-referrals": "推荐管理",
+      "admin-visits": "访问记录",
       "admin-user-clip": "用户卡夹"
     };
     document.title = titleByRoute[route] || "AI小画家";
@@ -372,6 +375,7 @@ function App() {
       "admin-login": "/admin/login",
       "admin-orders": "/admin/orders",
       "admin-users": "/admin/users",
+      "admin-visits": "/admin/visits",
       "admin-referrals": "/admin/referrals",
       "admin-tasks": "/admin/tasks",
       "admin-batch": "/admin/batch",
@@ -436,6 +440,15 @@ function ReferralPage() {
       .then((payload) => { if (active) setSummary(payload); })
       .catch((nextError) => { if (active) setError(nextError.message || "读取邀请奖励失败。"); });
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    // The standalone refrigerator-magnet page has been retired. Keep old
+    // bookmarked links useful by taking visitors to the current 小画页.
+    if (window.location.pathname === "/fridge" || window.location.pathname === "/fridge/magnet") {
+      window.history.replaceState({}, "", "/");
+      setRoute("public-draw");
+    }
   }, []);
 
   async function copyValue(value, successMessage) {
@@ -521,7 +534,7 @@ class AppErrorBoundary extends React.Component {
             <p className="eyebrow">Page error</p>
             <h2>页面加载失败</h2>
             <p className="error-note">{this.state.error?.message || "发生了未知错误。"}</p>
-            <button className="draw-card-primary" onClick={() => window.location.assign("/fridge")} type="button">返回冰箱贴页</button>
+            <button className="draw-card-primary" onClick={() => window.location.assign("/")} type="button">返回小画页</button>
           </article>
         </section>
       </main>
@@ -780,7 +793,6 @@ function AdminApp({ navigate, route }) {
   const [styles, setStyles] = useState([]);
   const [styleGroups, setStyleGroups] = useState([]);
   const [inviteCodes, setInviteCodes] = useState([]);
-  const [visitorRecords, setVisitorRecords] = useState([]);
   const [orders, setOrders] = useState([]);
   const [ordersMeta, setOrdersMeta] = useState({
     total: 0,
@@ -829,7 +841,6 @@ function AdminApp({ navigate, route }) {
     refreshStyles().then(setStyles).catch(() => setStyles([]));
     refreshStyleGroups().then(setStyleGroups).catch(() => setStyleGroups([]));
     refreshInviteCodes().then(setInviteCodes).catch(() => setInviteCodes([]));
-    refreshVisitorRecords().then(setVisitorRecords).catch(() => setVisitorRecords([]));
     refreshAdminOrders()
       .then((payload) => {
         setOrders(payload.orders || []);
@@ -973,7 +984,6 @@ function AdminApp({ navigate, route }) {
         refreshStyles().then(setStyles),
         refreshStyleGroups().then(setStyleGroups),
         refreshInviteCodes().then(setInviteCodes),
-        refreshVisitorRecords().then(setVisitorRecords),
         refreshAdminSettings().then(setSettings),
         refreshStorageSummary().then(setStorageSummary)
       ]);
@@ -1004,8 +1014,7 @@ function AdminApp({ navigate, route }) {
           </div>
           <div className="subtle-entry-row admin-public-row" aria-label="公开页面入口">
             <span>公共页</span>
-            <a className="subtle-entry-link" href="/">抽卡页</a>
-            <a className="subtle-entry-link" href="/fridge">冰箱贴页</a>
+            <a className="subtle-entry-link" href="/">小画页</a>
             <a className="subtle-entry-link" href="/book">认知书页</a>
           </div>
           <nav className="top-actions admin-page-nav" aria-label="后台页面导航">
@@ -1024,6 +1033,10 @@ function AdminApp({ navigate, route }) {
             <button aria-current={route === "admin-users" ? "page" : undefined} className={`nav-button ${route === "admin-users" ? "is-active" : ""}`} onClick={() => navigate("admin-users")} type="button">
               <Eye size={18} />
               <span>用户管理</span>
+            </button>
+            <button aria-current={route === "admin-visits" ? "page" : undefined} className={`nav-button ${route === "admin-visits" ? "is-active" : ""}`} onClick={() => navigate("admin-visits")} type="button">
+              <Eye size={18} />
+              <span>访问记录</span>
             </button>
             <button aria-current={route === "admin-referrals" ? "page" : undefined} className={`nav-button ${route === "admin-referrals" ? "is-active" : ""}`} onClick={() => navigate("admin-referrals")} type="button">
               <Sparkles size={18} />
@@ -1090,6 +1103,8 @@ function AdminApp({ navigate, route }) {
           <ReferralAdminPage />
         ) : route === "admin-users" ? (
           <UserAdminPage onOpenClip={openUserClip} />
+        ) : route === "admin-visits" ? (
+          <VisitRecordsAdminPage />
         ) : route === "admin-user-clip" ? (
           <UserClipAdminPage onBack={() => navigate("admin-users")} userId={getAdminUserClipId()} />
         ) : route === "admin-batch" ? (
@@ -1104,10 +1119,8 @@ function AdminApp({ navigate, route }) {
           <InviteAdminPage
             inviteCodes={inviteCodes}
             onRefreshInviteCodes={() => refreshInviteCodes().then(setInviteCodes)}
-            onRefreshVisitorRecords={() => refreshVisitorRecords().then(setVisitorRecords)}
             onRefreshSettings={() => refreshAdminSettings().then(setSettings)}
             settings={settings}
-            visitorRecords={visitorRecords}
           />
         ) : route === "admin-api-providers" ? (
           <ApiProviderAdminPage />
@@ -1772,9 +1785,12 @@ function downloadBodyBook(book) {
 
 function BodyBookSharePage() {
   const token = window.location.pathname.split("/").filter(Boolean).pop() || "";
+  const visitSource = useMemo(() => ({ type: "share", token }), [token]);
   const [sharedBook, setSharedBook] = useState(null);
   const [error, setError] = useState("");
   const [activePage, setActivePage] = useState(null);
+
+  useVisitSessionTracking("body-book", true, visitSource);
 
   useEffect(() => {
     let active = true;
@@ -1860,6 +1876,16 @@ function BodyBookPage() {
   const pendingBookShareRef = useRef(false);
   const pendingBookOriginalDownloadRef = useRef(null);
   const bodyBookEditorRef = useRef(false);
+  const bookVisitSource = useMemo(() => {
+    const query = new URLSearchParams(window.location.search);
+    const shareToken = String(query.get("share") || "").trim();
+    const inviteToken = String(query.get("invite") || "").trim();
+    if (shareToken) return { type: "share", token: shareToken };
+    if (inviteToken) return { type: "invite", token: inviteToken };
+    return { type: "organic", token: "" };
+  }, []);
+
+  useVisitSessionTracking("body-book", true, bookVisitSource);
 
   const activeTheme = project?.theme || selectedTheme;
   const isKindergartenBook = activeTheme?.id === "kindergarten";
@@ -3601,6 +3627,10 @@ function PublicExperiencePage({ config }) {
   const merchantClaimKeyRef = useRef("");
   const visitSessionIdRef = useRef("");
   const visitLifecycleTokenRef = useRef(0);
+  const visitSource = useMemo(() => {
+    const inviteToken = experienceType === "draw-card" ? String(new URLSearchParams(window.location.search).get("invite") || "").trim() : "";
+    return inviteToken ? { type: "invite", token: inviteToken } : { type: "organic", token: "" };
+  }, [experienceType]);
   const pendingCoinPurchaseRef = useRef(false);
   const pendingReferralRef = useRef(false);
 
@@ -3683,7 +3713,8 @@ function PublicExperiencePage({ config }) {
         const payload = await reportVisitSessionEvent({
           eventType: "enter",
           experienceType,
-          route: window.location.pathname || "/"
+          route: window.location.pathname || "/",
+          visitSource
         });
         const nextSessionId = String(payload?.session?.sessionId || "");
         if (!nextSessionId) return;
@@ -3759,7 +3790,7 @@ function PublicExperiencePage({ config }) {
       window.removeEventListener("pagehide", endVisit);
       endVisit();
     };
-  }, [experienceType, visitTrackingReady]);
+  }, [experienceType, visitSource.token, visitSource.type, visitTrackingReady]);
 
   function refreshVisitorStateSilently() {
     fetchVisitorState().then(setVisitorState).catch(() => {});
@@ -5769,7 +5800,7 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
                   <label className="secondary-button file-button"><ImageUp size={18} /><span>{activeEditingStyle.personImage ? "替换人物效果图" : "上传人物效果图"}</span><input accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => handleFile(activeEditingStyle, event.target.files?.[0], "person")} type="file" /></label>
                   <label className="secondary-button file-button"><ImageUp size={18} /><span>{activeEditingStyle.petImage ? "替换宠物效果图" : "上传宠物效果图"}</span><input accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => handleFile(activeEditingStyle, event.target.files?.[0], "pet")} type="file" /></label>
                 </div>
-                <p className="storage-note">通用风格必须分别上传人物和宠物效果图；公共抽卡页会按当前标签展示对应缩略图。</p>
+                <p className="storage-note">通用风格必须分别上传人物和宠物效果图；公共小画页会按当前标签展示对应缩略图。</p>
               </> : <>
                 <div className="image-frame">
                   <StylePreviewImage alt={`${getStyleDisplayName(activeEditingStyle)}示例图`} style={activeEditingStyle} />
@@ -6913,7 +6944,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
           <div className="task-toolbar">
             <div>
               <p className="eyebrow">Group editor</p>
-              <h2>编辑风格组</h2>
+              <h2>创建风格组</h2>
             </div>
           </div>
           <label className="field-label">
@@ -6961,8 +6992,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
           </div>
         </section>
 
-        <div className="batch-right-column">
-          <section className="batch-panel">
+        <section className="batch-panel">
             <div className="task-toolbar">
               <div>
                 <p className="eyebrow">Saved groups</p>
@@ -6990,9 +7020,9 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
                 </article>
               ))}
             </div>
-          </section>
+        </section>
 
-          <section className="batch-panel">
+        <section className="batch-panel">
             <div className="task-toolbar">
               <div>
                 <p className="eyebrow">Batch submit</p>
@@ -7067,8 +7097,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
                 <span>{isSubmitting ? "提交中" : "提交整组任务"}</span>
               </button>
             </div>
-          </section>
-        </div>
+        </section>
       </div>
     </section>
   );
@@ -7895,11 +7924,12 @@ async function refreshVisitors() {
   return payload.visitors || [];
 }
 
-async function refreshVisitorRecords() {
-  const response = await fetch("/api/admin/visitor-records");
+async function refreshVisitorRecords(params = {}) {
+  const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && String(value) !== "").map(([key, value]) => [key, String(value)]));
+  const response = await fetch(`/api/admin/visitor-records${query.size ? `?${query}` : ""}`);
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取访问记录失败。");
-  return payload.records || [];
+  return payload;
 }
 
 async function reportVisitSessionEvent(payload) {
@@ -7927,6 +7957,67 @@ function sendVisitSessionLeaveEvent(payload) {
     body,
     keepalive: true
   }).catch(() => {});
+}
+
+function useVisitSessionTracking(experienceType, enabled = true, visitSource = null) {
+  const visitSessionIdRef = useRef("");
+  const visitLifecycleTokenRef = useRef(0);
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let isActive = true;
+
+    async function beginVisit() {
+      if (!isActive || document.visibilityState === "hidden") return;
+      const lifecycleToken = ++visitLifecycleTokenRef.current;
+      try {
+        const payload = await reportVisitSessionEvent({ eventType: "enter", experienceType, route: window.location.pathname || "/", visitSource });
+        const nextSessionId = String(payload?.session?.sessionId || "");
+        if (!nextSessionId) return;
+        if (!isActive || lifecycleToken !== visitLifecycleTokenRef.current || document.visibilityState === "hidden") {
+          sendVisitSessionLeaveEvent({ eventType: "leave", experienceType, route: window.location.pathname || "/", currentSessionId: nextSessionId });
+          return;
+        }
+        visitSessionIdRef.current = nextSessionId;
+      } catch {}
+    }
+
+    function endVisit() {
+      visitLifecycleTokenRef.current += 1;
+      const currentSessionId = visitSessionIdRef.current;
+      visitSessionIdRef.current = "";
+      if (!currentSessionId) return;
+      sendVisitSessionLeaveEvent({ eventType: "leave", experienceType, route: window.location.pathname || "/", currentSessionId });
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "hidden") endVisit();
+      else if (!visitSessionIdRef.current) void beginVisit();
+    }
+
+    function heartbeatVisit() {
+      const currentSessionId = visitSessionIdRef.current;
+      if (!currentSessionId || document.visibilityState === "hidden") return;
+      reportVisitSessionEvent({ eventType: "heartbeat", experienceType, route: window.location.pathname || "/", currentSessionId })
+        .then((payload) => {
+          const nextSession = payload?.session;
+          visitSessionIdRef.current = nextSession?.status === "active" ? String(nextSession.sessionId || currentSessionId) : "";
+        })
+        .catch(() => {});
+    }
+
+    void beginVisit();
+    const timer = window.setInterval(heartbeatVisit, 30000);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", endVisit);
+    return () => {
+      isActive = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", endVisit);
+      endVisit();
+    };
+  }, [enabled, experienceType, visitSource?.token, visitSource?.type]);
 }
 
 async function refreshAdminMerchants(params = {}) {
@@ -8282,7 +8373,7 @@ function AdminLoginPage({ onLogin }) {
   );
 }
 
-function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInviteCodes, onRefreshVisitorRecords, onRefreshSettings }) {
+function InviteAdminPage({ inviteCodes, settings, onRefreshInviteCodes, onRefreshSettings }) {
   const [count, setCount] = useState(5);
   const [prefix, setPrefix] = useState("");
   const [coinBonus, setCoinBonus] = useState(5);
@@ -8342,14 +8433,14 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
   }
 
   return (
-    <section className="task-page redemption-admin-page" aria-label="兑换码与访问记录">
+    <section className="task-page redemption-admin-page" aria-label="兑换码">
       <div className="task-toolbar">
         <div>
           <p className="eyebrow">Redemption codes</p>
-          <h2>兑换码与访问记录</h2>
-          <p className="storage-note">配置新访客默认奖励、创建一次性兑换码，并查看最近访客的来源、停留、生成与下单情况。</p>
+          <h2>兑换码</h2>
+          <p className="storage-note">配置新访客默认奖励，并创建一次性兑换码。</p>
         </div>
-        <button className="secondary-button" onClick={() => Promise.all([onRefreshInviteCodes(), onRefreshVisitorRecords(), onRefreshSettings()])} type="button">
+        <button className="secondary-button" onClick={() => Promise.all([onRefreshInviteCodes(), onRefreshSettings()])} type="button">
           <RefreshCw size={18} />
           <span>刷新</span>
         </button>
@@ -8372,52 +8463,62 @@ function InviteAdminPage({ inviteCodes, visitorRecords, settings, onRefreshInvit
         <div className="redemption-section-head"><div><h3>可用兑换码</h3><p>已创建 {availableInviteCodes.length} 个，删除后不可恢复。</p></div></div>
         {availableInviteCodes.length ? <div className="redemption-code-table"><div className="redemption-code-table-head" role="presentation"><span>兑换码</span><span>发放权益</span><span>核销情况</span><span>创建时间</span><span>操作</span></div>{availableInviteCodes.map((inviteCode) => <article className="redemption-code-row" key={inviteCode.id}><div className="redemption-code-primary"><strong>{inviteCode.code}</strong><span className={`task-status ${inviteCode.enabled ? "succeeded" : "cancelled"}`}>{inviteCode.enabled ? "可用" : "已停用"}</span></div><div className="redemption-code-benefits"><span>{Number(inviteCode.coinBonus ?? inviteCode.quotaBonus ?? 5)} 币</span><span>{Number(inviteCode.beanBonus ?? 10)} 豆豆</span><span>冰箱贴 {Number(inviteCode.fridgeMagnetItemCount || 0)} 个</span><span>认知书 {Number(inviteCode.bodyBookPrintCount || 0)} 册</span></div><div className="redemption-code-usage">已兑换 {inviteCode.redeemedCount} · 剩余 {inviteCode.remainingRedemptions}</div><time>{formatDateTime(inviteCode.createdAt)}</time><button className="danger-button" onClick={() => deleteInvite(inviteCode)} type="button"><Trash2 size={16} /><span>删除</span></button></article>)}</div> : <p className="empty-note">当前没有可继续兑换的兑换码。</p>}
       </section>
+    </section>
+  );
+}
 
+function VisitRecordsAdminPage() {
+  const [records, setRecords] = useState([]);
+  const [meta, setMeta] = useState({ total: 0, page: 1, limit: 50 });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
-      <section className="task-page" aria-label="访问记录列表">
-        <div className="task-toolbar">
-          <div>
-            <p className="eyebrow">Visitor records</p>
-            <h2>访问记录</h2>
-            <p className="storage-note">按访客聚合展示最近活跃、最近停留、生成次数与累计订单金额。</p>
-          </div>
-        </div>
-        {visitorRecords.length ? (
-          <div className="visitor-record-table">
-            <div className="visitor-record-head" role="presentation">
-              <span>访客</span>
-              <span>来源商户</span>
-              <span>最近活跃</span>
-              <span>最近停留</span>
-              <span>生成次数</span>
-              <span>订单金额</span>
-            </div>
-            {visitorRecords.map((record) => (
-              <article className="visitor-record-row" key={record.visitorId}>
-                <strong className="visitor-record-cell" data-label="访客" title={record.visitorId}>
-                  {shortJobId(record.visitorId)}
-                </strong>
-                <span className="visitor-record-cell" data-label="来源商户" title={record.sourceMerchantName || "无"}>
-                  {record.sourceMerchantName || "无"}
-                </span>
-                <span className="visitor-record-cell" data-label="最近活跃">
-                  {formatDateTime(record.lastActiveAt)}
-                </span>
-                <span className="visitor-record-cell" data-label="最近停留">
-                  {formatStayDuration(record.lastVisitDurationSeconds)}
-                </span>
-                <span className="visitor-record-cell" data-label="生成次数">
-                  {Math.max(0, Number(record.generationCount || 0))}
-                </span>
-                <span className="visitor-record-cell" data-label="订单金额">
-                  {formatCurrencyCents(record.orderTotalCents)}
-                </span>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="empty-note">还没有访问记录。</p>
-        )}
+  const loadRecords = useCallback(async (page = 1) => {
+    setIsLoading(true);
+    setError("");
+    try {
+      const payload = await refreshVisitorRecords(page === 1 ? {} : { page });
+      setRecords(payload.records || []);
+      setMeta({ total: Number(payload.total || 0), page: Number(payload.page || 1), limit: Number(payload.limit || 50) });
+    } catch (nextError) {
+      setError(nextError.message || "读取访问记录失败。");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void loadRecords(); }, [loadRecords]);
+  const totalPages = Math.max(1, Math.ceil(meta.total / Math.max(1, meta.limit)));
+
+  return (
+    <section className="task-page visit-records-page" aria-label="访问记录">
+      <div className="task-toolbar compact-toolbar">
+        <div><p className="eyebrow">Visit activity</p><h2>访问记录</h2><p className="storage-note">每行代表一次“小画”或“认知书”访问；生成和订单金额均按该次访问统计。</p></div>
+        <button className="secondary-button" disabled={isLoading} onClick={() => loadRecords(meta.page)} type="button"><RefreshCw size={17} /><span>{isLoading ? "加载中" : "刷新"}</span></button>
+      </div>
+      {error ? <p className="error-note">{error}</p> : null}
+      <section className="visit-records-card">
+        {records.length ? <div className="visit-record-table">
+          <div className="visit-record-head" role="presentation"><span>用户</span><span>用户类型</span><span>访问时间</span><span>访问时长</span><span>访问页面</span><span>浏览器类型</span><span>访问来源</span><span>邀请用户</span><span>生成次数</span><span>订单金额</span></div>
+          {records.map((record) => {
+            const isRegistered = record.userType === "registered";
+            const visitorId = String(record.visitorId || "");
+            const sourceType = record.sourceType === "share" ? "分享链接" : record.sourceType === "invite" ? "邀请链接" : "主动";
+            return <article className="visit-record-row" key={record.sessionId || visitorId}>
+              <div className="visit-record-user" data-label="用户" title={!isRegistered ? visitorId : ""}><strong>{record.userName || visitorId || "未记录用户"}</strong>{record.userEmail ? <small>{record.userEmail}</small> : null}</div>
+              <span data-label="用户类型"><i className={`visit-type-badge ${isRegistered ? "registered" : "visitor"}`}>{isRegistered ? "注册" : "访客"}</i></span>
+              <time data-label="访问时间">{formatDateTime(record.visitedAt || record.lastActiveAt)}</time>
+              <span data-label="访问时长">{formatStayDuration(record.durationSeconds ?? record.lastVisitDurationSeconds)}{record.isActive ? " · 进行中" : ""}</span>
+              <span data-label="访问页面">{record.page || "未记录"}</span>
+              <span data-label="浏览器类型">{record.browserType || "未记录"}</span>
+              <span data-label="访问来源">{sourceType}</span>
+              <div className="visit-record-inviter" data-label="邀请用户"><strong>{record.sourceUserName || "—"}</strong>{record.sourceUserEmail ? <small>{record.sourceUserEmail}</small> : null}</div>
+              <span data-label="生成次数">{Number(record.generationCount || 0)}</span>
+              <strong data-label="订单金额">{formatCurrencyCents(record.orderTotalCents)}</strong>
+            </article>;
+          })}
+        </div> : <p className="empty-note">{isLoading ? "正在读取访问记录…" : "还没有访问记录。"}</p>}
+        {meta.total > meta.limit ? <div className="visit-record-pagination"><span>共 {meta.total} 条</span><button className="secondary-button" disabled={isLoading || meta.page <= 1} onClick={() => loadRecords(meta.page - 1)} type="button">上一页</button><span>{meta.page} / {totalPages}</span><button className="secondary-button" disabled={isLoading || meta.page >= totalPages} onClick={() => loadRecords(meta.page + 1)} type="button">下一页</button></div> : null}
       </section>
     </section>
   );

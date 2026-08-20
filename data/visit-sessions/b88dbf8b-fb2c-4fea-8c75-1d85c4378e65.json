@@ -1,0 +1,16 @@
+{
+  "sessionId": "b88dbf8b-fb2c-4fea-8c75-1d85c4378e65",
+  "visitorId": "5f323334-6528-4dfb-94e2-2dd326fd1673",
+  "experienceType": "fridge-magnet",
+  "route": "/fridge",
+  "browser": "Edge · Windows",
+  "sourceMerchantId": "",
+  "sourceMerchantName": "",
+  "startedAt": "2026-08-20T03:01:57.677Z",
+  "lastHeartbeatAt": "2026-08-20T03:01:57.677Z",
+  "endedAt": "2026-08-20T03:02:08.279Z",
+  "durationSeconds": 11,
+  "status": "ended",
+  "createdAt": "2026-08-20T03:01:57.677Z",
+  "updatedAt": "2026-08-20T03:02:08.279Z"
+}
