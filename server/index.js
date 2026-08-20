@@ -3613,7 +3613,11 @@ app.get("/api/admin/users", requireAdmin, async (req, res, next) => {
       limit: req.query?.limit,
       search: req.query?.search,
       status: req.query?.status,
-      type: req.query?.type
+      type: req.query?.type,
+      lastLoginStart: req.query?.lastLoginStart,
+      lastLoginEnd: req.query?.lastLoginEnd,
+      registeredStart: req.query?.registeredStart,
+      registeredEnd: req.query?.registeredEnd
     });
     res.json({ ...payload, users: payload.items.map(toPublicAdminUser) });
   } catch (error) {
@@ -8378,12 +8382,26 @@ async function listAdminVisitRecords({ page = 1, limit = ADMIN_VISIT_RECORD_LIMI
   };
 }
 
-async function listAdminUserRecords({ page = 1, limit = 20, search = "", status = "", type = "" } = {}) {
+async function listAdminUserRecords({
+  page = 1,
+  limit = 20,
+  search = "",
+  status = "",
+  type = "",
+  lastLoginStart = "",
+  lastLoginEnd = "",
+  registeredStart = "",
+  registeredEnd = ""
+} = {}) {
   const safeLimit = Math.min(Math.max(Math.trunc(Number(limit || 20)), 1), 100);
   const requestedPage = Math.max(Math.trunc(Number(page || 1)), 1);
   const keyword = String(search || "").trim().toLowerCase();
   const safeStatus = ["active", "disabled"].includes(String(status || "")) ? String(status) : "";
   const safeType = ["registered", "visitor"].includes(String(type || "")) ? String(type) : "";
+  const safeLastLoginStart = normalizeVisitRecordDateFilter(lastLoginStart);
+  const safeLastLoginEnd = normalizeVisitRecordDateFilter(lastLoginEnd);
+  const safeRegisteredStart = normalizeVisitRecordDateFilter(registeredStart);
+  const safeRegisteredEnd = normalizeVisitRecordDateFilter(registeredEnd);
   const [visitors, accounts, jobs, visitSessions] = await Promise.all([
     listVisitorStates(),
     Promise.resolve(commerceStore.listAdminAccounts()),
@@ -8513,6 +8531,12 @@ async function listAdminUserRecords({ page = 1, limit = 20, search = "", status 
   ]
     .filter((record) => !safeType || record.recordType === safeType)
     .filter((record) => !safeStatus || String(record.accountStatus || "active") === safeStatus)
+    .filter((record) => matchesAdminUserDateFilters(record, {
+      lastLoginStart: safeLastLoginStart,
+      lastLoginEnd: safeLastLoginEnd,
+      registeredStart: safeRegisteredStart,
+      registeredEnd: safeRegisteredEnd
+    }))
     .filter((record) => {
       if (!keyword) return true;
       const inviter = toPublicAdminInviter(record);
@@ -8531,6 +8555,16 @@ async function listAdminUserRecords({ page = 1, limit = 20, search = "", status 
     limit: safeLimit,
     items: records.slice((safePage - 1) * safeLimit, safePage * safeLimit)
   };
+}
+
+function matchesAdminUserDateFilters(record, filters) {
+  const lastLoginDate = getChinaVisitDateKey(record?.lastLoginAt);
+  const registeredDate = getChinaVisitDateKey(record?.registeredAt);
+  if (filters.lastLoginStart && (!lastLoginDate || lastLoginDate < filters.lastLoginStart)) return false;
+  if (filters.lastLoginEnd && (!lastLoginDate || lastLoginDate > filters.lastLoginEnd)) return false;
+  if (filters.registeredStart && (!registeredDate || registeredDate < filters.registeredStart)) return false;
+  if (filters.registeredEnd && (!registeredDate || registeredDate > filters.registeredEnd)) return false;
+  return true;
 }
 
 function normalizeEmail(value) {
