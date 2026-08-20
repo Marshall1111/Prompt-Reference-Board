@@ -5278,6 +5278,61 @@ h2 {
   gap: 12px;
 }
 
+.visit-record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.visit-record-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.35fr) minmax(104px, 0.65fr) minmax(230px, 1.4fr) minmax(190px, 1.15fr) repeat(3, minmax(112px, 0.8fr));
+  gap: 10px 12px;
+  padding: 14px;
+  border: 1px solid rgba(60, 60, 67, 0.13);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 8px 28px rgba(28, 28, 30, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.visit-record-filters .field-label {
+  gap: 5px;
+  color: #6e6e73;
+  font-size: 0.67rem;
+}
+
+.visit-record-filters :is(input, select) {
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 8px;
+  border-color: rgba(60, 60, 67, 0.15);
+  border-radius: 8px;
+  background: #fff;
+  color: #1d1d1f;
+  font-size: 0.75rem;
+}
+
+.visit-filter-range {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+}
+
+.visit-filter-range b {
+  color: #86868b;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.visit-filter-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .visit-records-card {
   overflow: hidden;
   padding: 0;
@@ -7150,6 +7205,18 @@ textarea {
 
   .visit-record-head {
     display: none;
+  }
+
+  .visit-record-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .visit-record-actions {
+    justify-content: stretch;
+  }
+
+  .visit-record-actions > button {
+    flex: 1;
   }
 
   .visit-record-row {

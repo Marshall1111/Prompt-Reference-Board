@@ -1,0 +1,19 @@
+{
+  "sessionId": "fa8f7544-3a42-4a15-843a-2d6511eebb27",
+  "visitorId": "5f323334-6528-4dfb-94e2-2dd326fd1673",
+  "accountId": "",
+  "sourceType": "organic",
+  "sourceAccountId": "",
+  "experienceType": "draw-card",
+  "route": "/",
+  "browser": "Edge · Windows",
+  "sourceMerchantId": "",
+  "sourceMerchantName": "",
+  "startedAt": "2026-08-20T05:15:04.966Z",
+  "lastHeartbeatAt": "2026-08-20T05:15:04.966Z",
+  "endedAt": "2026-08-20T05:15:06.880Z",
+  "durationSeconds": 2,
+  "status": "ended",
+  "createdAt": "2026-08-20T05:15:04.966Z",
+  "updatedAt": "2026-08-20T05:15:06.880Z"
+}

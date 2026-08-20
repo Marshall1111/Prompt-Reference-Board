@@ -3372,9 +3372,9 @@ app.get("/api/admin/visitors", requireAdmin, async (_req, res) => {
 app.get("/api/admin/visitor-records", requireAdmin, async (_req, res) => {
   try {
     const payload = await listAdminVisitRecords({
-      page: _req.query?.page,
-      limit: _req.query?.limit
+      ..._req.query
     });
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
     res.json(payload);
   } catch (error) {
     console.error(error);
@@ -3514,6 +3514,36 @@ app.get("/api/admin/users", requireAdmin, async (req, res, next) => {
     res.json({ ...payload, users: payload.items.map(toPublicAdminUser) });
   } catch (error) {
     next(error);
+  }
+});
+
+app.get("/api/admin/visitor-records/export", requireAdmin, async (req, res) => {
+  try {
+    const payload = await listAdminVisitRecords({ ...req.query, exportAll: true });
+    const header = ["用户", "邮箱", "用户类型", "访问时间", "访问时长（秒）", "访问页面", "浏览器类型", "访问来源", "邀请用户", "邀请用户邮箱", "生成次数", "订单金额（元）"];
+    const rows = payload.records.map((record) => [
+      record.userName,
+      record.userEmail,
+      record.userType === "registered" ? "注册" : "访客",
+      record.visitedAt,
+      record.durationSeconds,
+      record.page,
+      record.browserType,
+      record.sourceType === "share" ? "分享链接" : record.sourceType === "invite" ? "邀请链接" : "主动",
+      record.sourceUserName,
+      record.sourceUserEmail,
+      record.generationCount,
+      (Number(record.orderTotalCents || 0) / 100).toFixed(2)
+    ]);
+    const toCsvCell = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const csv = `\uFEFF${[header, ...rows].map((row) => row.map(toCsvCell).join(",")).join("\r\n")}\r\n`;
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="visit-records-${getChinaVisitDateKey(new Date())}.csv"`);
+    res.send(csv);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "导出访问记录失败。" });
   }
 });
 
@@ -7927,10 +7957,72 @@ function isVisitRecordOwnedBySession(record, session, account) {
   return Boolean(recordVisitorId) && recordVisitorId === String(session?.visitorId || "");
 }
 
-async function listAdminVisitRecords({ page = 1, limit = ADMIN_VISIT_RECORD_LIMIT } = {}) {
+function getChinaVisitDateKey(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${byType.year || ""}-${byType.month || ""}-${byType.day || ""}`;
+}
+
+function normalizeVisitRecordDateFilter(value) {
+  const date = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "";
+}
+
+function normalizeVisitRecordNumberFilter(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
+function matchesAdminVisitRecord(record, filters) {
+  const userKeyword = String(filters.user || "").trim().toLowerCase();
+  const sourceUserKeyword = String(filters.sourceUser || "").trim().toLowerCase();
+  const visitDate = getChinaVisitDateKey(record.visitedAt);
+  const minDuration = normalizeVisitRecordNumberFilter(filters.durationMin);
+  const maxDuration = normalizeVisitRecordNumberFilter(filters.durationMax);
+  const minGeneration = normalizeVisitRecordNumberFilter(filters.generationMin);
+  const maxGeneration = normalizeVisitRecordNumberFilter(filters.generationMax);
+  const minOrderYuan = normalizeVisitRecordNumberFilter(filters.orderMin);
+  const maxOrderYuan = normalizeVisitRecordNumberFilter(filters.orderMax);
+  if (userKeyword && ![record.userName, record.userEmail, record.visitorId].join("\n").toLowerCase().includes(userKeyword)) return false;
+  if (filters.userType && record.userType !== filters.userType) return false;
+  if (filters.startDate && (!visitDate || visitDate < filters.startDate)) return false;
+  if (filters.endDate && (!visitDate || visitDate > filters.endDate)) return false;
+  if (minDuration !== null && Number(record.durationSeconds || 0) < minDuration) return false;
+  if (maxDuration !== null && Number(record.durationSeconds || 0) > maxDuration) return false;
+  if (filters.pageType && record.page !== filters.pageType) return false;
+  if (filters.browserType && record.browserType !== filters.browserType) return false;
+  if (filters.sourceType && record.sourceType !== filters.sourceType) return false;
+  if (sourceUserKeyword && ![record.sourceUserName, record.sourceUserEmail].join("\n").toLowerCase().includes(sourceUserKeyword)) return false;
+  if (minGeneration !== null && Number(record.generationCount || 0) < minGeneration) return false;
+  if (maxGeneration !== null && Number(record.generationCount || 0) > maxGeneration) return false;
+  if (minOrderYuan !== null && Number(record.orderTotalCents || 0) < Math.round(minOrderYuan * 100)) return false;
+  if (maxOrderYuan !== null && Number(record.orderTotalCents || 0) > Math.round(maxOrderYuan * 100)) return false;
+  return true;
+}
+
+async function listAdminVisitRecords({ page = 1, limit = ADMIN_VISIT_RECORD_LIMIT, exportAll = false, user = "", userType = "", startDate = "", endDate = "", durationMin = "", durationMax = "", pageType = "", browserType = "", sourceType = "", sourceUser = "", generationMin = "", generationMax = "", orderMin = "", orderMax = "" } = {}) {
   await closeTimedOutVisitSessions();
   const safeLimit = Math.min(Math.max(Math.trunc(Number(limit || ADMIN_VISIT_RECORD_LIMIT)), 1), 100);
   const requestedPage = Math.max(Math.trunc(Number(page || 1)), 1);
+  const filters = {
+    user: String(user || "").slice(0, 180),
+    userType: ["registered", "visitor"].includes(String(userType || "")) ? String(userType) : "",
+    startDate: normalizeVisitRecordDateFilter(startDate),
+    endDate: normalizeVisitRecordDateFilter(endDate),
+    durationMin,
+    durationMax,
+    pageType: ["小画", "认知书"].includes(String(pageType || "")) ? String(pageType) : "",
+    browserType: ["微信浏览器", "手机浏览器", "PC浏览器"].includes(String(browserType || "")) ? String(browserType) : "",
+    sourceType: ["invite", "share", "organic"].includes(String(sourceType || "")) ? String(sourceType) : "",
+    sourceUser: String(sourceUser || "").slice(0, 180),
+    generationMin,
+    generationMax,
+    orderMin,
+    orderMax
+  };
   const [visitSessions, accounts, jobs, drawCardSessions] = await Promise.all([
     listVisitSessions(),
     Promise.resolve(commerceStore.listAdminAccounts()),
@@ -8009,12 +8101,13 @@ async function listAdminVisitRecords({ page = 1, limit = ADMIN_VISIT_RECORD_LIMI
         orderTotalCents
       };
     })
+    .filter((record) => matchesAdminVisitRecord(record, filters))
     .sort((left, right) => String(right.visitedAt || "").localeCompare(String(left.visitedAt || "")));
   const total = records.length;
   const totalPages = Math.max(1, Math.ceil(total / safeLimit));
   const safePage = Math.min(requestedPage, totalPages);
   return {
-    records: records.slice((safePage - 1) * safeLimit, safePage * safeLimit),
+    records: exportAll ? records : records.slice((safePage - 1) * safeLimit, safePage * safeLimit),
     total,
     page: safePage,
     limit: safeLimit

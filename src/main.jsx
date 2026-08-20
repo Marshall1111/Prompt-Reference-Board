@@ -7924,12 +7924,47 @@ async function refreshVisitors() {
   return payload.visitors || [];
 }
 
+function formatChinaDateInput(value) {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(value);
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${byType.year}-${byType.month}-${byType.day}`;
+}
+
+function createDefaultVisitRecordFilters() {
+  const today = formatChinaDateInput(new Date());
+  const start = new Date(`${today}T12:00:00+08:00`);
+  start.setUTCDate(start.getUTCDate() - 2);
+  return {
+    user: "", userType: "", startDate: formatChinaDateInput(start), endDate: today,
+    durationMin: "", durationMax: "", pageType: "", browserType: "", sourceType: "", sourceUser: "",
+    generationMin: "", generationMax: "", orderMin: "", orderMax: ""
+  };
+}
+
 async function refreshVisitorRecords(params = {}) {
   const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && String(value) !== "").map(([key, value]) => [key, String(value)]));
-  const response = await fetch(`/api/admin/visitor-records${query.size ? `?${query}` : ""}`);
+  const response = await fetch(`/api/admin/visitor-records${query.size ? `?${query}` : ""}`, { cache: "no-store" });
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取访问记录失败。");
   return payload;
+}
+
+async function exportVisitRecordsCsv(params = {}) {
+  const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && String(value) !== "").map(([key, value]) => [key, String(value)]));
+  const response = await fetch(`/api/admin/visitor-records/export${query.size ? `?${query}` : ""}`, { cache: "no-store" });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.message || "导出访问记录失败。");
+  }
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = `访问记录-${formatChinaDateInput(new Date())}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }
 
 async function reportVisitSessionEvent(payload) {
@@ -8471,13 +8506,17 @@ function VisitRecordsAdminPage() {
   const [records, setRecords] = useState([]);
   const [meta, setMeta] = useState({ total: 0, page: 1, limit: 50 });
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState("");
+  const [filters, setFilters] = useState(() => createDefaultVisitRecordFilters());
+  const [appliedFilters, setAppliedFilters] = useState(() => createDefaultVisitRecordFilters());
+  const [showFilters, setShowFilters] = useState(false);
 
-  const loadRecords = useCallback(async (page = 1) => {
+  const loadRecords = useCallback(async (page = 1, activeFilters = appliedFilters) => {
     setIsLoading(true);
     setError("");
     try {
-      const payload = await refreshVisitorRecords(page === 1 ? {} : { page });
+      const payload = await refreshVisitorRecords({ ...activeFilters, page });
       setRecords(payload.records || []);
       setMeta({ total: Number(payload.total || 0), page: Number(payload.page || 1), limit: Number(payload.limit || 50) });
     } catch (nextError) {
@@ -8485,18 +8524,50 @@ function VisitRecordsAdminPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [appliedFilters]);
 
-  useEffect(() => { void loadRecords(); }, [loadRecords]);
+  useEffect(() => { void loadRecords(1, appliedFilters); }, [appliedFilters, loadRecords]);
   const totalPages = Math.max(1, Math.ceil(meta.total / Math.max(1, meta.limit)));
+  const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
+  const applyFilters = () => setAppliedFilters({ ...filters });
+  const resetFilters = () => {
+    const next = createDefaultVisitRecordFilters();
+    setFilters(next);
+    setAppliedFilters(next);
+  };
+
+  async function exportRecords() {
+    setIsExporting(true);
+    setError("");
+    try {
+      await exportVisitRecordsCsv(appliedFilters);
+    } catch (nextError) {
+      setError(nextError.message || "导出访问记录失败。");
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   return (
     <section className="task-page visit-records-page" aria-label="访问记录">
       <div className="task-toolbar compact-toolbar">
         <div><p className="eyebrow">Visit activity</p><h2>访问记录</h2><p className="storage-note">每行代表一次“小画”或“认知书”访问；生成和订单金额均按该次访问统计。</p></div>
-        <button className="secondary-button" disabled={isLoading} onClick={() => loadRecords(meta.page)} type="button"><RefreshCw size={17} /><span>{isLoading ? "加载中" : "刷新"}</span></button>
+        <div className="visit-record-actions"><button className="secondary-button" onClick={() => setShowFilters((current) => !current)} type="button"><Settings size={17} /><span>筛选</span></button><button className="secondary-button" disabled={isExporting} onClick={exportRecords} type="button"><Download size={17} /><span>{isExporting ? "导出中" : "导出"}</span></button><button className="secondary-button" disabled={isLoading} onClick={() => loadRecords(meta.page, appliedFilters)} type="button"><RefreshCw size={17} /><span>{isLoading ? "加载中" : "刷新"}</span></button></div>
       </div>
       {error ? <p className="error-note">{error}</p> : null}
+      {showFilters ? <section className="visit-record-filters" aria-label="访问记录筛选">
+        <label className="field-label">用户<input onChange={(event) => updateFilter("user", event.target.value)} placeholder="用户名、邮箱或访客 ID" value={filters.user} /></label>
+        <label className="field-label">用户类型<select onChange={(event) => updateFilter("userType", event.target.value)} value={filters.userType}><option value="">全部</option><option value="registered">注册</option><option value="visitor">访客</option></select></label>
+        <label className="field-label visit-filter-wide">访问时间<span className="visit-filter-range"><input onChange={(event) => updateFilter("startDate", event.target.value)} type="date" value={filters.startDate} /><b>至</b><input onChange={(event) => updateFilter("endDate", event.target.value)} type="date" value={filters.endDate} /></span></label>
+        <label className="field-label">访问时长（秒）<span className="visit-filter-range"><input min="0" onChange={(event) => updateFilter("durationMin", event.target.value)} placeholder="最小" type="number" value={filters.durationMin} /><b>–</b><input min="0" onChange={(event) => updateFilter("durationMax", event.target.value)} placeholder="最大" type="number" value={filters.durationMax} /></span></label>
+        <label className="field-label">访问页面<select onChange={(event) => updateFilter("pageType", event.target.value)} value={filters.pageType}><option value="">全部</option><option value="小画">小画</option><option value="认知书">认知书</option></select></label>
+        <label className="field-label">浏览器类型<select onChange={(event) => updateFilter("browserType", event.target.value)} value={filters.browserType}><option value="">全部</option><option value="微信浏览器">微信浏览器</option><option value="手机浏览器">手机浏览器</option><option value="PC浏览器">PC浏览器</option></select></label>
+        <label className="field-label">访问来源<select onChange={(event) => updateFilter("sourceType", event.target.value)} value={filters.sourceType}><option value="">全部</option><option value="invite">邀请链接</option><option value="share">分享链接</option><option value="organic">主动</option></select></label>
+        <label className="field-label">邀请用户<input onChange={(event) => updateFilter("sourceUser", event.target.value)} placeholder="昵称或邮箱" value={filters.sourceUser} /></label>
+        <label className="field-label">生成次数<span className="visit-filter-range"><input min="0" onChange={(event) => updateFilter("generationMin", event.target.value)} placeholder="最小" type="number" value={filters.generationMin} /><b>–</b><input min="0" onChange={(event) => updateFilter("generationMax", event.target.value)} placeholder="最大" type="number" value={filters.generationMax} /></span></label>
+        <label className="field-label">订单金额（元）<span className="visit-filter-range"><input min="0" onChange={(event) => updateFilter("orderMin", event.target.value)} placeholder="最小" type="number" value={filters.orderMin} /><b>–</b><input min="0" onChange={(event) => updateFilter("orderMax", event.target.value)} placeholder="最大" type="number" value={filters.orderMax} /></span></label>
+        <div className="visit-filter-actions"><button className="secondary-button" onClick={resetFilters} type="button">重置</button><button className="copy-button" onClick={applyFilters} type="button">应用筛选</button></div>
+      </section> : null}
       <section className="visit-records-card">
         {records.length ? <div className="visit-record-table">
           <div className="visit-record-head" role="presentation"><span>用户</span><span>用户类型</span><span>访问时间</span><span>访问时长</span><span>访问页面</span><span>浏览器类型</span><span>访问来源</span><span>邀请用户</span><span>生成次数</span><span>订单金额</span></div>
