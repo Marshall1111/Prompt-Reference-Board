@@ -9207,6 +9207,41 @@ textarea {
   justify-items: start;
 }
 
+/* Homepage only: the finished-book scene spans the whole title area. A
+   slightly oversized left-to-right wash keeps the title readable edge to
+   edge while showing more of the book on the right. */
+.body-book-page .body-book-home-header {
+  position: relative;
+  isolation: isolate;
+  width: min(1184px, calc(100% + 64px));
+  margin: -32px auto 0;
+  padding: 54px max(32px, calc((100% - 1120px) / 2)) 30px;
+  border-bottom: 1px solid rgba(197, 162, 124, 0.2);
+  background-image:
+    linear-gradient(90deg, rgba(255, 253, 249, 1) -4%, rgba(255, 253, 249, 0.97) 36%, rgba(255, 253, 249, 0.58) 68%, rgba(255, 253, 249, 0.22) 104%),
+    linear-gradient(0deg, rgba(255, 245, 230, 0.22), rgba(255, 245, 230, 0.22)),
+    url("/body-book-home-hero.png");
+  background-position: center, center, 77% 53%;
+  background-repeat: no-repeat;
+  background-size: cover, calc(100% + 8px) calc(100% + 8px), cover;
+  box-shadow: 0 12px 28px rgba(100, 71, 43, 0.08);
+}
+
+.body-book-page .body-book-home-header .body-book-header-copy {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 152px;
+  padding: 12px clamp(18px, 2vw, 26px) 2px;
+}
+
+.body-book-page .body-book-home-header .body-book-header-copy > p {
+  max-width: 420px;
+  color: #5d5149;
+  font-size: 16px;
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
 .body-book-page .body-book-header {
   padding: 22px 0 28px;
 }
@@ -9890,6 +9925,18 @@ textarea {
 }
 
 @media (max-width: 680px) {
+  .body-book-page .body-book-home-header {
+    width: calc(100% + 32px);
+    margin: -16px -16px 0;
+    padding: 38px 16px 22px;
+    background-position: center, center, 81% 52%;
+    background-size: cover, calc(100% + 8px) calc(100% + 8px), cover;
+  }
+  .body-book-page .body-book-home-header .body-book-header-copy {
+    min-height: 138px;
+    padding: 8px 4px 2px;
+  }
+  .body-book-page .body-book-home-header .body-book-header-copy > p { font-size: 14px; }
   .body-book-page { padding: 16px; }
   .body-book-page :is(.body-book-wallet-panel, .body-book-content-panel, .body-book-project-modal, .body-book-regenerate-panel, .body-book-library-panel) { border-radius: 18px; }
   .body-book-page .body-book-theme-card { padding: 11px; }

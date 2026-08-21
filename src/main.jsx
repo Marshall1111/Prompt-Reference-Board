@@ -2910,13 +2910,13 @@ function BodyBookPage() {
   const bookWechatAvatarUrl = String(visitorState?.account?.wechatAvatarUrl || "").trim();
   return (
     <main className="body-book-page">
-      <header className="body-book-header">
+      <header className={`body-book-header${home ? " body-book-home-header" : ""}`}>
         <div className="body-book-header-copy">
           <div className="body-book-title-lockup">
             <p aria-hidden="true" className="body-book-title-english"><span className="title-coral title-tilt-1">M</span><span className="title-gold title-tilt-2">y</span><span className="title-space" /><span className="title-green title-tilt-3">F</span><span className="title-teal title-tilt-4">i</span><span className="title-blue title-tilt-5">r</span><span className="title-indigo title-tilt-6">s</span><span className="title-purple title-tilt-7">t</span><span className="title-space" /><span className="title-orange title-tilt-8">B</span><span className="title-pink title-tilt-9">o</span><span className="title-cyan title-tilt-10">o</span><span className="title-mint title-tilt-11">k</span><span className="title-blue title-tilt-12">s</span></p>
             <h1>我的第一本认知书</h1>
           </div>
-          <p>{activeTheme ? `正在制作：${activeTheme.name}` : "选择主题后，自由组合页面并持续编辑。"}</p>
+          <p>{activeTheme ? `正在制作：${activeTheme.name}` : "让孩子成为书中的主角"}</p>
         </div>
         <div className="body-book-header-actions">
           <button className="draw-card-secondary body-book-header-orders" onClick={() => window.location.assign("/book/orders")} type="button"><ListTodo size={16} /><span>我的订单</span></button>
