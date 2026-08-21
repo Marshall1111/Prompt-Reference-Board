@@ -2144,6 +2144,8 @@ function BodyBookPage() {
   const allAvailableKeys = pages.filter((page) => !page.isBuiltIn && !["queued", "running"].includes(page.status)).map((page) => page.key);
   const bodyBookPricing = orderConfig?.bodyBook || {};
   const beanPurchaseDiscount = visitorState?.beanPurchaseDiscount || { availableCents: 0 };
+  const bodyBookThemeCardPriceCents = Math.max(0, Number(bodyBookPricing.priceCents || 0));
+  const bodyBookThemeCardDiscountCents = Math.min(4000, bodyBookThemeCardPriceCents, Math.max(0, Number(beanPurchaseDiscount.availableCents || 0)));
   const redemptionEntitlements = visitorState?.redemptionEntitlements || { fridgeMagnetItemCount: 0, bodyBookPrintCount: 0 };
   const hasBodyBookPrintRedemption = Number(redemptionEntitlements.bodyBookPrintCount || 0) > 0;
   const bookOrderGrossCents = Number(bodyBookPricing.priceCents || 0) + Number(bodyBookPricing.shippingFeeCents || 0);
@@ -3004,7 +3006,7 @@ function BodyBookPage() {
 
       {isOpeningProject ? <section className="body-book-share-empty"><LoaderCircle className="spin" size={30} /><p>正在打开认知书工程…</p></section> : home ? <>
         <section className="body-book-theme-home body-book-theme-layout">
-          <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先查看整本效果，再开始制作专属认知书。</p></div><BodyBookThemePager busy={busy} groups={getBodyBookThemeGroups(themes)} onSelectTheme={openThemePreview} /></div>
+          <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先查看整本效果，再开始制作专属认知书。</p></div><BodyBookThemePager busy={busy} discountCents={bodyBookThemeCardDiscountCents} groups={getBodyBookThemeGroups(themes)} onSelectTheme={openThemePreview} priceCents={bodyBookThemeCardPriceCents} /></div>
         </section>
       </> : showingThemePreview ? <BodyBookThemeEffectPreview busy={busy} onBack={closeThemePreview} onStart={() => selectTheme(themePreview)} theme={themePreview} /> : <section className="body-book-workspace body-book-project-workspace">
         <div className="body-book-status-row"><div><span className="body-book-step">02</span><h2>{project?.message || "配置你的认知书页面"}</h2></div></div>
@@ -3124,7 +3126,7 @@ function getBodyBookThemeGroups(themes) {
   }).filter((group) => group.items.length);
 }
 
-function BodyBookThemePager({ busy, groups, onSelectTheme }) {
+function BodyBookThemePager({ busy, groups, onSelectTheme, priceCents = 0, discountCents = 0 }) {
   const [activeCategory, setActiveCategory] = useState("cartoon");
   const [slideDirection, setSlideDirection] = useState("");
   const touchStartRef = useRef(null);
@@ -3204,7 +3206,7 @@ function BodyBookThemePager({ busy, groups, onSelectTheme }) {
     <div className="body-book-theme-viewport" onTouchEnd={handleTouchEnd} onTouchStart={handleTouchStart}>
       <section className={`body-book-theme-group body-book-theme-screen body-book-theme-screen-${activeGroup.id}${slideDirection ? ` slide-${slideDirection}` : ""}`} id={`body-book-theme-panel-${activeGroup.id}`} key={activeGroup.id} role="tabpanel">
         <div className="body-book-theme-group-head"><span>{activeGroup.title}</span><p>{activeGroup.description}</p></div>
-        <div className="body-book-theme-grid">{activeGroup.items.map(({ theme, index }) => <button className="body-book-theme-card" disabled={busy} key={theme.id} onClick={() => onSelectTheme(theme)} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={getBodyBookThemePreviewSrc(theme)} /><span className="body-book-theme-index">{String(index).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small><em>预计消耗 {getBodyBookThemeGenerationCost(theme)} 豆</em></button>)}</div>
+        <div className="body-book-theme-grid">{activeGroup.items.map(({ theme, index }) => <button className="body-book-theme-card" disabled={busy} key={theme.id} onClick={() => onSelectTheme(theme)} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={getBodyBookThemePreviewSrc(theme)} /><span className="body-book-theme-index">{String(index).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small><em>预计消耗 {getBodyBookThemeGenerationCost(theme)} 豆</em>{priceCents > 0 ? <span className="body-book-theme-price">{discountCents > 0 ? <><del>￥{(priceCents / 100).toFixed(2)}</del><b>￥{((priceCents - discountCents) / 100).toFixed(2)}</b></> : <b>￥{(priceCents / 100).toFixed(2)}</b>}</span> : null}</button>)}</div>
       </section>
     </div>
     <div aria-label={`当前为${activeGroup.title}，第${activeIndex + 1}类，共${groups.length}类`} className="body-book-theme-pagination">
