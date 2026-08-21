@@ -139,6 +139,8 @@ const GENERATION_STEPS = ["准备请求", "提交到中转站", "等待模型生
 const DRAW_CARD_SESSION_STORAGE_KEY = "pg.public-draw.session-id";
 const FRIDGE_MAGNET_SESSION_STORAGE_KEY = "pg.public-fridge.session-id";
 const BODY_BOOK_SESSION_STORAGE_KEY = "pg.body-book.session-id";
+const BODY_BOOK_CART_STORAGE_PREFIX = "petpaint-body-book-cart:";
+const MAX_BODY_BOOK_CART_QUANTITY = 20;
 const BODY_BOOK_THEME_BASE_FALLBACKS = [
   { id: "body", name: "身体认知书", englishName: "My First Body Book", title: "我的第一本身体认知书", themeCategory: "realistic" },
   { id: "career", name: "职业认知书", englishName: "My First Jobs", title: "我的第一本职业认知书", themeCategory: "realistic" },
@@ -310,6 +312,7 @@ function readRoute() {
   if (pathname === "/fridge/magnet") return "public-draw";
   if (pathname === "/book/orders") return "public-body-book-orders";
   if (pathname.startsWith("/book/orders/")) return "public-body-book-order";
+  if (pathname === "/book/cart") return "public-body-book-cart";
   if (pathname === "/book/works") return "public-body-book-works";
   if (pathname.startsWith("/book/share/")) return "public-body-book-share";
   if (pathname === "/book/referrals") return "public-referrals";
@@ -459,6 +462,7 @@ function App() {
       "public-fridge-order": "冰箱贴订单",
       "public-body-book-order": "宝宝的认知书",
       "public-body-book-orders": "宝宝的认知书",
+      "public-body-book-cart": "认知书购物车",
       "public-body-book-works": "我的作品",
       "public-body-book-share": "好友分享的认知书",
       "public-referrals": "我的邀请",
@@ -480,6 +484,7 @@ function App() {
       "public-draw-checkout": "/draw/order",
       "public-fridge-orders": "/fridge/orders",
       "public-body-book-orders": "/book/orders",
+      "public-body-book-cart": "/book/cart",
       "public-body-book-works": "/book/works",
       "public-referrals": "/book/referrals",
       "public-fridge-order": window.location.pathname,
@@ -518,6 +523,9 @@ function App() {
   }
   if (route === "public-body-book-orders") {
     return <BodyBookOrdersPage />;
+  }
+  if (route === "public-body-book-cart") {
+    return <BodyBookCartPage />;
   }
   if (route === "public-body-book-works") {
     return <BodyBookWorksPage />;
@@ -1727,7 +1735,6 @@ function LegacyBodyBookPage() {
           <p>{session?.theme ? `正在制作：${session.theme.name}` : selectedTheme ? `正在制作：${selectedTheme.name}` : "选择一个主题，制作一套中英双语宝宝认知书。"}</p>
         </div>
         <div className="body-book-header-actions">
-          {!session && selectedTheme ? <button className="draw-card-secondary body-book-back-to-themes" disabled={isSubmitting} onClick={() => { setSelectedTheme(null); setReferenceFile(null); setError(""); }} type="button">返回主题选择</button> : null}
           <div className="body-book-user-area">
             <button className="draw-card-secondary body-book-account-button" onClick={() => visitorState?.account?.isRegistered ? setShowUserMenu((current) => !current) : setShowAuthModal(true)} type="button">{visitorState?.account?.isRegistered ? (visitorState.account.username || "我的账户") : "登录 / 注册"}</button>
             {showUserMenu ? <div className="body-book-user-menu"><button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}
@@ -1777,7 +1784,6 @@ function LegacyBodyBookPage() {
           <div className="body-book-status-row">
             <div><span className="body-book-step">{isCoverReview ? "02" : "03"}</span><h2>{isCoverReview ? "确认封面效果" : isGenerating ? session.message : "认知书成品"}</h2></div>
             <div className="body-book-page-actions">
-              <button className="draw-card-secondary" onClick={restart} type="button"><Home size={17} /><span>主页</span></button>
               <button className="draw-card-secondary" disabled={!canDownloadAll || isSavingBook} onClick={saveBook} type="button"><Save size={17} /><span>{isSavingBook ? "保存中" : session?.savedAt ? "已保存全书" : "保存全书"}</span></button>
             </div>
           </div>
@@ -1900,6 +1906,45 @@ function getCompletedBodyBookPrintPreviewPages(pages) {
     }
     return page?.status === "succeeded" && Boolean(getBodyBookThumbnail(page));
   });
+}
+
+function getBodyBookCartEligibility(book) {
+  const requiredCount = Math.max(1, Number(book?.theme?.generationPageCount || getBodyBookThemeGenerationCost(book?.theme) || 0));
+  const pages = Array.isArray(book?.pages) ? book.pages.filter((page) => !page?.isBuiltIn && page?.pageType !== "back-cover") : [];
+  const incompleteCount = pages.filter((page) => page?.status !== "succeeded" || !page?.result?.imageUrl).length;
+  const missingCount = Math.max(0, requiredCount - pages.length) + incompleteCount;
+  return { eligible: pages.length === requiredCount && incompleteCount === 0, missingCount: Math.max(1, missingCount) };
+}
+
+function readBodyBookCart(account) {
+  const accountId = String(account?.id || "").trim();
+  if (!accountId) return {};
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(`${BODY_BOOK_CART_STORAGE_PREFIX}${accountId}`) || "[]");
+    const items = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.items) ? parsed.items : [];
+    return items.reduce((cart, item) => {
+      const projectId = String(item?.projectId || "").trim();
+      const quantity = Math.trunc(Number(item?.quantity || 0));
+      if (projectId && quantity > 0) cart[projectId] = Math.min(MAX_BODY_BOOK_CART_QUANTITY, quantity);
+      return cart;
+    }, {});
+  } catch {
+    return {};
+  }
+}
+
+function saveBodyBookCart(account, cart) {
+  const accountId = String(account?.id || "").trim();
+  if (!accountId) return;
+  const items = Object.entries(cart || {})
+    .map(([projectId, quantity]) => ({ projectId, quantity: Math.trunc(Number(quantity || 0)) }))
+    .filter((item) => item.projectId && item.quantity > 0)
+    .slice(0, MAX_BODY_BOOK_CART_QUANTITY);
+  try {
+    window.localStorage.setItem(`${BODY_BOOK_CART_STORAGE_PREFIX}${accountId}`, JSON.stringify(items));
+  } catch {
+    // Checkout remains available even if browser storage is unavailable.
+  }
 }
 
 function downloadBodyBook(book) {
@@ -2031,6 +2076,7 @@ function BodyBookPage() {
   const [bookShareError, setBookShareError] = useState("");
   const [bookShareBusy, setBookShareBusy] = useState(false);
   const [showBookOriginalUnlockPrompt, setShowBookOriginalUnlockPrompt] = useState(false);
+  const [bodyBookCart, setBodyBookCart] = useState({});
   const [bookOrderForm, setBookOrderForm] = useState(DEFAULT_ORDER_ADDRESS);
   const [bookOrderBusy, setBookOrderBusy] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -2135,6 +2181,8 @@ function BodyBookPage() {
               ? `还有 ${unfinishedPages.length} 张页面尚未完成生成，请完成后再下单。`
               : "";
   const canOrderBodyBook = !bookOrderBlockReason;
+  const currentBookCartEligibility = useMemo(() => getBodyBookCartEligibility(project ? { ...project, theme: project.theme || activeTheme } : null), [project, activeTheme]);
+  const currentBookCartQuantity = Math.max(0, Number(bodyBookCart[project?.sessionId] || 0));
 
   function applyProject(nextProject) {
     if (!nextProject?.sessionId) return;
@@ -2174,6 +2222,10 @@ function BodyBookPage() {
     }).catch(() => {});
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    setBodyBookCart(readBodyBookCart(visitorState?.account));
+  }, [visitorState?.account?.id]);
 
   useEffect(() => {
     if (!openingProjectId) return;
@@ -2527,17 +2579,35 @@ function BodyBookPage() {
     }
   }
 
-  function openBookCheckout() {
-    if (!canOrderBodyBook) {
-      setShowBookCheckout(true);
+  function toggleCurrentBookCart() {
+    if (!project?.sessionId || !currentBookCartEligibility.eligible) {
+      window.alert(`暂时无法加入购物车，当前还差${currentBookCartEligibility.missingCount}张页面，请补齐后再加入购物车`);
       return;
     }
     if (!visitorState?.account?.isRegistered) {
-      pendingBookCheckoutRef.current = true;
       setShowAuthModal(true);
       return;
     }
-    setShowBookCheckout(true);
+    if (currentBookCartQuantity > 0) {
+      if (!window.confirm("本书已经在购物车，是否要移出？")) return;
+      setBodyBookCart((current) => {
+        const next = { ...current };
+        delete next[project.sessionId];
+        saveBodyBookCart(visitorState.account, next);
+        return next;
+      });
+      return;
+    }
+    setBodyBookCart((current) => {
+      const total = Object.values(current).reduce((sum, quantity) => sum + Math.max(0, Number(quantity || 0)), 0);
+      if (total >= MAX_BODY_BOOK_CART_QUANTITY) {
+        window.alert("购物车最多可加入 20 本认知书。");
+        return current;
+      }
+      const next = { ...current, [project.sessionId]: 1 };
+      saveBodyBookCart(visitorState.account, next);
+      return next;
+    });
   }
 
   function openBookPreview() {
@@ -2925,11 +2995,11 @@ function BodyBookPage() {
         </div>
         <div className="body-book-header-actions">
           <button className="draw-card-secondary body-book-header-orders" onClick={() => window.location.assign("/book/orders")} type="button"><ListTodo size={16} /><span>我的订单</span></button>
+          <button className="draw-card-secondary body-book-header-cart" onClick={() => window.location.assign("/book/cart")} type="button"><Plus size={16} /><span>购物车</span></button>
           <button className="draw-card-secondary body-book-header-works" onClick={() => window.location.assign("/book/works")} type="button"><Layers3 size={16} /><span>我的作品</span></button>
           <button className="draw-card-secondary body-book-header-balance" onClick={() => setShowBeanInfo(true)} type="button"><span>余额</span><strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong><span>豆</span></button>
           <div className="body-book-user-area" ref={userMenuRef}><button aria-label={isBookAccountRegistered ? `账户：${bookAccountName}` : "登录或注册"} className={`draw-card-secondary body-book-account-button${isBookAccountRegistered ? " is-signed-in" : " is-guest"}`} onClick={() => isBookAccountRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)} title={isBookAccountRegistered ? bookAccountName : "登录 / 注册"} type="button">{isBookAccountRegistered && bookWechatAvatarUrl ? <img alt="" src={bookWechatAvatarUrl} /> : <span>{isBookAccountRegistered ? bookAccountName.slice(0, 1) : "登录"}</span>}</button>{showUserMenu && isBookAccountRegistered ? <div className="body-book-user-menu"><span className="body-book-user-menu-name">{bookAccountName}</span><button onClick={() => window.location.assign("/book/referrals?source=book")} type="button">我的邀请</button><button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}</div>
         </div>
-        {activeTheme ? <button className="body-book-home-link" disabled={busy} onClick={returnToBookHome} type="button"><ArrowLeft size={17} /><span>主页</span></button> : null}
       </header>
 
       {isOpeningProject ? <section className="body-book-share-empty"><LoaderCircle className="spin" size={30} /><p>正在打开认知书工程…</p></section> : home ? <>
@@ -2944,7 +3014,7 @@ function BodyBookPage() {
         <section className="body-book-content-panel">
           <div className="body-book-project-pages-head"><div><span className="body-book-step">03</span><h3>内容选择</h3><p>{usesPairedPresetLayout ? "制作时仅选择封面和各主题专属认知页；对应内置认知页会在下单预览中自动加入。" : "每张卡片可单独替换参考图并生成。"}</p><p className="body-book-selection-progress">{selectionProgressText}</p></div></div>
           <div className="body-book-grid body-book-project-grid">{pages.map((page) => <BodyBookProjectItem busy={busy} busyPageKey={busyPageKey} key={`${page.key}-${page.jobId || "new"}`} onDelete={() => savePageSelection(selectedKeys.filter((key) => key !== page.key))} onDownload={() => { void downloadBookOriginal(page); }} onEditReferences={() => setActivePageReferenceKey(page.key)} onGenerate={() => submitGeneration([page.key], page.key)} onOpen={openActiveItem} page={page} />)}<button className="body-book-add-page-card" disabled={busy} onClick={openContentPicker} type="button" aria-label="添加或编辑内容"><Plus size={36} /><span>添加内容</span></button>{!pages.length ? <p className="body-book-library-empty">点击“添加内容”选择要制作的页面。</p> : null}</div>
-          <div className="body-book-content-panel-actions"><div className="body-book-content-panel-order-actions"><button className="draw-card-secondary" disabled={busy || !completedBookPreviewPages.length} onClick={openBookPreview} type="button"><Eye size={18} /><span>效果预览</span></button><button className="draw-card-secondary" disabled={busy || !project?.pages?.some((page) => page.status === "succeeded" && page.result?.imageUrl)} onClick={() => { void openBookShare(); }} type="button"><Share2 size={18} /><span>分享给好友</span></button><button className="draw-card-secondary" onClick={() => setShowBatchDialog(true)} type="button">{busy && !busyPageKey ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}<span>批量生成</span></button><button className="draw-card-primary" onClick={openBookCheckout} type="button">{hasBodyBookPrintRedemption ? `使用实体书兑换券（剩余 ${redemptionEntitlements.bodyBookPrintCount} 册）` : `下单实体书 · ${formatCurrencyCents(bookOrderPayablePreviewCents)}`}</button></div></div>
+          <div className="body-book-content-panel-actions"><div className="body-book-content-panel-order-actions"><button className="draw-card-secondary" disabled={busy || !completedBookPreviewPages.length} onClick={openBookPreview} type="button"><Eye size={18} /><span>效果预览</span></button><button className="draw-card-secondary" disabled={busy || !project?.pages?.some((page) => page.status === "succeeded" && page.result?.imageUrl)} onClick={() => { void openBookShare(); }} type="button"><Share2 size={18} /><span>分享给好友</span></button><button className="draw-card-secondary" onClick={() => setShowBatchDialog(true)} type="button">{busy && !busyPageKey ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}<span>批量生成</span></button><button className="draw-card-secondary" disabled={busy} onClick={returnToBookHome} type="button"><ArrowLeft size={18} /><span>保存并返回</span></button><button className="draw-card-primary body-book-cart-add-button" disabled={busy} onClick={toggleCurrentBookCart} type="button"><span>{currentBookCartQuantity > 0 ? "已在购物车" : "加入购物车"}</span></button><button className="draw-card-secondary" onClick={() => window.location.assign("/book/cart")} type="button"><span>去结算</span></button></div></div>
         </section>
       </section>}
 
@@ -3366,13 +3436,12 @@ function BodyBookThemeEffectPreview({ theme, busy, onBack, onStart }) {
   const generationCost = getBodyBookThemeGenerationCost(theme);
   return <section className="body-book-theme-effect" aria-label={`${theme.name} 效果预览`}>
     <div className="body-book-theme-effect-head">
-      <button className="draw-card-secondary body-book-theme-effect-back" disabled={busy} onClick={onBack} type="button"><ArrowLeft size={17} /><span>返回主题</span></button>
       <div><p className="body-book-kicker">Book preview</p><h2>{theme.name}</h2><p>{theme.englishName} · 成书效果预览</p></div>
       <span className="body-book-theme-effect-cost">预计消耗 {generationCost} 豆</span>
     </div>
     <div className="body-book-theme-effect-copy"><strong>先看成书效果</strong><p>{isKindergartenTheme ? "上传孩子照片并填写昵称后，将生成一整天连续叙事的专属入园适应绘本。" : hasPresetPage ? "封面和专属认知页将根据上传照片生成；对应的内置认知页会自动插入成书与订单 ZIP。" : "上传照片后，将生成同一风格的封面和专属认知内页，做成一本专属认知书。"}</p></div>
     <BodyBookFlipBook ariaLabel={`${theme.name}成书效果预览`} pages={pages.map((page, index) => ({ id: page.src || page.label || String(index), isPreset: page.type === "preset", src: page.src, title: `${theme.name}${page.label || `第 ${index + 1} 页`}` }))} />
-    <div className="body-book-theme-effect-actions"><button className="draw-card-secondary" disabled={busy} onClick={onBack} type="button">换个主题</button><button className="draw-card-primary" disabled={busy} onClick={onStart} type="button"><Sparkles size={18} /><span>{busy ? "准备中" : "开始制作"}</span></button></div>
+    <div className="body-book-theme-effect-actions"><button className="draw-card-primary" disabled={busy} onClick={onStart} type="button"><Sparkles size={18} /><span>{busy ? "准备中" : "开始制作"}</span></button></div>
   </section>;
 }
 
@@ -3525,6 +3594,164 @@ function FridgeMagnetOrdersPage() {
   );
 }
 
+function BodyBookCartPage() {
+  const [books, setBooks] = useState([]);
+  const [account, setAccount] = useState(null);
+  const [orderConfig, setOrderConfig] = useState(null);
+  const [beanPurchaseDiscount, setBeanPurchaseDiscount] = useState({ availableCents: 0 });
+  const [redemptionEntitlements, setRedemptionEntitlements] = useState({ bodyBookPrintCount: 0 });
+  const [cart, setCart] = useState({});
+  const [orderForm, setOrderForm] = useState(DEFAULT_ORDER_ADDRESS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  const loadCartPage = useCallback(async () => {
+    const [config, visitor] = await Promise.all([fetchOrderConfig(), fetchVisitorState()]);
+    const nextAccount = visitor?.account || null;
+    if (!nextAccount?.isRegistered) {
+      setBooks([]);
+      setOrderConfig(config || null);
+      setAccount(nextAccount);
+      setBeanPurchaseDiscount(visitor?.beanPurchaseDiscount || { availableCents: 0 });
+      setRedemptionEntitlements(visitor?.redemptionEntitlements || { bodyBookPrintCount: 0 });
+      setCart({});
+      return;
+    }
+    const projectsPayload = await fetchBodyBookProjects();
+    const projectList = projectsPayload?.projects || [];
+    const savedCart = readBodyBookCart(nextAccount);
+    const validProjectIds = new Set(projectList.filter((book) => getBodyBookCartEligibility(book).eligible).map((book) => String(book?.sessionId || book?.projectId || "")));
+    const nextCart = Object.fromEntries(Object.entries(savedCart).filter(([projectId]) => validProjectIds.has(projectId)));
+    saveBodyBookCart(nextAccount, nextCart);
+    setBooks(projectList);
+    setOrderConfig(config || null);
+    setAccount(nextAccount);
+    setBeanPurchaseDiscount(visitor?.beanPurchaseDiscount || { availableCents: 0 });
+    setRedemptionEntitlements(visitor?.redemptionEntitlements || { bodyBookPrintCount: 0 });
+    setOrderForm((current) => fillOrderAddressFromSaved(current, nextAccount));
+    setCart(nextCart);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    loadCartPage()
+      .then(() => { if (active) setError(""); })
+      .catch((nextError) => { if (active) setError(nextError.message || "读取购物车失败，请稍后再试。"); })
+      .finally(() => { if (active) setIsLoading(false); });
+    return () => { active = false; };
+  }, [loadCartPage]);
+
+  const eligibleBooks = useMemo(() => books.map((book) => ({ book, eligibility: getBodyBookCartEligibility(book) })), [books]);
+  const cartItems = useMemo(() => eligibleBooks
+    .map(({ book, eligibility }) => ({ book, eligibility, projectId: String(book?.sessionId || book?.projectId || ""), quantity: Math.max(0, Number(cart[String(book?.sessionId || book?.projectId || "")] || 0)) }))
+    .filter((item) => item.eligibility.eligible && item.quantity > 0 && item.projectId), [eligibleBooks, cart]);
+  const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const bodyBookPricing = orderConfig?.bodyBook || {};
+  const unitPriceCents = Math.max(0, Number(bodyBookPricing.priceCents || 0));
+  const shippingFeeCents = totalQuantity > 0 ? Math.max(0, Number(bodyBookPricing.shippingFeeCents || 0)) : 0;
+  const subtotalCents = unitPriceCents * totalQuantity;
+  const redemptionBookCount = Math.min(totalQuantity, Math.max(0, Number(redemptionEntitlements.bodyBookPrintCount || 0)));
+  const redemptionDiscountCents = redemptionBookCount * unitPriceCents + (totalQuantity > 0 && redemptionBookCount === totalQuantity ? shippingFeeCents : 0);
+  const beforeBeanDiscountCents = Math.max(0, subtotalCents + shippingFeeCents - redemptionDiscountCents);
+  const beanDiscountCents = Math.min(beforeBeanDiscountCents, Math.max(0, Number(beanPurchaseDiscount.availableCents || 0)), Math.max(0, totalQuantity - redemptionBookCount) * 4000);
+  const payableCents = Math.max(0, beforeBeanDiscountCents - beanDiscountCents);
+
+  function persistCart(nextCart) {
+    setCart(nextCart);
+    saveBodyBookCart(account, nextCart);
+  }
+
+  function setBookQuantity(book, nextQuantity) {
+    const projectId = String(book?.sessionId || book?.projectId || "");
+    const eligibility = getBodyBookCartEligibility(book);
+    if (!projectId || !eligibility.eligible) return;
+    const requestedQuantity = Math.max(0, Math.trunc(Number(nextQuantity || 0)));
+    const currentQuantity = Math.max(0, Number(cart[projectId] || 0));
+    const otherQuantity = Object.entries(cart).reduce((sum, [id, quantity]) => id === projectId ? sum : sum + Math.max(0, Number(quantity || 0)), 0);
+    if (requestedQuantity + otherQuantity > MAX_BODY_BOOK_CART_QUANTITY) {
+      window.alert("购物车最多可加入 20 本认知书。");
+      return;
+    }
+    const nextCart = { ...cart };
+    if (requestedQuantity) nextCart[projectId] = requestedQuantity;
+    else delete nextCart[projectId];
+    if (requestedQuantity === currentQuantity) return;
+    persistCart(nextCart);
+  }
+
+  function toggleBook(book) {
+    const projectId = String(book?.sessionId || book?.projectId || "");
+    const quantity = Math.max(0, Number(cart[projectId] || 0));
+    setBookQuantity(book, quantity > 0 ? 0 : 1);
+  }
+
+  async function submitOrder() {
+    if (!totalQuantity || isSubmitting) return;
+    if (!account?.isRegistered) {
+      setShowAuthModal(true);
+      return;
+    }
+    setIsSubmitting(true);
+    setError("");
+    try {
+      const created = await createOrderRequest({
+        experienceType: "body-book",
+        bodyBookItems: cartItems.map((item) => ({ projectId: item.projectId, quantity: item.quantity })),
+        ...orderForm
+      });
+      saveOrderAddress(account, orderForm);
+      window.location.assign(buildOrderDetailUrl(created.order.id, created.order.publicToken, "body-book"));
+    } catch (nextError) {
+      setError(nextError.message || "创建认知书订单失败，请稍后重试。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return <main className="body-book-page">
+    <section className="body-book-cart-page">
+      <div className="body-book-order-list-head">
+        <div><p className="body-book-kicker">Shopping cart</p><h1>选书加购</h1><p>选择要印刷的认知书，统一结算与发货。</p></div>
+      </div>
+      {isLoading ? <p className="body-book-library-empty">正在读取你的认知书…</p> : null}
+      {error ? <p className="error-note">{error}</p> : null}
+      {!isLoading && !error ? <>
+        {!account?.isRegistered ? <section className="body-book-cart-checkout"><div className="draw-card-order-summary"><h2>登录后查看购物车</h2><p>登录后可查看已保存的认知书并统一结算。</p></div><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={() => setShowAuthModal(true)} type="button">登录 / 注册</button></div></section> : null}
+        {account?.isRegistered ? <><section className="body-book-cart-grid" aria-label="选择认知书">
+          {eligibleBooks.map(({ book, eligibility }) => {
+            const projectId = String(book?.sessionId || book?.projectId || "");
+            const quantity = Math.max(0, Number(cart[projectId] || 0));
+            const selected = eligibility.eligible && quantity > 0;
+            const cover = book.thumbnail || getBodyBookThumbnail((book.pages || []).find((page) => page.key === "cover"));
+            return <article className={`body-book-cart-card${selected ? " is-selected" : ""}${!eligibility.eligible ? " is-disabled" : ""}`} key={projectId || book.title}>
+              <button aria-label={`${selected ? "取消选择" : "选择"}《${book.title || "认知书"}》`} aria-pressed={selected} className="body-book-cart-cover" disabled={!eligibility.eligible} onClick={() => toggleBook(book)} type="button">
+                {cover ? <img alt={`${book.title || "认知书"}封面`} src={cover} /> : <span>{book.theme?.name || "认知书"}</span>}
+                {!eligibility.eligible ? <b>页数不足</b> : null}
+              </button>
+              <div className="body-book-cart-card-title"><strong>{book.title || book.theme?.title || "认知书"}</strong><span>{book.theme?.name || "认知书"}</span></div>
+              <div aria-label={`${book.title || "认知书"}的数量`} className="body-book-cart-quantity">
+                <button aria-label="减少数量" disabled={!eligibility.eligible || quantity <= 0} onClick={() => setBookQuantity(book, quantity - 1)} type="button">−</button>
+                <span>{eligibility.eligible ? quantity : 0}</span>
+                <button aria-label="增加数量" disabled={!eligibility.eligible || totalQuantity >= MAX_BODY_BOOK_CART_QUANTITY} onClick={() => setBookQuantity(book, quantity + 1)} type="button">＋</button>
+              </div>
+              <button className="draw-card-secondary body-book-cart-view" onClick={() => window.location.assign(`/book?project=${encodeURIComponent(projectId)}`)} type="button">查看</button>
+            </article>;
+          })}
+          {!eligibleBooks.length ? <p className="body-book-library-empty">还没有已保存的认知书，先去制作一本吧。</p> : null}
+        </section>
+        <section className="body-book-cart-checkout">
+          <div className="draw-card-order-summary"><h2>结算信息</h2><p>已选 {totalQuantity} 本</p><p>书价 {formatCurrencyCents(subtotalCents)}</p><p>邮费 {shippingFeeCents > 0 ? formatCurrencyCents(shippingFeeCents) : "包邮"}</p>{redemptionBookCount > 0 ? <p>实体书兑换 -{formatCurrencyCents(redemptionDiscountCents)}（已使用 {redemptionBookCount} 册）</p> : null}{beanDiscountCents > 0 ? <p>豆豆优惠 -{formatCurrencyCents(beanDiscountCents)}（每本最多抵扣 40 元）</p> : null}<strong>实付 {formatCurrencyCents(payableCents)}</strong></div>
+          <div className="draw-card-order-form"><h2>收货信息</h2><label className="field-label">收件人<input onChange={(event) => setOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={orderForm.receiverName} /></label><label className="field-label">手机号<input onChange={(event) => setOrderForm((current) => ({ ...current, receiverPhone: event.target.value }))} type="tel" value={orderForm.receiverPhone} /></label><label className="field-label">收货地址<input onChange={(event) => setOrderForm((current) => ({ ...current, address: event.target.value, addressDetail: event.target.value }))} type="text" value={orderForm.address || orderForm.addressDetail || ""} /></label><label className="field-label">备注<textarea onChange={(event) => setOrderForm((current) => ({ ...current, remark: event.target.value }))} rows="2" value={orderForm.remark} /></label></div>
+          <div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={!bodyBookPricing.enabled || !totalQuantity || isSubmitting} onClick={submitOrder} type="button">{isSubmitting ? "创建订单中" : "支付"}</button></div>
+        </section></> : null}
+      </> : null}
+    </section>
+    {showAuthModal ? <AuthModal onAuthenticated={async () => { setShowAuthModal(false); setIsLoading(true); try { await loadCartPage(); setError(""); } catch (nextError) { setError(nextError.message || "读取购物车失败，请稍后再试。"); } finally { setIsLoading(false); } }} onClose={() => setShowAuthModal(false)} reloadOnLogin={false} /> : null}
+  </main>;
+}
+
 function BodyBookWorksPage() {
   const [books, setBooks] = useState([]);
   const [error, setError] = useState("");
@@ -3563,11 +3790,10 @@ function BodyBookWorksPage() {
     <section className="body-book-order-list-page body-book-works-page">
       <div className="body-book-order-list-head">
         <div><p className="body-book-kicker">My works</p><h1>我的作品</h1><p>继续编辑、生成或删除已创建的认知书。</p></div>
-        <button className="draw-card-secondary" onClick={() => window.location.assign("/book")} type="button"><ArrowLeft size={17} /><span>返回</span></button>
       </div>
       {isLoading ? <p className="body-book-library-empty">正在读取我的作品…</p> : null}
       {error ? <p className="error-note">{error}</p> : null}
-      {!isLoading && !error ? <section className="body-book-library" aria-label="我的作品">{books.length ? <div className="body-book-library-grid">{books.map((book) => <article className="body-book-library-item" key={book.sessionId}><button className="body-book-library-cover" onClick={() => window.location.assign(`/book?project=${encodeURIComponent(book.sessionId)}`)} type="button">{book.thumbnail ? <img alt={`${book.title} 缩略图`} src={book.thumbnail} /> : <div className="body-book-library-placeholder">{book.theme?.name || "认知书"}</div>}<span>{book.title}</span><small>继续制作 · {formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></button><button aria-label={`删除《${book.title}》`} className="body-book-library-delete icon-button" disabled={deletingProjectId === book.sessionId} onClick={() => deleteBook(book)} title="删除" type="button">{deletingProjectId === book.sessionId ? <LoaderCircle className="spin" size={16} /> : <X size={17} />}</button></article>)}</div> : <p className="body-book-library-empty">还没有已保存的认知书，先去开始制作吧。</p>}</section> : null}
+      {!isLoading && !error ? <><section className="body-book-library" aria-label="我的作品">{books.length ? <div className="body-book-library-grid">{books.map((book) => <article className="body-book-library-item" key={book.sessionId}><button className="body-book-library-cover" onClick={() => window.location.assign(`/book?project=${encodeURIComponent(book.sessionId)}`)} type="button">{book.thumbnail ? <img alt={`${book.title} 缩略图`} src={book.thumbnail} /> : <div className="body-book-library-placeholder">{book.theme?.name || "认知书"}</div>}<span>{book.title}</span><small>继续制作 · {formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></button><button aria-label={`删除《${book.title}》`} className="body-book-library-delete icon-button" disabled={deletingProjectId === book.sessionId} onClick={() => deleteBook(book)} title="删除" type="button">{deletingProjectId === book.sessionId ? <LoaderCircle className="spin" size={16} /> : <X size={17} />}</button></article>)}</div> : <p className="body-book-library-empty">还没有已保存的认知书，先去开始制作吧。</p>}</section><div className="body-book-works-cart-action"><button className="draw-card-primary" onClick={() => window.location.assign("/book/cart")} type="button">选书加购</button></div></> : null}
     </section>
   </main>;
 }
@@ -3628,10 +3854,6 @@ function BodyBookOrdersPage() {
             <p className="body-book-kicker">My orders</p>
             <h1>我的订单</h1>
           </div>
-          <button className="draw-card-secondary" onClick={() => window.location.assign("/book")} type="button">
-            <Home size={17} />
-            <span>主页</span>
-          </button>
         </div>
         {isLoading ? <p className="body-book-library-empty">正在读取订单列表…</p> : null}
         {error ? <p className="error-note">{error}</p> : null}
@@ -3655,18 +3877,21 @@ function BodyBookOrdersPage() {
               );
             }
             const order = item.record;
+            const orderedBooks = Array.isArray(order.bodyBookBooks) ? order.bodyBookBooks : [];
+            const firstBook = orderedBooks[0];
             const cover = order.items?.find((item) => Number(item.sortOrder) === 0) || order.items?.[0];
-            const themeName = order.bodyBookThemeName || cover?.styleName || "认知书";
+            const themeName = firstBook?.title || order.bodyBookThemeName || cover?.styleName || "认知书";
+            const totalBooks = orderedBooks.length ? orderedBooks.reduce((sum, book) => sum + Math.max(0, Number(book.quantity || 0)), 0) : Math.max(1, Number(order.itemCount || 1));
             const canDelete = ["expired", "cancelled"].includes(order.orderStatus);
             return (
               <article className="body-book-order-list-item" key={order.id}>
                 <button className="body-book-order-list-open" onClick={() => window.location.assign(buildOrderDetailUrl(order.id, order.publicToken, "body-book"))} type="button">
                   <span className="body-book-order-cover">
-                    {cover?.thumbnailUrl || cover?.imageUrl ? <img alt={`${themeName}封面`} src={cover.thumbnailUrl || cover.imageUrl} /> : <span>{themeName}</span>}
+                    {firstBook?.coverUrl || cover?.thumbnailUrl || cover?.imageUrl ? <img alt={`${themeName}封面`} src={firstBook?.coverUrl || cover.thumbnailUrl || cover.imageUrl} /> : <span>{themeName}</span>}
                   </span>
                   <span className="body-book-order-summary">
                     <strong>{themeName}</strong>
-                    <span>{formatCurrencyCents(Number(order.payableCents ?? order.totalCents ?? 0))}</span>
+                    <span>共 {totalBooks} 本 · {formatCurrencyCents(Number(order.payableCents ?? order.totalCents ?? 0))}</span>
                     <small className={`task-status ${orderStatusTone(order.orderStatus)}`}>{getOrderPrimaryStatusLabel(order)}</small>
                   </span>
                 </button>
@@ -3897,6 +4122,7 @@ function FridgeMagnetOrderPage() {
   const paymentRefreshTimeoutRef = useRef(null);
   const payableCents = Number(order?.payableCents ?? order?.totalCents ?? 0);
   const orderItems = Array.isArray(order?.items) ? order.items : [];
+  const bodyBookBooks = Array.isArray(order?.bodyBookBooks) ? order.bodyBookBooks : [];
 
   useEffect(() => {
     return () => {
@@ -4133,17 +4359,8 @@ function FridgeMagnetOrderPage() {
             ) : null}
 
             <article className="draw-observability-card">
-              <h3>{isBodyBookOrder ? "认知书内容" : "下单图片"}</h3>
-              <div className="draw-card-order-items order-detail-items">
-                {orderItems.map((item, index) => (
-                  <article className="draw-card-order-item" key={`${item.jobId}-${index}`}>
-                    <OrderItemPreview alt={item.styleName || `冰箱贴 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} />
-                    <strong>{item.styleName || `冰箱贴 ${index + 1}`}</strong>
-                    <span className="draw-card-order-item-note">数量 x{Math.max(1, Number(item.quantity || 1))}</span>
-                  </article>
-                ))}
-                {!orderItems.length ? <p className="empty-note">该历史订单未保存商品明细。</p> : null}
-              </div>
+              <h3>{isBodyBookOrder ? `认知书内容${bodyBookBooks.length ? ` · 共 ${bodyBookBooks.reduce((sum, book) => sum + Math.max(0, Number(book.quantity || 0)), 0)} 本` : ""}` : "下单图片"}</h3>
+              {isBodyBookOrder && bodyBookBooks.length ? <div className="draw-card-order-items order-detail-items">{bodyBookBooks.map((book, index) => <article className="draw-card-order-item" key={`${book.projectId}-${index}`}><OrderItemPreview alt={book.title || `认知书 ${index + 1}`} src={book.coverUrl || book.pages?.find((page) => page.key === "cover")?.thumbnailUrl} /><strong>{book.title || book.themeName || `认知书 ${index + 1}`}</strong><span className="draw-card-order-item-note">{book.themeName || "认知书"} · {book.pageCount || 0} 页 · 数量 x{Math.max(1, Number(book.quantity || 1))}</span></article>)}</div> : <div className="draw-card-order-items order-detail-items">{orderItems.map((item, index) => (<article className="draw-card-order-item" key={`${item.jobId}-${index}`}><OrderItemPreview alt={item.styleName || `冰箱贴 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} /><strong>{item.styleName || `冰箱贴 ${index + 1}`}</strong><span className="draw-card-order-item-note">数量 x{Math.max(1, Number(item.quantity || 1))}</span></article>))}{!orderItems.length ? <p className="empty-note">该历史订单未保存商品明细。</p> : null}</div>}
             </article>
             {!isBodyBookOrder ? <div className="draw-card-order-detail-contact draw-card-order-detail-contact-bottom">
               <button className="draw-card-secondary" onClick={handleCopyContact} type="button">
@@ -10496,7 +10713,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
             {orders.map((order) => (
               <tr key={`${order.recordType || "order"}:${order.id}`}>
                 <td><span className="order-type-tag">{getAdminOrderTypeLabel(order)}</span></td>
-                <td className="order-number-cell"><strong>{order.orderNo}</strong>{order.recordType !== "purchase" && order.experienceType !== "body-book" ? <small>共 {order.itemCount} 枚</small> : null}{order.recordType === "purchase" ? <small>{order.purchaseQuantityText}</small> : null}</td>
+                <td className="order-number-cell"><strong>{order.orderNo}</strong>{order.recordType !== "purchase" && order.experienceType === "body-book" ? <small>共 {(order.bodyBookBooks || []).reduce((sum, book) => sum + Math.max(0, Number(book.quantity || 0)), 0) || order.itemCount} 本</small> : null}{order.recordType !== "purchase" && order.experienceType !== "body-book" ? <small>共 {order.itemCount} 枚</small> : null}{order.recordType === "purchase" ? <small>{order.purchaseQuantityText}</small> : null}</td>
                 <td className="order-user-cell"><strong>{order.accountName || "用户"}</strong><small>{order.accountEmail || (order.accountId ? `账户 ${String(order.accountId).slice(-8)}` : "")}</small></td>
                 <td>{order.recordType === "purchase" ? <span className="order-table-empty-action">—</span> : <>{order.receiverName || "--"}<small>{order.receiverPhone || ""}</small></>}</td>
                 <td>{formatCurrencyCents(Number(order.amountCents ?? order.payableCents ?? order.totalCents ?? 0))}</td>
@@ -10549,13 +10766,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
             <p className="storage-note">{selectedOrder.addressDetail}</p>
             {selectedOrder.remark ? <p className="storage-note">备注：{selectedOrder.remark}</p> : null}
             <div className="draw-card-order-items">
-              {selectedOrder.items.map((item, index) => (
-                <article className="draw-card-order-item" key={`${item.jobId}-${index}`}>
-                  <OrderItemPreview alt={item.styleName || `订单图片 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} title={item.styleName || `订单图片 ${index + 1}`} />
-                  <strong>{item.styleName || `订单图片 ${index + 1}`}</strong>
-                  <span className="draw-card-order-item-note">数量 x{Math.max(1, Number(item.quantity || 1))}</span>
-                </article>
-              ))}
+              {selectedOrder.experienceType === "body-book" && selectedOrder.bodyBookBooks?.length ? selectedOrder.bodyBookBooks.map((book, index) => <article className="draw-card-order-item" key={`${book.projectId}-${index}`}><OrderItemPreview alt={book.title || `认知书 ${index + 1}`} src={book.coverUrl || book.pages?.find((page) => page.key === "cover")?.thumbnailUrl} title={book.title || `认知书 ${index + 1}`} /><strong>{book.title || book.themeName || `认知书 ${index + 1}`}</strong><span className="draw-card-order-item-note">{book.themeName || "认知书"} · {book.pageCount || 0} 页 · 数量 x{Math.max(1, Number(book.quantity || 1))}</span></article>) : selectedOrder.items.map((item, index) => (<article className="draw-card-order-item" key={`${item.jobId}-${index}`}><OrderItemPreview alt={item.styleName || `订单图片 ${index + 1}`} src={item.thumbnailUrl || item.imageUrl} title={item.styleName || `订单图片 ${index + 1}`} /><strong>{item.styleName || `订单图片 ${index + 1}`}</strong><span className="draw-card-order-item-note">数量 x{Math.max(1, Number(item.quantity || 1))}</span></article>))}
             </div>
             <label className="field-label">
               管理员备注

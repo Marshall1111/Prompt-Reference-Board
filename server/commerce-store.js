@@ -822,7 +822,7 @@ export function createCommerceStore({ dbPath }) {
     };
   }
 
-  function reserveBodyBookDiscount({ accountId, orderId, orderTotalCents, expiresAt }) {
+  function reserveBodyBookDiscount({ accountId, orderId, orderTotalCents, maxDiscountCents = 4000, expiresAt }) {
     return withTransaction(db, () => {
       const safeAccountId = String(accountId || "");
       const safeOrderId = String(orderId || "");
@@ -835,7 +835,7 @@ export function createCommerceStore({ dbPath }) {
       }
       const summary = getBodyBookDiscountSummary(safeAccountId);
       const grossCents = Math.max(0, Math.trunc(Number(orderTotalCents || 0)));
-      const discountCents = Math.min(4000, grossCents, summary.availableCents);
+      const discountCents = Math.min(Math.max(0, Math.trunc(Number(maxDiscountCents || 0))), grossCents, summary.availableCents);
       const now = nowIso();
       db.prepare(`
         INSERT INTO commerce_body_book_discount_reservations (

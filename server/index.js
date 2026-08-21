@@ -4517,7 +4517,7 @@ app.use((req, res) => {
   if (pathname === "/fridge" || pathname === "/fridge/" || pathname === "/fridge/magnet" || pathname === "/fridge/magnet/") {
     return res.redirect(302, "/");
   }
-  if (pathname === "/" || pathname === "/book" || pathname === "/book/" || pathname === "/book/orders" || pathname === "/book/orders/" || pathname.startsWith("/book/orders/") || pathname === "/fridge/orders" || pathname === "/fridge/orders/" || pathname.startsWith("/fridge/orders/") || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
+  if (pathname === "/" || pathname === "/book" || pathname === "/book/" || pathname === "/book/cart" || pathname === "/book/orders" || pathname === "/book/orders/" || pathname.startsWith("/book/orders/") || pathname === "/fridge/orders" || pathname === "/fridge/orders/" || pathname.startsWith("/fridge/orders/") || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
     return res.sendFile(path.join(rootDir, "dist", "index.html"));
   }
   if (pathname === "/luck" || pathname === "/manage" || pathname === "/tasks" || pathname === "/batch") {
@@ -6402,10 +6402,26 @@ async function buildStoredOrderItems({ orderId, requestedItems, likedJobById }) 
   return storedItems;
 }
 
-async function createBodyBookPhysicalOrder({ req, pricing }) {
-  const bodyBookPricing = pricing?.bodyBook || {};
-  if (!bodyBookPricing.enabled) throw createHttpError(403, "认知书实体书下单暂未开放。");
-  const projectId = String(req.body?.bodyBookProjectId || req.body?.projectId || "").trim();
+function normalizeBodyBookOrderItems(payload) {
+  const rawItems = Array.isArray(payload?.bodyBookItems) && payload.bodyBookItems.length
+    ? payload.bodyBookItems
+    : [{ projectId: payload?.bodyBookProjectId || payload?.projectId, quantity: 1 }];
+  const byProject = new Map();
+  rawItems.forEach((item) => {
+    const projectId = String(item?.projectId || item?.bodyBookProjectId || "").trim();
+    const quantity = Math.trunc(Number(item?.quantity || 0));
+    if (!projectId) throw createHttpError(400, "请选择要下单的认知书。");
+    if (!Number.isInteger(quantity) || quantity < 1) throw createHttpError(400, "认知书数量必须是正整数。");
+    byProject.set(projectId, (byProject.get(projectId) || 0) + quantity);
+  });
+  const items = [...byProject.entries()].map(([projectId, quantity]) => ({ projectId, quantity }));
+  const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+  if (!items.length) throw createHttpError(400, "请选择要下单的认知书。");
+  if (totalQuantity > 20) throw createHttpError(400, "一次最多下单 20 本认知书。");
+  return { items, totalQuantity };
+}
+
+async function prepareBodyBookOrderEntry({ req, projectId, quantity }) {
   const project = await readBodyBookSession(projectId);
   if (!project) throw createHttpError(404, "这本认知书工程不存在或已删除。");
   assertWebAccountOwnsBodyBookSession(req, project);
@@ -6417,35 +6433,51 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
   if (!hasRequiredPageCount || !cover || !pages.length || pages.some((page) => page.status !== "succeeded" || !page.result?.imageUrl || (!page.isBuiltIn && !page.jobId))) {
     throw createHttpError(409, "实体认知书固定为 1 张封面页和 16 张内页，请先调整为正确页数并完成生成后再下单。");
   }
-
-  const address = normalizeOrderAddress(req.body || {});
-  assertValidOrderAddress(address);
-  const requestedItems = pages.map((page) => ({ jobId: page.isBuiltIn ? `built-in:${page.key}` : page.jobId, quantity: 1 }));
   const sourceJobs = await Promise.all(pages.filter((page) => !page.isBuiltIn).map((page) => readImageJob(page.jobId)));
   if (sourceJobs.some((job) => !job || job.status !== "succeeded" || !job.result?.imageUrl)) {
     throw createHttpError(409, "认知书图片尚未准备完成，请稍后重试。");
   }
-  const pageByJobId = new Map(pages.map((page) => [page.jobId, page]));
-  const jobsById = new Map(sourceJobs.map((job) => {
-    const page = pageByJobId.get(String(job?.jobId || ""));
-    return [String(job?.jobId || ""), {
-      ...job,
-      styleId: "body-book",
-      styleName: String(page?.title || job?.styleName || "认知书页面")
-    }];
-  }));
-  pages.filter((page) => page.isBuiltIn).forEach((page) => {
-    jobsById.set(`built-in:${page.key}`, {
-      jobId: `built-in:${page.key}`,
-      status: "succeeded",
-      result: page.result,
-      styleId: "body-book",
-      styleName: String(page.title || "认知书页面")
+  return { project: current, theme, pages, sourceJobs, quantity };
+}
+
+async function createBodyBookPhysicalOrder({ req, pricing }) {
+  const bodyBookPricing = pricing?.bodyBook || {};
+  if (!bodyBookPricing.enabled) throw createHttpError(403, "认知书实体书下单暂未开放。");
+  const requestedBookItems = normalizeBodyBookOrderItems(req.body || {});
+  const bookEntries = await Promise.all(requestedBookItems.items.map((item) => prepareBodyBookOrderEntry({ req, ...item })));
+  const address = normalizeOrderAddress(req.body || {});
+  assertValidOrderAddress(address);
+  const requestedItems = [];
+  const jobsById = new Map();
+  const bodyBookBooks = [];
+  bookEntries.forEach((entry) => {
+    const pageByJobId = new Map(entry.pages.map((page) => [page.jobId, page]));
+    entry.sourceJobs.forEach((job) => {
+      const page = pageByJobId.get(String(job?.jobId || ""));
+      const orderItemJobId = `body-book:${entry.project.sessionId}:${job.jobId}`;
+      requestedItems.push({ jobId: orderItemJobId, quantity: entry.quantity });
+      jobsById.set(orderItemJobId, { ...job, jobId: orderItemJobId, styleId: "body-book", styleName: String(page?.title || job?.styleName || "认知书页面") });
+    });
+    entry.pages.filter((page) => page.isBuiltIn).forEach((page) => {
+      const orderItemJobId = `built-in:${entry.project.sessionId}:${page.key}`;
+      requestedItems.push({ jobId: orderItemJobId, quantity: entry.quantity });
+      jobsById.set(orderItemJobId, { jobId: orderItemJobId, status: "succeeded", result: page.result, styleId: "body-book", styleName: String(page.title || "认知书页面") });
+    });
+    const cover = entry.pages.find((page) => page.key === "cover");
+    bodyBookBooks.push({
+      projectId: entry.project.sessionId,
+      title: entry.project.title || entry.theme.title || entry.theme.name || "认知书",
+      themeName: entry.theme.name || "认知书",
+      coverUrl: String(cover?.result?.thumbnailUrl || cover?.result?.imageUrl || ""),
+      pageCount: entry.pages.length,
+      quantity: entry.quantity,
+      pages: entry.pages.map((page) => ({ key: page.key, title: page.title || "认知书页面", imageUrl: String(page.result?.imageUrl || ""), thumbnailUrl: String(page.result?.thumbnailUrl || page.result?.imageUrl || ""), archiveJobId: page.isBuiltIn ? `built-in:${entry.project.sessionId}:${page.key}` : `body-book:${entry.project.sessionId}:${page.jobId}` }))
     });
   });
-  const amount = calculateBodyBookOrderAmounts(bodyBookPricing);
+  const amount = calculateBodyBookOrderAmounts(bodyBookPricing, requestedBookItems.totalQuantity);
   const redemptionEntitlements = commerceStore.getRedemptionEntitlementSummary(req.webAccount.id);
-  const usesPrintRedemption = redemptionEntitlements.bodyBookPrintCount > 0;
+  const redemptionBookCount = Math.min(requestedBookItems.totalQuantity, Math.max(0, Number(redemptionEntitlements.bodyBookPrintCount || 0)));
+  const redemptionDiscountCents = redemptionBookCount * amount.unitPriceCents + (redemptionBookCount === requestedBookItems.totalQuantity ? amount.shippingFeeCents : 0);
   const paymentMode = normalizeOrderPaymentMode(pricing?.paymentMode);
   const merchantSource = await resolveOrderMerchantSource(req);
   const now = new Date();
@@ -6457,23 +6489,36 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
     requestedItems,
     likedJobById: jobsById
   });
-  const discountReservation = usesPrintRedemption ? null : commerceStore.reserveBodyBookDiscount({
+  const archivedItemByJobId = new Map(storedOrderItems.map((item) => [item.jobId, item]));
+  const archivedBodyBookBooks = bodyBookBooks.map((book) => ({
+    ...book,
+    coverUrl: archivedItemByJobId.get(book.pages.find((page) => page.key === "cover")?.archiveJobId)?.thumbnailUrl || book.coverUrl,
+    pages: book.pages.map(({ archiveJobId, ...page }) => {
+      const archived = archivedItemByJobId.get(archiveJobId);
+      return { ...page, imageUrl: archived?.imageUrl || page.imageUrl, thumbnailUrl: archived?.thumbnailUrl || page.thumbnailUrl };
+    })
+  }));
+  const remainingPayableBeforeBeans = Math.max(0, amount.totalCents - redemptionDiscountCents);
+  const discountReservation = commerceStore.reserveBodyBookDiscount({
     accountId: req.webAccount.id,
     orderId,
-    orderTotalCents: amount.totalCents,
+    orderTotalCents: remainingPayableBeforeBeans,
+    maxDiscountCents: Math.max(0, requestedBookItems.totalQuantity - redemptionBookCount) * 4000,
     expiresAt
   });
   const beanDiscountCents = discountReservation?.discountCents || 0;
-  const payableCents = usesPrintRedemption ? 0 : Math.max(0, amount.totalCents - beanDiscountCents);
-  if (usesPrintRedemption) {
+  const payableCents = Math.max(0, remainingPayableBeforeBeans - beanDiscountCents);
+  const isAlreadyPaid = payableCents === 0;
+  if (redemptionBookCount > 0) {
     try {
       commerceStore.consumeRedemptionEntitlement({
         accountId: req.webAccount.id,
         entitlementType: "body_book_print",
-        quantity: 1,
+        quantity: redemptionBookCount,
         referenceId: orderId
       });
     } catch (error) {
+      commerceStore.releaseBodyBookDiscountReservation(orderId);
       throw createHttpError(409, error.message || "实体认知书兑换券不足。", "实体认知书兑换券不足，请先兑换或联系客服。");
     }
   }
@@ -6487,8 +6532,8 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
       accountId: req.webAccount.id,
       publicToken: randomUUID(),
       experienceType: "body-book",
-      bodyBookThemeName: theme.name,
-      paymentStatus: usesPrintRedemption ? "paid" : "unpaid",
+      bodyBookThemeName: archivedBodyBookBooks.map((book) => book.themeName).join("、"),
+      paymentStatus: isAlreadyPaid ? "paid" : "unpaid",
       fulfillmentStatus: "new",
       itemCount: amount.itemCount,
       unitPriceCents: amount.unitPriceCents,
@@ -6509,42 +6554,44 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
       commissionRateBps: merchantSource.commissionRateBps,
       sourceClaimedAt: merchantSource.sourceClaimedAt,
       wechatOpenId: "",
-      wechatTransactionId: usesPrintRedemption ? `REDEMPTION-${orderId}` : "",
+      wechatTransactionId: isAlreadyPaid && redemptionBookCount > 0 ? `REDEMPTION-${orderId}` : "",
       outTradeNo: generateWechatOutTradeNo("BB"),
-      lastPaymentChannel: usesPrintRedemption ? "redemption_code" : (paymentMode === "manual" ? "manual_collection" : ""),
+      lastPaymentChannel: isAlreadyPaid && redemptionBookCount > 0 ? "redemption_code" : (paymentMode === "manual" ? "manual_collection" : ""),
       lastPaymentError: "",
       expiresAt,
-      paidAt: usesPrintRedemption ? createdAt : null,
+      paidAt: isAlreadyPaid ? createdAt : null,
       createdAt,
       updatedAt: createdAt
     },
     items: storedOrderItems,
+    bodyBookBooks: archivedBodyBookBooks,
     initialPaymentEvent: {
       eventType: "order_created",
       eventId: `${orderId}:order_created`,
       success: true,
       payload: {
-        projectId: current.sessionId,
-        pageCount: pages.length,
+        projects: archivedBodyBookBooks.map((book) => ({ projectId: book.projectId, quantity: book.quantity, pageCount: book.pageCount })),
         totalCents: amount.totalCents,
         beanDiscountCents,
+        redemptionBookCount,
+        redemptionDiscountCents,
         payableCents,
         paymentMode,
-        usesPrintRedemption
+        usesPrintRedemption: redemptionBookCount > 0
       }
     }
     });
   } catch (error) {
-    if (usesPrintRedemption) commerceStore.restoreRedemptionEntitlement({ accountId: req.webAccount.id, entitlementType: "body_book_print", referenceId: orderId });
-    else commerceStore.releaseBodyBookDiscountReservation(orderId);
+    if (redemptionBookCount > 0) commerceStore.restoreRedemptionEntitlement({ accountId: req.webAccount.id, entitlementType: "body_book_print", referenceId: orderId });
+    commerceStore.releaseBodyBookDiscountReservation(orderId);
     throw error;
   }
-  if (usesPrintRedemption) {
+  if (isAlreadyPaid && redemptionBookCount > 0) {
     const paidOrder = orderStore.updateOrderAndAppendEvent(created.id, {}, {
       eventType: "redemption_entitlement_consumed",
       eventId: `redemption:${created.id}`,
       success: true,
-      payload: { entitlementType: "body_book_print", quantity: 1 }
+      payload: { entitlementType: "body_book_print", quantity: redemptionBookCount, redemptionDiscountCents }
     });
     return {
       order: toPublicOrder(paidOrder, { includeToken: true }),
@@ -6560,10 +6607,11 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
     expiresAt: created.expiresAt,
     metadata: {
       orderNo: created.orderNo,
-      projectId: current.sessionId,
-      pageCount: pages.length,
+      projects: archivedBodyBookBooks.map((book) => ({ projectId: book.projectId, quantity: book.quantity, pageCount: book.pageCount })),
       itemCount: amount.itemCount,
       beanDiscountCents,
+      redemptionBookCount,
+      redemptionDiscountCents,
       payableCents
     }
   });
@@ -7515,15 +7563,17 @@ async function enrichBodyBookOrderThemeName(order) {
   }
 }
 
-function calculateBodyBookOrderAmounts(pricing) {
+function calculateBodyBookOrderAmounts(pricing, quantity = 1) {
   const priceCents = normalizeMoneyCents(pricing?.priceCents, DEFAULT_BODY_BOOK_PRICE_CENTS);
   const shippingFeeCents = normalizeMoneyCents(pricing?.shippingFeeCents, DEFAULT_BODY_BOOK_SHIPPING_FEE_CENTS);
+  const itemCount = Math.max(1, Math.trunc(Number(quantity || 1)));
+  const subtotalCents = priceCents * itemCount;
   return {
-    itemCount: 1,
+    itemCount,
     unitPriceCents: priceCents,
     shippingFeeCents,
-    subtotalCents: priceCents,
-    totalCents: priceCents + shippingFeeCents
+    subtotalCents,
+    totalCents: subtotalCents + shippingFeeCents
   };
 }
 
@@ -9185,6 +9235,7 @@ function toPublicOrder(order, options = {}) {
     paymentStatus: normalizeOrderPaymentStatus(order.paymentStatus),
     fulfillmentStatus: normalizeOrderFulfillmentStatus(order.fulfillmentStatus),
     items: Array.isArray(order.items) ? order.items : [],
+    bodyBookBooks: Array.isArray(order.bodyBookBooks) ? order.bodyBookBooks : [],
     paymentEvents: Array.isArray(order.paymentEvents) ? order.paymentEvents : []
   };
   const shippingCarrier = normalizeShippingCarrierCode(safeOrder.shippingCarrier);
@@ -9241,6 +9292,15 @@ function toPublicOrder(order, options = {}) {
       thumbnailUrl: item.thumbnailUrl,
       quantity: Math.max(1, Number(item.quantity || 1)),
       sortOrder: item.sortOrder
+    })),
+    bodyBookBooks: safeOrder.bodyBookBooks.map((book) => ({
+      projectId: book.projectId,
+      title: book.title,
+      themeName: book.themeName,
+      coverUrl: book.coverUrl,
+      pageCount: book.pageCount,
+      quantity: book.quantity,
+      pages: Array.isArray(book.pages) ? book.pages : []
     })),
     paymentEvents: includePrivate ? safeOrder.paymentEvents : []
   };

@@ -98,6 +98,20 @@ function mapPaymentEventRow(row) {
   };
 }
 
+function mapBodyBookOrderBookRow(row) {
+  if (!row) return null;
+  return {
+    orderId: String(row.order_id || ""),
+    projectId: String(row.project_id || ""),
+    title: String(row.title || "认知书"),
+    themeName: String(row.theme_name || ""),
+    coverUrl: String(row.cover_url || ""),
+    pageCount: Number(row.page_count || 0),
+    quantity: Math.max(1, Number(row.quantity || 1)),
+    pages: safeJsonParse(row.pages_json, [])
+  };
+}
+
 function withTransaction(db, callback) {
   db.exec("BEGIN IMMEDIATE");
   try {
@@ -180,6 +194,19 @@ export function createOrderStore({ dbPath }) {
       FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS body_book_order_books (
+      order_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      theme_name TEXT NOT NULL DEFAULT '',
+      cover_url TEXT NOT NULL DEFAULT '',
+      page_count INTEGER NOT NULL DEFAULT 0,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      pages_json TEXT NOT NULL DEFAULT '[]',
+      PRIMARY KEY (order_id, project_id),
+      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS payment_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       order_id TEXT NOT NULL,
@@ -200,6 +227,7 @@ export function createOrderStore({ dbPath }) {
     CREATE INDEX IF NOT EXISTS idx_orders_visitor_id ON orders(visitor_id);
     CREATE INDEX IF NOT EXISTS idx_orders_out_trade_no ON orders(out_trade_no);
     CREATE INDEX IF NOT EXISTS idx_payment_events_order_id ON payment_events(order_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_body_book_order_books_order_id ON body_book_order_books(order_id);
   `);
 
   const orderItemColumns = db.prepare("PRAGMA table_info(order_items)").all();
@@ -287,9 +315,18 @@ export function createOrderStore({ dbPath }) {
     )
   `);
 
+  const insertBodyBookOrderBookStatement = db.prepare(`
+    INSERT INTO body_book_order_books (
+      order_id, project_id, title, theme_name, cover_url, page_count, quantity, pages_json
+    ) VALUES (
+      @orderId, @projectId, @title, @themeName, @coverUrl, @pageCount, @quantity, @pagesJson
+    )
+  `);
+
   const selectOrderByIdStatement = db.prepare("SELECT * FROM orders WHERE id = ?");
   const selectOrderByOutTradeNoStatement = db.prepare("SELECT * FROM orders WHERE out_trade_no = ?");
   const selectOrderItemsStatement = db.prepare("SELECT * FROM order_items WHERE order_id = ? ORDER BY sort_order ASC");
+  const selectBodyBookOrderBooksStatement = db.prepare("SELECT * FROM body_book_order_books WHERE order_id = ? ORDER BY rowid ASC");
   const selectPaymentEventsStatement = db.prepare("SELECT * FROM payment_events WHERE order_id = ? ORDER BY created_at DESC, id DESC");
 
   function readOrder(orderId) {
@@ -304,6 +341,10 @@ export function createOrderStore({ dbPath }) {
     return selectOrderItemsStatement.all(orderId).map(mapItemRow);
   }
 
+  function readBodyBookOrderBooks(orderId) {
+    return selectBodyBookOrderBooksStatement.all(orderId).map(mapBodyBookOrderBookRow);
+  }
+
   function readPaymentEvents(orderId) {
     return selectPaymentEventsStatement.all(orderId).map(mapPaymentEventRow);
   }
@@ -314,6 +355,7 @@ export function createOrderStore({ dbPath }) {
     return {
       ...order,
       items: readOrderItems(orderId),
+      bodyBookBooks: readBodyBookOrderBooks(orderId),
       paymentEvents: readPaymentEvents(orderId)
     };
   }
@@ -326,7 +368,7 @@ export function createOrderStore({ dbPath }) {
     return readOrderWithRelations(existing.id);
   }
 
-  function createOrder({ order, items = [], initialPaymentEvent = null }) {
+  function createOrder({ order, items = [], bodyBookBooks = [], initialPaymentEvent = null }) {
     return withTransaction(db, () => {
       insertOrderStatement.run({
         accountId: order.accountId || "",
@@ -360,6 +402,19 @@ export function createOrderStore({ dbPath }) {
           thumbnailUrl: String(item.thumbnailUrl || ""),
           quantity: Math.max(1, Number(item.quantity || 1)),
           sortOrder: Number(item.sortOrder ?? index)
+        });
+      });
+
+      bodyBookBooks.forEach((book) => {
+        insertBodyBookOrderBookStatement.run({
+          orderId: order.id,
+          projectId: String(book.projectId || ""),
+          title: String(book.title || "认知书"),
+          themeName: String(book.themeName || ""),
+          coverUrl: String(book.coverUrl || ""),
+          pageCount: Math.max(0, Number(book.pageCount || 0)),
+          quantity: Math.max(1, Number(book.quantity || 1)),
+          pagesJson: JSON.stringify(Array.isArray(book.pages) ? book.pages : [])
         });
       });
 
@@ -589,7 +644,8 @@ export function createOrderStore({ dbPath }) {
         const order = mapOrderRow(row);
         return {
           ...order,
-          items: readOrderItems(order.id)
+          items: readOrderItems(order.id),
+          bodyBookBooks: readBodyBookOrderBooks(order.id)
         };
       })
     };
@@ -650,7 +706,13 @@ export function createOrderStore({ dbPath }) {
       ORDER BY created_at DESC
     `).all(params);
 
-    return rows.map((row) => mapOrderRow(row));
+    return rows.map((row) => {
+      const order = mapOrderRow(row);
+      return {
+        ...order,
+        bodyBookBooks: readBodyBookOrderBooks(order.id)
+      };
+    });
   }
 
   function deleteOrdersForAccount({ accountId, visitorIds = [] } = {}) {
@@ -799,6 +861,7 @@ export function createOrderStore({ dbPath }) {
     readOrder,
     readOrderByOutTradeNo,
     readOrderItems,
+    readBodyBookOrderBooks,
     readOrderWithRelations,
     replaceOrderOutTradeNo,
     updateOrder,
