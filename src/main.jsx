@@ -1944,7 +1944,7 @@ function DrawSharePage() {
     </header>
     {error ? <section className="body-book-share-empty"><AlertTriangle size={30} /><h2>分享链接已失效</h2><p>{error}</p><a className="draw-card-primary" href="/">我也要做</a></section> : null}
     {!sharedImage && !error ? <section className="body-book-share-empty"><LoaderCircle className="spin" size={30} /><p>正在打开好友分享的小画…</p></section> : null}
-    {sharedImage ? <section className="body-book-share-content"><div className="body-book-share-intro"><span>来自好友分享</span><h2>{sharedImage.styleName || "AI 小画"}</h2><p>仅供在线预览</p></div><figure className="body-book-checkout-preview-item body-book-share-single-image"><img alt={sharedImage.styleName || "好友分享的小画"} src={sharedImage.imageUrl || sharedImage.thumbnailUrl} /></figure><div className="body-book-share-cta"><p>也来制作一张属于自己的小画吧。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
+    {sharedImage ? <section className="body-book-share-content"><div className="body-book-share-intro draw-share-intro"><span>来自好友分享</span><h2>{sharedImage.styleName || "AI 小画"}</h2><p>仅供在线预览</p></div><figure className="body-book-checkout-preview-item body-book-share-single-image"><img alt={sharedImage.styleName || "好友分享的小画"} src={sharedImage.imageUrl || sharedImage.thumbnailUrl} /></figure><div className="body-book-share-cta"><p>也来制作一张属于自己的小画吧。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
   </main>;
 }
 
@@ -1976,7 +1976,7 @@ function BodyBookSharePage() {
     </header>
     {error ? <section className="body-book-share-empty"><AlertTriangle size={30} /><h2>分享链接已失效</h2><p>{error}</p><a className="draw-card-primary" href="/book">我也要做</a></section> : null}
     {!sharedBook && !error ? <section className="body-book-share-empty"><LoaderCircle className="spin" size={30} /><p>正在打开好友分享的认知书…</p></section> : null}
-    {sharedBook ? <section className="body-book-share-content"><div className="body-book-share-intro"><span>来自好友分享</span><h2>{sharedBook.title}</h2><p>{sharedBook.themeName} · 已完成 {sharedBook.pageCount} 页</p></div><BodyBookFlipBook ariaLabel={`${sharedBook.title || "好友分享的认知书"}翻页预览`} pages={sharedBook.pages.map((page, index) => ({ id: page.key || String(index), isPreset: page.isBuiltIn === true, src: page.thumbnailUrl, title: page.title || `第 ${index + 1} 页` }))} /><div className="body-book-share-cta"><p>也来制作一本属于自己的认知书吧。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
+    {sharedBook ? <section className="body-book-share-content"><BodyBookFlipBook ariaLabel={`${sharedBook.title || "好友分享的认知书"}翻页预览`} pages={sharedBook.pages.map((page, index) => ({ id: page.key || String(index), isPreset: page.isBuiltIn === true, src: page.thumbnailUrl, title: page.title || `第 ${index + 1} 页` }))} /><div className="body-book-share-cta"><p>也来制作一本属于自己的认知书吧。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
   </main>;
 }
 
