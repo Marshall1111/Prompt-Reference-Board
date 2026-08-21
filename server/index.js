@@ -12364,6 +12364,7 @@ function toPublicSharedDrawImage(job) {
     throw createHttpError(404, "分享内容暂时不可访问。");
   }
   return {
+    styleId: String(job?.styleId || ""),
     styleName: String(job?.styleName || "小画"),
     imageUrl: String(result.previewUrl || result.thumbnailUrl || ""),
     thumbnailUrl: String(result.thumbnailUrl || result.previewUrl || ""),

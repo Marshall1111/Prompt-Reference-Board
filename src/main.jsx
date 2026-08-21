@@ -1936,7 +1936,12 @@ function DrawSharePage() {
     return () => { active = false; };
   }, [token]);
 
-  const makeUrl = sharedImage?.makeUrl || "/";
+  const makeUrl = useMemo(() => {
+    const url = new URL(sharedImage?.makeUrl || "/", window.location.origin);
+    const styleId = String(sharedImage?.styleId || "").trim();
+    if (styleId) url.searchParams.set("styleId", styleId);
+    return `${url.pathname}${url.search}${url.hash}`;
+  }, [sharedImage?.makeUrl, sharedImage?.styleId]);
   return <main className="draw-card-page body-book-share-page">
     <header className="body-book-header body-book-share-header">
       <div className="body-book-header-copy"><p className="body-book-kicker">Shared artwork</p><h1>好友分享的小画</h1><p>看看好友刚刚制作的 AI 小画吧。</p></div>
@@ -4243,6 +4248,7 @@ function PublicExperiencePage({ config }) {
   const [referralError, setReferralError] = useState("");
   const [showContactModal, setShowContactModal] = useState(false);
   const [showDrawConfigModal, setShowDrawConfigModal] = useState(false);
+  const [showPhotoRequiredModal, setShowPhotoRequiredModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -4265,6 +4271,8 @@ function PublicExperiencePage({ config }) {
   const [selectedStyleIds, setSelectedStyleIds] = useState([]);
   const [stylePickerError, setStylePickerError] = useState("");
   const [isLoadingStylePicker, setIsLoadingStylePicker] = useState(false);
+  const [sharedStyleId, setSharedStyleId] = useState(() => experienceType === "draw-card" ? String(new URLSearchParams(window.location.search).get("styleId") || "").trim() : "");
+  const sharedStylePickerOpenedRef = useRef(false);
   const resultMediaRefs = useRef(new Map());
   const cardClipPanelRef = useRef(null);
   const userMenuRef = useRef(null);
@@ -4559,7 +4567,7 @@ function PublicExperiencePage({ config }) {
   async function openStylePicker() {
     if (isGenerationInProgress || isSubmitting || isRestoringSessionReference) return;
     const needsCurrentSessionReference = Boolean(sessionId && referenceSessionId !== sessionId);
-    if (!referenceFile || needsCurrentSessionReference) {
+    if (needsCurrentSessionReference) {
       if (experienceType !== "draw-card" || !sessionId) {
         window.alert("请先上传参考图");
         return;
@@ -4575,6 +4583,9 @@ function PublicExperiencePage({ config }) {
       } finally {
         setIsRestoringSessionReference(false);
       }
+    } else if (!referenceFile && experienceType !== "draw-card") {
+      window.alert("请先上传参考图");
+      return;
     }
     setPhase("style-picker");
     // 风格页与首页共用同一个页面容器；切换内容时浏览器不会自动重置滚动位置。
@@ -4596,12 +4607,33 @@ function PublicExperiencePage({ config }) {
 
   function openRandomDrawConfig() {
     if (!referenceFile) {
-      window.alert("请先上传参考图");
+      setShowPhotoRequiredModal(true);
       return;
     }
     if (isSubmitting) return;
     setShowDrawConfigModal(true);
   }
+
+  useEffect(() => {
+    if (experienceType !== "draw-card" || !sharedStyleId || sharedStylePickerOpenedRef.current) return;
+    sharedStylePickerOpenedRef.current = true;
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("styleId");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+
+    void openStylePicker();
+  }, [experienceType, sharedStyleId]);
+
+  useEffect(() => {
+    if (!sharedStyleId || !stylePickerStyles.length) return;
+    const sharedStyle = stylePickerStyles.find((style) => String(style.id) === sharedStyleId);
+    if (sharedStyle) {
+      setSelectedStyleIds([sharedStyle.id]);
+      setStylePickerSubjectTab(String(sharedStyle.subjectType || "both") === "pet" ? "pet" : "person");
+    }
+    setSharedStyleId("");
+  }, [sharedStyleId, stylePickerStyles]);
 
   function clearPersistedSession() {
     try {
@@ -4902,7 +4934,7 @@ function PublicExperiencePage({ config }) {
 
   const isDrawCardExperience = experienceType === "draw-card";
   const canStart = Boolean(referenceFile) && !isSubmitting;
-  const canStartCustomDraw = Boolean(referenceFile) && selectedStyleIds.length > 0 && !isSubmitting;
+  const canStartCustomDraw = selectedStyleIds.length > 0 && !isSubmitting;
   const activeResult = activeResultIndex >= 0 ? toDisplayResult(displayItems[activeResultIndex]) : activeResultIndex === -3 ? activeClipPreview : null;
   const succeededCount = Number(session?.summary?.succeeded ?? displayItems.filter((item) => item.status === "succeeded").length);
   const totalCount = Number(session?.summary?.total ?? displayItems.length);
@@ -5086,7 +5118,7 @@ function PublicExperiencePage({ config }) {
 
   async function startDrawCard(options = {}) {
     if (!referenceFile) {
-      window.alert("请先上传参考图");
+      setShowPhotoRequiredModal(true);
       return;
     }
     if (isSubmitting) return;
@@ -5800,8 +5832,8 @@ function PublicExperiencePage({ config }) {
                   ) : (
                     <div className="draw-card-upload-empty">
                       <ImageUp size={20} />
-                      <strong>先上传图片</strong>
-                      <span>上传后再挑风格</span>
+                      <strong>上传 1 张图片</strong>
+                      <span>可先挑风格，再上传图片</span>
                     </div>
                   )}
                   <input
@@ -6084,6 +6116,22 @@ function PublicExperiencePage({ config }) {
           onClose={() => setShowDrawConfigModal(false)}
           onSubmit={(settings) => startDrawCard(settings)}
         />
+      ) : null}
+
+      {showPhotoRequiredModal ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => setShowPhotoRequiredModal(false)} role="presentation">
+          <section className="draw-card-confirm-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="请上传照片">
+            <button className="icon-button" onClick={() => setShowPhotoRequiredModal(false)} type="button" aria-label="关闭弹窗">
+              <X size={18} />
+            </button>
+            <p className="draw-card-kicker">Photo required</p>
+            <h2>请上传照片</h2>
+            <p className="storage-note">请上传1张照片。</p>
+            <div className="draw-card-confirm-actions">
+              <button className="draw-card-primary" onClick={() => setShowPhotoRequiredModal(false)} type="button">我知道了</button>
+            </div>
+          </section>
+        </div>
       ) : null}
 
       {pendingRemoval ? (
