@@ -9515,6 +9515,7 @@ function InviteAdminPage({ inviteCodes, settings, onRefreshInviteCodes, onRefres
   const [beanBonus, setBeanBonus] = useState(0);
   const [fridgeMagnetItemCount, setFridgeMagnetItemCount] = useState(0);
   const [bodyBookPrintCount, setBodyBookPrintCount] = useState(0);
+  const [bodyBookCouponYuan, setBodyBookCouponYuan] = useState(0);
   const [originalDownloadAllowanceCount, setOriginalDownloadAllowanceCount] = useState(0);
   const [defaultCoinBonus, setDefaultCoinBonus] = useState(settings?.defaultCoinBonus ?? 5);
   const [defaultBeanBonus, setDefaultBeanBonus] = useState(settings?.defaultBeanBonus ?? 10);
@@ -9534,7 +9535,7 @@ function InviteAdminPage({ inviteCodes, settings, onRefreshInviteCodes, onRefres
     setIsSubmitting(true);
     setError("");
     try {
-      await createInviteCodesRequest({ count, prefix, coinBonus, beanBonus, fridgeMagnetItemCount, bodyBookPrintCount, originalDownloadAllowanceCount });
+      await createInviteCodesRequest({ count, prefix, coinBonus, beanBonus, fridgeMagnetItemCount, bodyBookPrintCount, bodyBookCouponYuan, originalDownloadAllowanceCount });
       await onRefreshInviteCodes();
       setPrefix("");
     } catch (nextError) {
@@ -9590,14 +9591,14 @@ function InviteAdminPage({ inviteCodes, settings, onRefreshInviteCodes, onRefres
 
         <section className="redemption-control-card create-card">
           <div className="redemption-control-head"><div><h3>创建兑换码</h3><p>每个兑换码仅可兑换一次，可叠加虚拟余额、实体定制和免分享原图下载权益。</p></div><button className="copy-button" disabled={isSubmitting} onClick={createCodes} type="button">{isSubmitting ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}<span>{isSubmitting ? "创建中" : "创建"}</span></button></div>
-          <div className="redemption-field-grid"><label className="field-label">数量<input max="20" min="1" onChange={(event) => setCount(Number(event.target.value) || 1)} type="number" value={count} /></label><label className="field-label">前缀<input onChange={(event) => setPrefix(event.target.value.toUpperCase())} placeholder="例如 SHOP" type="text" value={prefix} /></label><label className="field-label">币<input max="999" min="0" onChange={(event) => setCoinBonus(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={coinBonus} /></label><label className="field-label">豆豆<input max="999" min="0" onChange={(event) => setBeanBonus(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={beanBonus} /></label><label className="field-label">冰箱贴（个）<input max="999" min="0" onChange={(event) => setFridgeMagnetItemCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={fridgeMagnetItemCount} /></label><label className="field-label">实体认知书（册）<input max="999" min="0" onChange={(event) => setBodyBookPrintCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={bodyBookPrintCount} /></label><label className="field-label">免分享原图下载（次）<input max="999" min="0" onChange={(event) => setOriginalDownloadAllowanceCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={originalDownloadAllowanceCount} /></label></div>
+          <div className="redemption-field-grid"><label className="field-label">数量<input max="20" min="1" onChange={(event) => setCount(Number(event.target.value) || 1)} type="number" value={count} /></label><label className="field-label">前缀<input onChange={(event) => setPrefix(event.target.value.toUpperCase())} placeholder="例如 SHOP" type="text" value={prefix} /></label><label className="field-label">币<input max="999" min="0" onChange={(event) => setCoinBonus(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={coinBonus} /></label><label className="field-label">豆豆<input max="999" min="0" onChange={(event) => setBeanBonus(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={beanBonus} /></label><label className="field-label">冰箱贴（个）<input max="999" min="0" onChange={(event) => setFridgeMagnetItemCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={fridgeMagnetItemCount} /></label><label className="field-label">实体书（册）<input max="999" min="0" onChange={(event) => setBodyBookPrintCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={bodyBookPrintCount} /></label><label className="field-label">实体优惠券（元）<input max="999" min="0" onChange={(event) => setBodyBookCouponYuan(Number(event.target.value) || 0)} type="number" value={bodyBookCouponYuan} /></label><label className="field-label">免分享原图下载（次）<input max="999" min="0" onChange={(event) => setOriginalDownloadAllowanceCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={originalDownloadAllowanceCount} /></label></div>
         </section>
       </div>
       {error ? <p className="error-note">{error}</p> : null}
 
       <section className="redemption-code-section" aria-label="可用兑换码">
         <div className="redemption-section-head"><div><h3>可用兑换码</h3><p>已创建 {availableInviteCodes.length} 个，删除后不可恢复。</p></div></div>
-        {availableInviteCodes.length ? <div className="redemption-code-table"><div className="redemption-code-table-head" role="presentation"><span>兑换码</span><span>发放权益</span><span>核销情况</span><span>创建时间</span><span>操作</span></div>{availableInviteCodes.map((inviteCode) => <article className="redemption-code-row" key={inviteCode.id}><div className="redemption-code-primary"><strong>{inviteCode.code}</strong><span className={`task-status ${inviteCode.enabled ? "succeeded" : "cancelled"}`}>{inviteCode.enabled ? "可用" : "已停用"}</span></div><div className="redemption-code-benefits"><span>{Number(inviteCode.coinBonus ?? inviteCode.quotaBonus ?? 5)} 币</span><span>{Number(inviteCode.beanBonus ?? 10)} 豆豆</span><span>冰箱贴 {Number(inviteCode.fridgeMagnetItemCount || 0)} 个</span><span>认知书 {Number(inviteCode.bodyBookPrintCount || 0)} 册</span><span>免分享原图 {Number(inviteCode.originalDownloadAllowanceCount || 0)} 次</span></div><div className="redemption-code-usage">已兑换 {inviteCode.redeemedCount} · 剩余 {inviteCode.remainingRedemptions}</div><time>{formatDateTime(inviteCode.createdAt)}</time><button className="danger-button" onClick={() => deleteInvite(inviteCode)} type="button"><Trash2 size={16} /><span>删除</span></button></article>)}</div> : <p className="empty-note">当前没有可继续兑换的兑换码。</p>}
+        {availableInviteCodes.length ? <div className="redemption-code-table"><div className="redemption-code-table-head" role="presentation"><span>兑换码</span><span>发放权益</span><span>核销情况</span><span>创建时间</span><span>操作</span></div>{availableInviteCodes.map((inviteCode) => <article className="redemption-code-row" key={inviteCode.id}><div className="redemption-code-primary"><strong>{inviteCode.code}</strong><span className={`task-status ${inviteCode.enabled ? "succeeded" : "cancelled"}`}>{inviteCode.enabled ? "可用" : "已停用"}</span></div><div className="redemption-code-benefits"><span>{Number(inviteCode.coinBonus ?? inviteCode.quotaBonus ?? 5)} 币</span><span>{Number(inviteCode.beanBonus ?? 10)} 豆豆</span><span>冰箱贴 {Number(inviteCode.fridgeMagnetItemCount || 0)} 个</span><span>实体书 {Number(inviteCode.bodyBookPrintCount || 0)} 册</span><span>实体优惠券 {formatCurrencyCents(inviteCode.bodyBookCouponCents || 0)}</span><span>免分享原图 {Number(inviteCode.originalDownloadAllowanceCount || 0)} 次</span></div><div className="redemption-code-usage">已兑换 {inviteCode.redeemedCount} · 剩余 {inviteCode.remainingRedemptions}</div><time>{formatDateTime(inviteCode.createdAt)}</time><button className="danger-button" onClick={() => deleteInvite(inviteCode)} type="button"><Trash2 size={16} /><span>删除</span></button></article>)}</div> : <p className="empty-note">当前没有可继续兑换的兑换码。</p>}
       </section>
     </section>
   );
@@ -10080,8 +10081,6 @@ function UserAdminPage({ onOpenClip }) {
   const [remark, setRemark] = useState("");
   const [currency, setCurrency] = useState("coin");
   const [isRechargeRefund, setIsRechargeRefund] = useState(true);
-  const [downloadDelta, setDownloadDelta] = useState("");
-  const [downloadRemark, setDownloadRemark] = useState("");
   const [isExportingDetails, setIsExportingDetails] = useState(false);
   const limit = 20;
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -10118,8 +10117,6 @@ function UserAdminPage({ onOpenClip }) {
     setRemark("");
     setCurrency("coin");
     setIsRechargeRefund(true);
-    setDownloadDelta("");
-    setDownloadRemark("");
     if (user.recordType === "visitor") {
       setDetail({ user });
       return;
@@ -10155,20 +10152,6 @@ function UserAdminPage({ onOpenClip }) {
       await load();
     } catch (nextError) {
       setError(nextError.message || "调整余额失败。");
-    }
-  }
-
-  async function adjustDownloadAllowance() {
-    if (!selected) return;
-    try {
-      const payload = await adjustAdminUserDownloadAllowance(selected.id, Number(downloadDelta), downloadRemark);
-      setSelected(payload.user);
-      setDetail((current) => current ? { ...current, user: payload.user, downloadAllowanceAdjustments: payload.downloadAllowanceAdjustments } : current);
-      setDownloadDelta("");
-      setDownloadRemark("");
-      await load();
-    } catch (nextError) {
-      setError(nextError.message || "调整下载额度失败。");
     }
   }
 
@@ -10227,6 +10210,7 @@ function UserAdminPage({ onOpenClip }) {
               <col className="user-admin-identity-column" />
               <col className="user-admin-credit-column" />
               <col className="user-admin-download-column" />
+              <col className="user-admin-download-column" />
               <col className="user-admin-date-column" />
               <col className="user-admin-date-column" />
               <col className="user-admin-orders-column" />
@@ -10242,6 +10226,7 @@ function UserAdminPage({ onOpenClip }) {
                 <th scope="col">邀请人</th>
                 <th scope="col">币 / 豆豆</th>
                 <th scope="col">下载额度</th>
+                <th scope="col">实体优惠券</th>
                 <th scope="col">注册时间</th>
                 <th scope="col">最近登录</th>
                 <th scope="col">订单</th>
@@ -10264,6 +10249,7 @@ function UserAdminPage({ onOpenClip }) {
                   <td><div className="user-admin-identity"><strong title={user.inviter?.name || user.invitationSource || ""}>{user.inviter?.name || user.invitationSource || "—"}</strong>{user.inviter?.email ? <span title={user.inviter.email}>{user.inviter.email}</span> : null}</div></td>
                   <td className="user-admin-number">{user.coinBalance} 币 / {user.beanBalance} 豆豆</td>
                   <td className="user-admin-download">{user.recordType === "registered" ? (user.originalDownloadAllowance?.unlimited ? "永久" : `${Math.max(0, Number(user.originalDownloadAllowance?.remaining || 0))} 次`) : "—"}</td>
+                  <td className="user-admin-download">{user.recordType === "registered" ? formatCurrencyCents(user.bodyBookCouponCents || 0) : "—"}</td>
                   <td className="user-admin-date">{formatDateTime(user.registeredAt || user.createdAt)}</td>
                   <td className="user-admin-date">{formatDateTime(user.lastLoginAt)}</td>
                   <td>{user.recordType === "visitor" ? <span className="storage-note">—</span> : <div className="user-admin-orders"><strong>{user.orderCount} 笔</strong><span>{formatCurrencyCents(user.paidTotalCents)}</span></div>}</td>
@@ -10281,11 +10267,11 @@ function UserAdminPage({ onOpenClip }) {
         <div className="modal-backdrop" onClick={() => setSelected(null)} role="presentation">
           <section className="prompt-modal order-admin-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="用户详情">
             <div className="modal-head"><div><p className="eyebrow">User detail</p><h2>{detail?.user?.username || selected.username}</h2></div><button className="icon-button" onClick={() => setSelected(null)} type="button"><X size={18} /></button></div>
-            <p className="storage-note">{detail?.user?.email || (detail?.user?.visitorId ? `访客 ID：${detail.user.visitorId}` : selected.email)} · {detail?.user?.coinBalance ?? selected.coinBalance} 币 / {detail?.user?.beanBalance ?? selected.beanBalance} 豆豆 · 下载额度：{detail?.user?.originalDownloadAllowance?.unlimited ? "永久" : `${Math.max(0, Number(detail?.user?.originalDownloadAllowance?.remaining || 0))} 次`} · 邀请人：{detail?.user?.inviter?.name || detail?.user?.invitationSource || "无"}</p>
+            <p className="storage-note">{detail?.user?.email || (detail?.user?.visitorId ? `访客 ID：${detail.user.visitorId}` : selected.email)} · {detail?.user?.coinBalance ?? selected.coinBalance} 币 / {detail?.user?.beanBalance ?? selected.beanBalance} 豆豆 · 下载额度：{detail?.user?.originalDownloadAllowance?.unlimited ? "永久" : `${Math.max(0, Number(detail?.user?.originalDownloadAllowance?.remaining || 0))} 次`} · 实体优惠券：{formatCurrencyCents(detail?.user?.bodyBookCouponCents || 0)} · 邀请人：{detail?.user?.inviter?.name || detail?.user?.invitationSource || "无"}</p>
             {selected.recordType === "registered" ? <>
               <div className="task-actions"><button className={detail?.user?.status === "disabled" ? "secondary-button" : "danger-button"} disabled={isDeleting} onClick={() => updateStatus(detail?.user?.status === "disabled" ? "active" : "disabled")} type="button">{detail?.user?.status === "disabled" ? "恢复用户" : "禁用用户"}</button><button className="danger-button" disabled={isDeleting} onClick={deleteUser} type="button">{isDeleting ? "正在永久删除..." : "永久删除用户"}</button></div>
-              <div className="draw-card-order-form"><label className="field-label">币种<select onChange={(event) => setCurrency(event.target.value)} value={currency}><option value="coin">币</option><option value="bean">豆豆</option></select></label><label className="field-label">调整余额（正数增加、负数扣减）<input onChange={(event) => { const value = event.target.value; setDelta(value); if (Number(value) < 0) setIsRechargeRefund(true); else setIsRechargeRefund(false); }} type="number" value={delta} /></label><label className="field-label">调整备注<textarea onChange={(event) => setRemark(event.target.value)} rows="2" value={remark} /></label><label className="field-label admin-wallet-refund-toggle"><span>权益处理</span><span className="checkbox-row"><input checked={isRechargeRefund} disabled={Number(delta) >= 0} onChange={(event) => setIsRechargeRefund(event.target.checked)} type="checkbox" />是否为充值退款</span><small>勾选后，扣减币/豆豆会同步扣除购买充值带来的下载和优惠权益。</small></label><button className="secondary-button" disabled={!Number(delta) || !remark.trim()} onClick={adjustWallet} type="button">保存余额调整</button></div>
-              {detail?.user?.originalDownloadAllowance?.unlimited ? <p className="storage-note">该用户已获得永久原图下载资格，无需再调整下载次数。</p> : <div className="draw-card-order-form admin-download-allowance-form"><label className="field-label">下载额度调整（正数增加、负数扣减）<input onChange={(event) => setDownloadDelta(event.target.value)} type="number" value={downloadDelta} /></label><label className="field-label">调整备注<textarea onChange={(event) => setDownloadRemark(event.target.value)} rows="2" value={downloadRemark} /></label><button className="secondary-button" disabled={!Number(downloadDelta) || !downloadRemark.trim()} onClick={adjustDownloadAllowance} type="button">保存下载额度</button></div>}
+              <div className="draw-card-order-form"><label className="field-label">权益<select onChange={(event) => { setCurrency(event.target.value); setIsRechargeRefund(false); }} value={currency}><option value="coin">币</option><option value="bean">豆豆</option><option value="download">下载额度</option><option value="body_book_coupon">实体优惠券</option></select></label><label className="field-label">调整数量（正数增加、负数扣减）<input onChange={(event) => { const value = event.target.value; setDelta(value); if (Number(value) < 0 && ["coin", "bean"].includes(currency)) setIsRechargeRefund(true); else setIsRechargeRefund(false); }} type="number" value={delta} /></label><label className="field-label">调整备注<textarea onChange={(event) => setRemark(event.target.value)} rows="2" value={remark} /></label>{["coin", "bean"].includes(currency) ? <label className="field-label admin-wallet-refund-toggle"><span>权益处理</span><span className="checkbox-row"><input checked={isRechargeRefund} disabled={Number(delta) >= 0} onChange={(event) => setIsRechargeRefund(event.target.checked)} type="checkbox" />是否为充值退款</span><small>勾选后，扣减币/豆豆会同步扣除购买充值带来的下载和优惠权益。</small></label> : null}<button className="secondary-button" disabled={!Number(delta) || !remark.trim() || (currency === "download" && detail?.user?.originalDownloadAllowance?.unlimited)} onClick={adjustWallet} type="button">保存权益调整</button></div>
+              {currency === "download" && detail?.user?.originalDownloadAllowance?.unlimited ? <p className="storage-note">该用户已获得永久原图下载资格，不能再调整下载次数。</p> : null}
               <div className="admin-user-detail-export"><button className="secondary-button" disabled={isExportingDetails} onClick={exportDetails} type="button"><Download size={16} /><span>{isExportingDetails ? "正在导出…" : "导出明细（Excel）"}</span></button></div>
             </> : <p className="storage-note">访客记录为匿名会话信息，暂无可管理的钱包、订单或卡夹。</p>}
           </section>

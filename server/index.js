@@ -1495,6 +1495,9 @@ async function redeemCodeHandler(req, res) {
       fridgeMagnetItemCount: result.fridgeMagnetItemCount,
       bodyBookPrintCount: result.bodyBookPrintCount
     });
+    if (result.bodyBookCouponCents > 0) {
+      commerceStore.adjustBodyBookCoupon({ accountId: req.webAccount.id, deltaCents: result.bodyBookCouponCents, note: `兑换码 ${result.id} 发放实体优惠券` });
+    }
     if (result.originalDownloadAllowanceCount > 0) {
       commerceStore.adjustOriginalDownloadAllowance({
         accountId: req.webAccount.id,
@@ -3445,9 +3448,10 @@ async function createRedemptionCodesHandler(req, res) {
     const beanBonus = normalizeInviteBonus(req.body?.beanBonus, 10);
     const fridgeMagnetItemCount = normalizeRedemptionEntitlementCount(req.body?.fridgeMagnetItemCount);
     const bodyBookPrintCount = normalizeRedemptionEntitlementCount(req.body?.bodyBookPrintCount);
+    const bodyBookCouponCents = Math.min(Math.max(Math.round(Number(req.body?.bodyBookCouponYuan || 0) * 100), 0), 99900);
     const originalDownloadAllowanceCount = normalizeRedemptionEntitlementCount(req.body?.originalDownloadAllowanceCount);
     const prefix = String(req.body?.prefix || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
-    const created = await createInviteCodes(count, prefix, coinBonus, beanBonus, fridgeMagnetItemCount, bodyBookPrintCount, originalDownloadAllowanceCount);
+    const created = await createInviteCodes(count, prefix, coinBonus, beanBonus, fridgeMagnetItemCount, bodyBookPrintCount, originalDownloadAllowanceCount, bodyBookCouponCents);
     res.status(201).json({ inviteCodes: created.map(toPublicInviteCode) });
   } catch (error) {
     console.error(error);
@@ -3798,8 +3802,8 @@ app.post("/api/admin/users/:id/wallet", requireAdmin, (req, res, next) => {
     const currency = String(req.body?.currency || "coin");
     const remark = String(req.body?.remark || "").trim().slice(0, 300);
     const isRechargeRefund = Boolean(req.body?.isRechargeRefund);
-    if (!delta || !remark || !["coin", "bean"].includes(currency)) throw createHttpError(400, "请填写非零余额调整、币种和备注。");
-    if (isRechargeRefund && delta >= 0) throw createHttpError(400, "充值退款只能用于扣减币或豆豆。");
+    if (!delta || !remark || !["coin", "bean", "download", "body_book_coupon"].includes(currency)) throw createHttpError(400, "请填写非零权益调整、权益类型和备注。");
+    if (isRechargeRefund && (delta >= 0 || !["coin", "bean"].includes(currency))) throw createHttpError(400, "充值退款只能用于扣减币或豆豆。");
     const updatedAccount = isRechargeRefund
       ? commerceStore.refundRechargeBalance({
         accountId: account.id,
@@ -3808,7 +3812,11 @@ app.post("/api/admin/users/:id/wallet", requireAdmin, (req, res, next) => {
         note: remark,
         referenceId: randomUUID()
       }).account
-      : (currency === "bean" ? commerceStore.adjustBeans : commerceStore.adjustCredits)({
+      : currency === "download"
+        ? commerceStore.adjustOriginalDownloadAllowance({ accountId: account.id, delta, note: remark }).account
+        : currency === "body_book_coupon"
+          ? commerceStore.adjustBodyBookCoupon({ accountId: account.id, deltaCents: delta * 100, note: remark }).account
+          : (currency === "bean" ? commerceStore.adjustBeans : commerceStore.adjustCredits)({
         accountId: account.id,
         delta,
         reason: "admin_adjustment",
@@ -3817,7 +3825,7 @@ app.post("/api/admin/users/:id/wallet", requireAdmin, (req, res, next) => {
       }).account;
     res.status(201).json({ user: toPublicAdminUser(updatedAccount), ledger: commerceStore.listCreditLedger(account.id, 100).map(toPublicCreditLedger), beanLedger: commerceStore.listBeanLedger(account.id, 100).map(toPublicCreditLedger) });
   } catch (error) {
-    if (["INSUFFICIENT_CREDITS", "INSUFFICIENT_BEANS"].includes(error?.code)) return next(createHttpError(400, "扣减后的余额不能小于零。"));
+    if (["INSUFFICIENT_CREDITS", "INSUFFICIENT_BEANS", "INSUFFICIENT_REDEMPTION_ENTITLEMENT", "INSUFFICIENT_BODY_BOOK_COUPON"].includes(error?.code)) return next(createHttpError(400, "扣减后的权益不能小于零。"));
     next(error);
   }
 });
@@ -8208,6 +8216,10 @@ function toPublicAdminUser(account) {
   const originalDownloadAllowance = recordType === "registered" && account?.id
     ? commerceStore.getOriginalDownloadAllowance(account.id)
     : null;
+  const redemptionEntitlements = recordType === "registered" && account?.id
+    ? commerceStore.getRedemptionEntitlementSummary(account.id)
+    : { fridgeMagnetItemCount: 0, bodyBookPrintCount: 0 };
+  const bodyBookCouponCents = recordType === "registered" && account?.id ? commerceStore.getBodyBookCouponBalance(account.id) : 0;
   return {
     id: account.id,
     recordType,
@@ -8227,6 +8239,8 @@ function toPublicAdminUser(account) {
     generationCount: Number(account.generationCount || 0),
     paidTotalCents: Number(account.paidTotalCents || 0),
     originalDownloadAllowance,
+    redemptionEntitlements,
+    bodyBookCouponCents,
     visitorTier: String(account.visitorTier || ""),
     browser: String(account.browser || ""),
     inviter: toPublicAdminInviter(account),
@@ -9467,6 +9481,7 @@ function normalizeInviteCode(inviteCode) {
     beanBonus: normalizeInviteBonus(inviteCode?.beanBonus, 10),
     fridgeMagnetItemCount: normalizeRedemptionEntitlementCount(inviteCode?.fridgeMagnetItemCount),
     bodyBookPrintCount: normalizeRedemptionEntitlementCount(inviteCode?.bodyBookPrintCount),
+    bodyBookCouponCents: Math.min(Math.max(Math.trunc(Number(inviteCode?.bodyBookCouponCents || 0)), 0), 99900),
     originalDownloadAllowanceCount: normalizeRedemptionEntitlementCount(inviteCode?.originalDownloadAllowanceCount),
     redeemedCount: Math.max(0, Number(inviteCode?.redeemedCount || 0)),
     redeemedByVisitorIds: Array.isArray(inviteCode?.redeemedByVisitorIds) ? inviteCode.redeemedByVisitorIds.map(String) : [],
@@ -9487,6 +9502,7 @@ function toPublicInviteCode(inviteCode) {
     beanBonus: safeInvite.beanBonus,
     fridgeMagnetItemCount: safeInvite.fridgeMagnetItemCount,
     bodyBookPrintCount: safeInvite.bodyBookPrintCount,
+    bodyBookCouponCents: safeInvite.bodyBookCouponCents,
     originalDownloadAllowanceCount: safeInvite.originalDownloadAllowanceCount,
     redeemedCount: safeInvite.redeemedCount,
     remainingRedemptions: Math.max(0, safeInvite.maxRedemptions - safeInvite.redeemedCount),
@@ -9500,7 +9516,7 @@ function normalizeRedemptionEntitlementCount(value) {
   return Number.isFinite(normalized) ? Math.min(Math.max(normalized, 0), 999) : 0;
 }
 
-async function createInviteCodes(count, prefix = "", coinBonus = 5, beanBonus = 10, fridgeMagnetItemCount = 0, bodyBookPrintCount = 0, originalDownloadAllowanceCount = 0) {
+async function createInviteCodes(count, prefix = "", coinBonus = 5, beanBonus = 10, fridgeMagnetItemCount = 0, bodyBookPrintCount = 0, originalDownloadAllowanceCount = 0, bodyBookCouponCents = 0) {
   const inviteCodes = await readInviteCodes();
   const now = new Date().toISOString();
   const created = Array.from({ length: count }, () => normalizeInviteCode({
@@ -9512,6 +9528,7 @@ async function createInviteCodes(count, prefix = "", coinBonus = 5, beanBonus = 
     beanBonus,
     fridgeMagnetItemCount,
     bodyBookPrintCount,
+    bodyBookCouponCents,
     originalDownloadAllowanceCount,
     redeemedCount: 0,
     redeemedByVisitorIds: [],
@@ -9566,6 +9583,7 @@ async function redeemInviteCode(req, code) {
     beanBonus: invite.beanBonus,
     fridgeMagnetItemCount: invite.fridgeMagnetItemCount,
     bodyBookPrintCount: invite.bodyBookPrintCount,
+    bodyBookCouponCents: invite.bodyBookCouponCents,
     originalDownloadAllowanceCount: invite.originalDownloadAllowanceCount
   };
 }

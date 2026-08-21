@@ -322,6 +322,15 @@ export function createCommerceStore({ dbPath }) {
       FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS commerce_body_book_coupon_adjustments (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      delta_cents INTEGER NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS commerce_fridge_coin_discount_reservations (
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL,
@@ -396,6 +405,7 @@ export function createCommerceStore({ dbPath }) {
     CREATE INDEX IF NOT EXISTS idx_commerce_redemption_entitlements_account ON commerce_redemption_entitlements(account_id, entitlement_type, created_at);
     CREATE INDEX IF NOT EXISTS idx_commerce_redemption_consumptions_account ON commerce_redemption_entitlement_consumptions(account_id, entitlement_type, reference_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_body_book_discount_reservations_account ON commerce_body_book_discount_reservations(account_id, status, expires_at);
+    CREATE INDEX IF NOT EXISTS idx_commerce_body_book_coupon_adjustments_account ON commerce_body_book_coupon_adjustments(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_fridge_coin_discount_reservations_account ON commerce_fridge_coin_discount_reservations(account_id, status, expires_at);
     CREATE INDEX IF NOT EXISTS idx_commerce_credit_ledger_account ON commerce_credit_ledger(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_bean_ledger_account ON commerce_bean_ledger(account_id, created_at DESC);
@@ -794,7 +804,7 @@ export function createCommerceStore({ dbPath }) {
   function getBodyBookDiscountSummary(accountId) {
     const safeAccountId = String(accountId || "");
     if (!readAccount(safeAccountId)) {
-      return { purchasedCents: 0, reservedCents: 0, usedCents: 0, availableCents: 0 };
+      return { purchasedCents: 0, couponCents: 0, reservedCents: 0, usedCents: 0, availableCents: 0 };
     }
     releaseExpiredBodyBookDiscountReservations();
     const paidPurchaseCents = Number(db.prepare(`
@@ -804,6 +814,7 @@ export function createCommerceStore({ dbPath }) {
     `).get(safeAccountId)?.total || 0);
     const refundedCents = getManualRechargeRefundCents(safeAccountId, "bean");
     const purchasedCents = Math.max(0, paidPurchaseCents - refundedCents);
+    const couponCents = getBodyBookCouponBalance(safeAccountId);
     const reservation = db.prepare(`
       SELECT
         COALESCE(SUM(CASE WHEN status = 'reserved' THEN discount_cents ELSE 0 END), 0) AS reserved_cents,
@@ -815,11 +826,35 @@ export function createCommerceStore({ dbPath }) {
     const usedCents = Number(reservation.used_cents || 0);
     return {
       purchasedCents,
+      couponCents,
       refundedCents,
       reservedCents,
       usedCents,
-      availableCents: Math.max(0, purchasedCents - reservedCents - usedCents)
+      availableCents: Math.max(0, purchasedCents + couponCents - reservedCents - usedCents)
     };
+  }
+
+  function getBodyBookCouponBalance(accountId) {
+    const safeAccountId = String(accountId || "");
+    return Math.max(0, Number(db.prepare("SELECT COALESCE(SUM(delta_cents), 0) AS total FROM commerce_body_book_coupon_adjustments WHERE account_id = ?").get(safeAccountId)?.total || 0));
+  }
+
+  function adjustBodyBookCoupon({ accountId, deltaCents, note = "" }) {
+    const safeAccountId = String(accountId || "");
+    const safeDelta = Math.trunc(Number(deltaCents || 0));
+    const safeNote = String(note || "").trim();
+    if (!safeAccountId || !safeDelta || !safeNote) throw new Error("Invalid body book coupon adjustment.");
+    return withTransaction(db, () => {
+      const account = readAccount(safeAccountId);
+      if (!account) throw new Error("Account not found.");
+      if (safeDelta < 0 && getBodyBookCouponBalance(safeAccountId) < Math.abs(safeDelta)) {
+        const error = new Error("实体优惠券余额不足。");
+        error.code = "INSUFFICIENT_BODY_BOOK_COUPON";
+        throw error;
+      }
+      db.prepare("INSERT INTO commerce_body_book_coupon_adjustments (id, account_id, delta_cents, note, created_at) VALUES (?, ?, ?, ?, ?)").run(randomUUID(), safeAccountId, safeDelta, safeNote.slice(0, 300), nowIso());
+      return { account, balanceCents: getBodyBookCouponBalance(safeAccountId) };
+    });
   }
 
   function reserveBodyBookDiscount({ accountId, orderId, orderTotalCents, maxDiscountCents = 4000, expiresAt }) {
@@ -1937,6 +1972,49 @@ export function createCommerceStore({ dbPath }) {
     });
   }
 
+  function adjustRedemptionEntitlement({ accountId, entitlementType, delta, note = "", referenceId = "" }) {
+    return withTransaction(db, () => {
+      const safeAccountId = String(accountId || "");
+      const safeType = String(entitlementType || "");
+      const safeDelta = Math.trunc(Number(delta || 0));
+      const safeNote = String(note || "").trim();
+      if (!safeAccountId || !safeDelta || !safeNote || !["fridge_magnet_item", "body_book_print"].includes(safeType)) {
+        throw new Error("Invalid redemption entitlement adjustment.");
+      }
+      const account = readAccount(safeAccountId);
+      if (!account) throw new Error("Account not found.");
+      const now = nowIso();
+      if (safeDelta > 0) {
+        db.prepare(`
+          INSERT INTO commerce_redemption_entitlements (
+            id, account_id, code_id, entitlement_type, quantity_total, quantity_remaining, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(randomUUID(), safeAccountId, `admin:${referenceId || randomUUID()}:${safeNote.slice(0, 80)}`, safeType, safeDelta, safeDelta, now, now);
+      } else {
+        let remainingToDeduct = Math.abs(safeDelta);
+        const rows = db.prepare(`
+          SELECT id, quantity_remaining FROM commerce_redemption_entitlements
+          WHERE account_id = ? AND entitlement_type = ? AND quantity_remaining > 0
+          ORDER BY created_at ASC, id ASC
+        `).all(safeAccountId, safeType);
+        const available = rows.reduce((sum, row) => sum + Math.max(0, Number(row.quantity_remaining || 0)), 0);
+        if (available < remainingToDeduct) {
+          const error = new Error("实体优惠券余额不足。");
+          error.code = "INSUFFICIENT_REDEMPTION_ENTITLEMENT";
+          throw error;
+        }
+        const update = db.prepare("UPDATE commerce_redemption_entitlements SET quantity_remaining = quantity_remaining - ?, updated_at = ? WHERE id = ?");
+        rows.forEach((row) => {
+          if (!remainingToDeduct) return;
+          const deduction = Math.min(remainingToDeduct, Math.max(0, Number(row.quantity_remaining || 0)));
+          if (deduction) update.run(deduction, now, row.id);
+          remainingToDeduct -= deduction;
+        });
+      }
+      return { account, summary: getRedemptionEntitlementSummary(safeAccountId) };
+    });
+  }
+
   function consumeRedemptionEntitlement({ accountId, entitlementType, quantity = 1, referenceId }) {
     return withTransaction(db, () => {
       const safeAccountId = String(accountId || "");
@@ -2466,9 +2544,12 @@ export function createCommerceStore({ dbPath }) {
     grantCredits,
     grantBeans,
     getBodyBookDiscountSummary,
+    getBodyBookCouponBalance,
+    adjustBodyBookCoupon,
     getFridgeCoinDiscountSummary,
     getRedemptionEntitlementSummary,
     grantRedemptionEntitlements,
+    adjustRedemptionEntitlement,
     getOrCreateReferralLink,
     resolveReferralLink,
     getReferralSummary,
