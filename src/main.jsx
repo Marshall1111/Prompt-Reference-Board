@@ -1949,6 +1949,12 @@ function BodyBookPage() {
 
   const activeTheme = project?.theme || selectedTheme;
   const isKindergartenBook = activeTheme?.id === "kindergarten";
+  const referenceUploadLimit = getBodyBookReferenceUploadLimit(activeTheme);
+  const referenceUploadHint = referenceUploadLimit === 1
+    ? "请上传1张宝宝的全身正面照片。"
+    : isKindergartenBook
+      ? "请上传孩子照片，1张即可，最多3张。"
+      : "请上传宝宝照片，1张即可，最多3张。";
   bodyBookEditorRef.current = Boolean(activeTheme);
   bodyBookThemePreviewRef.current = themePreview;
   bodyBookThemesRef.current = themes;
@@ -2513,7 +2519,7 @@ function BodyBookPage() {
     }
     if (!project) {
       setDraftReferences((current) => {
-        if (referenceIndex === null) return current.length < 3 ? [...current, file] : current;
+        if (referenceIndex === null) return current.length < referenceUploadLimit ? [...current, file] : current;
         return current.map((item, index) => index === referenceIndex ? file : item);
       });
       setDraftPageReferences({});
@@ -2563,8 +2569,11 @@ function BodyBookPage() {
     if (!project) {
       setDraftPageReferences((current) => {
         const existing = [...(current[page.key] || draftReferences)];
-        if (referenceIndex === null) existing.push(file);
-        else existing[referenceIndex] = file;
+        if (referenceIndex === null) {
+          if (existing.length < referenceUploadLimit) existing.push(file);
+        } else {
+          existing[referenceIndex] = file;
+        }
         return { ...current, [page.key]: existing.filter(Boolean) };
       });
       setError("");
@@ -2587,7 +2596,6 @@ function BodyBookPage() {
 
   async function removePageReference(page, referenceIndex) {
     const references = project ? (page.referenceUrls || []) : (draftPageReferences[page.key] || draftReferences);
-    if (references.length <= 1) return;
     if (!project) {
       setDraftPageReferences((current) => ({ ...current, [page.key]: (current[page.key] || draftReferences).filter((_, index) => index !== referenceIndex) }));
       return;
@@ -2654,11 +2662,19 @@ function BodyBookPage() {
       setError("没有可提交的页面。");
       return;
     }
-    if (!(await ensureBookAccount())) return;
-    if (!project && !draftReferences.length) {
-      setError("请先上传至少 1 张宝宝照片。");
+    const hasMissingReference = keys.some((key) => {
+      const page = pages.find((item) => item.key === key);
+      if (!page || page.isBuiltIn) return false;
+      const references = project
+        ? page.referenceUrls || []
+        : draftPageReferences[key] ?? draftReferences;
+      return !references.length;
+    });
+    if (hasMissingReference) {
+      window.alert("存在尚未上传参考图的任务");
       return;
     }
+    if (!(await ensureBookAccount())) return;
     if (!project && isKindergartenBook && !draftChildName.trim()) {
       setError("请先填写孩子昵称。");
       return;
@@ -2790,7 +2806,7 @@ function BodyBookPage() {
         <div className="body-book-status-row"><div><span className="body-book-step">02</span><h2>{project?.message || "配置你的认知书页面"}</h2></div></div>
         {error ? <p className="error-note">{error}</p> : null}
         {isKindergartenBook ? <section className="body-book-kindergarten-profile"><div><span className="body-book-step">STORY HERO</span><h3>孩子昵称</h3><p>会出现在封面上，例如“乐乐去幼儿园啦”。</p></div>{project ? <strong>{draftChildName || "小朋友"}</strong> : <label><span>昵称（必填）</span><input disabled={busy} maxLength={12} onChange={(event) => setDraftChildName(event.target.value)} placeholder="例如：乐乐" value={draftChildName} /></label>}</section> : null}
-        <section className="body-book-project-reference"><div><span className="body-book-step">REFERENCE</span><h3>{isKindergartenBook ? "孩子参考图" : "全局参考图"}</h3><p>{isKindergartenBook ? "请上传孩子照片，1张即可，最多3张。" : "请上传宝宝照片，1张即可，最多3张。"}</p></div><div className={`body-book-reference-list${topReferenceUrls.length ? " has-references" : " is-empty"}`}>{topReferenceUrls.length ? <div className="body-book-reference-previews">{topReferenceUrls.map((url, index) => <div className="body-book-reference-preview" key={`${url}-${index}`}><button aria-label={`查看${isKindergartenBook ? "孩子" : "宝宝"}参考图 ${index + 1} 大图`} className="body-book-reference-preview-open" onClick={() => setActiveReferencePreview({ url, index })} type="button"><img alt={`${isKindergartenBook ? "孩子" : "宝宝"}参考图 ${index + 1}`} decoding="async" src={topReferenceThumbnailUrls[index] || url} /><span className="body-book-reference-index">{index + 1}</span></button><button aria-label={`删除第 ${index + 1} 张${isKindergartenBook ? "孩子" : "宝宝"}参考图`} className="body-book-reference-delete icon-button" disabled={busy} onClick={() => removeTopReference(index)} title="删除参考图" type="button"><X size={15} /></button></div>)}{topReferenceUrls.length < 3 ? <label aria-label={`继续上传${isKindergartenBook ? "孩子" : "宝宝"}照片`} className="body-book-upload body-book-project-upload body-book-reference-add is-compact" title={`继续上传${isKindergartenBook ? "孩子" : "宝宝"}照片`}><Plus aria-hidden="true" size={24} /><input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label> : null}</div> : <label aria-label={`上传${isKindergartenBook ? "孩子" : "宝宝"}照片`} className="body-book-upload body-book-project-upload body-book-reference-add is-initial" title={`上传${isKindergartenBook ? "孩子" : "宝宝"}照片`}><Plus aria-hidden="true" size={32} /><strong>上传{isKindergartenBook ? "孩子" : "宝宝"}照片</strong><input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label>}</div></section>
+        <section className="body-book-project-reference"><div><span className="body-book-step">REFERENCE</span><h3>{isKindergartenBook ? "孩子参考图" : "全局参考图"}</h3><p>{referenceUploadHint}</p></div><div className={`body-book-reference-list${topReferenceUrls.length ? " has-references" : " is-empty"}`}>{topReferenceUrls.length ? <div className="body-book-reference-previews">{topReferenceUrls.map((url, index) => <div className="body-book-reference-preview" key={`${url}-${index}`}><button aria-label={`查看${isKindergartenBook ? "孩子" : "宝宝"}参考图 ${index + 1} 大图`} className="body-book-reference-preview-open" onClick={() => setActiveReferencePreview({ url, index })} type="button"><img alt={`${isKindergartenBook ? "孩子" : "宝宝"}参考图 ${index + 1}`} decoding="async" src={topReferenceThumbnailUrls[index] || url} /><span className="body-book-reference-index">{index + 1}</span></button><button aria-label={`删除第 ${index + 1} 张${isKindergartenBook ? "孩子" : "宝宝"}参考图`} className="body-book-reference-delete icon-button" disabled={busy} onClick={() => removeTopReference(index)} title="删除参考图" type="button"><X size={15} /></button></div>)}{topReferenceUrls.length < referenceUploadLimit ? <label aria-label={`继续上传${isKindergartenBook ? "孩子" : "宝宝"}照片`} className="body-book-upload body-book-project-upload body-book-reference-add is-compact" title={`继续上传${isKindergartenBook ? "孩子" : "宝宝"}照片`}><Plus aria-hidden="true" size={24} /><input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label> : null}</div> : <label aria-label={`上传${isKindergartenBook ? "孩子" : "宝宝"}照片`} className="body-book-upload body-book-project-upload body-book-reference-add is-initial" title={`上传${isKindergartenBook ? "孩子" : "宝宝"}照片`}><Plus aria-hidden="true" size={32} /><strong>上传{isKindergartenBook ? "孩子" : "宝宝"}照片</strong><input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label>}</div></section>
         <section className="body-book-content-panel">
           <div className="body-book-project-pages-head"><div><span className="body-book-step">03</span><h3>内容选择</h3><p>{usesPairedPresetLayout ? "制作时仅选择封面和各主题专属认知页；对应内置认知页会在下单预览中自动加入。" : "每张卡片可单独替换参考图并生成。"}</p><p className="body-book-selection-progress">{selectionProgressText}</p></div></div>
           <div className="body-book-grid body-book-project-grid">{pages.map((page) => <BodyBookProjectItem busy={busy} busyPageKey={busyPageKey} key={`${page.key}-${page.jobId || "new"}`} onDelete={() => savePageSelection(selectedKeys.filter((key) => key !== page.key))} onDownload={() => { void downloadBookOriginal(page); }} onEditReferences={() => setActivePageReferenceKey(page.key)} onGenerate={() => submitGeneration([page.key], page.key)} onOpen={openActiveItem} page={page} />)}<button className="body-book-add-page-card" disabled={busy} onClick={openContentPicker} type="button" aria-label="添加或编辑内容"><Plus size={36} /><span>添加内容</span></button>{!pages.length ? <p className="body-book-library-empty">点击“添加内容”选择要制作的页面。</p> : null}</div>
@@ -2801,7 +2817,7 @@ function BodyBookPage() {
       {activeItem?.result?.imageUrl ? <div className="modal-backdrop body-book-lightbox" onClick={closeActiveItem} role="presentation"><section className="body-book-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="icon-button" onClick={closeActiveItem} type="button" aria-label="关闭预览"><X size={18} /></button><img alt={activeItem.title} src={getBodyBookThumbnail(activeItem)} /><div className="body-book-lightbox-meta"><strong>{activeItem.title}</strong><button className="draw-card-primary" onClick={() => { void downloadBookOriginal(activeItem); }} type="button"><Download size={17} /><span>下载原图</span></button></div></section></div> : null}
       {originalPreview ? <div className="modal-backdrop body-book-lightbox" onClick={() => setOriginalPreview(null)} role="presentation"><section className="body-book-lightbox-panel body-book-original-preview-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`${originalPreview.title}原图`} aria-modal="true"><button className="icon-button" onClick={() => setOriginalPreview(null)} type="button" aria-label="关闭原图"><X size={18} /></button><img alt={originalPreview.title} onError={() => { setOriginalPreview(null); setError("加载认知书原图失败，请稍后再试。"); }} src={originalPreview.url} /><div className="body-book-lightbox-meta"><strong>{originalPreview.title}原图</strong><p className="body-book-lightbox-save-tip">请长按图片，选择“保存图片”到手机。</p></div></section></div> : null}
       {activeReferencePreview ? <div className="modal-backdrop body-book-lightbox" onClick={() => setActiveReferencePreview(null)} role="presentation"><section className="body-book-lightbox-panel body-book-reference-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`宝宝参考图 ${activeReferencePreview.index + 1} 大图预览`} aria-modal="true"><button className="icon-button" onClick={() => setActiveReferencePreview(null)} type="button" aria-label="关闭预览"><X size={18} /></button><img alt={`宝宝参考图 ${activeReferencePreview.index + 1} 大图`} src={activeReferencePreview.url} /><div className="body-book-lightbox-meta"><strong>宝宝参考图 {activeReferencePreview.index + 1}</strong></div></section></div> : null}
-      {activePageReferencePage ? <div className="modal-backdrop body-book-page-reference-modal" onClick={() => setActivePageReferenceKey("")} role="presentation"><section className="body-book-project-modal body-book-page-reference-modal-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`修改${activePageReferencePage.title}`} aria-modal="true"><button className="icon-button" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onClick={() => setActivePageReferenceKey("")} type="button" aria-label="关闭修改"><X size={18} /></button><p className="body-book-kicker">Edit page</p><h2>修改页面</h2><p>可分别修改本页参考图和提示词；提示词会在下次单张或批量生成本页时生效。</p><div className="body-book-page-reference-editor-list">{activePageReferenceUrls.map((referenceUrl, index) => <div className="body-book-page-reference-editor-item" key={`${referenceUrl}-${index}`}><img alt={`${activePageReferencePage.title} 参考图 ${index + 1}`} decoding="async" src={activePageReferenceThumbnailUrls[index] || referenceUrl} /><div><strong>参考图 {index + 1}</strong><label className="draw-card-secondary"><RefreshCw size={15} /><span>替换参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onChange={(event) => { updatePageReference(activePageReferencePage, event.target.files?.[0] || null, index); event.target.value = ""; }} type="file" /></label></div><button aria-label={`删除第 ${index + 1} 张参考图`} className="body-book-page-reference-editor-remove icon-button" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status) || activePageReferenceUrls.length <= 1} onClick={() => removePageReference(activePageReferencePage, index)} title={activePageReferenceUrls.length <= 1 ? "每页至少保留 1 张参考图" : "删除参考图"} type="button"><X size={16} /></button></div>)}{activePageReferenceUrls.length < 3 ? <label aria-label="增加参考图" className="body-book-page-reference-editor-add" title="增加参考图"><Plus size={24} /><span>增加参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onChange={(event) => { updatePageReference(activePageReferencePage, event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label> : null}</div><label className="body-book-page-prompt-editor"><span>本页提示词</span><textarea disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} maxLength={6000} onChange={(event) => updatePagePrompt(activePageReferencePage.key, event.target.value)} value={pagePrompts[activePageReferencePage.key] ?? activePageReferencePage.prompt ?? ""} /></label></section></div> : null}
+      {activePageReferencePage ? <div className="modal-backdrop body-book-page-reference-modal" onClick={() => setActivePageReferenceKey("")} role="presentation"><section className="body-book-project-modal body-book-page-reference-modal-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`修改${activePageReferencePage.title}`} aria-modal="true"><button className="icon-button" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onClick={() => setActivePageReferenceKey("")} type="button" aria-label="关闭修改"><X size={18} /></button><p className="body-book-kicker">Edit page</p><h2>修改页面</h2><p>可分别修改本页参考图和提示词；提示词会在下次单张或批量生成本页时生效。</p><div className="body-book-page-reference-editor-list">{activePageReferenceUrls.map((referenceUrl, index) => <div className="body-book-page-reference-editor-item" key={`${referenceUrl}-${index}`}><img alt={`${activePageReferencePage.title} 参考图 ${index + 1}`} decoding="async" src={activePageReferenceThumbnailUrls[index] || referenceUrl} /><div><strong>参考图 {index + 1}</strong><label className="draw-card-secondary"><RefreshCw size={15} /><span>替换参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onChange={(event) => { updatePageReference(activePageReferencePage, event.target.files?.[0] || null, index); event.target.value = ""; }} type="file" /></label></div><button aria-label={`删除第 ${index + 1} 张参考图`} className="body-book-page-reference-editor-remove icon-button" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onClick={() => removePageReference(activePageReferencePage, index)} title="删除参考图" type="button"><X size={16} /></button></div>)}{activePageReferenceUrls.length < referenceUploadLimit ? <label aria-label="增加参考图" className="body-book-page-reference-editor-add" title="增加参考图"><Plus size={24} /><span>增加参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onChange={(event) => { updatePageReference(activePageReferencePage, event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label> : null}</div><label className="body-book-page-prompt-editor"><span>本页提示词</span><textarea disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} maxLength={6000} onChange={(event) => updatePagePrompt(activePageReferencePage.key, event.target.value)} value={pagePrompts[activePageReferencePage.key] ?? activePageReferencePage.prompt ?? ""} /></label></section></div> : null}
 
       {showContentPicker ? <div className="modal-backdrop" onClick={() => !busy && setShowContentPicker(false)} role="presentation"><section className="body-book-project-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择认知书内容"><button className="icon-button" disabled={busy} onClick={() => setShowContentPicker(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Contents</p><h2>选择认知书内容</h2><p>封面为固定页；勾选或取消后会立即生效。</p><p className="body-book-selection-progress">{pickerSelectionProgressText}</p><div className="body-book-content-options">{selectableContents.map((content) => <label key={content.key}><input checked={pickerKeys.includes(content.key)} disabled={content.isRequired || busy} onChange={(event) => { void toggleContentSelection(content.key, event.target.checked); }} type="checkbox" /><span>{content.chinese} <small>{content.english}</small></span></label>)}</div><div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={busy} onClick={() => setShowContentPicker(false)} type="button">完成</button></div></section></div> : null}
 
@@ -2878,8 +2894,8 @@ function orderBodyBookThemes(themes) {
 }
 
 const BODY_BOOK_THEME_CATEGORY_META = {
-  realistic: { title: "写实认知书", description: "保留宝宝真实照片特征，适合日常认知启蒙。" },
-  cartoon: { title: "卡通认知书", description: "保留发型、肤色和服装等主要特征，以高品质动画电影 3D 卡通方式呈现。" },
+  realistic: { title: "写实认知书", description: "高度保留宝宝真实照片特征，但对参考图要求高，可能需多次生图尝试以获更好效果。" },
+  cartoon: { title: "卡通认知书", description: "提炼宝宝的关键特征，变成卡通电影风格，效果更稳定。" },
   picturebook: { title: "手绘绘本", description: "以连续故事和手绘叙事，陪孩子探索新的成长体验。" }
 };
 
@@ -2887,6 +2903,10 @@ function getBodyBookThemeCategory(theme) {
   if (theme?.themeCategory && BODY_BOOK_THEME_CATEGORY_META[theme.themeCategory]) return theme.themeCategory;
   if (isBodyBookCartoonTheme(theme)) return "cartoon";
   return getBodyBookBaseThemeId(theme) === "kindergarten" ? "picturebook" : "realistic";
+}
+
+function getBodyBookReferenceUploadLimit(theme) {
+  return ["cartoon", "picturebook"].includes(getBodyBookThemeCategory(theme)) ? 1 : 3;
 }
 
 function getBodyBookThemeGroups(themes) {
@@ -8945,12 +8965,13 @@ function AdminLoginPage({ onLogin }) {
 }
 
 function InviteAdminPage({ inviteCodes, settings, onRefreshInviteCodes, onRefreshSettings }) {
-  const [count, setCount] = useState(5);
+  const [count, setCount] = useState(1);
   const [prefix, setPrefix] = useState("");
-  const [coinBonus, setCoinBonus] = useState(5);
-  const [beanBonus, setBeanBonus] = useState(10);
+  const [coinBonus, setCoinBonus] = useState(0);
+  const [beanBonus, setBeanBonus] = useState(0);
   const [fridgeMagnetItemCount, setFridgeMagnetItemCount] = useState(0);
   const [bodyBookPrintCount, setBodyBookPrintCount] = useState(0);
+  const [originalDownloadAllowanceCount, setOriginalDownloadAllowanceCount] = useState(0);
   const [defaultCoinBonus, setDefaultCoinBonus] = useState(settings?.defaultCoinBonus ?? 5);
   const [defaultBeanBonus, setDefaultBeanBonus] = useState(settings?.defaultBeanBonus ?? 10);
   const [error, setError] = useState("");
@@ -8969,7 +8990,7 @@ function InviteAdminPage({ inviteCodes, settings, onRefreshInviteCodes, onRefres
     setIsSubmitting(true);
     setError("");
     try {
-      await createInviteCodesRequest({ count, prefix, coinBonus, beanBonus, fridgeMagnetItemCount, bodyBookPrintCount });
+      await createInviteCodesRequest({ count, prefix, coinBonus, beanBonus, fridgeMagnetItemCount, bodyBookPrintCount, originalDownloadAllowanceCount });
       await onRefreshInviteCodes();
       setPrefix("");
     } catch (nextError) {
@@ -9024,15 +9045,15 @@ function InviteAdminPage({ inviteCodes, settings, onRefreshInviteCodes, onRefres
         </section>
 
         <section className="redemption-control-card create-card">
-          <div className="redemption-control-head"><div><h3>创建兑换码</h3><p>每个兑换码仅可兑换一次，可叠加虚拟余额和实体定制权益。</p></div><button className="copy-button" disabled={isSubmitting} onClick={createCodes} type="button">{isSubmitting ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}<span>{isSubmitting ? "创建中" : "创建"}</span></button></div>
-          <div className="redemption-field-grid"><label className="field-label">数量<input max="20" min="1" onChange={(event) => setCount(Number(event.target.value) || 1)} type="number" value={count} /></label><label className="field-label">前缀<input onChange={(event) => setPrefix(event.target.value.toUpperCase())} placeholder="例如 SHOP" type="text" value={prefix} /></label><label className="field-label">币<input max="999" min="0" onChange={(event) => setCoinBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={coinBonus} /></label><label className="field-label">豆豆<input max="999" min="0" onChange={(event) => setBeanBonus(clampInviteQuotaBonus(event.target.value))} type="number" value={beanBonus} /></label><label className="field-label">冰箱贴（个）<input max="999" min="0" onChange={(event) => setFridgeMagnetItemCount(clampInviteQuotaBonus(event.target.value))} type="number" value={fridgeMagnetItemCount} /></label><label className="field-label">实体认知书（册）<input max="999" min="0" onChange={(event) => setBodyBookPrintCount(clampInviteQuotaBonus(event.target.value))} type="number" value={bodyBookPrintCount} /></label></div>
+          <div className="redemption-control-head"><div><h3>创建兑换码</h3><p>每个兑换码仅可兑换一次，可叠加虚拟余额、实体定制和免分享原图下载权益。</p></div><button className="copy-button" disabled={isSubmitting} onClick={createCodes} type="button">{isSubmitting ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}<span>{isSubmitting ? "创建中" : "创建"}</span></button></div>
+          <div className="redemption-field-grid"><label className="field-label">数量<input max="20" min="1" onChange={(event) => setCount(Number(event.target.value) || 1)} type="number" value={count} /></label><label className="field-label">前缀<input onChange={(event) => setPrefix(event.target.value.toUpperCase())} placeholder="例如 SHOP" type="text" value={prefix} /></label><label className="field-label">币<input max="999" min="0" onChange={(event) => setCoinBonus(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={coinBonus} /></label><label className="field-label">豆豆<input max="999" min="0" onChange={(event) => setBeanBonus(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={beanBonus} /></label><label className="field-label">冰箱贴（个）<input max="999" min="0" onChange={(event) => setFridgeMagnetItemCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={fridgeMagnetItemCount} /></label><label className="field-label">实体认知书（册）<input max="999" min="0" onChange={(event) => setBodyBookPrintCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={bodyBookPrintCount} /></label><label className="field-label">免分享原图下载（次）<input max="999" min="0" onChange={(event) => setOriginalDownloadAllowanceCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={originalDownloadAllowanceCount} /></label></div>
         </section>
       </div>
       {error ? <p className="error-note">{error}</p> : null}
 
       <section className="redemption-code-section" aria-label="可用兑换码">
         <div className="redemption-section-head"><div><h3>可用兑换码</h3><p>已创建 {availableInviteCodes.length} 个，删除后不可恢复。</p></div></div>
-        {availableInviteCodes.length ? <div className="redemption-code-table"><div className="redemption-code-table-head" role="presentation"><span>兑换码</span><span>发放权益</span><span>核销情况</span><span>创建时间</span><span>操作</span></div>{availableInviteCodes.map((inviteCode) => <article className="redemption-code-row" key={inviteCode.id}><div className="redemption-code-primary"><strong>{inviteCode.code}</strong><span className={`task-status ${inviteCode.enabled ? "succeeded" : "cancelled"}`}>{inviteCode.enabled ? "可用" : "已停用"}</span></div><div className="redemption-code-benefits"><span>{Number(inviteCode.coinBonus ?? inviteCode.quotaBonus ?? 5)} 币</span><span>{Number(inviteCode.beanBonus ?? 10)} 豆豆</span><span>冰箱贴 {Number(inviteCode.fridgeMagnetItemCount || 0)} 个</span><span>认知书 {Number(inviteCode.bodyBookPrintCount || 0)} 册</span></div><div className="redemption-code-usage">已兑换 {inviteCode.redeemedCount} · 剩余 {inviteCode.remainingRedemptions}</div><time>{formatDateTime(inviteCode.createdAt)}</time><button className="danger-button" onClick={() => deleteInvite(inviteCode)} type="button"><Trash2 size={16} /><span>删除</span></button></article>)}</div> : <p className="empty-note">当前没有可继续兑换的兑换码。</p>}
+        {availableInviteCodes.length ? <div className="redemption-code-table"><div className="redemption-code-table-head" role="presentation"><span>兑换码</span><span>发放权益</span><span>核销情况</span><span>创建时间</span><span>操作</span></div>{availableInviteCodes.map((inviteCode) => <article className="redemption-code-row" key={inviteCode.id}><div className="redemption-code-primary"><strong>{inviteCode.code}</strong><span className={`task-status ${inviteCode.enabled ? "succeeded" : "cancelled"}`}>{inviteCode.enabled ? "可用" : "已停用"}</span></div><div className="redemption-code-benefits"><span>{Number(inviteCode.coinBonus ?? inviteCode.quotaBonus ?? 5)} 币</span><span>{Number(inviteCode.beanBonus ?? 10)} 豆豆</span><span>冰箱贴 {Number(inviteCode.fridgeMagnetItemCount || 0)} 个</span><span>认知书 {Number(inviteCode.bodyBookPrintCount || 0)} 册</span><span>免分享原图 {Number(inviteCode.originalDownloadAllowanceCount || 0)} 次</span></div><div className="redemption-code-usage">已兑换 {inviteCode.redeemedCount} · 剩余 {inviteCode.remainingRedemptions}</div><time>{formatDateTime(inviteCode.createdAt)}</time><button className="danger-button" onClick={() => deleteInvite(inviteCode)} type="button"><Trash2 size={16} /><span>删除</span></button></article>)}</div> : <p className="empty-note">当前没有可继续兑换的兑换码。</p>}
       </section>
     </section>
   );
@@ -11672,6 +11693,10 @@ function clampInviteQuotaBonus(value) {
   const quotaBonus = Number(value);
   if (!Number.isFinite(quotaBonus)) return 0;
   return Math.min(999, Math.max(0, Math.round(quotaBonus)));
+}
+
+function normalizeOptionalInviteQuotaBonus(value) {
+  return String(value ?? "") === "" ? "" : clampInviteQuotaBonus(value);
 }
 
 function getOrderItemQuantity(quantities, jobId) {
