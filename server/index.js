@@ -406,7 +406,7 @@ const activeImageJobs = new Map();
 const drawCardSessionSyncLocks = new Map();
 const bodyBookSessionSyncLocks = new Map();
 const orderOriginalBundleBuilds = new Map();
-const ORDER_ORIGINAL_BUNDLE_VERSION = "zip-v3-back-cover";
+const ORDER_ORIGINAL_BUNDLE_VERSION = "zip-v4-project-folders";
 const COLOR_BOOK_PRINT_BLEED_RATIO = 0.035;
 const COLOR_BOOK_PRINT_BUNDLE_VERSION = "color-bleed-v1";
 
@@ -6188,6 +6188,20 @@ function getOrderOriginalBundleFilename(order) {
   return `${folderName}.zip`;
 }
 
+function getBodyBookOriginalProjectFolders(order, rootFolderPath) {
+  const books = Array.isArray(order?.bodyBookBooks) ? order.bodyBookBooks : [];
+  if (books.length < 2) return new Map();
+  return new Map(books.map((book, index) => [
+    String(book?.projectId || ""),
+    path.join(rootFolderPath, `${String(index + 1).padStart(2, "0")}-${sanitizeFilesystemSegment(book?.title || book?.themeName, `认知书${index + 1}`)}`)
+  ]).filter(([projectId]) => projectId));
+}
+
+function getBodyBookProjectIdFromOrderItemJobId(jobId) {
+  const match = String(jobId || "").match(/^(?:body-book|built-in):([^:]+):/);
+  return match?.[1] || "";
+}
+
 async function buildOrderOriginalImageBundle(order) {
   const candidates = await resolveOrderOriginalCandidates(order);
   if (!candidates.length) {
@@ -6202,9 +6216,12 @@ async function buildOrderOriginalImageBundle(order) {
   const stagingZipPath = path.join(storageExportTempRoot, `order-originals-${bundleId}.zip`);
   const zipPath = getOrderOriginalBundlePath(order);
   const applyColorBookPrintBleed = isColorBookOrder(order);
+  const projectFolders = isBodyBookOrder(order) ? getBodyBookOriginalProjectFolders(order, folderPath) : new Map();
+  const usesProjectFolders = projectFolders.size > 1;
   await mkdir(folderPath, { recursive: true });
 
   const downloadedFiles = [];
+  const fileCountByFolder = new Map();
   const failedSources = [];
   try {
     for (let index = 0; index < candidates.length; index += 1) {
@@ -6215,8 +6232,13 @@ async function buildOrderOriginalImageBundle(order) {
         const ext = applyColorBookPrintBleed
           ? ".png"
           : source.extension || extensionForContentType(candidate.mimeType) || ".png";
-        const filename = `original-${String(downloadedFiles.length + 1).padStart(2, "0")}${ext}`;
-        const filePath = path.join(folderPath, filename);
+        const projectId = usesProjectFolders ? getBodyBookProjectIdFromOrderItemJobId(candidate.jobId) : "";
+        const targetFolder = projectFolders.get(projectId) || folderPath;
+        const nextFileIndex = (fileCountByFolder.get(targetFolder) || 0) + 1;
+        fileCountByFolder.set(targetFolder, nextFileIndex);
+        await mkdir(targetFolder, { recursive: true });
+        const filename = `original-${String(nextFileIndex).padStart(2, "0")}${ext}`;
+        const filePath = path.join(targetFolder, filename);
         if (applyColorBookPrintBleed) {
           await writeColorBookPrintBleedImage({ input: source.input, outputPath: filePath });
         } else if (source.filePath) {
@@ -6224,7 +6246,7 @@ async function buildOrderOriginalImageBundle(order) {
         } else {
           await writeFile(filePath, source.input);
         }
-        downloadedFiles.push(filePath);
+        downloadedFiles.push({ filePath, projectId, targetFolder });
       } catch (error) {
         failedSources.push({
           sourceType: candidate.sourceType,
@@ -6245,9 +6267,16 @@ async function buildOrderOriginalImageBundle(order) {
       if (!(await fileExists(bodyBookPrintBackCoverPath))) {
         throw createHttpError(500, "服务器未找到认知书固定封底文件。");
       }
-      const backCoverPath = path.join(folderPath, `original-${String(downloadedFiles.length + 1).padStart(2, "0")}-封底.jpg`);
-      await copyFile(bodyBookPrintBackCoverPath, backCoverPath);
-      downloadedFiles.push(backCoverPath);
+      const backCoverFolders = usesProjectFolders
+        ? [...new Set(downloadedFiles.map((file) => file.targetFolder))]
+        : [folderPath];
+      for (const targetFolder of backCoverFolders) {
+        const nextFileIndex = (fileCountByFolder.get(targetFolder) || 0) + 1;
+        fileCountByFolder.set(targetFolder, nextFileIndex);
+        const backCoverPath = path.join(targetFolder, `original-${String(nextFileIndex).padStart(2, "0")}-封底.jpg`);
+        await copyFile(bodyBookPrintBackCoverPath, backCoverPath);
+        downloadedFiles.push({ filePath: backCoverPath, projectId: "", targetFolder });
+      }
     }
 
     await createZipFromDirectory(tempDir, stagingZipPath);
@@ -9252,6 +9281,7 @@ function toPublicOrder(order, options = {}) {
     bodyBookBooks: Array.isArray(order.bodyBookBooks) ? order.bodyBookBooks : [],
     paymentEvents: Array.isArray(order.paymentEvents) ? order.paymentEvents : []
   };
+  const redemptionUsage = getOrderRedemptionUsage(safeOrder);
   const shippingCarrier = normalizeShippingCarrierCode(safeOrder.shippingCarrier);
   return {
     id: safeOrder.id,
@@ -9268,6 +9298,9 @@ function toPublicOrder(order, options = {}) {
     totalCents: safeOrder.totalCents,
     beanDiscountCents: Math.max(0, Number(safeOrder.beanDiscountCents || 0)),
     coinDiscountCents: Math.max(0, Number(safeOrder.coinDiscountCents || 0)),
+    entityCouponDiscountCents: Math.max(0, Number(safeOrder.beanDiscountCents || 0)) + Math.max(0, Number(safeOrder.coinDiscountCents || 0)),
+    fridgeMagnetRedemptionCount: redemptionUsage.fridgeMagnetItemCount,
+    bodyBookPrintRedemptionCount: redemptionUsage.bodyBookPrintCount,
     payableCents: getOrderPayableCents(safeOrder),
     remark: safeOrder.remark,
     receiverName: safeOrder.receiverName,
@@ -9318,6 +9351,24 @@ function toPublicOrder(order, options = {}) {
     })),
     paymentEvents: includePrivate ? safeOrder.paymentEvents : []
   };
+}
+
+function getOrderRedemptionUsage(order) {
+  const events = Array.isArray(order?.paymentEvents) ? order.paymentEvents : [];
+  const createdPayload = events.find((event) => event?.eventType === "order_created")?.payload || {};
+  const consumedEvents = events.filter((event) => event?.eventType === "redemption_entitlement_consumed");
+  const consumedCount = (type) => consumedEvents
+    .filter((event) => String(event?.payload?.entitlementType || "") === type)
+    .reduce((sum, event) => sum + Math.max(0, Math.trunc(Number(event?.payload?.quantity || 0))), 0);
+  const fridgeMagnetItemCount = Math.max(
+    consumedCount("fridge_magnet_item"),
+    createdPayload?.usesFridgeRedemption ? Math.max(0, Math.trunc(Number(createdPayload?.itemCount || order?.itemCount || 0))) : 0
+  );
+  const bodyBookPrintCount = Math.max(
+    consumedCount("body_book_print"),
+    Math.max(0, Math.trunc(Number(createdPayload?.redemptionBookCount || 0)))
+  );
+  return { fridgeMagnetItemCount, bodyBookPrintCount };
 }
 
 function confirmManualOrderPayment(order) {

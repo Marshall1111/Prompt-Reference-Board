@@ -3137,6 +3137,16 @@ body {
   color: #25413c;
 }
 
+.order-admin-modal .draw-card-order-item strong,
+.order-admin-modal .draw-card-order-item-note {
+  color: #25413c;
+}
+
+.draw-card-order-item-note b.is-multiple {
+  color: #d92d20;
+  font-weight: 800;
+}
+
 .draw-card-order-item-stepper {
   display: inline-flex;
   align-items: center;
