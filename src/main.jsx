@@ -1990,6 +1990,7 @@ function BodyBookPage() {
   const [selectedTheme, setSelectedTheme] = useState(null);
   const [themePreview, setThemePreview] = useState(null);
   const [project, setProject] = useState(null);
+  const [openingProjectId, setOpeningProjectId] = useState(() => String(new URLSearchParams(window.location.search).get("project") || "").trim());
   const [draftKeys, setDraftKeys] = useState([]);
   const [draftReferences, setDraftReferences] = useState([]);
   const [draftChildName, setDraftChildName] = useState("");
@@ -2170,13 +2171,12 @@ function BodyBookPage() {
   }, []);
 
   useEffect(() => {
-    const projectId = String(new URLSearchParams(window.location.search).get("project") || "").trim();
-    if (!projectId) return;
+    if (!openingProjectId) return;
     const url = new URL(window.location.href);
     url.searchParams.delete("project");
-    window.history.replaceState(window.history.state || {}, "", `${url.pathname}${url.search}${url.hash}`);
-    void openProject(projectId);
-  }, []);
+    window.history.replaceState({ ...(window.history.state || {}), bodyBookHistoryView: "editor" }, "", `${url.pathname}${url.search}${url.hash}`);
+    void openProject(openingProjectId, { preserveHistory: true }).finally(() => setOpeningProjectId(""));
+  }, [openingProjectId]);
 
   useEffect(() => () => {
     if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
@@ -2210,7 +2210,7 @@ function BodyBookPage() {
 
   useEffect(() => {
     const currentState = window.history.state || {};
-    if (currentState.bodyBookHistoryView !== "home") {
+    if (!currentState.bodyBookHistoryView) {
       window.history.replaceState({ ...currentState, bodyBookHistoryView: "home" }, "", window.location.href);
     }
     const handleBrowserBack = (event) => {
@@ -2360,7 +2360,7 @@ function BodyBookPage() {
     }
   }
 
-  async function openProject(projectId) {
+  async function openProject(projectId, { preserveHistory = false } = {}) {
     setBusy(true);
     setError("");
     try {
@@ -2369,7 +2369,7 @@ function BodyBookPage() {
       bodyBookEditorRef.current = true;
       setHistoryTheme(null);
       setHistoryProjects([]);
-      pushBodyBookEditorHistory();
+      if (!preserveHistory) pushBodyBookEditorHistory();
     } catch (nextError) {
       setError(nextError.message || "打开认知书工程失败，请稍后再试。");
     } finally {
@@ -2902,7 +2902,8 @@ function BodyBookPage() {
     setOriginalPreview({ url: getBodyBookProjectPageOriginalUrl(projectId, page), title: page.title || "认知书原图" });
   }
 
-  const home = !activeTheme && !themePreview;
+  const isOpeningProject = Boolean(openingProjectId && !activeTheme);
+  const home = !isOpeningProject && !activeTheme && !themePreview;
   const showingThemePreview = Boolean(themePreview && !activeTheme);
   const isBookAccountRegistered = Boolean(visitorState?.account?.isRegistered);
   const bookAccountName = visitorState?.account?.username || "我的账户";
@@ -2926,7 +2927,7 @@ function BodyBookPage() {
         {activeTheme ? <button className="body-book-home-link" disabled={busy} onClick={returnToBookHome} type="button"><ArrowLeft size={17} /><span>主页</span></button> : null}
       </header>
 
-      {home ? <>
+      {isOpeningProject ? <section className="body-book-share-empty"><LoaderCircle className="spin" size={30} /><p>正在打开认知书工程…</p></section> : home ? <>
         <section className="body-book-theme-home body-book-theme-layout">
           <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先查看整本效果，再开始制作专属认知书。</p></div><BodyBookThemePager busy={busy} groups={getBodyBookThemeGroups(themes)} onSelectTheme={openThemePreview} /></div>
         </section>
@@ -3221,11 +3222,23 @@ function BodyBookFlipBook({ pages, ariaLabel = "认知书翻页预览" }) {
 
   const toggleLandscapeMode = useCallback(() => {
     if (landscapeMode) {
-      setLandscapeMode(false);
+      if (window.history.state?.bodyBookFlipLandscape) window.history.back();
+      else setLandscapeMode(false);
       return;
     }
+    const currentState = window.history.state || {};
+    window.history.replaceState({ ...currentState, bodyBookFlipLandscape: false }, "", window.location.href);
+    window.history.pushState({ ...currentState, bodyBookFlipLandscape: true }, "", window.location.href);
     setLandscapeMode(true);
   }, [landscapeMode]);
+
+  useEffect(() => {
+    const handleLandscapeHistory = (event) => {
+      setLandscapeMode(Boolean(event.state?.bodyBookFlipLandscape));
+    };
+    window.addEventListener("popstate", handleLandscapeHistory);
+    return () => window.removeEventListener("popstate", handleLandscapeHistory);
+  }, []);
 
   const handleLandscapeTouchStart = useCallback((event) => {
     if (!landscapeMode) return;
@@ -3545,11 +3558,11 @@ function BodyBookWorksPage() {
     <section className="body-book-order-list-page body-book-works-page">
       <div className="body-book-order-list-head">
         <div><p className="body-book-kicker">My works</p><h1>我的作品</h1><p>继续编辑、生成或删除已创建的认知书。</p></div>
-        <button className="draw-card-secondary" onClick={() => window.location.assign("/book")} type="button"><Home size={17} /><span>开始制作</span></button>
+        <button className="draw-card-secondary" onClick={() => window.location.assign("/book")} type="button"><ArrowLeft size={17} /><span>返回</span></button>
       </div>
       {isLoading ? <p className="body-book-library-empty">正在读取我的作品…</p> : null}
       {error ? <p className="error-note">{error}</p> : null}
-      {!isLoading && !error ? <section className="body-book-library" aria-label="我的认知书"><div className="body-book-library-head"><span className="body-book-step">MY BOOKS</span><h2>我的认知书</h2></div>{books.length ? <div className="body-book-library-grid">{books.map((book) => <article className="body-book-library-item" key={book.sessionId}><button className="body-book-library-cover" onClick={() => window.location.assign(`/book?project=${encodeURIComponent(book.sessionId)}`)} type="button">{book.thumbnail ? <img alt={`${book.title} 缩略图`} src={book.thumbnail} /> : <div className="body-book-library-placeholder">{book.theme?.name || "认知书"}</div>}<span>{book.title}</span><small>继续制作 · {formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></button><button aria-label={`删除《${book.title}》`} className="body-book-library-delete icon-button" disabled={deletingProjectId === book.sessionId} onClick={() => deleteBook(book)} title="删除" type="button">{deletingProjectId === book.sessionId ? <LoaderCircle className="spin" size={16} /> : <X size={17} />}</button></article>)}</div> : <p className="body-book-library-empty">还没有已保存的认知书，先去开始制作吧。</p>}</section> : null}
+      {!isLoading && !error ? <section className="body-book-library" aria-label="我的作品">{books.length ? <div className="body-book-library-grid">{books.map((book) => <article className="body-book-library-item" key={book.sessionId}><button className="body-book-library-cover" onClick={() => window.location.assign(`/book?project=${encodeURIComponent(book.sessionId)}`)} type="button">{book.thumbnail ? <img alt={`${book.title} 缩略图`} src={book.thumbnail} /> : <div className="body-book-library-placeholder">{book.theme?.name || "认知书"}</div>}<span>{book.title}</span><small>继续制作 · {formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></button><button aria-label={`删除《${book.title}》`} className="body-book-library-delete icon-button" disabled={deletingProjectId === book.sessionId} onClick={() => deleteBook(book)} title="删除" type="button">{deletingProjectId === book.sessionId ? <LoaderCircle className="spin" size={16} /> : <X size={17} />}</button></article>)}</div> : <p className="body-book-library-empty">还没有已保存的认知书，先去开始制作吧。</p>}</section> : null}
     </section>
   </main>;
 }
