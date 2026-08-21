@@ -2395,8 +2395,13 @@ function BodyBookPage() {
   function pushBodyBookEditorHistory() {
     const currentState = window.history.state || {};
     if (currentState.bodyBookHistoryView === "editor") return;
-    window.history.replaceState({ ...currentState, bodyBookHistoryView: "home" }, "", window.location.href);
-    window.history.pushState({ ...currentState, bodyBookHistoryView: "editor" }, "", window.location.href);
+    // This transition can be triggered by an action inside a dialog (for
+    // example “创建新的工程”). Do not carry that dialog's history marker into
+    // the editor entry, otherwise dismissing the dialog can immediately pop
+    // the just-opened editor back to the theme home.
+    const { [MODAL_HISTORY_DEPTH_KEY]: _modalHistoryDepth, ...baseState } = currentState;
+    window.history.replaceState({ ...baseState, bodyBookHistoryView: "home" }, "", window.location.href);
+    window.history.pushState({ ...baseState, bodyBookHistoryView: "editor" }, "", window.location.href);
   }
 
   function returnToBookHome() {
@@ -2923,7 +2928,7 @@ function BodyBookPage() {
 
       {home ? <>
         <section className="body-book-theme-home body-book-theme-layout">
-          <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先查看整本效果，再开始制作专属认知书。</p></div><div className="body-book-theme-groups">{getBodyBookThemeGroups(themes).map((group) => <section className="body-book-theme-group" key={group.id}><div className="body-book-theme-group-head"><span>{group.title}</span><p>{group.description}</p></div><div className="body-book-theme-grid">{group.items.map(({ theme, index }) => <button className="body-book-theme-card" disabled={busy} key={theme.id} onClick={() => openThemePreview(theme)} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={getBodyBookThemePreviewSrc(theme)} /><span className="body-book-theme-index">{String(index).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small><em>预计消耗 {getBodyBookThemeGenerationCost(theme)} 豆</em></button>)}</div></section>)}</div></div>
+          <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先查看整本效果，再开始制作专属认知书。</p></div><BodyBookThemePager busy={busy} groups={getBodyBookThemeGroups(themes)} onSelectTheme={openThemePreview} /></div>
         </section>
       </> : showingThemePreview ? <BodyBookThemeEffectPreview busy={busy} onBack={closeThemePreview} onStart={() => selectTheme(themePreview)} theme={themePreview} /> : <section className="body-book-workspace body-book-project-workspace">
         <div className="body-book-status-row"><div><span className="body-book-step">02</span><h2>{project?.message || "配置你的认知书页面"}</h2></div></div>
@@ -3041,6 +3046,95 @@ function getBodyBookThemeGroups(themes) {
       .map((theme) => ({ theme, index: ++themeIndex }));
     return { id: category, ...BODY_BOOK_THEME_CATEGORY_META[category], items };
   }).filter((group) => group.items.length);
+}
+
+function BodyBookThemePager({ busy, groups, onSelectTheme }) {
+  const [activeCategory, setActiveCategory] = useState("cartoon");
+  const [slideDirection, setSlideDirection] = useState("");
+  const touchStartRef = useRef(null);
+  const pagerRef = useRef(null);
+  const shouldRevealThemeCardRef = useRef(false);
+  const activeIndex = Math.max(0, groups.findIndex((group) => group.id === activeCategory));
+  const activeGroup = groups[activeIndex];
+
+  useEffect(() => {
+    if (groups.some((group) => group.id === activeCategory)) return;
+    setActiveCategory(groups[0]?.id || "cartoon");
+  }, [activeCategory, groups]);
+
+  useEffect(() => {
+    if (!shouldRevealThemeCardRef.current) return undefined;
+    shouldRevealThemeCardRef.current = false;
+    const frame = window.requestAnimationFrame(() => {
+      const cards = Array.from(pagerRef.current?.querySelectorAll(".body-book-theme-card") || []);
+      const viewportTop = 16;
+      const viewportBottom = window.innerHeight - 16;
+      const hasCompleteCard = cards.some((card) => {
+        const rect = card.getBoundingClientRect();
+        return rect.top >= viewportTop && rect.bottom <= viewportBottom;
+      });
+      if (hasCompleteCard) return;
+
+      const firstVisibleCard = cards.find((card) => card.getBoundingClientRect().bottom > viewportTop);
+      const card = firstVisibleCard || cards[0];
+      if (!card) return;
+      const rect = card.getBoundingClientRect();
+      if (rect.top < viewportTop) {
+        window.scrollTo({ top: Math.max(0, window.scrollY + rect.top - viewportTop), left: 0, behavior: "auto" });
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeCategory]);
+
+  function selectCategory(categoryId) {
+    if (!groups.some((group) => group.id === categoryId) || categoryId === activeCategory) return;
+    const nextIndex = groups.findIndex((group) => group.id === categoryId);
+    setSlideDirection(nextIndex > activeIndex ? "from-right" : "from-left");
+    shouldRevealThemeCardRef.current = true;
+    setActiveCategory(categoryId);
+  }
+
+  function moveToCategory(index) {
+    const nextGroup = groups[index];
+    if (nextGroup) selectCategory(nextGroup.id);
+  }
+
+  function handleTouchStart(event) {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleTouchEnd(event) {
+    const start = touchStartRef.current;
+    const touch = event.changedTouches?.[0];
+    touchStartRef.current = null;
+    if (!start || !touch) return;
+    const horizontalDistance = touch.clientX - start.x;
+    const verticalDistance = touch.clientY - start.y;
+    if (Math.abs(horizontalDistance) < 48 || Math.abs(horizontalDistance) <= Math.abs(verticalDistance)) return;
+
+    // Keep the gesture aligned with the tab order: swipe left for the tab on
+    // the right, and swipe right for the tab on the left.
+    moveToCategory(activeIndex + (horizontalDistance < 0 ? 1 : -1));
+  }
+
+  if (!activeGroup) return null;
+
+  return <div className="body-book-theme-pager" ref={pagerRef}>
+    <div aria-label="认知书类型" className="body-book-theme-tabs" role="tablist">
+      {groups.map((group) => <button aria-controls={`body-book-theme-panel-${group.id}`} aria-selected={group.id === activeGroup.id} className={group.id === activeGroup.id ? "is-active" : ""} key={group.id} onClick={() => selectCategory(group.id)} role="tab" type="button">{group.title}</button>)}
+    </div>
+    <div className="body-book-theme-viewport" onTouchEnd={handleTouchEnd} onTouchStart={handleTouchStart}>
+      <section className={`body-book-theme-group body-book-theme-screen body-book-theme-screen-${activeGroup.id}${slideDirection ? ` slide-${slideDirection}` : ""}`} id={`body-book-theme-panel-${activeGroup.id}`} key={activeGroup.id} role="tabpanel">
+        <div className="body-book-theme-group-head"><span>{activeGroup.title}</span><p>{activeGroup.description}</p></div>
+        <div className="body-book-theme-grid">{activeGroup.items.map(({ theme, index }) => <button className="body-book-theme-card" disabled={busy} key={theme.id} onClick={() => onSelectTheme(theme)} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={getBodyBookThemePreviewSrc(theme)} /><span className="body-book-theme-index">{String(index).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small><em>预计消耗 {getBodyBookThemeGenerationCost(theme)} 豆</em></button>)}</div>
+      </section>
+    </div>
+    <div aria-label={`当前为${activeGroup.title}，第${activeIndex + 1}类，共${groups.length}类`} className="body-book-theme-pagination">
+      {groups.map((group) => <button aria-label={`切换到${group.title}`} className={group.id === activeGroup.id ? "is-active" : ""} key={group.id} onClick={() => selectCategory(group.id)} type="button" />)}
+    </div>
+  </div>;
 }
 
 function getBodyBookThemeEffectSamples(theme) {

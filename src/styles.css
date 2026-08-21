@@ -827,6 +827,106 @@ body {
   gap: 30px;
 }
 
+.body-book-theme-pager {
+  display: grid;
+  gap: 14px;
+}
+
+.body-book-theme-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 5px;
+  border-radius: 15px;
+  background: #edf0f5;
+}
+
+.body-book-theme-tabs button {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.body-book-theme-tabs button.is-active {
+  background: #fff;
+  color: #242f4b;
+  box-shadow: 0 3px 10px rgba(38, 48, 72, 0.14);
+}
+
+.body-book-theme-viewport {
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.body-book-theme-screen {
+  min-width: 0;
+}
+
+.body-book-theme-screen.slide-from-right {
+  animation: body-book-theme-slide-from-right 240ms cubic-bezier(.2, .7, .2, 1) both;
+}
+
+.body-book-theme-screen.slide-from-left {
+  animation: body-book-theme-slide-from-left 240ms cubic-bezier(.2, .7, .2, 1) both;
+}
+
+@keyframes body-book-theme-slide-from-right {
+  from { opacity: 0.35; transform: translateX(34px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes body-book-theme-slide-from-left {
+  from { opacity: 0.35; transform: translateX(-34px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .body-book-theme-screen.slide-from-right,
+  .body-book-theme-screen.slide-from-left { animation: none; }
+}
+
+/* Each paged type keeps the same card grid as the original cognition-book
+   home page. This also prevents the single hand-drawn-book card from sizing
+   its whole carousel screen from its image's intrinsic width. */
+.body-book-theme-screen .body-book-theme-grid {
+  width: 100%;
+  min-width: 0;
+  align-content: start;
+  align-items: start;
+}
+
+.body-book-theme-screen .body-book-theme-card {
+  min-width: 0;
+}
+
+.body-book-theme-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+}
+
+.body-book-theme-pagination button {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #c5ccd8;
+  cursor: pointer;
+}
+
+.body-book-theme-pagination button.is-active {
+  width: 22px;
+  background: #596780;
+}
+
 .body-book-theme-group {
   display: grid;
   gap: 13px;
