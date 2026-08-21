@@ -333,6 +333,113 @@ function readRoute() {
   return "public-draw";
 }
 
+const MODAL_HISTORY_DEPTH_KEY = "__petpaintModalHistoryDepth";
+
+function getOpenModalBackdrops() {
+  return Array.from(document.querySelectorAll(".modal-backdrop"));
+}
+
+/**
+ * Keeps every DOM modal on its own browser-history entry.  We deliberately
+ * close a modal by clicking its existing backdrop handler so a browser back
+ * gesture has exactly the same effect as dismissing that modal in the UI.
+ */
+function ModalRouteHistory() {
+  useEffect(() => {
+    let openModals = getOpenModalBackdrops();
+    let pageUrl = window.location.href;
+    let closesRequestedByHistory = 0;
+    let disposed = false;
+
+    const getModalDepth = (state = window.history.state) => {
+      const depth = Number(state?.[MODAL_HISTORY_DEPTH_KEY]);
+      return Number.isFinite(depth) && depth > 0 ? Math.trunc(depth) : 0;
+    };
+
+    const pushModalHistory = (depth) => {
+      window.history.pushState({
+        ...(window.history.state || {}),
+        [MODAL_HISTORY_DEPTH_KEY]: Math.max(0, depth)
+      }, "", window.location.href);
+    };
+
+    const syncOpenModals = () => {
+      if (disposed) return;
+      const nextModals = getOpenModalBackdrops();
+      const previousCount = openModals.length;
+      const nextCount = nextModals.length;
+      const urlChanged = pageUrl !== window.location.href;
+
+      if (nextCount > previousCount) {
+        for (let depth = previousCount + 1; depth <= nextCount; depth += 1) pushModalHistory(depth);
+      } else if (nextCount < previousCount) {
+        const closedCount = previousCount - nextCount;
+        if (closesRequestedByHistory) {
+          closesRequestedByHistory = Math.max(0, closesRequestedByHistory - closedCount);
+        } else if (!urlChanged && getModalDepth() >= previousCount) {
+          // A normal UI close consumes the entry that was created when the
+          // modal opened. The following popstate sees no modal to dismiss.
+          window.history.go(-closedCount);
+        }
+      }
+
+      openModals = nextModals;
+      pageUrl = window.location.href;
+    };
+
+    const observer = new MutationObserver(syncOpenModals);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Effects run after the first commit. Record a modal that happened to be
+    // open on that initial commit as well.
+    if (openModals.length) {
+      for (let depth = 1; depth <= openModals.length; depth += 1) pushModalHistory(depth);
+    }
+
+    const dismissToHistoryDepth = (targetDepth) => {
+      const beforeCount = getOpenModalBackdrops().length;
+      if (beforeCount <= targetDepth) return;
+      const topModal = getOpenModalBackdrops().at(-1);
+      if (!topModal) return;
+
+      closesRequestedByHistory += 1;
+      topModal.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+      window.requestAnimationFrame(() => {
+        if (disposed) return;
+        const remainingCount = getOpenModalBackdrops().length;
+        if (remainingCount < beforeCount) {
+          if (remainingCount > targetDepth) dismissToHistoryDepth(targetDepth);
+          return;
+        }
+
+        // Some dialogs intentionally cannot be dismissed while processing.
+        // Restore the consumed entry, rather than letting that back gesture
+        // navigate away from the still-visible modal.
+        closesRequestedByHistory = Math.max(0, closesRequestedByHistory - 1);
+        pushModalHistory(remainingCount);
+        openModals = getOpenModalBackdrops();
+        pageUrl = window.location.href;
+      });
+    };
+
+    const onPopState = (event) => {
+      pageUrl = window.location.href;
+      const targetDepth = getModalDepth(event.state);
+      if (openModals.length > targetDepth) dismissToHistoryDepth(targetDepth);
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, []);
+
+  return null;
+}
+
 function App() {
   const [route, setRoute] = useState(() => readRoute());
 
@@ -11950,4 +12057,4 @@ function cacheBust(path, version = "") {
   return safeVersion ? `${normalizedPath}${separator}v=${encodeURIComponent(safeVersion)}` : normalizedPath;
 }
 
-createRoot(document.getElementById("root")).render(<AppErrorBoundary><App /></AppErrorBoundary>);
+createRoot(document.getElementById("root")).render(<AppErrorBoundary><ModalRouteHistory /><App /></AppErrorBoundary>);
