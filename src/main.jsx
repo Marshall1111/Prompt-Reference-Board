@@ -310,6 +310,7 @@ function readRoute() {
   if (pathname === "/fridge/magnet") return "public-draw";
   if (pathname === "/book/orders") return "public-body-book-orders";
   if (pathname.startsWith("/book/orders/")) return "public-body-book-order";
+  if (pathname === "/book/works") return "public-body-book-works";
   if (pathname.startsWith("/book/share/")) return "public-body-book-share";
   if (pathname === "/book/referrals") return "public-referrals";
   if (pathname === "/fridge") return "public-draw";
@@ -351,6 +352,7 @@ function App() {
       "public-fridge-order": "冰箱贴订单",
       "public-body-book-order": "宝宝的认知书",
       "public-body-book-orders": "宝宝的认知书",
+      "public-body-book-works": "我的作品",
       "public-body-book-share": "好友分享的认知书",
       "public-referrals": "我的邀请",
       "public-fridge-orders": "我的冰箱贴订单",
@@ -371,6 +373,7 @@ function App() {
       "public-draw-checkout": "/draw/order",
       "public-fridge-orders": "/fridge/orders",
       "public-body-book-orders": "/book/orders",
+      "public-body-book-works": "/book/works",
       "public-referrals": "/book/referrals",
       "public-fridge-order": window.location.pathname,
       "public-body-book-order": window.location.pathname,
@@ -408,6 +411,9 @@ function App() {
   }
   if (route === "public-body-book-orders") {
     return <BodyBookOrdersPage />;
+  }
+  if (route === "public-body-book-works") {
+    return <BodyBookWorksPage />;
   }
   if (route === "public-body-book-share") {
     return <BodyBookSharePage />;
@@ -2056,6 +2062,15 @@ function BodyBookPage() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    const projectId = String(new URLSearchParams(window.location.search).get("project") || "").trim();
+    if (!projectId) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("project");
+    window.history.replaceState(window.history.state || {}, "", `${url.pathname}${url.search}${url.hash}`);
+    void openProject(projectId);
+  }, []);
+
   useEffect(() => () => {
     if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
   }, []);
@@ -2792,6 +2807,7 @@ function BodyBookPage() {
         </div>
         <div className="body-book-header-actions">
           <button className="draw-card-secondary body-book-header-orders" onClick={() => window.location.assign("/book/orders")} type="button"><ListTodo size={16} /><span>我的订单</span></button>
+          <button className="draw-card-secondary body-book-header-works" onClick={() => window.location.assign("/book/works")} type="button"><Layers3 size={16} /><span>我的作品</span></button>
           <button className="draw-card-secondary body-book-header-balance" onClick={() => setShowBeanInfo(true)} type="button"><span>余额</span><strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong><span>豆</span></button>
           <div className="body-book-user-area" ref={userMenuRef}><button aria-label={isBookAccountRegistered ? `账户：${bookAccountName}` : "登录或注册"} className={`draw-card-secondary body-book-account-button${isBookAccountRegistered ? " is-signed-in" : " is-guest"}`} onClick={() => isBookAccountRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)} title={isBookAccountRegistered ? bookAccountName : "登录 / 注册"} type="button">{isBookAccountRegistered && bookWechatAvatarUrl ? <img alt="" src={bookWechatAvatarUrl} /> : <span>{isBookAccountRegistered ? bookAccountName.slice(0, 1) : "登录"}</span>}</button>{showUserMenu && isBookAccountRegistered ? <div className="body-book-user-menu"><span className="body-book-user-menu-name">{bookAccountName}</span><button onClick={() => window.location.assign("/book/referrals?source=book")} type="button">我的邀请</button><button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}</div>
         </div>
@@ -2802,7 +2818,6 @@ function BodyBookPage() {
         <section className="body-book-theme-home body-book-theme-layout">
           <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先查看整本效果，再开始制作专属认知书。</p></div><div className="body-book-theme-groups">{getBodyBookThemeGroups(themes).map((group) => <section className="body-book-theme-group" key={group.id}><div className="body-book-theme-group-head"><span>{group.title}</span><p>{group.description}</p></div><div className="body-book-theme-grid">{group.items.map(({ theme, index }) => <button className="body-book-theme-card" disabled={busy} key={theme.id} onClick={() => openThemePreview(theme)} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={getBodyBookThemePreviewSrc(theme)} /><span className="body-book-theme-index">{String(index).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small><em>预计消耗 {getBodyBookThemeGenerationCost(theme)} 豆</em></button>)}</div></section>)}</div></div>
         </section>
-        <section className="body-book-library"><div className="body-book-library-head"><span className="body-book-step">MY BOOKS</span><h2>我的认知书</h2></div>{error ? <p className="error-note">{error}</p> : null}{savedBooks.length ? <div className="body-book-library-grid">{savedBooks.map((book) => <article className="body-book-library-item" key={book.sessionId}><button className="body-book-library-cover" onClick={() => openProject(book.sessionId)} type="button">{book.thumbnail ? <img alt={`${book.title} 缩略图`} src={book.thumbnail} /> : <div className="body-book-library-placeholder">{book.theme?.name || "认知书"}</div>}<span>{book.title}</span><small>继续制作 · {formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></button><button aria-label={`删除《${book.title}》`} className="body-book-library-delete icon-button" disabled={deletingProjectId === book.sessionId} onClick={() => deleteProject(book)} title="删除" type="button">{deletingProjectId === book.sessionId ? <LoaderCircle className="spin" size={16} /> : <X size={17} />}</button></article>)}</div> : <p className="body-book-library-empty">成功生成第一张图片后，工程会自动保存在这里。</p>}</section>
       </> : showingThemePreview ? <BodyBookThemeEffectPreview busy={busy} onBack={closeThemePreview} onStart={() => selectTheme(themePreview)} theme={themePreview} /> : <section className="body-book-workspace body-book-project-workspace">
         <div className="body-book-status-row"><div><span className="body-book-step">02</span><h2>{project?.message || "配置你的认知书页面"}</h2></div></div>
         {error ? <p className="error-note">{error}</p> : null}
@@ -3289,6 +3304,53 @@ function FridgeMagnetOrdersPage() {
       </section>
     </main>
   );
+}
+
+function BodyBookWorksPage() {
+  const [books, setBooks] = useState([]);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [deletingProjectId, setDeletingProjectId] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    fetchBodyBookProjects()
+      .then((payload) => {
+        if (!active) return;
+        setBooks(payload.projects || []);
+        setError("");
+      })
+      .catch((nextError) => { if (active) setError(nextError.message || "读取我的作品失败。"); })
+      .finally(() => { if (active) setIsLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  async function deleteBook(book) {
+    if (!book?.sessionId || deletingProjectId) return;
+    if (!window.confirm(`确定删除《${book.title}》吗？删除后无法恢复。`)) return;
+    setDeletingProjectId(book.sessionId);
+    setError("");
+    try {
+      await deleteBodyBookProject(book.sessionId);
+      setBooks((current) => current.filter((item) => item.sessionId !== book.sessionId));
+    } catch (nextError) {
+      setError(nextError.message || "删除认知书工程失败，请稍后再试。");
+    } finally {
+      setDeletingProjectId("");
+    }
+  }
+
+  return <main className="body-book-page">
+    <section className="body-book-order-list-page body-book-works-page">
+      <div className="body-book-order-list-head">
+        <div><p className="body-book-kicker">My works</p><h1>我的作品</h1><p>继续编辑、生成或删除已创建的认知书。</p></div>
+        <button className="draw-card-secondary" onClick={() => window.location.assign("/book")} type="button"><Home size={17} /><span>开始制作</span></button>
+      </div>
+      {isLoading ? <p className="body-book-library-empty">正在读取我的作品…</p> : null}
+      {error ? <p className="error-note">{error}</p> : null}
+      {!isLoading && !error ? <section className="body-book-library" aria-label="我的认知书"><div className="body-book-library-head"><span className="body-book-step">MY BOOKS</span><h2>我的认知书</h2></div>{books.length ? <div className="body-book-library-grid">{books.map((book) => <article className="body-book-library-item" key={book.sessionId}><button className="body-book-library-cover" onClick={() => window.location.assign(`/book?project=${encodeURIComponent(book.sessionId)}`)} type="button">{book.thumbnail ? <img alt={`${book.title} 缩略图`} src={book.thumbnail} /> : <div className="body-book-library-placeholder">{book.theme?.name || "认知书"}</div>}<span>{book.title}</span><small>继续制作 · {formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></button><button aria-label={`删除《${book.title}》`} className="body-book-library-delete icon-button" disabled={deletingProjectId === book.sessionId} onClick={() => deleteBook(book)} title="删除" type="button">{deletingProjectId === book.sessionId ? <LoaderCircle className="spin" size={16} /> : <X size={17} />}</button></article>)}</div> : <p className="body-book-library-empty">还没有已保存的认知书，先去开始制作吧。</p>}</section> : null}
+    </section>
+  </main>;
 }
 
 function BodyBookOrdersPage() {
