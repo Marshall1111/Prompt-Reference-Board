@@ -2919,12 +2919,14 @@ const BodyBookFlipPage = React.forwardRef(function BodyBookFlipPage({ page, inde
 
 function BodyBookFlipBook({ pages, ariaLabel = "认知书翻页预览" }) {
   const bookRef = useRef(null);
+  const stageRef = useRef(null);
   const landscapeTouchStartRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [landscapeMode, setLandscapeMode] = useState(false);
   const [viewportSize, setViewportSize] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  const [stageWidth, setStageWidth] = useState(0);
   const safePages = (pages || []).filter((page) => String(page?.src || "").trim());
   const pageCount = safePages.length;
 
@@ -2949,6 +2951,20 @@ function BodyBookFlipBook({ pages, ariaLabel = "认知书翻页预览" }) {
     window.addEventListener("resize", sync);
     return () => window.removeEventListener("resize", sync);
   }, []);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return undefined;
+    const sync = () => setStageWidth(Math.round(stage.getBoundingClientRect().width));
+    sync();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(sync);
+    observer?.observe(stage);
+    window.addEventListener("resize", sync);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", sync);
+    };
+  }, [pageCount]);
 
   useEffect(() => {
     setCurrentPage((current) => Math.min(current, Math.max(0, pageCount - 1)));
@@ -3031,7 +3047,11 @@ function BodyBookFlipBook({ pages, ariaLabel = "认知书翻页预览" }) {
     Math.max(160, viewportSize.width - 32),
     Math.max(160, (viewportSize.height - 132) / 2)
   )));
-  const portraitPageSize = Math.max(150, Math.floor(Math.min(220, (viewportSize.width - 58) / 2)));
+  // The share page and the preview dialog both add horizontal padding around
+  // the stage.  Use the stage's measured width (rather than the full viewport)
+  // so the two-page spread never extends past the clipping boundary on phones.
+  const portraitSpreadWidth = Math.max(240, (stageWidth || Math.max(240, viewportSize.width - 96)) - 20);
+  const portraitPageSize = Math.max(120, Math.floor(Math.min(220, portraitSpreadWidth / 2)));
   const compactPageSize = landscapeMode ? landscapePageSize : portraitPageSize;
   const pageMinSize = isCompactViewport ? compactPageSize : 260;
   const landscapeBookStyle = landscapeMode ? { "--body-book-landscape-page-size": `${compactPageSize}px` } : undefined;
@@ -3040,7 +3060,7 @@ function BodyBookFlipBook({ pages, ariaLabel = "认知书翻页预览" }) {
     : undefined;
 
   return <section aria-label={ariaLabel} className={`body-book-flip-reader${landscapeMode ? " is-landscape-mode" : ""}`}>
-    <div className="body-book-flip-stage" onTouchCancelCapture={() => { landscapeTouchStartRef.current = null; }} onTouchEndCapture={handleLandscapeTouchEnd} onTouchMoveCapture={handleLandscapeTouchMove} onTouchStartCapture={handleLandscapeTouchStart} style={portraitStageStyle}>
+    <div className="body-book-flip-stage" onTouchCancelCapture={() => { landscapeTouchStartRef.current = null; }} onTouchEndCapture={handleLandscapeTouchEnd} onTouchMoveCapture={handleLandscapeTouchMove} onTouchStartCapture={handleLandscapeTouchStart} ref={stageRef} style={portraitStageStyle}>
       <div className="body-book-flip-rotator" style={landscapeBookStyle}>
       <HTMLFlipBook
         /* react-pageflip only reads its dimensions on initialization.  The key
