@@ -45,6 +45,7 @@ const bodyBookPresetPageRoot = path.join(rootDir, "public", "body-book-preset-pa
 const previewRoot = path.join(rootDir, "public", "style-previews");
 const generatedImageRoot = path.join(rootDir, "data", "private-generated-images");
 const generatedPreviewRoot = path.join(rootDir, "public", "generated-previews");
+const generatedSharePreviewRoot = path.join(rootDir, "public", "generated-share-previews");
 const generatedThumbnailRoot = path.join(rootDir, "public", "generated-thumbnails");
 const legacyGeneratedImageRoot = path.join(rootDir, "public", "generated-images");
 const jobReferenceRoot = path.join(rootDir, "data", "private-job-references");
@@ -2385,6 +2386,65 @@ app.get("/api/draw/shares/:token", async (req, res, next) => {
     const job = await findSharedDrawImage(req.params.token);
     res.setHeader("Cache-Control", "no-store");
     res.json(toPublicSharedDrawImage(job));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/draw/shares/:token/image", async (req, res, next) => {
+  try {
+    const job = await findSharedDrawImage(req.params.token);
+    const file = await resolveJobImageFile(job);
+    if (!file) throw createHttpError(404, "原图不存在。");
+    await sendPublicClipOriginalImage(res, job, file);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/draw/shares/:token/preview", async (req, res, next) => {
+  try {
+    const job = await findSharedDrawImage(req.params.token);
+    const file = await resolveSharedDrawPreviewFile(job);
+    if (!file) throw createHttpError(404, "预览图不存在。");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.type("image/webp");
+    res.sendFile(file);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/draw/shares/:token/references/:index", async (req, res, next) => {
+  try {
+    const job = await findSharedDrawImage(req.params.token);
+    const references = getSharedDrawUserReferences(job);
+    const index = Number(req.params.index);
+    const reference = Number.isInteger(index) && index >= 0 ? references[index] : null;
+    if (!reference) throw createHttpError(404, "参考图不存在。");
+    const file = getJobReferenceFilePath(job.jobId, reference.url);
+    if (!(await fileExists(file))) throw createHttpError(404, "参考图不存在。");
+    res.setHeader("Content-Disposition", `inline; filename=\"${path.basename(file)}\"`);
+    res.setHeader("Cache-Control", "private, max-age=300");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.type(reference.mimeType || mimeForExtension(path.extname(file).toLowerCase()) || "application/octet-stream");
+    res.sendFile(file);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/draw/shares/:token/references/:index/preview", async (req, res, next) => {
+  try {
+    const job = await findSharedDrawImage(req.params.token);
+    const index = Number(req.params.index);
+    const file = await resolveSharedDrawPreviewFile(job, Number.isInteger(index) && index >= 0 ? index : -1);
+    if (!file) throw createHttpError(404, "参考图预览不存在。");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.type("image/webp");
+    res.sendFile(file);
   } catch (error) {
     next(error);
   }
@@ -12541,13 +12601,65 @@ function toPublicSharedDrawImage(job) {
   if (!share.enabled || !result?.previewUrl && !result?.thumbnailUrl) {
     throw createHttpError(404, "分享内容暂时不可访问。");
   }
+  const imageUrl = `/api/draw/shares/${encodeURIComponent(share.token)}/preview`;
+  const originalUrl = `/api/draw/shares/${encodeURIComponent(share.token)}/image`;
+  const userReferences = getSharedDrawUserReferences(job).map((reference, index) => ({
+    previewUrl: `/api/draw/shares/${encodeURIComponent(share.token)}/references/${index}/preview`,
+    originalUrl: `/api/draw/shares/${encodeURIComponent(share.token)}/references/${index}`,
+    thumbnailUrl: String(reference.thumbnailUrl || "")
+  }));
   return {
     styleId: String(job?.styleId || ""),
     styleName: String(job?.styleName || "小画"),
-    imageUrl: String(result.previewUrl || result.thumbnailUrl || ""),
+    imageUrl,
+    originalUrl,
+    previewUrl: imageUrl,
     thumbnailUrl: String(result.thumbnailUrl || result.previewUrl || ""),
+    references: userReferences,
     makeUrl: share.referralToken ? `/?invite=${encodeURIComponent(share.referralToken)}` : "/"
   };
+}
+
+function getSharedDrawUserReferences(job) {
+  const references = Array.isArray(job?.originalReferences)
+    ? [...job.originalReferences].sort((left, right) => Number(left?.order || 0) - Number(right?.order || 0))
+    : [];
+  return references.filter((reference) => !/-style-reference\./i.test(String(reference?.name || "")) && String(reference?.url || ""));
+}
+
+async function resolveSharedDrawPreviewFile(job, referenceIndex = -1) {
+  const safeJobId = String(job?.jobId || "").replace(/[^a-z0-9_-]/gi, "-");
+  if (!safeJobId) return "";
+  const isReference = referenceIndex >= 0;
+  const suffix = isReference ? `-reference-${referenceIndex}` : "";
+  const outputPath = path.join(generatedSharePreviewRoot, `${safeJobId}${suffix}.webp`);
+  if (await fileExists(outputPath)) return outputPath;
+
+  let sourcePath = "";
+  if (isReference) {
+    const reference = getSharedDrawUserReferences(job)[referenceIndex];
+    if (!reference) return "";
+    sourcePath = getJobReferenceFilePath(job.jobId, reference.url);
+  } else {
+    sourcePath = await resolveJobImageFile(job);
+  }
+  if (!sourcePath || !(await fileExists(sourcePath))) return "";
+
+  const sharp = await loadSharpModule();
+  if (!sharp) return "";
+  try {
+    const transformed = await sharp(sourcePath, { animated: false })
+      .rotate()
+      .resize({ width: PUBLIC_PREVIEW_MAX_EDGE, height: PUBLIC_PREVIEW_MAX_EDGE, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 86 })
+      .toBuffer();
+    await mkdir(generatedSharePreviewRoot, { recursive: true });
+    await writeFile(outputPath, transformed);
+    return outputPath;
+  } catch (error) {
+    console.warn("Share preview generation skipped.", error?.message || error);
+    return "";
+  }
 }
 
 async function findSharedBodyBookSession(token) {
@@ -13692,6 +13804,10 @@ async function deleteGeneratedImage(job) {
   if (job?.jobId) {
     await rm(path.join(generatedPreviewRoot, `${job.jobId}.webp`), { force: true });
     await rm(path.join(generatedThumbnailRoot, `${job.jobId}.webp`), { force: true });
+    const sharePreviewFiles = await readdir(generatedSharePreviewRoot).catch(() => []);
+    await Promise.all(sharePreviewFiles
+      .filter((filename) => filename === `${job.jobId}.webp` || filename.startsWith(`${job.jobId}-reference-`))
+      .map((filename) => rm(path.join(generatedSharePreviewRoot, filename), { force: true })));
   }
 
   const imageUrl = job.result?.imageUrl;

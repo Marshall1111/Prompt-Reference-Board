@@ -1966,6 +1966,7 @@ function DrawSharePage() {
   const token = window.location.pathname.split("/").filter(Boolean).pop() || "";
   const visitSource = useMemo(() => ({ type: "share", token }), [token]);
   const [sharedImage, setSharedImage] = useState(null);
+  const [showingReference, setShowingReference] = useState(false);
   const [error, setError] = useState("");
 
   useVisitSessionTracking("draw-card", true, visitSource);
@@ -1991,11 +1992,10 @@ function DrawSharePage() {
   return <main className="draw-card-page body-book-share-page">
     <header className="body-book-header body-book-share-header">
       <div className="body-book-header-copy"><p className="body-book-kicker">Shared artwork</p><h1>好友分享的小画</h1><p>看看好友刚刚制作的 AI 小画吧。</p></div>
-      <a className="draw-card-secondary" href={makeUrl}>我也要做</a>
     </header>
     {error ? <section className="body-book-share-empty"><AlertTriangle size={30} /><h2>分享链接已失效</h2><p>{error}</p><a className="draw-card-primary" href="/">我也要做</a></section> : null}
     {!sharedImage && !error ? <section className="body-book-share-empty"><LoaderCircle className="spin" size={30} /><p>正在打开好友分享的小画…</p></section> : null}
-    {sharedImage ? <section className="body-book-share-content"><div className="body-book-share-intro draw-share-intro"><span>来自好友分享</span><h2>{sharedImage.styleName || "AI 小画"}</h2><p>仅供在线预览</p></div><figure className="body-book-checkout-preview-item body-book-share-single-image"><img alt={sharedImage.styleName || "好友分享的小画"} src={sharedImage.imageUrl || sharedImage.thumbnailUrl} /></figure><div className="body-book-share-cta"><p>也来制作一张属于自己的小画吧。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
+    {sharedImage ? <section className="body-book-share-content draw-share-content"><figure className="draw-share-figure"><div className="draw-share-stage"><img alt={sharedImage.styleName || "好友分享的小画"} className={`draw-share-stage-image${showingReference ? " is-hidden" : ""}`} decoding="async" fetchPriority="high" loading="eager" src={sharedImage.previewUrl || sharedImage.imageUrl} />{showingReference && sharedImage.references?.[0]?.originalUrl ? <img alt="好友上传的原参考图" className="draw-share-stage-image draw-share-reference-image is-visible" decoding="async" fetchPriority="high" loading="eager" src={sharedImage.references[0].originalUrl} /> : null}{sharedImage.references?.[0]?.originalUrl ? <button aria-label="对比原图" className="draw-share-compare-button" onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowingReference(true); } }} onKeyUp={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowingReference(false); } }} onLostPointerCapture={() => setShowingReference(false)} onPointerCancel={() => setShowingReference(false)} onPointerDown={(event) => { event.preventDefault(); event.currentTarget.setPointerCapture?.(event.pointerId); setShowingReference(true); }} onPointerLeave={() => setShowingReference(false)} onPointerUp={() => setShowingReference(false)} type="button">对比原图</button> : null}</div><figcaption>{sharedImage.styleName || "小画"}</figcaption></figure><div className="body-book-share-cta"><p>AI小画，让有意义的照片更精美。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
   </main>;
 }
 
