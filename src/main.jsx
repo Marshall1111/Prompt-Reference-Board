@@ -222,7 +222,7 @@ const DRAW_CARD_EXPERIENCE_CONFIG = {
   themeClass: "theme-draw-card",
   titleKicker: "",
   title: "AI小画家",
-  subtitle: "上传照片，一键制作AI小画冰箱贴",
+  subtitle: "让有意义的照片更精美",
   waitingLines: ["总计需要约 5 分钟，请耐心等待。", "无需保持当前页面开启，可切到后台，稍后回来查看结果。", "正在制作 AI 小画，你可以稍后回来查看。"],
   waitingFallback: "生成已提交，无需保持当前页面开启，可切到后台，稍后回来查看结果。",
   startButtonIdle: "试试手气",
@@ -6066,8 +6066,7 @@ function PublicExperiencePage({ config }) {
             <div className="draw-card-style-picker-head">
               <div>
                 <p className="draw-card-kicker">Custom selection</p>
-                <h2>自选最多 {MAX_PUBLIC_STYLE_SELECTION} 种风格</h2>
-                <p className="draw-card-subtitle">这里不会随机抽取。你选中的风格会直接用于这一轮生成，所以缩略图做得更密一些，方便一屏快速挑选。</p>
+                <h2>让有意义的照片更精美</h2>
                 <div className="draw-card-style-picker-actions">
                   <button
                     className="draw-card-utility-link draw-card-style-picker-back-button"

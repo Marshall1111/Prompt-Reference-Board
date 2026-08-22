@@ -1,5 +1,45 @@
 [
   {
+    "id": "style_1787363189673",
+    "title": "幽默平涂漫画",
+    "tags": [
+      "平涂漫画"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-08-22T01:46:29.673Z",
+    "personImage": "/style-previews/style_1787363189673/cover-person.png",
+    "personImageUpdatedAt": "2026-08-22T01:46:38.388Z",
+    "personThumbnailImage": "/style-previews/style_1787363189673/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1787363189673/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-22T01:46:46.933Z",
+    "petThumbnailImage": "/style-previews/style_1787363189673/cover-pet-thumbnail.webp",
+    "prompt": "以上传的照片为大致参考，参考其中的头发、肤色和主要特征，制作一张插画。围绕参照图来构图，让她毫无疑问成为主角。只包含上传照片中可见的人。采用极简、简单的纯平涂色另类漫画插画风格，搭配简洁统一的手绘线条。人物简化为基础形状，面部特征尽量少（点眼、简单的鼻子、小嘴），比例略显笨拙。少量使用纯色块来形成对比。居中构图，留出大量空白，不要背景细节。整体风格要一本正经、情绪中性，带一点安静的荒诞感。幽默应来自隐含的古怪逻辑、别扭的视觉关系，或对琐碎小事的过于严肃处理。加入基于姿态或情境的细微幽默，更像观察所得，而不是夸张打闹。\n \n加上小而简单的文字，随意摆放，传达一种冷淡、就事论事式的荒诞感。不要阴影，不要纹理，不要细致刻画。避免关于角色身份的常见文化陈词滥调或刻板印象；幽默不要依赖典型的“nsfw”套路。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1787363044547",
+    "title": "极简线条手绘",
+    "tags": [
+      "极简手绘"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-08-22T01:44:04.546Z",
+    "personImage": "/style-previews/style_1787363044547/cover-person.png",
+    "personImageUpdatedAt": "2026-08-22T01:45:30.167Z",
+    "personThumbnailImage": "/style-previews/style_1787363044547/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1787363044547/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-22T01:49:05.924Z",
+    "petThumbnailImage": "/style-previews/style_1787363044547/cover-pet-thumbnail.webp",
+    "prompt": "Transform this photo into a minimal hand-drawn illustration on cream textured paper background. Keep only the main subject's pose and silhouette, remove all background.主体居中，周围大量留白. Use thin black sketchy contour lines with a loose, imperfect hand-drawn feel. Fill with a few flat color blocks extracted from the original photo，色块不完全填满线条边界，要有手绘平涂的随意感。色块不超过5种颜色，减少阴影细节。low saturation, slightly irregular edges like marker.人物简化为基础形状，面部特征尽量少（点眼、简单的鼻子、小嘴），比例略显笨拙。如果有眼睛就保留眼镜 。A few minimal environment lines at the bottom. Large empty space around the subject. Add elegant English title text at the bottom in serif font. Nostalgic sketchbook aesthetic, no shading, no gradients, no realistic details.\n\nNegative: photorealistic, detailed background, facial features, eyes, nose, mouth, complex shading, 3D, vector art, clean perfect lines, digital painting, gradients, realistic texture, crowded, blurry, watermark",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1787099639945",
     "title": "拙趣手绘插画",
     "tags": [
