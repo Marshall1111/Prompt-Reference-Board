@@ -25,6 +25,7 @@ const styleGroupsPath = path.join(rootDir, "data", "style-groups.json");
 const imageJobRoot = path.join(rootDir, "data", "image-jobs");
 const drawCardSessionRoot = path.join(rootDir, "data", "draw-card-sessions");
 const bodyBookSessionRoot = path.join(rootDir, "data", "body-book-sessions");
+const bodyBookShowcaseRoot = path.join(rootDir, "data", "body-book-showcases");
 const visitSessionRoot = path.join(rootDir, "data", "visit-sessions");
 const tempReferenceRoot = path.join(rootDir, "data", "temp-image-references");
 const visitorStateRoot = path.join(rootDir, "data", "visitor-states");
@@ -403,10 +404,15 @@ const upload = multer({
   }
 });
 const activeImageJobs = new Map();
+const queuedImageJobRuns = new Map();
+const queuedImageJobIds = new Set();
+let imageQueuePumpScheduled = false;
+const MAX_CONCURRENT_IMAGE_JOBS = 3;
+const BODY_BOOK_SHOWCASE_REFERENCE_FILENAME = "reference";
 const drawCardSessionSyncLocks = new Map();
 const bodyBookSessionSyncLocks = new Map();
 const orderOriginalBundleBuilds = new Map();
-const ORDER_ORIGINAL_BUNDLE_VERSION = "zip-v4-project-folders";
+const ORDER_ORIGINAL_BUNDLE_VERSION = "zip-v5-back-cover";
 const COLOR_BOOK_PRINT_BLEED_RATIO = 0.035;
 const COLOR_BOOK_PRINT_BUNDLE_VERSION = "color-bleed-v1";
 
@@ -2342,6 +2348,27 @@ app.get("/api/body-book/themes", requireWebAccount, (_req, res) => {
   res.json({ themes: BOOK_THEME_DEFINITIONS.map((theme) => toPublicBookTheme(theme)), billingEnabled: BODY_BOOK_BILLING_ENABLED });
 });
 
+app.get("/api/body-book/showcases", requireWebAccount, async (_req, res) => {
+  try {
+    res.json(await getBodyBookShowcasePayload());
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取成书效果样书失败，请稍后重试。" });
+  }
+});
+
+app.post("/api/admin/body-book-showcases", requireAdmin, upload.single("reference"), async (req, res) => {
+  try {
+    if (!req.file) throw createHttpError(400, "请上传样书参考图。");
+    if (!/^image\/(?:jpeg|png|webp)$/i.test(String(req.file.mimetype || ""))) throw createHttpError(400, "样书参考图仅支持 JPG、PNG 或 WebP。" );
+    const payload = await createBodyBookShowcaseBatch(req.file, { childName: "乐乐" });
+    res.status(202).json(payload);
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "创建成书效果样书任务失败。" });
+  }
+});
+
 app.get("/api/body-book/shares/:token", async (req, res) => {
   try {
     const session = await findSharedBodyBookSession(req.params.token);
@@ -3294,7 +3321,9 @@ app.post("/api/image-jobs/:jobId/cancel", requireAdmin, async (req, res) => {
       return res.status(409).json({ message: "只有排队中或生成中的任务可以停止。" });
     }
 
-    activeImageJobs.get(job.jobId)?.abortController.abort();
+    queuedImageJobIds.delete(job.jobId);
+    queuedImageJobRuns.delete(job.jobId);
+    activeImageJobs.get(job.jobId)?.abortController?.abort();
     const now = new Date().toISOString();
     const nextJob = await saveImageJob({
       ...job,
@@ -3414,7 +3443,9 @@ app.delete("/api/image-jobs/:jobId", requireAdmin, async (req, res) => {
     const job = await readImageJob(req.params.jobId);
     if (!job) return res.status(404).json({ message: "生图任务不存在。" });
 
-    activeImageJobs.get(job.jobId)?.abortController.abort();
+    queuedImageJobIds.delete(job.jobId);
+    queuedImageJobRuns.delete(job.jobId);
+    activeImageJobs.get(job.jobId)?.abortController?.abort();
     await deleteImageJob(job);
     res.status(204).end();
   } catch (error) {
@@ -4552,6 +4583,7 @@ app.listen(port, () => {
     .then(migrateLegacyGeneratedImages)
     .then(repairHistoricalCommissionSnapshots)
     .then(() => {
+      scheduleImageQueuePump();
       void preparePendingShipmentOrderOriginalBundles();
     })
     .then(readStyles)
@@ -6237,7 +6269,8 @@ async function buildOrderOriginalImageBundle(order) {
         const nextFileIndex = (fileCountByFolder.get(targetFolder) || 0) + 1;
         fileCountByFolder.set(targetFolder, nextFileIndex);
         await mkdir(targetFolder, { recursive: true });
-        const filename = `original-${String(nextFileIndex).padStart(2, "0")}${ext}`;
+        const isBackCoverCandidate = isBodyBookOrder(order) && /:back-cover$/i.test(String(candidate.jobId || ""));
+        const filename = `original-${String(nextFileIndex).padStart(2, "0")}${isBackCoverCandidate ? "-封底" : ""}${ext}`;
         const filePath = path.join(targetFolder, filename);
         if (applyColorBookPrintBleed) {
           await writeColorBookPrintBleedImage({ input: source.input, outputPath: filePath });
@@ -6246,7 +6279,7 @@ async function buildOrderOriginalImageBundle(order) {
         } else {
           await writeFile(filePath, source.input);
         }
-        downloadedFiles.push({ filePath, projectId, targetFolder });
+        downloadedFiles.push({ filePath, projectId, targetFolder, jobId: candidate.jobId });
       } catch (error) {
         failedSources.push({
           sourceType: candidate.sourceType,
@@ -6271,11 +6304,13 @@ async function buildOrderOriginalImageBundle(order) {
         ? [...new Set(downloadedFiles.map((file) => file.targetFolder))]
         : [folderPath];
       for (const targetFolder of backCoverFolders) {
+        const alreadyIncluded = downloadedFiles.some((file) => file.targetFolder === targetFolder && /:back-cover$/i.test(String(file.jobId || "")));
+        if (alreadyIncluded) continue;
         const nextFileIndex = (fileCountByFolder.get(targetFolder) || 0) + 1;
         fileCountByFolder.set(targetFolder, nextFileIndex);
         const backCoverPath = path.join(targetFolder, `original-${String(nextFileIndex).padStart(2, "0")}-封底.jpg`);
         await copyFile(bodyBookPrintBackCoverPath, backCoverPath);
-        downloadedFiles.push({ filePath: backCoverPath, projectId: "", targetFolder });
+        downloadedFiles.push({ filePath: backCoverPath, projectId: "", targetFolder, jobId: "built-in:back-cover" });
       }
     }
 
@@ -11382,7 +11417,7 @@ async function createBodyBookImageJob(session, slot, provider, providers, refere
     key: slot.key,
     job,
     run: () => BODY_BOOK_MOCK_MODE
-      ? runBodyBookMockJob({ jobId, sessionId: session.sessionId, slot })
+      ? runImageJob({ jobId, kind: "body-book-mock", sessionId: session.sessionId, slot })
       : runImageJob({
           jobId,
           body: { size: BODY_BOOK_SIZE, quality: "medium", output_format: "png", background: "opaque", moderation: "auto" },
@@ -11662,6 +11697,7 @@ function legacyToPublicBodyBookLibraryItem(session) {
 
 async function saveBodyBookSession(session) {
   await mkdir(bodyBookSessionRoot, { recursive: true });
+  await mkdir(bodyBookShowcaseRoot, { recursive: true });
   const safeSession = normalizeBodyBookSession(session);
   await writeFile(getBodyBookSessionPath(safeSession.sessionId), `${JSON.stringify(safeSession, null, 2)}\n`, "utf-8");
   return safeSession;
@@ -11855,7 +11891,8 @@ function getBodyBookPageDefinitions(theme = getBookTheme("body"), layoutVersion 
   }
   return [
     { key: "cover", chinese: "封面", english: "Cover", title: "封面 Cover", order: 0, pageType: "cover", isRequired: true },
-    ...(resolved?.parts || []).map((part, index) => ({ ...part, title: `${part.chinese} ${part.english}`, order: index + 1 }))
+    ...(resolved?.parts || []).map((part, index) => ({ ...part, title: `${part.chinese} ${part.english}`, order: index + 1 })),
+    { key: "back-cover", chinese: "封底", english: "Back Cover", title: "封底 Back Cover", order: (resolved?.parts || []).length + 1, pageType: "back-cover", isBuiltIn: true, isRequired: true }
   ];
 }
 
@@ -11870,7 +11907,9 @@ function getBodyBookSelectablePageDefinitions(theme, layoutVersion) {
 }
 
 function getBodyBookPrintPageCount(_theme) {
-  return 17;
+  // Every physical book includes the fixed QR-code back cover in addition to
+  // the cover and 16 inner pages.
+  return 18;
 }
 
 function getBodyBookSelectionPageCount(theme, layoutVersion) {
@@ -11962,11 +12001,13 @@ function getBuiltInPresetBookPageResult(definition, theme) {
   const baseThemeId = getBaseBookThemeId(theme);
   const isColorBook = baseThemeId === "color";
   const filename = isBackCover ? "back-cover.svg" : `${definition?.conceptKey || definition?.colorKey || "red"}-objects.png`;
-  const imageUrl = isBackCover || isColorBook
+  const imageUrl = isBackCover
+    ? "/body-book-color-pages/print-back-cover.jpg"
+    : isColorBook
     ? `/body-book-color-pages/${filename}`
     : `/body-book-preset-pages/${baseThemeId || "body"}-${String(definition?.conceptKey || "item")}.png`;
   const thumbnailUrl = isBackCover
-    ? imageUrl
+    ? "/body-book-color-pages/print-back-cover.webp"
     : isColorBook
       ? `/body-book-color-pages/thumbnails/${definition?.colorKey || "red"}-objects.webp`
       : `/body-book-preset-pages/thumbnails/${baseThemeId || "body"}-${String(definition?.conceptKey || "item")}.webp`;
@@ -11976,7 +12017,7 @@ function getBuiltInPresetBookPageResult(definition, theme) {
     previewUrl: imageUrl,
     thumbnailUrl,
     originalImageUrl: imageUrl,
-    mimeType: isBackCover ? "image/svg+xml" : "image/png",
+    mimeType: isBackCover ? "image/jpeg" : "image/png",
     provider: isColorBook ? "built-in-color-pages" : "built-in-preset-pages",
     mode: "built-in"
   };
@@ -12001,22 +12042,30 @@ function getBodyBookPrintPages(session) {
   const reference = session?.reference && typeof session.reference === "object" ? session.reference : {};
   const references = normalizeBodyBookReferences(session?.references, reference, getBodyBookReferenceLimit(theme));
 
+  let pages;
   if (layoutVersion !== PAIRED_PRESET_LAYOUT_VERSION) {
-    return projectPages
+    pages = projectPages
       .filter((page) => page.pageType !== "back-cover")
       .sort((left, right) => Number(left.order || 0) - Number(right.order || 0));
+  } else {
+    pages = getBodyBookPageDefinitions(theme, layoutVersion)
+      .filter((definition) => definition.pageType !== "back-cover")
+      .flatMap((definition) => {
+        if (definition.pageType === "objects") {
+          const babyKey = `${definition.conceptKey || definition.colorKey}-baby`;
+          return byKey.has(babyKey) ? [createBodyBookPage(definition, theme, references, {}, session?.personalization)] : [];
+        }
+        const existing = byKey.get(definition.key);
+        return existing ? [createBodyBookPage(definition, theme, references, existing, session?.personalization)] : [];
+      });
   }
 
-  return getBodyBookPageDefinitions(theme, layoutVersion)
-    .filter((definition) => definition.pageType !== "back-cover")
-    .flatMap((definition) => {
-      if (definition.pageType === "objects") {
-        const babyKey = `${definition.conceptKey || definition.colorKey}-baby`;
-        return byKey.has(babyKey) ? [createBodyBookPage(definition, theme, references, {}, session?.personalization)] : [];
-      }
-      const existing = byKey.get(definition.key);
-      return existing ? [createBodyBookPage(definition, theme, references, existing, session?.personalization)] : [];
-    });
+  const backCoverDefinition = getBodyBookPageDefinitions(theme, layoutVersion).find((definition) => definition.pageType === "back-cover")
+    || { key: "back-cover", chinese: "封底", english: "Back Cover", title: "封底 Back Cover", order: pages.length, pageType: "back-cover", isBuiltIn: true, isRequired: true };
+  return [
+    ...pages,
+    createBodyBookPage(backCoverDefinition, theme, references, {}, session?.personalization)
+  ];
 }
 
 async function createBodyBookProject({ files, pageReferenceFiles = new Map(), pagePrompts = {}, visitor, accountId, theme, layoutVersion = getNewBodyBookLayoutVersion(theme), contentKeys, generationKeys, personalization = {} }) {
@@ -12533,6 +12582,7 @@ function toPublicSharedBodyBook(session) {
   const pages = getBodyBookPrintPages(current)
     .filter((page) => {
       if (page.isBuiltIn) {
+        if (page.pageType === "back-cover") return Boolean(page.result?.thumbnailUrl || page.result?.previewUrl);
         const conceptKey = String(page.conceptKey || page.colorKey || "").trim().toLowerCase();
         return Boolean(conceptKey) && succeededBabyKeys.has(`${conceptKey}-baby`);
       }
@@ -12622,6 +12672,7 @@ async function prepareImageJobStorage() {
   await mkdir(imageJobRoot, { recursive: true });
   await mkdir(drawCardSessionRoot, { recursive: true });
   await mkdir(bodyBookSessionRoot, { recursive: true });
+  await mkdir(bodyBookShowcaseRoot, { recursive: true });
   await mkdir(visitSessionRoot, { recursive: true });
   await mkdir(tempReferenceRoot, { recursive: true });
   await mkdir(visitorStateRoot, { recursive: true });
@@ -12641,11 +12692,12 @@ async function prepareImageJobStorage() {
         if (!job || !["queued", "running"].includes(job.status)) return;
         await saveImageJob({
           ...job,
-          status: "failed",
-          message: "服务重启，任务已中断，请重新生成。",
+          status: "queued",
+          message: "服务重启，任务已恢复排队。",
           updatedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString()
+          completedAt: null
         });
+        queuedImageJobIds.add(job.jobId);
       })
   );
 }
@@ -12745,10 +12797,316 @@ async function deleteTemporaryReference(referenceId) {
   await rm(path.join(tempReferenceRoot, String(referenceId)), { recursive: true, force: true });
 }
 
-async function runImageJob({ jobId, body, files, outputFormat, prompt, provider, providers, telemetry = null }) {
+function runImageJob(runArgs) {
+  const jobId = String(runArgs?.jobId || "");
+  if (!jobId) return Promise.resolve();
+  queuedImageJobRuns.set(jobId, runArgs);
+  queuedImageJobIds.add(jobId);
+  scheduleImageQueuePump();
+  return Promise.resolve();
+}
+
+function getBodyBookShowcaseManifestPath() {
+  return path.join(bodyBookShowcaseRoot, "current.json");
+}
+
+async function readBodyBookShowcaseManifest() {
+  try {
+    return JSON.parse(await readFile(getBodyBookShowcaseManifestPath(), "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+function getBodyBookShowcasePreviewUrl(job, page) {
+  const candidates = [job?.result?.previewUrl, job?.result?.thumbnailUrl, page?.src];
+  return candidates.map((value) => String(value || "")).find((value) => value && !value.startsWith("/generated-images/")) || "";
+}
+
+function getBodyBookShowcaseBackCoverPage(themeId, order = 999) {
+  const theme = getBookTheme(themeId) || getBookTheme("body");
+  const definition = getBodyBookPageDefinitions(theme, getNewBodyBookLayoutVersion(theme)).find((page) => page.pageType === "back-cover");
+  const result = getBuiltInPresetBookPageResult(definition || { key: "back-cover", pageType: "back-cover" }, theme);
+  return {
+    key: "back-cover",
+    title: "封底 Back Cover",
+    order,
+    type: "preset",
+    pageType: "back-cover",
+    src: result.thumbnailUrl,
+    status: "succeeded",
+    jobId: ""
+  };
+}
+
+async function getBodyBookShowcasePayload() {
+  const manifest = await readBodyBookShowcaseManifest();
+  if (!manifest?.batchId || !Array.isArray(manifest?.themes)) return { batch: null, themes: [] };
+  const jobs = await Promise.all(manifest.themes.flatMap((theme) => theme.pages || []).filter((page) => page.jobId).map((page) => readImageJob(page.jobId)));
+  const jobById = new Map(jobs.filter(Boolean).map((job) => [job.jobId, job]));
+  const counts = { succeeded: 0, failed: 0, remaining: 0, running: 0, total: 0 };
+  const themes = manifest.themes.map((theme) => {
+    const manifestPages = Array.isArray(theme.pages) ? theme.pages : [];
+    const pages = manifestPages.some((page) => page?.key === "back-cover")
+      ? manifestPages
+      : [...manifestPages, getBodyBookShowcaseBackCoverPage(theme.themeId, manifestPages.length)];
+    return {
+      ...theme,
+      pages: pages.map((page) => {
+      const job = page.jobId ? jobById.get(page.jobId) : null;
+      if (job) {
+        counts.total += 1;
+        if (job.status === "succeeded") counts.succeeded += 1;
+        else if (job.status === "failed" || job.status === "cancelled") counts.failed += 1;
+        else {
+          counts.remaining += 1;
+          if (job.status === "running") counts.running += 1;
+        }
+      }
+      return {
+        ...page,
+        status: job?.status || page.status || "succeeded",
+        // Showcase pages are always served from a WebP preview/thumbnail.
+        // Never expose the private full-resolution original in the book preview.
+        src: getBodyBookShowcasePreviewUrl(job, page),
+        jobId: page.jobId || ""
+      };
+      })
+    };
+  });
+  return { batch: { batchId: manifest.batchId, childName: manifest.childName, ...counts }, themes };
+}
+
+async function createBodyBookShowcaseBatch(file, { childName = "乐乐" } = {}) {
+  await cancelCurrentBodyBookShowcaseBatch();
+  const batchId = randomUUID();
+  const now = new Date().toISOString();
+  const manifest = { batchId, childName, createdAt: now, status: "creating", themes: [] };
+  await mkdir(bodyBookShowcaseRoot, { recursive: true });
+  await writeFile(getBodyBookShowcaseManifestPath(), `${JSON.stringify(manifest, null, 2)}\n`, "utf-8");
+  const { provider, providers } = await getBodyBookGenerationConfig();
+  for (const theme of BOOK_THEME_DEFINITIONS) {
+    // Reference storage and image-job access both require a UUID-shaped
+    // session id.  The showcase batch and theme remain on the manifest/job
+    // metadata, so the virtual session itself can use an opaque UUID.
+    const sessionId = randomUUID();
+    const references = await persistBodyBookReferences(sessionId, [file], BODY_BOOK_SHOWCASE_REFERENCE_FILENAME, getBodyBookReferenceLimit(theme));
+    const layoutVersion = getNewBodyBookLayoutVersion(theme);
+    const definitions = getBodyBookPageDefinitions(theme, layoutVersion);
+    const session = {
+      sessionId,
+      themeId: theme.id,
+      layoutVersion,
+      personalization: theme.id === "kindergarten" ? { childName } : {},
+      ownerAccountId: "",
+      ownerVisitorId: "",
+      references,
+      reference: references[0],
+      stage: "showcase_generating",
+      status: "queued",
+      message: "正在生成主题效果样书。",
+      createdAt: now,
+      updatedAt: now,
+      pages: definitions
+        .filter((definition) => !definition.isBuiltIn)
+        .map((definition) => createBodyBookPage(definition, theme, references, {}, theme.id === "kindergarten" ? { childName } : {}))
+    };
+    await saveBodyBookSession(session);
+    const themeEntry = { themeId: theme.id, name: theme.name, title: theme.title, pages: [] };
+    for (const definition of definitions) {
+      if (definition.isBuiltIn) {
+        const result = getBuiltInPresetBookPageResult(definition, theme);
+        themeEntry.pages.push({ key: definition.key, title: definition.title, order: definition.order, type: "preset", src: result.previewUrl || result.thumbnailUrl, status: "succeeded", jobId: "" });
+        continue;
+      }
+      const prompt = definition.key === "cover"
+        ? buildBodyBookCoverPrompt(theme, session.personalization)
+        : buildBodyBookPartPrompt(definition, definition.order, theme, session.personalization);
+      const entry = await createBodyBookImageJob(session, {
+        key: definition.key,
+        title: definition.title,
+        order: definition.order,
+        version: 1,
+        prompt,
+        kindergarten: theme.id === "kindergarten",
+        bookTitle: theme.englishName,
+        bookSubtitle: theme.name
+      }, provider, providers, references);
+      const job = await readImageJob(entry.job.jobId);
+      await saveImageJob({
+        ...job,
+        ownerAdmin: true,
+        visibility: "admin",
+        showcase: { batchId, themeId: theme.id, themeName: theme.name, pageKey: definition.key, pageTitle: definition.title, pageOrder: definition.order, retryCount: 0 }
+      });
+      themeEntry.pages.push({ key: definition.key, title: definition.title, order: definition.order, type: definition.key === "cover" ? "cover" : "baby", src: "", status: "queued", jobId: entry.job.jobId });
+      entry.run();
+    }
+    manifest.themes.push(themeEntry);
+    await writeFile(getBodyBookShowcaseManifestPath(), `${JSON.stringify(manifest, null, 2)}\n`, "utf-8");
+  }
+  manifest.status = "queued";
+  await writeFile(getBodyBookShowcaseManifestPath(), `${JSON.stringify(manifest, null, 2)}\n`, "utf-8");
+  scheduleImageQueuePump();
+  return getBodyBookShowcasePayload();
+}
+
+async function cancelCurrentBodyBookShowcaseBatch() {
+  const manifest = await readBodyBookShowcaseManifest();
+  if (!manifest?.batchId || !Array.isArray(manifest.themes)) return;
+  const jobIds = manifest.themes
+    .flatMap((theme) => theme?.pages || [])
+    .map((page) => String(page?.jobId || ""))
+    .filter(isSafeImageJobId);
+  await Promise.all(jobIds.map(async (jobId) => {
+    queuedImageJobIds.delete(jobId);
+    queuedImageJobRuns.delete(jobId);
+    activeImageJobs.get(jobId)?.abortController?.abort();
+    const job = await readImageJob(jobId);
+    if (!job || !["queued", "running"].includes(job.status)) return;
+    await saveImageJob({
+      ...job,
+      status: "cancelled",
+      message: "样书批次已被新的重建任务替换。",
+      updatedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString()
+    });
+  }));
+}
+
+function scheduleImageQueuePump() {
+  if (imageQueuePumpScheduled) return;
+  imageQueuePumpScheduled = true;
+  queueMicrotask(() => {
+    imageQueuePumpScheduled = false;
+    void pumpImageQueue();
+  });
+}
+
+async function pumpImageQueue() {
+  while (activeImageJobs.size < MAX_CONCURRENT_IMAGE_JOBS) {
+    const next = await takeNextQueuedImageJob();
+    if (!next) return;
+    queuedImageJobIds.delete(next.jobId);
+    queuedImageJobRuns.delete(next.jobId);
+    // Reserve the slot synchronously.  executeImageJob reads the job before it
+    // installs its abort controller, and without this marker one queue pump
+    // could start more than the global concurrency limit.
+    activeImageJobs.set(next.jobId, { queued: true });
+    const runner = next.kind === "body-book-mock"
+      ? runBodyBookMockJob(next)
+      : executeImageJob(next);
+    Promise.resolve(runner)
+      .catch((error) => failQueuedImageJob(next.jobId, error))
+      .finally(() => {
+        activeImageJobs.delete(next.jobId);
+        scheduleImageQueuePump();
+      });
+  }
+}
+
+async function takeNextQueuedImageJob() {
+  const pending = [];
+  for (const jobId of queuedImageJobIds) {
+    const job = await readImageJob(jobId);
+    if (!job || job.status !== "queued") {
+      queuedImageJobIds.delete(jobId);
+      queuedImageJobRuns.delete(jobId);
+      continue;
+    }
+    pending.push(job);
+  }
+  if (!pending.length) return null;
+  pending.sort((left, right) => {
+    const leftPriority = left.showcase?.batchId ? 1 : 0;
+    const rightPriority = right.showcase?.batchId ? 1 : 0;
+    if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+    return String(left.createdAt || "").localeCompare(String(right.createdAt || ""));
+  });
+  const job = pending[0];
+  const inMemoryRun = queuedImageJobRuns.get(job.jobId);
+  if (inMemoryRun) return inMemoryRun;
+  try {
+    return await buildPersistedImageJobRun(job);
+  } catch (error) {
+    queuedImageJobIds.delete(job.jobId);
+    await failQueuedImageJob(job.jobId, error);
+    return takeNextQueuedImageJob();
+  }
+}
+
+async function failQueuedImageJob(jobId, error) {
+  activeImageJobs.delete(jobId);
+  const job = await readImageJob(jobId);
+  if (!job || job.status === "cancelled") return;
+  const retryCount = Math.max(0, Number(job.showcase?.retryCount || 0));
+  if (job.showcase?.batchId && retryCount < 1) {
+    await saveImageJob({
+      ...job,
+      status: "queued",
+      message: "任务准备失败，正在自动重试（第 1 次）。",
+      showcase: { ...job.showcase, retryCount: retryCount + 1 },
+      updatedAt: new Date().toISOString(),
+      completedAt: null
+    });
+    queuedImageJobIds.add(jobId);
+    return;
+  }
+  await saveImageJob({
+    ...job,
+    status: "failed",
+    message: error?.publicMessage || error?.message || "任务准备失败。",
+    updatedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString()
+  });
+}
+
+async function buildPersistedImageJobRun(job) {
+  if (job.mode === "mock" && job.experienceType === "body-book") {
+    return {
+      jobId: job.jobId,
+      kind: "body-book-mock",
+      sessionId: String(job.telemetry?.sessionId || ""),
+      slot: {
+        key: job.styleId,
+        title: job.styleName,
+        order: Number(job.telemetry?.order || 0),
+        kindergarten: getBaseBookThemeId((await readBodyBookSession(String(job.telemetry?.sessionId || "")))?.themeId) === "kindergarten"
+      }
+    };
+  }
+  const providers = getImageProviders();
+  const settings = await readAppSettings();
+  const provider = resolveImageProvider(job?.provider?.id, providers, settings);
+  if (!provider) throw new Error(`任务 ${job.jobId} 的生图供应商不可用。`);
+  const references = await readPersistedImageJobReferences(job);
+  return {
+    jobId: job.jobId,
+    body: { size: job.size || "1024x1024", quality: "medium", output_format: "png", background: "opaque", moderation: "auto" },
+    files: references,
+    outputFormat: "png",
+    prompt: job.prompt,
+    provider,
+    providers: getProviderFallbackChain(provider.id, providers, settings),
+    telemetry: job.telemetry || null
+  };
+}
+
+async function readPersistedImageJobReferences(job) {
+  const references = Array.isArray(job?.originalReferences) ? [...job.originalReferences].sort((left, right) => Number(left.order || 0) - Number(right.order || 0)) : [];
+  return Promise.all(references.map(async (reference) => {
+    const filePath = getJobReferenceFilePath(job.jobId, reference.url);
+    const buffer = await readFile(filePath);
+    return { originalname: reference.name || path.basename(filePath), mimetype: reference.mimeType || mimeForExtension(path.extname(filePath)) || "image/png", size: buffer.length, buffer };
+  }));
+}
+
+async function executeImageJob({ jobId, body, files, outputFormat, prompt, provider, providers, telemetry = null }) {
   let job = await readImageJob(jobId);
-  if (!job) return;
-  if (job.status === "cancelled") return;
+  if (!job || job.status === "cancelled") {
+    activeImageJobs.delete(jobId);
+    return;
+  }
   const abortController = new AbortController();
   activeImageJobs.set(jobId, { abortController });
   const jobRunStartedAtMs = nowMs();
@@ -12862,6 +13220,20 @@ async function runImageJob({ jobId, body, files, outputFormat, prompt, provider,
   } catch (error) {
     const latestJob = await readImageJob(jobId);
     if (!latestJob || latestJob.status === "cancelled") return;
+    const showcaseRetries = Math.max(0, Number(latestJob.showcase?.retryCount || 0));
+    if (latestJob.showcase?.batchId && error.name !== "AbortError" && showcaseRetries < 1) {
+      await saveImageJob({
+        ...latestJob,
+        status: "queued",
+        message: "生成失败，正在自动重试（第 1 次）。",
+        showcase: { ...latestJob.showcase, retryCount: showcaseRetries + 1 },
+        result: null,
+        updatedAt: new Date().toISOString(),
+        completedAt: null
+      });
+      queuedImageJobIds.add(jobId);
+      return;
+    }
     await saveImageJob({
       ...latestJob,
       status: "failed",
@@ -13209,12 +13581,23 @@ async function queryImageJobs(options = {}) {
   const totalPages = total > 0 ? Math.ceil(total / limit) : 1;
   const safePage = Math.min(page, totalPages);
   const start = (safePage - 1) * limit;
+  const showcaseJobs = jobs.filter((job) => job?.showcase?.batchId);
+  const showcaseProgressByBatch = new Map();
+  showcaseJobs.forEach((job) => {
+    const batchId = String(job.showcase.batchId);
+    const progress = showcaseProgressByBatch.get(batchId) || { succeeded: 0, failed: 0, remaining: 0 };
+    if (job.status === "succeeded") progress.succeeded += 1;
+    else if (["failed", "cancelled"].includes(job.status)) progress.failed += 1;
+    else progress.remaining += 1;
+    showcaseProgressByBatch.set(batchId, progress);
+  });
   return {
     jobs: filteredJobs.slice(start, start + limit).map(({ job, owner: jobOwner }) => {
       const matches = stylesByPrompt.get(normalizeStylePromptMatchKey(job.prompt)) || [];
       const matchedStyle = matches.length === 1 ? matches[0] : null;
       return {
         ...toPublicImageJob(job),
+        showcaseProgress: job.showcase?.batchId ? showcaseProgressByBatch.get(String(job.showcase.batchId)) || null : null,
         owner: jobOwner,
         stylePreviewMatch: matchedStyle
           ? {
@@ -13297,6 +13680,8 @@ function findStylesMatchingJobPrompt(styles, prompt) {
 }
 
 async function deleteImageJob(job) {
+  queuedImageJobIds.delete(job.jobId);
+  queuedImageJobRuns.delete(job.jobId);
   activeImageJobs.delete(job.jobId);
   await deleteGeneratedImage(job);
   await deleteJobReferences(job);
@@ -13486,6 +13871,15 @@ function toPublicImageJob(job) {
     ownerVisitorId: String(job.ownerVisitorId || ""),
     ownerAdmin: job.ownerAdmin === true,
     visibility: String(job.visibility || "admin"),
+    showcase: job.showcase?.batchId ? {
+      batchId: String(job.showcase.batchId),
+      themeId: String(job.showcase.themeId || ""),
+      themeName: String(job.showcase.themeName || ""),
+      pageKey: String(job.showcase.pageKey || ""),
+      pageTitle: String(job.showcase.pageTitle || ""),
+      pageOrder: Number(job.showcase.pageOrder || 0),
+      retryCount: Math.max(0, Number(job.showcase.retryCount || 0))
+    } : null,
     telemetry: normalizeJobTelemetry(job.telemetry)
   };
 }

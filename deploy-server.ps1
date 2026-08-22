@@ -51,6 +51,7 @@ $tarArgs = @(
   "--exclude=data/image-jobs",
   "--exclude=data/admin-sessions",
   "--exclude=data/body-book-sessions",
+  "--exclude=data/body-book-showcases",
   "--exclude=data/draw-card-sessions",
   "--exclude=data/order-original-downloads",
   "--exclude=data/temp-image-references",

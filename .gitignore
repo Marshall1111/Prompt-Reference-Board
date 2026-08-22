@@ -6,11 +6,13 @@ config.local.js
 npm-debug.log*
 server.out.log
 server.err.log
+*.log
 data/*.log
 .git-work/
 data/image-jobs/
 data/draw-card-sessions/
 data/body-book-sessions/
+data/body-book-showcases/
 data/order-original-downloads/
 data/temp-image-references/
 data/tmp-test/

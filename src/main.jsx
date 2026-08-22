@@ -1901,6 +1901,7 @@ function getCompletedBodyBookPrintPreviewPages(pages) {
     .map((page) => String(page?.key || "").toLowerCase()));
   return printPages.filter((page) => {
     if (page?.isBuiltIn) {
+      if (page?.pageType === "back-cover" || page?.key === "back-cover") return Boolean(getBodyBookThumbnail(page));
       const conceptKey = String(page?.conceptKey || page?.colorKey || "").trim().toLowerCase();
       return Boolean(conceptKey) && succeededBabyKeys.has(`${conceptKey}-baby`);
     }
@@ -2039,6 +2040,7 @@ function BodyBookPage() {
   const [savedBooks, setSavedBooks] = useState([]);
   const [selectedTheme, setSelectedTheme] = useState(null);
   const [themePreview, setThemePreview] = useState(null);
+  const [showcasePayload, setShowcasePayload] = useState(null);
   const [project, setProject] = useState(null);
   const [openingProjectId, setOpeningProjectId] = useState(() => String(new URLSearchParams(window.location.search).get("project") || "").trim());
   const [draftKeys, setDraftKeys] = useState([]);
@@ -2206,9 +2208,9 @@ function BodyBookPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.allSettled([fetchVisitorState(), fetchOrderConfig(), fetchBodyBookThemes(), loadSavedBooks(), fetchMyOrders()]).then((results) => {
+    Promise.allSettled([fetchVisitorState(), fetchOrderConfig(), fetchBodyBookThemes(), fetchBodyBookShowcases(), loadSavedBooks(), fetchMyOrders()]).then((results) => {
       if (!active) return;
-      const [visitor, config, themePayload, , ordersPayload] = results;
+      const [visitor, config, themePayload, showcaseResult, , ordersPayload] = results;
       if (visitor.status === "fulfilled") {
         setVisitorState(visitor.value);
         setBookOrderForm((current) => fillOrderAddressFromSaved(current, visitor.value?.account));
@@ -2221,9 +2223,21 @@ function BodyBookPage() {
         if (themePayload.value?.themes?.length) setThemes(themePayload.value.themes);
         setBillingEnabled(Boolean(themePayload.value?.billingEnabled));
       }
+      if (showcaseResult.status === "fulfilled") setShowcasePayload(showcaseResult.value);
     }).catch(() => {});
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!themePreview) return undefined;
+    let active = true;
+    const refresh = () => fetchBodyBookShowcases().then((payload) => {
+      if (active) setShowcasePayload(payload);
+    }).catch(() => {});
+    void refresh();
+    const timer = window.setInterval(refresh, 3000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [themePreview?.id]);
 
   useEffect(() => {
     setBodyBookCart(readBodyBookCart(visitorState?.account));
@@ -3006,9 +3020,9 @@ function BodyBookPage() {
 
       {isOpeningProject ? <section className="body-book-share-empty"><LoaderCircle className="spin" size={30} /><p>正在打开认知书工程…</p></section> : home ? <>
         <section className="body-book-theme-home body-book-theme-layout">
-          <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先查看整本效果，再开始制作专属认知书。</p></div><BodyBookThemePager busy={busy} discountCents={bodyBookThemeCardDiscountCents} groups={getBodyBookThemeGroups(themes)} onSelectTheme={openThemePreview} priceCents={bodyBookThemeCardPriceCents} /></div>
+          <div className="body-book-theme-content"><div className="body-book-theme-head"><span className="body-book-step">01</span><h2>选择认知主题</h2><p>先查看整本效果，再开始制作专属认知书。</p></div><BodyBookThemePager busy={busy} discountCents={bodyBookThemeCardDiscountCents} groups={getBodyBookThemeGroups(themes)} onSelectTheme={openThemePreview} priceCents={bodyBookThemeCardPriceCents} showcasePayload={showcasePayload} /></div>
         </section>
-      </> : showingThemePreview ? <BodyBookThemeEffectPreview busy={busy} onBack={closeThemePreview} onStart={() => selectTheme(themePreview)} theme={themePreview} /> : <section className="body-book-workspace body-book-project-workspace">
+      </> : showingThemePreview ? <BodyBookThemeEffectPreview busy={busy} onBack={closeThemePreview} onStart={() => selectTheme(themePreview)} showcasePayload={showcasePayload} theme={themePreview} /> : <section className="body-book-workspace body-book-project-workspace">
         <div className="body-book-status-row"><div><span className="body-book-step">02</span><h2>{project?.message || "配置你的认知书页面"}</h2></div></div>
         {error ? <p className="error-note">{error}</p> : null}
         {isKindergartenBook ? <section className="body-book-kindergarten-profile"><div><span className="body-book-step">STORY HERO</span><h3>孩子昵称</h3><p>会出现在封面上，例如“乐乐去幼儿园啦”。</p></div>{project ? <strong>{draftChildName || "小朋友"}</strong> : <label><span>昵称（必填）</span><input disabled={busy} maxLength={12} onChange={(event) => setDraftChildName(event.target.value)} placeholder="例如：乐乐" value={draftChildName} /></label>}</section> : null}
@@ -3083,7 +3097,13 @@ function isBodyBookCartoonTheme(theme) {
   return ["flat-cartoon", "animated-3d-cartoon"].includes(theme?.visualVariant) || String(theme?.id || "").toLowerCase().endsWith("-cartoon");
 }
 
-function getBodyBookThemePreviewSrc(theme) {
+function getBodyBookThemePreviewSrc(theme, showcasePayload = null) {
+  const showcaseTheme = showcasePayload?.themes?.find((item) => String(item?.themeId || "") === String(theme?.id || ""));
+  const showcaseCover = showcaseTheme?.pages
+    ?.slice()
+    .sort((left, right) => Number(left?.order || 0) - Number(right?.order || 0))
+    .find((page) => page?.key === "cover" && page?.status === "succeeded" && String(page?.src || "").startsWith("/generated-previews/"));
+  if (showcaseCover?.src) return showcaseCover.src;
   if (isBodyBookCartoonTheme(theme)) return BODY_BOOK_CARTOON_EFFECT_SAMPLES[getBodyBookBaseThemeId(theme)]?.[0]?.src || "/body-book-samples/cartoon-effects/body-cover.webp";
   if (theme?.id === "kindergarten") return "/body-book-samples/effects/kindergarten-cover-thumbnail.webp";
   return `/body-book-samples/${encodeURIComponent(getBodyBookBaseThemeId(theme))}-cover-thumbnail.webp`;
@@ -3126,7 +3146,7 @@ function getBodyBookThemeGroups(themes) {
   }).filter((group) => group.items.length);
 }
 
-function BodyBookThemePager({ busy, groups, onSelectTheme, priceCents = 0, discountCents = 0 }) {
+function BodyBookThemePager({ busy, groups, onSelectTheme, priceCents = 0, discountCents = 0, showcasePayload = null }) {
   const [activeCategory, setActiveCategory] = useState("cartoon");
   const [slideDirection, setSlideDirection] = useState("");
   const touchStartRef = useRef(null);
@@ -3206,7 +3226,7 @@ function BodyBookThemePager({ busy, groups, onSelectTheme, priceCents = 0, disco
     <div className="body-book-theme-viewport" onTouchEnd={handleTouchEnd} onTouchStart={handleTouchStart}>
       <section className={`body-book-theme-group body-book-theme-screen body-book-theme-screen-${activeGroup.id}${slideDirection ? ` slide-${slideDirection}` : ""}`} id={`body-book-theme-panel-${activeGroup.id}`} key={activeGroup.id} role="tabpanel">
         <div className="body-book-theme-group-head"><span>{activeGroup.title}</span><p>{activeGroup.description}</p></div>
-        <div className="body-book-theme-grid">{activeGroup.items.map(({ theme, index }) => <button className="body-book-theme-card" disabled={busy} key={theme.id} onClick={() => onSelectTheme(theme)} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={getBodyBookThemePreviewSrc(theme)} /><span className="body-book-theme-index">{String(index).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small><em>预计消耗 {getBodyBookThemeGenerationCost(theme)} 豆</em>{priceCents > 0 ? <span className="body-book-theme-price">{discountCents > 0 ? <><del>￥{(priceCents / 100).toFixed(2)}</del><b>￥{((priceCents - discountCents) / 100).toFixed(2)}</b></> : <b>￥{(priceCents / 100).toFixed(2)}</b>}</span> : null}</button>)}</div>
+        <div className="body-book-theme-grid">{activeGroup.items.map(({ theme, index }) => <button className="body-book-theme-card" disabled={busy} key={theme.id} onClick={() => onSelectTheme(theme)} type="button"><img alt={`${theme.name} 例图`} className="body-book-theme-preview" decoding="async" loading={index > 3 ? "lazy" : "eager"} src={getBodyBookThemePreviewSrc(theme, showcasePayload)} /><span className="body-book-theme-index">{String(index).padStart(2, "0")}</span><strong>{theme.name}</strong><small>{theme.englishName}</small><em>预计消耗 {getBodyBookThemeGenerationCost(theme)} 豆</em>{priceCents > 0 ? <span className="body-book-theme-price">{discountCents > 0 ? <><del>￥{(priceCents / 100).toFixed(2)}</del><b>￥{((priceCents - discountCents) / 100).toFixed(2)}</b></> : <b>￥{(priceCents / 100).toFixed(2)}</b>}</span> : null}</button>)}</div>
       </section>
     </div>
     <div aria-label={`当前为${activeGroup.title}，第${activeIndex + 1}类，共${groups.length}类`} className="body-book-theme-pagination">
@@ -3215,7 +3235,19 @@ function BodyBookThemePager({ busy, groups, onSelectTheme, priceCents = 0, disco
   </div>;
 }
 
-function getBodyBookThemeEffectSamples(theme) {
+function getBodyBookThemeEffectSamples(theme, showcasePayload = null) {
+  const showcaseTheme = showcasePayload?.themes?.find((item) => String(item?.themeId || "") === String(theme?.id || ""));
+  if (showcaseTheme?.pages?.length) {
+    return [...showcaseTheme.pages]
+      .sort((left, right) => Number(left?.order || 0) - Number(right?.order || 0))
+      .map((page) => ({
+        label: page.title || `第 ${Number(page.order || 0) + 1} 页`,
+        src: String(page.src || "").startsWith("/generated-images/") ? "" : page.src || "",
+        type: page.type || "baby",
+        status: page.status || "queued",
+        jobId: page.jobId || ""
+      }));
+  }
   if (isBodyBookCartoonTheme(theme)) {
     return BODY_BOOK_CARTOON_EFFECT_SAMPLES[getBodyBookBaseThemeId(theme)] || [];
   }
@@ -3431,18 +3463,23 @@ function BodyBookFlipBook({ pages, ariaLabel = "认知书翻页预览" }) {
   </section>;
 }
 
-function BodyBookThemeEffectPreview({ theme, busy, onBack, onStart }) {
-  const pages = getBodyBookThemeEffectSamples(theme);
+function BodyBookThemeEffectPreview({ theme, busy, onBack, onStart, showcasePayload }) {
+  const showcaseTheme = showcasePayload?.themes?.find((item) => String(item?.themeId || "") === String(theme?.id || ""));
+  const showcasePages = getBodyBookThemeEffectSamples(theme, showcasePayload);
+  const hasShowcase = Boolean(showcasePayload?.batch?.batchId && showcaseTheme);
+  const showcaseReady = hasShowcase && showcasePages.length > 0 && showcasePages.every((page) => page.status === "succeeded" && page.src);
+  const pages = showcaseReady || !hasShowcase ? showcasePages : [];
   const hasPresetPage = pages.some((page) => page.type === "preset");
   const isKindergartenTheme = theme?.id === "kindergarten";
   const generationCost = getBodyBookThemeGenerationCost(theme);
+  const progress = showcasePayload?.batch || { succeeded: 0, failed: 0, remaining: 0 };
   return <section className="body-book-theme-effect" aria-label={`${theme.name} 效果预览`}>
     <div className="body-book-theme-effect-head">
       <div><p className="body-book-kicker">Book preview</p><h2>{theme.name}</h2><p>{theme.englishName} · 成书效果预览</p></div>
       <span className="body-book-theme-effect-cost">预计消耗 {generationCost} 豆</span>
     </div>
     <div className="body-book-theme-effect-copy"><strong>先看成书效果</strong><p>{isKindergartenTheme ? "上传孩子照片并填写昵称后，将生成一整天连续叙事的专属入园适应绘本。" : hasPresetPage ? "封面和专属认知页将根据上传照片生成；对应的内置认知页会自动插入成书与订单 ZIP。" : "上传照片后，将生成同一风格的封面和专属认知内页，做成一本专属认知书。"}</p></div>
-    <BodyBookFlipBook ariaLabel={`${theme.name}成书效果预览`} pages={pages.map((page, index) => ({ id: page.src || page.label || String(index), isPreset: page.type === "preset", src: page.src, title: `${theme.name}${page.label || `第 ${index + 1} 页`}` }))} />
+    {hasShowcase && !showcaseReady ? <div className="body-book-flip-empty" role="status"><LoaderCircle className="spin" size={24} /><span>样书准备中（成功 {progress.succeeded} 张 · 失败 {progress.failed} 张 · 剩余 {progress.remaining} 张）</span></div> : <BodyBookFlipBook ariaLabel={`${theme.name}成书效果预览`} pages={pages.map((page, index) => ({ id: page.jobId || page.src || page.label || String(index), isPreset: page.type === "preset", src: page.src, title: `${theme.name}${page.label || `第 ${index + 1} 页`}` }))} />}
     <div className="body-book-theme-effect-actions"><button className="draw-card-primary" disabled={busy} onClick={onStart} type="button"><Sparkles size={18} /><span>{busy ? "准备中" : "开始制作"}</span></button></div>
   </section>;
 }
@@ -7771,6 +7808,13 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
                   <span>{formatDateTime(job.createdAt)}</span>
                   {job.durationSeconds !== null && job.durationSeconds !== undefined ? <span>耗时 {formatDuration(job.durationSeconds)}</span> : null}
                   {job.totalTokens ? <span>{job.totalTokens} tokens</span> : null}
+                  {job.showcase ? <>
+                    <span className="task-showcase-badge">成书效果样书</span>
+                    <span>主题：{job.showcase.themeName || job.showcase.themeId}</span>
+                    <span>第 {Number(job.showcase.pageOrder || 0) + 1} 页 · {job.showcase.pageTitle || job.showcase.pageKey}</span>
+                    {job.showcaseProgress ? <span>成功 {job.showcaseProgress.succeeded} 张 · 失败 {job.showcaseProgress.failed} 张 · 剩余 {job.showcaseProgress.remaining} 张</span> : null}
+                    {Number(job.showcase.retryCount || 0) > 0 ? <span>自动重试 {job.showcase.retryCount}/1</span> : null}
+                  </> : null}
                 </div>
                 <p className="task-prompt">{job.prompt || "未记录提示词"}</p>
                 {stylePreviewMatch ? <p className="storage-note task-style-match-note">提示词匹配图库风格：<strong>{stylePreviewMatch.name}</strong></p> : null}
@@ -11214,6 +11258,7 @@ function StorageAdminPage({ storageSummary, onRefreshStorage }) {
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
   const [isBusy, setIsBusy] = useState(false);
+  const [showcaseReference, setShowcaseReference] = useState(null);
 
   useEffect(() => {
     setRetentionDays(storageSummary?.cleanupDefaults?.retentionDays || 30);
@@ -11300,6 +11345,28 @@ function StorageAdminPage({ storageSummary, onRefreshStorage }) {
     }
   }
 
+  async function handleCreateShowcases() {
+    if (!showcaseReference) {
+      setError("请先选择样书参考图。");
+      setStatusMessage("");
+      return;
+    }
+    if (!window.confirm("将以这张参考图重建全部主题的成书效果样书；旧样书排队任务会停止。确认继续吗？")) return;
+    setIsBusy(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      const payload = await createBodyBookShowcaseBatch(showcaseReference);
+      const total = Number(payload?.batch?.total || 0);
+      setStatusMessage(`已提交 ${total} 张成书效果样书任务，服务器将持续低优先级生成。`);
+      setShowcaseReference(null);
+    } catch (nextError) {
+      setError(nextError.message || "创建成书效果样书任务失败。");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   const directories = storageSummary?.directories || [];
   const backups = storageSummary?.backups || [];
   const totals = storageSummary?.totals || { bytes: 0, files: 0 };
@@ -11347,6 +11414,22 @@ function StorageAdminPage({ storageSummary, onRefreshStorage }) {
           </div>
         </article>
       </div>
+
+      <section className="draw-card-upload-panel" aria-label="成书效果样书">
+        <p className="eyebrow">Book showcase</p>
+        <h3>成书效果样书</h3>
+        <p className="storage-note">上传一张参考图后，服务器会为全部主题补齐成书效果页。任务低优先级执行，不会抢占用户生图任务。</p>
+        <label className="field-label">样书参考图
+          <input accept="image/png,image/jpeg,image/webp" disabled={isBusy} onChange={(event) => setShowcaseReference(event.target.files?.[0] || null)} type="file" />
+        </label>
+        {showcaseReference ? <p className="storage-note">已选择：{showcaseReference.name}</p> : null}
+        <div className="card-actions generator-actions">
+          <button className="copy-button" disabled={isBusy || !showcaseReference} onClick={handleCreateShowcases} type="button">
+            {isBusy ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+            <span>{isBusy ? "提交中" : "创建 / 重建样书"}</span>
+          </button>
+        </div>
+      </section>
 
       <div className="task-list storage-directory-grid">
         {directories.map((item) => (
@@ -11520,6 +11603,22 @@ async function fetchBodyBookThemes() {
   const response = await fetch("/api/body-book/themes");
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "读取认知书主题失败，请稍后再试。");
+  return payload;
+}
+
+async function createBodyBookShowcaseBatch(reference) {
+  const formData = new FormData();
+  formData.append("reference", reference);
+  const response = await fetch("/api/admin/body-book-showcases", { method: "POST", body: formData });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "创建成书效果样书任务失败。");
+  return payload;
+}
+
+async function fetchBodyBookShowcases() {
+  const response = await fetch("/api/body-book/showcases");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取成书效果样书失败，请稍后再试。");
   return payload;
 }
 
