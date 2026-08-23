@@ -1969,6 +1969,50 @@ function DrawSharePage() {
   const [showingReference, setShowingReference] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    const button = document.querySelector(".draw-share-compare-button");
+    if (!button) return undefined;
+    button.setAttribute("aria-label", "长按对比原图");
+    let timer = 0;
+    let active = false;
+    const clearPress = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = 0;
+      if (active) setShowingReference(false);
+      active = false;
+    };
+    const startPress = (event) => {
+      event.stopPropagation();
+      clearPress();
+      timer = window.setTimeout(() => {
+        active = true;
+        setShowingReference(true);
+      }, 500);
+    };
+    const endPress = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      clearPress();
+    };
+    button.addEventListener("pointerdown", startPress, true);
+    button.addEventListener("pointerup", endPress, true);
+    button.addEventListener("pointercancel", endPress, true);
+    button.addEventListener("pointerleave", endPress, true);
+    button.addEventListener("touchstart", startPress, true);
+    button.addEventListener("touchend", endPress, true);
+    button.addEventListener("touchcancel", endPress, true);
+    return () => {
+      clearPress();
+      button.removeEventListener("pointerdown", startPress, true);
+      button.removeEventListener("pointerup", endPress, true);
+      button.removeEventListener("pointercancel", endPress, true);
+      button.removeEventListener("pointerleave", endPress, true);
+      button.removeEventListener("touchstart", startPress, true);
+      button.removeEventListener("touchend", endPress, true);
+      button.removeEventListener("touchcancel", endPress, true);
+    };
+  }, [sharedImage]);
+
   useVisitSessionTracking("draw-card", true, visitSource);
 
   useEffect(() => {
@@ -1992,7 +2036,7 @@ function DrawSharePage() {
   return <main className="draw-card-page body-book-share-page">
     {error ? <section className="body-book-share-empty"><AlertTriangle size={30} /><h2>分享链接已失效</h2><p>{error}</p><a className="draw-card-primary" href="/">我也要做</a></section> : null}
     {!sharedImage && !error ? <section className="body-book-share-empty"><LoaderCircle className="spin" size={30} /><p>正在打开好友分享的小画…</p></section> : null}
-    {sharedImage ? <section className="body-book-share-content draw-share-content"><figure className="draw-share-figure"><div className="draw-share-stage"><img alt={sharedImage.styleName || "好友分享的小画"} className={`draw-share-stage-image${showingReference ? " is-hidden" : ""}`} decoding="async" fetchPriority="high" loading="eager" src={sharedImage.previewUrl || sharedImage.imageUrl} />{showingReference && sharedImage.references?.[0]?.originalUrl ? <img alt="好友上传的原参考图" className="draw-share-stage-image draw-share-reference-image is-visible" decoding="async" fetchPriority="high" loading="eager" src={sharedImage.references[0].originalUrl} /> : null}{sharedImage.references?.[0]?.originalUrl ? <button aria-label="对比原图" className="draw-share-compare-button" onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowingReference(true); } }} onKeyUp={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowingReference(false); } }} onLostPointerCapture={() => setShowingReference(false)} onPointerCancel={() => setShowingReference(false)} onPointerDown={(event) => { event.preventDefault(); event.currentTarget.setPointerCapture?.(event.pointerId); setShowingReference(true); }} onPointerLeave={() => setShowingReference(false)} onPointerUp={() => setShowingReference(false)} type="button">对比原图</button> : null}</div><figcaption>{sharedImage.styleName || "小画"}</figcaption></figure><div className="body-book-share-cta"><p>AI小画，让有意义的照片更精美。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
+    {sharedImage ? <section className="body-book-share-content draw-share-content"><figure className="draw-share-figure"><div className="draw-share-stage"><img alt={sharedImage.styleName || "好友分享的小画"} className={`draw-share-stage-image${showingReference ? " is-hidden" : ""}`} decoding="async" fetchPriority="high" loading="eager" src={sharedImage.previewUrl || sharedImage.imageUrl} />{showingReference && sharedImage.references?.[0]?.originalUrl ? <img alt="好友上传的原参考图" className="draw-share-stage-image draw-share-reference-image is-visible" decoding="async" fetchPriority="high" loading="eager" src={sharedImage.references[0].originalUrl} /> : null}{sharedImage.references?.[0]?.originalUrl ? <div aria-label="对比原图" className="draw-share-compare-button" onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowingReference(true); } }} onKeyUp={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowingReference(false); } }} onLostPointerCapture={() => setShowingReference(false)} onPointerCancel={() => setShowingReference(false)} onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); event.currentTarget.setPointerCapture?.(event.pointerId); setShowingReference(true); }} onPointerLeave={() => setShowingReference(false)} onPointerUp={(event) => { event.preventDefault(); event.stopPropagation(); setShowingReference(false); }} onTouchCancel={(event) => { event.preventDefault(); setShowingReference(false); }} onTouchEnd={(event) => { event.preventDefault(); setShowingReference(false); }} onTouchStart={(event) => { event.preventDefault(); event.stopPropagation(); setShowingReference(true); }} role="button" tabIndex={0}>对比原图</div> : null}</div><figcaption>{sharedImage.styleName || "小画"}</figcaption></figure><div className="body-book-share-cta"><p>AI小画，让有意义的照片更精美。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
   </main>;
 }
 

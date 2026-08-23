@@ -8171,6 +8171,9 @@ textarea {
 }
 
 .draw-share-compare-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   position: absolute;
   right: 14px;
   bottom: 14px;
@@ -8182,14 +8185,23 @@ textarea {
   background: #215760;
   color: #ffffff;
   font: inherit;
-  font-size: 13px;
+  font-size: 0;
   font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
   box-shadow: 0 6px 16px rgba(33, 87, 96, 0.24);
   cursor: pointer;
   touch-action: none;
+  -webkit-tap-highlight-color: transparent;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+}
+
+.draw-share-compare-button::after {
+  content: "长按对比原图";
+  font-size: 13px;
 }
 
 .draw-share-compare-button:hover {
