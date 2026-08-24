@@ -371,7 +371,7 @@
       <button bindtap="closeCoinPurchase" class="modal-close-button" disabled="{{isCoinPurchaseBusy}}" aria-label="关闭">×</button>
       <text class="modal-eyebrow">Buy coins</text>
       <text class="modal-title">购买币</text>
-      <text class="coin-purchase-intro">1 元 = 1 币。成功购买的金额可抵扣冰箱贴商品金额，每枚冰箱贴最多抵扣 15 元；累计成功购买满 20 元可解锁账户下全部原图下载。</text>
+      <text class="coin-purchase-intro">{{coinPurchaseUnitPriceText}} = 1 币。成功购买的金额可抵扣冰箱贴商品金额，每枚冰箱贴最多抵扣 15 元；累计成功购买满 20 元可解锁账户下全部原图下载。</text>
 
       <view class="coin-purchase-presets">
         <button bindtap="selectCoinPurchaseCount" class="coin-purchase-preset" data-count="10" disabled="{{isCoinPurchaseBusy}}">10 币</button>
@@ -385,7 +385,7 @@
         <input bindinput="onCoinPurchaseCountInput" class="coin-purchase-input" disabled="{{isCoinPurchaseBusy}}" maxlength="4" type="number" value="{{coinPurchaseCount}}" />
       </view>
       <text class="coin-purchase-payable">应付 <text>{{coinPurchaseAmountText}}</text></text>
-      <text class="coin-purchase-discount-note">购买 {{coinPurchaseCount}} 币后，自动获得 {{coinPurchaseCount}} 元实体冰箱贴优惠券，首枚定制仅需 {{coinPurchaseFirstMagnetPriceYuan}} 元。（每枚冰箱贴优惠上限 15 元）</text>
+      <text class="coin-purchase-discount-note">购买 {{coinPurchaseCount}} 币后，自动获得 {{coinPurchaseDiscountAmountText}} 实体冰箱贴优惠券，首枚定制仅需 {{coinPurchaseFirstMagnetPriceYuan}} 元。（每枚冰箱贴优惠上限 15 元）</text>
       <text class="coin-purchase-note">赠送币和兑换码兑换币不参与冰箱贴优惠抵扣。</text>
       <text class="coin-purchase-error" wx:if="{{coinPurchaseError}}">{{coinPurchaseError}}</text>
 

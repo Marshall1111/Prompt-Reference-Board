@@ -112,6 +112,8 @@ function createExperiencePage(config) {
       showCoinPurchase: false,
       coinPurchaseCount: 20,
       coinPurchaseAmountText: "¥20.00",
+      coinPurchaseUnitPriceText: "¥1.00",
+      coinPurchaseDiscountAmountText: "¥20.00",
       coinPurchaseFirstMagnetPriceYuan: "5",
       coinPurchaseError: "",
       isCoinPurchaseBusy: false,
@@ -244,6 +246,9 @@ function createExperiencePage(config) {
           accountDisplayInitial: isAccountRegistered ? (accountName.slice(0, 1) || "我") : "登录",
           accountAvatarUrl: publicApi.toAbsoluteUrl(account.wechatAvatarUrl || ""),
           coinPurchaseDiscountText: format.formatCurrencyCents(Math.max(0, Number(visitorState && visitorState.coinPurchaseDiscount && visitorState.coinPurchaseDiscount.availableCents || 0))),
+          coinPurchaseUnitPriceText: format.formatCurrencyCents(getCoinPurchaseUnitPriceCents(results[1])),
+          coinPurchaseAmountText: format.formatCurrencyCents(Number(self.data.coinPurchaseCount || 0) * getCoinPurchaseUnitPriceCents(results[1])),
+          coinPurchaseDiscountAmountText: format.formatCurrencyCents(Number(self.data.coinPurchaseCount || 0) * getCoinPurchaseUnitPriceCents(results[1])),
           coinPurchaseFirstMagnetPriceYuan: formatFirstMagnetPriceYuan(self.data.coinPurchaseCount, results[1]),
           errorMessage: ""
         });
@@ -1241,11 +1246,14 @@ function createExperiencePage(config) {
     },
 
     openCoinPurchase: function () {
+      var unitPriceCents = getCoinPurchaseUnitPriceCents(this.data.orderConfig);
       this.setData({
         showCoinInfo: false,
         showCoinPurchase: true,
         coinPurchaseCount: 20,
-        coinPurchaseAmountText: format.formatCurrencyCents(2000),
+        coinPurchaseAmountText: format.formatCurrencyCents(20 * unitPriceCents),
+        coinPurchaseUnitPriceText: format.formatCurrencyCents(unitPriceCents),
+        coinPurchaseDiscountAmountText: format.formatCurrencyCents(20 * unitPriceCents),
         coinPurchaseFirstMagnetPriceYuan: formatFirstMagnetPriceYuan(20, this.data.orderConfig),
         coinPurchaseError: ""
       });
@@ -1267,9 +1275,12 @@ function createExperiencePage(config) {
     updateCoinPurchaseCount: function (value) {
       var rawValue = String(value === undefined || value === null ? "" : value).replace(/[^0-9]/g, "");
       var count = rawValue ? Math.min(1000, Number(rawValue)) : 0;
+      var unitPriceCents = getCoinPurchaseUnitPriceCents(this.data.orderConfig);
       this.setData({
         coinPurchaseCount: count || "",
-        coinPurchaseAmountText: format.formatCurrencyCents(count * 100),
+        coinPurchaseAmountText: format.formatCurrencyCents(count * unitPriceCents),
+        coinPurchaseUnitPriceText: format.formatCurrencyCents(unitPriceCents),
+        coinPurchaseDiscountAmountText: format.formatCurrencyCents(count * unitPriceCents),
         coinPurchaseFirstMagnetPriceYuan: formatFirstMagnetPriceYuan(count, this.data.orderConfig),
         coinPurchaseError: ""
       });
@@ -1452,9 +1463,13 @@ function createExperiencePage(config) {
 
 function formatFirstMagnetPriceYuan(coinCount, orderConfig) {
   var unitPriceCents = Math.max(0, Number(orderConfig && orderConfig.unitPriceCents || 2000));
-  var discountCents = Math.min(unitPriceCents, 1500, Math.max(0, Number(coinCount || 0)) * 100);
+  var discountCents = Math.min(unitPriceCents, 1500, Math.max(0, Number(coinCount || 0)) * getCoinPurchaseUnitPriceCents(orderConfig));
   var priceYuan = (unitPriceCents - discountCents) / 100;
   return Number.isInteger(priceYuan) ? String(priceYuan) : priceYuan.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function getCoinPurchaseUnitPriceCents(orderConfig) {
+  return Math.max(1, Number(orderConfig && orderConfig.coinPurchaseUnitPriceCents || 100));
 }
 
 function normalizeOverlayOrder(order) {

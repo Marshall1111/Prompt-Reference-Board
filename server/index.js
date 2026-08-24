@@ -96,6 +96,10 @@ const DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS = 800;
 const DEFAULT_BODY_BOOK_ORDERING_ENABLED = false;
 const DEFAULT_BODY_BOOK_PRICE_CENTS = 0;
 const DEFAULT_BODY_BOOK_SHIPPING_FEE_CENTS = 0;
+const DEFAULT_COIN_PURCHASE_UNIT_PRICE_CENTS = 100;
+const DEFAULT_BEAN_PURCHASE_UNIT_PRICE_CENTS = 100;
+const DEFAULT_REFERRAL_STANDARD_RATE_BPS = 2000;
+const DEFAULT_REFERRAL_INFLUENCER_RATE_BPS = 2000;
 const DEFAULT_FREE_SHIPPING_ITEM_COUNT = 2;
 const DEFAULT_ORDER_PAYMENT_MODE = "manual";
 const DEFAULT_MANUAL_PAYMENT_EXPIRE_DAYS = 7;
@@ -1830,18 +1834,19 @@ app.post("/api/bean-purchases", requireWebAccount, async (req, res, next) => {
     const beanCount = normalizeBeanPurchaseCount(req.body?.beanCount);
     const settings = await readAppSettings();
     const pricing = getOrderPricingSnapshot(settings);
+    const unitPriceCents = pricing.beanPurchaseUnitPriceCents;
     const now = new Date();
     const intent = commerceStore.createPaymentIntent({
       accountId: req.webAccount.id,
       outTradeNo: generateWechatOutTradeNo("BP"),
       kind: "bean_purchase",
-      amountCents: beanCount * 100,
+      amountCents: beanCount * unitPriceCents,
       creditAmount: beanCount,
       expiresAt: new Date(now.getTime() + getOrderExpireMs(pricing)).toISOString(),
       metadata: {
         purchaseNo: generateOrderNo(),
         beanCount,
-        unitPriceCents: 100
+        unitPriceCents
       }
     });
     res.status(201).json({
@@ -1913,15 +1918,16 @@ app.post("/api/coin-purchases", requireWebAccount, async (req, res, next) => {
     const coinCount = normalizeCoinPurchaseCount(req.body?.coinCount);
     const settings = await readAppSettings();
     const pricing = getOrderPricingSnapshot(settings);
+    const unitPriceCents = pricing.coinPurchaseUnitPriceCents;
     const now = new Date();
     const intent = commerceStore.createPaymentIntent({
       accountId: req.webAccount.id,
       outTradeNo: generateWechatOutTradeNo("CP"),
       kind: "coin_purchase",
-      amountCents: coinCount * 100,
+      amountCents: coinCount * unitPriceCents,
       creditAmount: coinCount,
       expiresAt: new Date(now.getTime() + getOrderExpireMs(pricing)).toISOString(),
-      metadata: { purchaseNo: generateOrderNo(), coinCount, unitPriceCents: 100 }
+      metadata: { purchaseNo: generateOrderNo(), coinCount, unitPriceCents }
     });
     res.status(201).json({
       purchase: toPublicCoinPurchase(intent),
@@ -3971,6 +3977,35 @@ app.get("/api/admin/referrals/rankings", requireAdmin, (req, res, next) => {
   }
 });
 
+app.get("/api/admin/referrals/influencers", requireAdmin, (req, res, next) => {
+  try {
+    res.json({ influencers: commerceStore.listReferralInfluencers().map(toPublicAdminUser) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/referrals/influencers", requireAdmin, (req, res, next) => {
+  try {
+    const accountId = String(req.body?.accountId || "").trim();
+    const account = commerceStore.setReferralInfluencer(accountId, true);
+    if (!account) throw createHttpError(404, "仅可将已注册用户设为达人。");
+    res.status(201).json({ influencer: toPublicAdminUser(account) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/referrals/influencers/:accountId", requireAdmin, (req, res, next) => {
+  try {
+    const account = commerceStore.setReferralInfluencer(req.params.accountId, false);
+    if (!account) throw createHttpError(404, "达人用户不存在。");
+    res.json({ influencer: toPublicAdminUser(account) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/admin/referrals/withdrawals", requireAdmin, (req, res, next) => {
   try {
     const accountId = String(req.body?.accountId || "").trim();
@@ -4274,6 +4309,18 @@ app.patch("/api/admin/settings", requireAdmin, async (req, res) => {
       defaultBeanBonus: req.body?.defaultBeanBonus !== undefined
         ? normalizeWalletBonus(req.body?.defaultBeanBonus, WEB_SIGNUP_BEANS)
         : current.defaultBeanBonus,
+      coinPurchaseUnitPriceCents: req.body?.coinPurchaseUnitPriceCents !== undefined
+        ? normalizeVirtualCreditUnitPriceCents(req.body?.coinPurchaseUnitPriceCents, DEFAULT_COIN_PURCHASE_UNIT_PRICE_CENTS)
+        : current.coinPurchaseUnitPriceCents,
+      beanPurchaseUnitPriceCents: req.body?.beanPurchaseUnitPriceCents !== undefined
+        ? normalizeVirtualCreditUnitPriceCents(req.body?.beanPurchaseUnitPriceCents, DEFAULT_BEAN_PURCHASE_UNIT_PRICE_CENTS)
+        : current.beanPurchaseUnitPriceCents,
+      referralStandardRateBps: req.body?.referralStandardRateBps !== undefined
+        ? normalizeReferralRateBps(req.body?.referralStandardRateBps, DEFAULT_REFERRAL_STANDARD_RATE_BPS)
+        : current.referralStandardRateBps,
+      referralInfluencerRateBps: req.body?.referralInfluencerRateBps !== undefined
+        ? normalizeReferralRateBps(req.body?.referralInfluencerRateBps, DEFAULT_REFERRAL_INFLUENCER_RATE_BPS)
+        : current.referralInfluencerRateBps,
       defaultImageProviderId: req.body?.defaultImageProviderId !== undefined
         ? normalizeImageProviderId(req.body?.defaultImageProviderId)
         : current.defaultImageProviderId,
@@ -4633,6 +4680,8 @@ async function repairHistoricalCommissionSnapshots() {
     console.log(`Backfilled commission snapshots for ${result.updatedOrderCount} orders.`);
   }
 }
+
+void readAppSettings().catch((error) => console.error("Failed to load app settings", error));
 
 app.listen(port, () => {
   console.log(`Prompt gallery listening on http://127.0.0.1:${port}`);
@@ -5414,9 +5463,15 @@ async function getVisitorState(req) {
 async function readAppSettings() {
   try {
     const parsed = JSON.parse(await readFile(appSettingsPath, "utf-8"));
-    return normalizeAppSettings(parsed);
+    const settings = normalizeAppSettings(parsed);
+    commerceStore.configureReferralRates(settings);
+    return settings;
   } catch (error) {
-    if (error.code === "ENOENT") return normalizeAppSettings({});
+    if (error.code === "ENOENT") {
+      const settings = normalizeAppSettings({});
+      commerceStore.configureReferralRates(settings);
+      return settings;
+    }
     throw error;
   }
 }
@@ -5424,6 +5479,7 @@ async function readAppSettings() {
 async function saveAppSettings(settings) {
   const safeSettings = normalizeAppSettings(settings);
   await writeFile(appSettingsPath, `${JSON.stringify(safeSettings, null, 2)}\n`, "utf-8");
+  commerceStore.configureReferralRates(safeSettings);
   return safeSettings;
 }
 
@@ -5442,6 +5498,10 @@ function normalizeAppSettings(settings) {
     anonymousQuotaLimit: normalizeAnonymousQuotaLimit(settings?.anonymousQuotaLimit),
     defaultCoinBonus: normalizeWalletBonus(settings?.defaultCoinBonus, WEB_SIGNUP_CREDITS),
     defaultBeanBonus: normalizeWalletBonus(settings?.defaultBeanBonus, WEB_SIGNUP_BEANS),
+    coinPurchaseUnitPriceCents: normalizeVirtualCreditUnitPriceCents(settings?.coinPurchaseUnitPriceCents, DEFAULT_COIN_PURCHASE_UNIT_PRICE_CENTS),
+    beanPurchaseUnitPriceCents: normalizeVirtualCreditUnitPriceCents(settings?.beanPurchaseUnitPriceCents, DEFAULT_BEAN_PURCHASE_UNIT_PRICE_CENTS),
+    referralStandardRateBps: normalizeReferralRateBps(settings?.referralStandardRateBps, DEFAULT_REFERRAL_STANDARD_RATE_BPS),
+    referralInfluencerRateBps: normalizeReferralRateBps(settings?.referralInfluencerRateBps, DEFAULT_REFERRAL_INFLUENCER_RATE_BPS),
     defaultImageProviderId: normalizeImageProviderId(settings?.defaultImageProviderId),
     fridgeMagnetOrderingEnabled: settings?.fridgeMagnetOrderingEnabled === true,
     fridgeMagnetUnitPriceCents: normalizeMoneyCents(settings?.fridgeMagnetUnitPriceCents, DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS),
@@ -6278,6 +6338,18 @@ async function ensureOrderOriginalImageBundle(order) {
 function getOrderOriginalBundleFilename(order) {
   const folderName = sanitizeFilesystemSegment(`${order.orderNo}_${order.receiverName}_${order.receiverPhone}`, order.orderNo || "order");
   return `${folderName}.zip`;
+}
+
+function normalizeVirtualCreditUnitPriceCents(value, fallback) {
+  const next = Number(value);
+  if (!Number.isFinite(next)) return fallback;
+  return Math.min(Math.max(Math.round(next), 1), 99999999);
+}
+
+function normalizeReferralRateBps(value, fallback) {
+  const next = Number(value);
+  if (!Number.isFinite(next)) return fallback;
+  return Math.min(10000, Math.max(0, Math.round(next)));
 }
 
 function getBodyBookOriginalProjectFolders(order, rootFolderPath) {
@@ -7667,6 +7739,8 @@ function getOrderPricingSnapshot(settings) {
   const safeSettings = normalizeAppSettings(settings);
   return {
     enabled: safeSettings.fridgeMagnetOrderingEnabled === true,
+    coinPurchaseUnitPriceCents: safeSettings.coinPurchaseUnitPriceCents,
+    beanPurchaseUnitPriceCents: safeSettings.beanPurchaseUnitPriceCents,
     unitPriceCents: safeSettings.fridgeMagnetUnitPriceCents,
     singleItemShippingFeeCents: safeSettings.singleItemShippingFeeCents,
     freeShippingItemCount: DEFAULT_FREE_SHIPPING_ITEM_COUNT,
@@ -8354,6 +8428,7 @@ function toPublicAdminUser(account) {
     status: account.accountStatus || "active",
     coinBalance: Number(account.coinBalance ?? account.creditBalance ?? 0),
     beanBalance: Number(account.beanBalance || 0),
+    isReferralInfluencer: account.isReferralInfluencer === true,
     registeredAt: account.registeredAt || null,
     lastLoginAt: account.lastLoginAt || null,
     createdAt: account.createdAt || null,
@@ -8907,7 +8982,7 @@ function toPublicBeanPurchase(intent) {
     ...payment,
     purchaseNo: String(intent.metadata?.purchaseNo || ""),
     beanCount: Math.max(0, Math.trunc(Number(intent.metadata?.beanCount || intent.creditAmount || 0))),
-    unitPriceCents: 100
+    unitPriceCents: Math.max(1, Math.trunc(Number(intent.metadata?.unitPriceCents || DEFAULT_BEAN_PURCHASE_UNIT_PRICE_CENTS)))
   };
 }
 
@@ -8918,7 +8993,7 @@ function toPublicCoinPurchase(intent) {
     ...payment,
     purchaseNo: String(intent.metadata?.purchaseNo || ""),
     coinCount: Math.max(0, Math.trunc(Number(intent.metadata?.coinCount || intent.creditAmount || 0))),
-    unitPriceCents: 100
+    unitPriceCents: Math.max(1, Math.trunc(Number(intent.metadata?.unitPriceCents || DEFAULT_COIN_PURCHASE_UNIT_PRICE_CENTS)))
   };
 }
 

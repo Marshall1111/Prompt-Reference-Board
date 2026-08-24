@@ -590,7 +590,7 @@ function ReferralPage() {
   const detailLabel = (detail) => {
     if (detail.type === "registration_bean") return `好友注册奖励 +${detail.amount} 豆豆`;
     if (detail.type === "registration_coin") return `好友注册奖励 +${detail.amount} 币`;
-    if (detail.type === "referral_withdrawal") return `推荐币提现 ${formatCurrencyCents(detail.amount)}`;
+    if (detail.type === "referral_withdrawal") return `推荐金提现 ${formatCurrencyCents(detail.amount)}`;
     if (detail.type === "referral_payment_refund_reversal") return `订单退款扣回 ${formatCurrencyCents(detail.amount)}`;
     const kind = {
       physical_order: "冰箱贴订单",
@@ -616,7 +616,7 @@ function ReferralPage() {
         <section className="referral-hero">
           <p>邀请好友，一起制作专属作品</p>
           <h2>好友注册得 5 {isDrawReferralView ? "币" : "豆"}</h2>
-          <span>好友实付后先预发放推荐币，订单完成后才可提现</span>
+          <span>好友实付后先预发放推荐金，订单完成后才可提现</span>
         </section>
         <section className="referral-panel">
           <h2>专属邀请链接</h2>
@@ -626,11 +626,11 @@ function ReferralPage() {
         <section className="referral-stat-grid">
           <article><span>已邀请注册</span><strong>{summary.registeredCount || 0}<small> 人</small></strong></article>
           <article><span>注册奖励</span><strong>{isDrawReferralView ? summary.registrationCoinTotal || 0 : summary.registrationBeanTotal || 0}<small> {isDrawReferralView ? "币" : "豆"}</small></strong></article>
-          <article><span>可提现推荐币</span><strong>{formatCurrencyCents(summary.referralBalanceCents || 0)}</strong><em>累计 {formatCurrencyCents(summary.referralTotalCents || 0)}</em></article>
-          <article><span>预发放推荐币</span><strong>{formatCurrencyCents(summary.referralPendingCents || 0)}</strong><em>订单完成后可提现</em></article>
+          <article><span>可提现推荐金</span><strong>{formatCurrencyCents(summary.referralBalanceCents || 0)}</strong><em>累计 {formatCurrencyCents(summary.referralTotalCents || 0)}</em></article>
+          <article><span>预发放推荐金</span><strong>{formatCurrencyCents(summary.referralPendingCents || 0)}</strong><em>订单完成后可提现</em></article>
         </section>
         <section className="referral-panel referral-withdrawal">
-          <div><h2>推荐币提现</h2><p>{Number(summary.referralBalanceCents || 0) >= 2000 ? "可提现推荐币已达到 20 元，可联系客服提现。" : `可提现推荐币满 20 元可提现，还差 ${formatCurrencyCents(Math.max(0, 2000 - Number(summary.referralBalanceCents || 0)))}。`}</p></div>
+          <div><h2>推荐金提现</h2><p>{Number(summary.referralBalanceCents || 0) >= 2000 ? "可提现推荐金已达到 20 元，可联系客服提现。" : `可提现推荐金满 20 元可提现，还差 ${formatCurrencyCents(Math.max(0, 2000 - Number(summary.referralBalanceCents || 0)))}。`}</p></div>
           <button className="draw-card-secondary" disabled={Number(summary.referralBalanceCents || 0) < 2000} onClick={() => copyValue(DEFAULT_CONTACT_WECHAT_ID, `客服微信 ${DEFAULT_CONTACT_WECHAT_ID} 已复制。`)} type="button">{Number(summary.referralBalanceCents || 0) >= 2000 ? "联系客服提现" : "未达提现门槛"}</button>
         </section>
         <section className="referral-panel">
@@ -834,44 +834,36 @@ function BalanceInsufficientModal({ message, onClose, useBodyBookTheme = false }
   );
 }
 
-function BeanPurchaseModal({ beanCount, busy, error, payment, purchase, onClose, onCountChange, onRestart, onRetry, onSubmit }) {
+function BeanPurchaseModal({ beanCount, busy, error, payment, purchase, unitPriceCents, onClose, onCountChange, onRestart, onRetry, onSubmit }) {
   const safeCount = Math.min(Math.max(Math.trunc(Number(beanCount || 0)), 0), MAX_BEAN_PURCHASE_COUNT);
+  const unitPrice = Math.max(1, Number(purchase?.unitPriceCents || unitPriceCents || 100));
+  const amountCents = purchase?.amountCents ?? safeCount * unitPrice;
   const isPaid = purchase?.status === "paid";
   const isExpired = purchase?.status === "cancelled" || (purchase?.expiresAt && Date.parse(purchase.expiresAt) <= Date.now());
   const isManual = payment?.channel === "manual_collection";
   const isNative = payment?.channel === "wechat_native" && payment?.codeUrl;
-  return (
-    <div className="modal-backdrop draw-card-confirm" onClick={() => !busy && onClose()} role="presentation">
-      <section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="购买豆豆">
-        <button className="icon-button" disabled={busy} onClick={onClose} type="button" aria-label="关闭购买豆豆"><X size={18} /></button>
-        <p className="draw-card-kicker">Buy beans</p>
-        <h2>购买豆豆</h2>
-        <p className="storage-note">1 元 = 1 个豆豆。成功购买的金额可抵扣认知书订单，每单最多抵扣 40 元。</p>
-        {isPaid ? <><p className="success-note">购买成功，{purchase.beanCount} 个豆豆已到账。</p><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={onClose} type="button">完成</button></div></> : isExpired ? <><p className="error-note">该购买单已过期，未产生扣款。请重新创建购买单后再支付。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" onClick={onClose} type="button">关闭</button><button className="draw-card-primary" disabled={busy} onClick={onRestart} type="button">重新购买</button></div></> : isManual ? <><article className="manual-payment-guide"><strong>请扫描商户收款码付款</strong><img alt="微信商户收款码" className="manual-payment-qr" src="/payment/wechat-merchant-collection.png" /><p>应付金额 {formatCurrencyCents(purchase?.amountCents || safeCount * 100)}</p><p className="body-book-bean-purchase-discount-note">下单实体认知书自动获得 {formatCurrencyCents(purchase?.amountCents || safeCount * 100)} 优惠，每笔订单优惠上限40元</p><p>购买单号：{purchase?.purchaseNo || "--"}</p><small>付款后管理员确认到账，豆豆将自动发放。</small></article></> : isNative ? <><article className="native-payment-panel"><h3>请使用微信扫码付款</h3><p className="storage-note">应付金额 {formatCurrencyCents(purchase?.amountCents || safeCount * 100)}，扫码后无需手动输入金额。</p><p className="body-book-bean-purchase-discount-note">下单实体认知书自动获得 {formatCurrencyCents(purchase?.amountCents || safeCount * 100)} 优惠，每笔订单优惠上限40元</p><img alt="购买豆豆微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(payment.codeUrl, { margin: 1 })} /><p className="storage-note">支付成功后豆豆会自动到账。</p></article></> : <><div className="body-book-wallet-actions"><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(10)} type="button">10 豆</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(20)} type="button">20 豆</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(40)} type="button">40 豆</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(100)} type="button">100 豆</button></div><label className="body-book-wallet-field"><span>购买数量（1–1000 个）</span><input disabled={busy || Boolean(purchase)} min="1" max={MAX_BEAN_PURCHASE_COUNT} onChange={(event) => onCountChange(event.target.value)} type="number" value={beanCount} /></label><p className="body-book-bean-balance">应付 <strong>{formatCurrencyCents(safeCount * 100)}</strong></p><p className="body-book-bean-purchase-discount-note">下单实体认知书自动获得 {formatCurrencyCents(safeCount * 100)} 优惠，每笔订单优惠上限40元</p><p className="storage-note">赠送豆豆、邀请豆豆及下单赠豆不参与认知书优惠抵扣。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={onClose} type="button">取消</button><button className="draw-card-primary" disabled={busy || safeCount < 1} onClick={purchase ? onRetry : onSubmit} type="button">{busy ? "处理中" : purchase ? "重新发起支付" : `支付 ${formatCurrencyCents(safeCount * 100)}`}</button></div></>}
-        {error ? <p className="error-note">{error}</p> : null}
-      </section>
-    </div>
-  );
+  return <div className="modal-backdrop draw-card-confirm" onClick={() => !busy && onClose()} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="购买豆豆">
+    <button className="icon-button" disabled={busy} onClick={onClose} type="button" aria-label="关闭购买豆豆"><X size={18} /></button><p className="draw-card-kicker">Buy beans</p><h2>购买豆豆</h2>
+    <p className="storage-note">{formatCurrencyCents(unitPrice)} = 1 个豆豆。成功购买的金额可抵扣认知书订单，每单最多抵扣 40 元。</p>
+    {isPaid ? <><p className="success-note">购买成功，{purchase.beanCount} 个豆豆已到账。</p><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={onClose} type="button">完成</button></div></> : isExpired ? <><p className="error-note">该购买单已过期，未产生扣款。请重新创建购买单后再支付。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" onClick={onClose} type="button">关闭</button><button className="draw-card-primary" disabled={busy} onClick={onRestart} type="button">重新购买</button></div></> : isManual ? <article className="manual-payment-guide"><strong>请扫描商户收款码付款</strong><img alt="微信商户收款码" className="manual-payment-qr" src="/payment/wechat-merchant-collection.png" /><p>应付金额 {formatCurrencyCents(amountCents)}</p><p className="body-book-bean-purchase-discount-note">下单实体认知书自动获得 {formatCurrencyCents(amountCents)} 优惠，每笔订单优惠上限40元</p><p>购买单号：{purchase?.purchaseNo || "--"}</p><small>付款后管理员确认到账，豆豆将自动发放。</small></article> : isNative ? <article className="native-payment-panel"><h3>请使用微信扫码付款</h3><p className="storage-note">应付金额 {formatCurrencyCents(amountCents)}，扫码后无需手动输入金额。</p><p className="body-book-bean-purchase-discount-note">下单实体认知书自动获得 {formatCurrencyCents(amountCents)} 优惠，每笔订单优惠上限40元</p><img alt="购买豆豆微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(payment.codeUrl, { margin: 1 })} /><p className="storage-note">支付成功后豆豆会自动到账。</p></article> : <><div className="body-book-wallet-actions">{[10, 20, 40, 100].map((count) => <button className="draw-card-secondary" disabled={busy || Boolean(purchase)} key={count} onClick={() => onCountChange(count)} type="button">{count} 豆</button>)}</div><label className="body-book-wallet-field"><span>购买数量（1–1000 个）</span><input disabled={busy || Boolean(purchase)} min="1" max={MAX_BEAN_PURCHASE_COUNT} onChange={(event) => onCountChange(event.target.value)} type="number" value={beanCount} /></label><p className="body-book-bean-balance">应付 <strong>{formatCurrencyCents(amountCents)}</strong></p><p className="body-book-bean-purchase-discount-note">下单实体认知书自动获得 {formatCurrencyCents(amountCents)} 优惠，每笔订单优惠上限40元</p><p className="storage-note">赠送豆豆、邀请豆豆及下单赠豆不参与认知书优惠抵扣。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={onClose} type="button">取消</button><button className="draw-card-primary" disabled={busy || safeCount < 1} onClick={purchase ? onRetry : onSubmit} type="button">{busy ? "处理中" : purchase ? "重新发起支付" : `支付 ${formatCurrencyCents(amountCents)}`}</button></div></>}
+    {error ? <p className="error-note">{error}</p> : null}
+  </section></div>;
 }
 
-function CoinPurchaseModal({ coinCount, busy, error, payment, purchase, onClose, onCountChange, onRestart, onRetry, onSubmit }) {
+function CoinPurchaseModal({ coinCount, busy, error, payment, purchase, unitPriceCents, onClose, onCountChange, onRestart, onRetry, onSubmit }) {
   const safeCount = Math.min(Math.max(Math.trunc(Number(coinCount || 0)), 0), MAX_BEAN_PURCHASE_COUNT);
+  const unitPrice = Math.max(1, Number(purchase?.unitPriceCents || unitPriceCents || 100));
+  const amountCents = purchase?.amountCents ?? safeCount * unitPrice;
   const isPaid = purchase?.status === "paid";
   const isExpired = purchase?.status === "cancelled" || (purchase?.expiresAt && Date.parse(purchase.expiresAt) <= Date.now());
   const isManual = payment?.channel === "manual_collection";
   const isNative = payment?.channel === "wechat_native" && payment?.codeUrl;
-  return (
-    <div className="modal-backdrop draw-card-confirm" onClick={() => !busy && onClose()} role="presentation">
-      <section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="购买币">
-        <button className="icon-button" disabled={busy} onClick={onClose} type="button" aria-label="关闭购买币"><X size={18} /></button>
-        <p className="draw-card-kicker">Buy coins</p>
-        <h2>购买币</h2>
-        <p className="storage-note">1 元 = 1 币。成功购买的金额可抵扣冰箱贴商品金额，每枚冰箱贴最多抵扣 15 元；累计成功购买满 20 元可解锁账户下全部原图下载。</p>
-        {isPaid ? <><p className="success-note">购买成功，{purchase.coinCount} 币已到账。</p><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={onClose} type="button">完成</button></div></> : isExpired ? <><p className="error-note">该购买单已过期，未产生扣款。请重新创建购买单后再支付。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" onClick={onClose} type="button">关闭</button><button className="draw-card-primary" disabled={busy} onClick={onRestart} type="button">重新购买</button></div></> : isManual ? <article className="manual-payment-guide"><strong>请扫描商户收款码付款</strong><img alt="微信商户收款码" className="manual-payment-qr" src="/payment/wechat-merchant-collection.png" /><p>应付金额 {formatCurrencyCents(purchase?.amountCents || safeCount * 100)}</p><p>购买金额将自动成为冰箱贴优惠额度。</p><p>购买单号：{purchase?.purchaseNo || "--"}</p><small>付款后管理员确认到账，币将自动发放。</small></article> : isNative ? <article className="native-payment-panel"><h3>请使用微信扫码付款</h3><p className="storage-note">应付金额 {formatCurrencyCents(purchase?.amountCents || safeCount * 100)}，扫码后无需手动输入金额。</p><p>购买金额将自动成为冰箱贴优惠额度。</p><img alt="购买币微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(payment.codeUrl, { margin: 1 })} /><p className="storage-note">支付成功后币会自动到账。</p></article> : <><div className="body-book-wallet-actions"><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(10)} type="button">10 币</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(20)} type="button">20 币</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(40)} type="button">40 币</button><button className="draw-card-secondary" disabled={busy || Boolean(purchase)} onClick={() => onCountChange(100)} type="button">100 币</button></div><label className="body-book-wallet-field"><span>购买数量（1–1000 币）</span><input disabled={busy || Boolean(purchase)} min="1" max={MAX_BEAN_PURCHASE_COUNT} onChange={(event) => onCountChange(event.target.value)} type="number" value={coinCount} /></label><p className="body-book-bean-balance">应付 <strong>{formatCurrencyCents(safeCount * 100)}</strong></p><p className="body-book-bean-purchase-discount-note">购买金额可抵扣冰箱贴商品金额，每枚最多抵扣 15 元。</p><p className="storage-note">赠送币和邀请码兑换币不参与冰箱贴优惠抵扣。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={onClose} type="button">取消</button><button className="draw-card-primary" disabled={busy || safeCount < 1} onClick={purchase ? onRetry : onSubmit} type="button">{busy ? "处理中" : purchase ? "重新发起支付" : `支付 ${formatCurrencyCents(safeCount * 100)}`}</button></div></>}
-        {error ? <p className="error-note">{error}</p> : null}
-      </section>
-    </div>
-  );
+  return <div className="modal-backdrop draw-card-confirm" onClick={() => !busy && onClose()} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="购买币">
+    <button className="icon-button" disabled={busy} onClick={onClose} type="button" aria-label="关闭购买币"><X size={18} /></button><p className="draw-card-kicker">Buy coins</p><h2>购买币</h2>
+    <p className="storage-note">{formatCurrencyCents(unitPrice)} = 1 币。成功购买的金额可抵扣冰箱贴商品金额，每枚冰箱贴最多抵扣 15 元；累计成功购买满 20 元可解锁账户下全部原图下载。</p>
+    {isPaid ? <><p className="success-note">购买成功，{purchase.coinCount} 币已到账。</p><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={onClose} type="button">完成</button></div></> : isExpired ? <><p className="error-note">该购买单已过期，未产生扣款。请重新创建购买单后再支付。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" onClick={onClose} type="button">关闭</button><button className="draw-card-primary" disabled={busy} onClick={onRestart} type="button">重新购买</button></div></> : isManual ? <article className="manual-payment-guide"><strong>请扫描商户收款码付款</strong><img alt="微信商户收款码" className="manual-payment-qr" src="/payment/wechat-merchant-collection.png" /><p>应付金额 {formatCurrencyCents(amountCents)}</p><p>购买金额将自动成为冰箱贴优惠额度。</p><p>购买单号：{purchase?.purchaseNo || "--"}</p><small>付款后管理员确认到账，币将自动发放。</small></article> : isNative ? <article className="native-payment-panel"><h3>请使用微信扫码付款</h3><p className="storage-note">应付金额 {formatCurrencyCents(amountCents)}，扫码后无需手动输入金额。</p><p>购买金额将自动成为冰箱贴优惠额度。</p><img alt="购买币微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(payment.codeUrl, { margin: 1 })} /><p className="storage-note">支付成功后币会自动到账。</p></article> : <><div className="body-book-wallet-actions">{[10, 20, 40, 100].map((count) => <button className="draw-card-secondary" disabled={busy || Boolean(purchase)} key={count} onClick={() => onCountChange(count)} type="button">{count} 币</button>)}</div><label className="body-book-wallet-field"><span>购买数量（1–1000 币）</span><input disabled={busy || Boolean(purchase)} min="1" max={MAX_BEAN_PURCHASE_COUNT} onChange={(event) => onCountChange(event.target.value)} type="number" value={coinCount} /></label><p className="body-book-bean-balance">应付 <strong>{formatCurrencyCents(amountCents)}</strong></p><p className="body-book-bean-purchase-discount-note">购买金额可抵扣冰箱贴商品金额，每枚最多抵扣 15 元。</p><p className="storage-note">赠送币和邀请码兑换币不参与冰箱贴优惠抵扣。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={onClose} type="button">取消</button><button className="draw-card-primary" disabled={busy || safeCount < 1} onClick={purchase ? onRetry : onSubmit} type="button">{busy ? "处理中" : purchase ? "重新发起支付" : `支付 ${formatCurrencyCents(amountCents)}`}</button></div></>}
+    {error ? <p className="error-note">{error}</p> : null}
+  </section></div>;
 }
 
 function DrawCardConfigModal({ busy, error, onClose, onSubmit }) {
@@ -1227,7 +1219,7 @@ function AdminApp({ navigate, route }) {
             settings={settings}
           />
         ) : route === "admin-referrals" ? (
-          <ReferralAdminPage />
+          <ReferralAdminPage onRefreshSettings={() => refreshAdminSettings().then(setSettings)} settings={settings} />
         ) : route === "admin-users" ? (
           <UserAdminPage onOpenClip={openUserClip} />
         ) : route === "admin-visits" ? (
@@ -3088,12 +3080,12 @@ function BodyBookPage() {
 
       {historyTheme ? <div className="modal-backdrop" onClick={() => !busy && setHistoryTheme(null)} role="presentation"><section className="body-book-project-modal body-book-history-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择历史认知书工程"><button className="icon-button" disabled={busy} onClick={() => setHistoryTheme(null)} type="button"><X size={18} /></button><p className="body-book-kicker">Existing projects</p><h2>{historyTheme.name}已有历史工程</h2><p>请选择继续历史任务，或新建一本独立工程。</p><div className="body-book-history-list">{historyProjects.map((book) => <button key={book.sessionId} onClick={() => openProject(book.sessionId)} type="button">{book.thumbnail ? <img alt="工程缩略图" src={book.thumbnail} /> : <span className="body-book-history-placeholder">{book.theme?.name}</span>}<span><strong>{book.title}</strong><small>{formatBodyBookUpdatedAt(book.updatedAt || book.savedAt)}</small></span></button>)}</div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={() => startNewDraft(historyTheme)} type="button">创建新的工程</button></div></section></div> : null}
 
-      {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀请好友"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀请好友</h2><p>邀请新用户注册，即得 <strong>5 豆</strong>；好友每笔实付订单还可返你 <strong>20% 推荐币</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
-      {showBeanInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowBeanInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的豆豆"><button className="icon-button" onClick={() => setShowBeanInfo(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">My beans</p><h2>我的豆豆</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong> 豆</p><p className="body-book-bean-cost-note">实体书优惠券：<strong>{formatCurrencyCents(Math.max(0, Number(beanPurchaseDiscount.availableCents || 0)))}</strong></p><p className="body-book-bean-cost-note">{billingEnabled ? "每张成功生成的图片消耗 1 个豆豆。" : "内测阶段，认知书暂不消耗豆豆。"}</p><ul className="body-book-bean-benefits"><li>成功购买 1 元豆豆，可获得 1 元实体书优惠券。</li><li>实体书每本最多使用 40 元优惠券。</li><li>实体书按实付金额赠豆，每实付满 1 元赠 1 豆。</li><li>邀请新用户注册可获得 5 豆；好友每笔实付订单返 20% 推荐币。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openBeanPurchase} type="button">购买豆豆</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); openReferral(); }} type="button">邀请好友</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); setShowContactModal(true); }} type="button">联系客服</button></div><label className="body-book-wallet-field"><span>兑换码</span><input disabled={busy} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入兑换码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={busy || !inviteCode.trim()} onClick={redeemBookInvite} type="button">兑换</button></div></section></div> : null}
-      {showBeanPurchase ? <BeanPurchaseModal beanCount={beanPurchaseCount} busy={beanPurchaseBusy} error={beanPurchaseError} onClose={() => !beanPurchaseBusy && setShowBeanPurchase(false)} onCountChange={setBeanPurchaseCount} onRestart={restartBeanPurchase} onRetry={() => prepareBeanPurchase(beanPurchase?.id)} onSubmit={submitBeanPurchase} payment={beanPurchasePayment} purchase={beanPurchase} /> : null}
+      {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀请好友"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀请好友</h2><p>邀请新用户注册，即得 <strong>5 豆</strong>；好友每笔实付订单还可返你 <strong>20% 推荐金</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
+      {showBeanInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowBeanInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的豆豆"><button className="icon-button" onClick={() => setShowBeanInfo(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">My beans</p><h2>我的豆豆</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong> 豆</p><p className="body-book-bean-cost-note">实体书优惠券：<strong>{formatCurrencyCents(Math.max(0, Number(beanPurchaseDiscount.availableCents || 0)))}</strong></p><p className="body-book-bean-cost-note">{billingEnabled ? "每张成功生成的图片消耗 1 个豆豆。" : "内测阶段，认知书暂不消耗豆豆。"}</p><ul className="body-book-bean-benefits"><li>成功购买单价为 {formatCurrencyCents(orderConfig?.beanPurchaseUnitPriceCents || 100)} 的豆豆，可获得等额实体书优惠券。</li><li>实体书每本最多使用 40 元优惠券。</li><li>实体书按实付金额赠豆，每实付满 1 元赠 1 豆。</li><li>邀请新用户注册可获得 5 豆；好友每笔实付订单返 20% 推荐金。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openBeanPurchase} type="button">购买豆豆</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); openReferral(); }} type="button">邀请好友</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); setShowContactModal(true); }} type="button">联系客服</button></div><label className="body-book-wallet-field"><span>兑换码</span><input disabled={busy} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入兑换码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={busy || !inviteCode.trim()} onClick={redeemBookInvite} type="button">兑换</button></div></section></div> : null}
+      {showBeanPurchase ? <BeanPurchaseModal beanCount={beanPurchaseCount} busy={beanPurchaseBusy} error={beanPurchaseError} onClose={() => !beanPurchaseBusy && setShowBeanPurchase(false)} onCountChange={setBeanPurchaseCount} onRestart={restartBeanPurchase} onRetry={() => prepareBeanPurchase(beanPurchase?.id)} onSubmit={submitBeanPurchase} payment={beanPurchasePayment} purchase={beanPurchase} unitPriceCents={orderConfig?.beanPurchaseUnitPriceCents} /> : null}
       {showBookPreview ? <div className="modal-backdrop body-book-flip-preview-backdrop" onClick={() => setShowBookPreview(false)} role="presentation"><section className="body-book-project-modal body-book-flip-preview-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="认知书效果预览"><button className="icon-button" onClick={() => setShowBookPreview(false)} type="button" aria-label="关闭预览"><X size={18} /></button><p className="body-book-kicker">Book preview</p><h2>认知书效果预览</h2><p>仅展示当前已完成的页面；对应的内置预设页会自动插入。</p><BodyBookFlipBook ariaLabel="当前认知书翻页预览" pages={completedBookPreviewPages.map((page, index) => ({ id: page.key || String(index), isPreset: page.isBuiltIn === true, src: getBodyBookThumbnail(page), title: page.title || `第 ${index + 1} 页` }))} /><div className="draw-card-confirm-actions"><button className="draw-card-secondary" onClick={() => setShowBookPreview(false)} type="button">关闭</button><button className="draw-card-primary" disabled={bookShareBusy} onClick={() => { setShowBookPreview(false); void openBookShare(); }} type="button"><Share2 size={17} /><span>分享给好友</span></button></div></section></div> : null}
       {showBookShareModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => !bookShareBusy && setShowBookShareModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享认知书"><button className="icon-button" disabled={bookShareBusy} onClick={() => setShowBookShareModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Share your book</p><h2>分享给好友</h2><p>好友可免登录查看压缩预览，不能修改或下载原图。首位新访客打开链接后，本工程即可下载全部原图。</p>{bookShareUrl ? <label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={bookShareUrl} /></label> : null}{bookShareUrl ? <div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={bookShareBusy} onClick={async () => { try { await copyText(formatShareCopy(bookShareUrl, "book")); setBookShareNotice("链接已复制，可发送给好友。"); } catch (nextError) { setBookShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制链接</span></button><button className="draw-card-secondary" disabled={bookShareBusy} onClick={() => { if (window.confirm("停止分享后，已复制的链接将立即失效。确定停止分享吗？")) void closeBookShare(); }} type="button">停止分享</button></div> : null}{bookShareNotice ? <p className="success-note">{bookShareNotice}</p> : null}{bookShareError ? <p className="error-note">{bookShareError}</p> : null}</section></div> : null}
-      {showBookOriginalUnlockPrompt ? <div className="modal-backdrop draw-card-confirm" onClick={() => !bookShareBusy && setShowBookOriginalUnlockPrompt(false)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal body-book-original-unlock-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享获得下载权限"><button className="icon-button" disabled={bookShareBusy} onClick={() => setShowBookOriginalUnlockPrompt(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><p className="draw-card-kicker">Original images</p><h2>分享获得下载权限</h2><ul className="body-book-bean-benefits body-book-original-unlock-rules"><li>分享给新用户，且新用户点击查看后，可获得本工程全部原图下载权限。</li><li>本站实际消费 n 元，获得 n 次免分享下载权益。</li><li>本站累计消费 20 元，获得永久下载权益。</li></ul>{bookShareBusy ? <p className="storage-note">正在生成分享链接…</p> : null}{bookShareUrl ? <><label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={bookShareUrl} /></label><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={async () => { try { await copyText(formatShareCopy(bookShareUrl, "book")); setBookShareNotice("分享链接已复制，可发送给好友。"); setBookShareError(""); } catch (nextError) { setBookShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制分享链接</span></button></div></> : null}{bookShareNotice ? <p className="success-note">{bookShareNotice}</p> : null}{bookShareError ? <p className="error-note">{bookShareError}</p> : null}</section></div> : null}
+      {showBookOriginalUnlockPrompt ? <div className="modal-backdrop draw-card-confirm" onClick={() => !bookShareBusy && setShowBookOriginalUnlockPrompt(false)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal body-book-original-unlock-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享获得下载权限"><button className="icon-button" disabled={bookShareBusy} onClick={() => setShowBookOriginalUnlockPrompt(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><p className="draw-card-kicker">Original images</p><h2>分享获得下载权限</h2><ul className="body-book-bean-benefits body-book-original-unlock-rules"><li>分享给新用户，且新用户点击查看后，可获得本工程全部原图下载权限。</li><li>每购买 1 个币或豆豆，获得 1 次免分享下载权益；实体订单每实付满 1 元获得 1 次。</li><li>本站累计消费 20 元，获得永久下载权益。</li></ul>{bookShareBusy ? <p className="storage-note">正在生成分享链接…</p> : null}{bookShareUrl ? <><label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={bookShareUrl} /></label><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={async () => { try { await copyText(formatShareCopy(bookShareUrl, "book")); setBookShareNotice("分享链接已复制，可发送给好友。"); setBookShareError(""); } catch (nextError) { setBookShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制分享链接</span></button></div></> : null}{bookShareNotice ? <p className="success-note">{bookShareNotice}</p> : null}{bookShareError ? <p className="error-note">{bookShareError}</p> : null}</section></div> : null}
       {showBookCheckout ? <div className="modal-backdrop" onClick={() => !bookOrderBusy && setShowBookCheckout(false)} role="presentation"><section className="body-book-project-modal body-book-checkout-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="下单认知书实体书"><button className="icon-button" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Print your book</p><h2>{bookOrderBlockReason ? "暂时无法下单" : "下单认知书实体书"}</h2>{bookOrderBlockReason ? <><div className="body-book-checkout-blocked"><AlertTriangle size={24} /><p>{bookOrderBlockReason}</p></div><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={() => setShowBookCheckout(false)} type="button">知道了</button></div></> : <><p>以下为将要印刷的全部页面，共 {bookPreviewPages.length} 页；成书时会自动插入对应的内置认知页，不含固定封底。</p><div className="body-book-checkout-preview" aria-label="成书预览">{bookPreviewPages.map((page, index) => <figure className="body-book-checkout-preview-item" key={`${page.key}-${index}`}><img alt={`${page.title} 成书预览`} decoding="async" loading="lazy" src={getBodyBookThumbnail(page)} /><figcaption><span>第 {index + 1} 页</span><strong>{page.title}</strong></figcaption></figure>)}</div><div className="draw-card-order-summary"><p>实体书 {formatCurrencyCents(bodyBookPricing.priceCents)}</p><p>邮费 {Number(bodyBookPricing.shippingFeeCents || 0) > 0 ? formatCurrencyCents(bodyBookPricing.shippingFeeCents) : "包邮"}</p>{bookOrderDiscountPreviewCents > 0 ? <p>豆豆优惠 -{formatCurrencyCents(bookOrderDiscountPreviewCents)}（每单最多抵扣 40 元）</p> : null}<strong>实付 {formatCurrencyCents(bookOrderPayablePreviewCents)}</strong></div><div className="draw-card-order-form"><label className="field-label">收件人<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={bookOrderForm.receiverName} /></label><label className="field-label">手机号<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverPhone: event.target.value }))} type="tel" value={bookOrderForm.receiverPhone} /></label><label className="field-label">收货地址<input onChange={(event) => setBookOrderForm((current) => ({ ...current, address: event.target.value, addressDetail: event.target.value }))} type="text" value={bookOrderForm.address || bookOrderForm.addressDetail || ""} /></label><label className="field-label">备注<textarea onChange={(event) => setBookOrderForm((current) => ({ ...current, remark: event.target.value }))} rows="2" value={bookOrderForm.remark} /></label></div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button">取消</button><button className="draw-card-primary" disabled={bookOrderBusy} onClick={submitBookOrder} type="button">{bookOrderBusy ? "创建订单中" : formatPaymentButtonLabel(bookOrderPayablePreviewCents)}</button></div></>}</section></div> : null}
       {showAuthModal ? <AuthModal description={pendingBookOriginalDownloadRef.current ? "下载认知书原图前，请先注册并登录。" : pendingBookShareRef.current ? "分享认知书前，请先注册并登录。" : ""} onAuthenticated={async () => { setShowAuthModal(false); const nextVisitorState = await fetchVisitorState(); setVisitorState(nextVisitorState); setBookOrderForm((current) => fillOrderAddressFromSaved(current, nextVisitorState?.account)); await loadSavedBooks(); if (pendingReferralRef.current) { pendingReferralRef.current = false; await showReferralDialog(); } if (pendingBookCheckoutRef.current) { pendingBookCheckoutRef.current = false; setShowBookCheckout(true); } if (pendingBeanPurchaseRef.current) { pendingBeanPurchaseRef.current = false; openBeanPurchase(); } if (pendingBookShareRef.current) { pendingBookShareRef.current = false; await createAndShareBookProject(); } const pendingDownload = pendingBookOriginalDownloadRef.current; pendingBookOriginalDownloadRef.current = null; if (pendingDownload) await downloadBookOriginal(pendingDownload.page, pendingDownload.projectId); }} onClose={() => { pendingReferralRef.current = false; pendingBookCheckoutRef.current = false; pendingBeanPurchaseRef.current = false; pendingBookShareRef.current = false; pendingBookOriginalDownloadRef.current = null; setShowAuthModal(false); }} reloadOnLogin={false} /> : null}
       {showContactModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowContactModal(false)} role="presentation"><section className="draw-card-confirm-panel draw-card-contact-panel body-book-contact-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="联系客服"><button className="icon-button" onClick={() => setShowContactModal(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><div className="draw-card-contact-copy"><h3>联系客服</h3><p>复制客服微信，返回微信添加</p><div className="draw-card-contact-id"><span>{getContactWechatId(orderConfig)}</span></div></div><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={copyBookContactWechat} type="button"><Clipboard size={16} /><span>{contactCopied ? "已复制" : "复制微信号"}</span></button></div></section></div> : null}
@@ -6461,9 +6453,9 @@ function PublicExperiencePage({ config }) {
         </div>
       ) : null}
 
-      {showCoinInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowCoinInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的币"><button className="icon-button" onClick={() => setShowCoinInfo(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><p className="draw-card-kicker">My coins</p><h2>我的币</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.coinBalance || 0 : "--"}</strong> 币</p><p className="body-book-bean-cost-note">冰箱贴优惠券：<strong>{formatCurrencyCents(Math.max(0, Number(visitorState?.coinPurchaseDiscount?.availableCents || 0)))}</strong></p><ul className="body-book-bean-benefits"><li>成功购买 1 元币，可获得 1 元冰箱贴优惠券。</li><li>每枚冰箱贴最多使用 15 元优惠券；同一订单可按数量累计使用。</li><li>冰箱贴订单支付成功后，按抵扣后实付金额赠送等额币。</li><li>邀请新用户注册可获得 5 币；好友每笔实付订单返 20% 推荐币。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openCoinPurchase} type="button">购买币</button><button className="draw-card-secondary" onClick={() => { setShowCoinInfo(false); openReferral(); }} type="button">邀请好友</button><button className="draw-card-secondary" onClick={() => { setShowCoinInfo(false); setShowContactModal(true); }} type="button">联系客服</button></div><label className="body-book-wallet-field"><span>兑换码</span><input disabled={isSubmitting} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入兑换码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={isSubmitting || !inviteCode.trim()} onClick={async () => { try { setIsSubmitting(true); const payload = await redeemInviteCode(inviteCode); setVisitorState(payload); setInviteCode(""); setError(""); } catch (nextError) { setError(nextError.message || inviteErrorMessage); } finally { setIsSubmitting(false); } }} type="button">兑换</button></div></section></div> : null}
-      {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀请好友"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀请好友</h2><p>邀请新用户注册，即得 <strong>5 币</strong>；好友每笔实付订单还可返你 <strong>20% 推荐币</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
-      {showCoinPurchase ? <CoinPurchaseModal coinCount={coinPurchaseCount} busy={coinPurchaseBusy} error={coinPurchaseError} payment={coinPurchasePayment} purchase={coinPurchase} onClose={() => setShowCoinPurchase(false)} onCountChange={setCoinPurchaseCount} onRestart={restartCoinPurchase} onRetry={() => prepareCoinPurchase(coinPurchase?.id)} onSubmit={submitCoinPurchase} /> : null}
+      {showCoinInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowCoinInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的币"><button className="icon-button" onClick={() => setShowCoinInfo(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><p className="draw-card-kicker">My coins</p><h2>我的币</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.coinBalance || 0 : "--"}</strong> 币</p><p className="body-book-bean-cost-note">冰箱贴优惠券：<strong>{formatCurrencyCents(Math.max(0, Number(visitorState?.coinPurchaseDiscount?.availableCents || 0)))}</strong></p><ul className="body-book-bean-benefits"><li>成功购买单价为 {formatCurrencyCents(orderConfig?.coinPurchaseUnitPriceCents || 100)} 的币，可获得等额冰箱贴优惠券。</li><li>每枚冰箱贴最多使用 15 元优惠券；同一订单可按数量累计使用。</li><li>冰箱贴订单支付成功后，按抵扣后实付金额赠送等额币。</li><li>邀请新用户注册可获得 5 币；好友每笔实付订单返 20% 推荐金。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openCoinPurchase} type="button">购买币</button><button className="draw-card-secondary" onClick={() => { setShowCoinInfo(false); openReferral(); }} type="button">邀请好友</button><button className="draw-card-secondary" onClick={() => { setShowCoinInfo(false); setShowContactModal(true); }} type="button">联系客服</button></div><label className="body-book-wallet-field"><span>兑换码</span><input disabled={isSubmitting} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入兑换码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={isSubmitting || !inviteCode.trim()} onClick={async () => { try { setIsSubmitting(true); const payload = await redeemInviteCode(inviteCode); setVisitorState(payload); setInviteCode(""); setError(""); } catch (nextError) { setError(nextError.message || inviteErrorMessage); } finally { setIsSubmitting(false); } }} type="button">兑换</button></div></section></div> : null}
+      {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀请好友"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀请好友</h2><p>邀请新用户注册，即得 <strong>5 币</strong>；好友每笔实付订单还可返你 <strong>20% 推荐金</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
+      {showCoinPurchase ? <CoinPurchaseModal coinCount={coinPurchaseCount} busy={coinPurchaseBusy} error={coinPurchaseError} payment={coinPurchasePayment} purchase={coinPurchase} onClose={() => setShowCoinPurchase(false)} onCountChange={setCoinPurchaseCount} onRestart={restartCoinPurchase} onRetry={() => prepareCoinPurchase(coinPurchase?.id)} onSubmit={submitCoinPurchase} unitPriceCents={orderConfig?.coinPurchaseUnitPriceCents} /> : null}
 
       {showContactModal ? (
         <div className="modal-backdrop draw-card-confirm" onClick={() => setShowContactModal(false)} role="presentation">
@@ -6502,7 +6494,7 @@ function PublicExperiencePage({ config }) {
             <h2>分享获得下载权限</h2>
             <ul className="original-download-rules">
               <li>分享给新用户，且新用户点击查看后，可获得本原图下载权限。</li>
-              <li>本站实际消费 n 元，获得 n 次免分享下载权益。</li>
+              <li>每购买 1 个币或豆豆，获得 1 次免分享下载权益；实体订单每实付满 1 元获得 1 次。</li>
               <li>本站累计消费 20 元，获得永久下载权益。</li>
             </ul>
             {originalUnlockShareBusy ? <p className="storage-note">正在生成分享链接…</p> : null}
@@ -9351,8 +9343,33 @@ async function fetchAdminReferralRankings(params = {}) {
 async function createAdminReferralWithdrawal(payload) {
   const response = await fetch("/api/admin/referrals/withdrawals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || "扣除推荐币失败。");
+  if (!response.ok) throw new Error(data.message || "扣除推荐金失败。");
   return data;
+}
+
+async function fetchAdminReferralInfluencers() {
+  const response = await fetch("/api/admin/referrals/influencers");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取达人列表失败。");
+  return payload;
+}
+
+async function addAdminReferralInfluencer(accountId) {
+  const response = await fetch("/api/admin/referrals/influencers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ accountId })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "设置达人失败。");
+  return payload;
+}
+
+async function removeAdminReferralInfluencer(accountId) {
+  const response = await fetch(`/api/admin/referrals/influencers/${encodeURIComponent(accountId)}`, { method: "DELETE" });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "移除达人失败。");
+  return payload;
 }
 
 async function deleteInviteCodeRequest(id) {
@@ -10446,6 +10463,8 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
   const [bodyBookOrderingEnabled, setBodyBookOrderingEnabled] = useState(settings?.bodyBookOrderingEnabled === true);
   const [bodyBookPriceCents, setBodyBookPriceCents] = useState(settings?.bodyBookPriceCents || 0);
   const [bodyBookShippingFeeCents, setBodyBookShippingFeeCents] = useState(settings?.bodyBookShippingFeeCents || 0);
+  const [coinPurchaseUnitPriceCents, setCoinPurchaseUnitPriceCents] = useState(settings?.coinPurchaseUnitPriceCents || 100);
+  const [beanPurchaseUnitPriceCents, setBeanPurchaseUnitPriceCents] = useState(settings?.beanPurchaseUnitPriceCents || 100);
   const [paymentMode, setPaymentMode] = useState(settings?.paymentMode || "wechat");
   const [manualPaymentExpireDays, setManualPaymentExpireDays] = useState(settings?.manualPaymentExpireDays || 7);
   const [contactWechatId, setContactWechatId] = useState(settings?.contactWechatId || DEFAULT_CONTACT_WECHAT_ID);
@@ -10478,6 +10497,8 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
     setBodyBookOrderingEnabled(settings?.bodyBookOrderingEnabled === true);
     setBodyBookPriceCents(settings?.bodyBookPriceCents || 0);
     setBodyBookShippingFeeCents(settings?.bodyBookShippingFeeCents || 0);
+    setCoinPurchaseUnitPriceCents(settings?.coinPurchaseUnitPriceCents || 100);
+    setBeanPurchaseUnitPriceCents(settings?.beanPurchaseUnitPriceCents || 100);
     setPaymentMode(settings?.paymentMode || "wechat");
     setManualPaymentExpireDays(settings?.manualPaymentExpireDays || 7);
     setContactWechatId(settings?.contactWechatId || DEFAULT_CONTACT_WECHAT_ID);
@@ -10558,6 +10579,8 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
         bodyBookOrderingEnabled,
         bodyBookPriceCents,
         bodyBookShippingFeeCents,
+        coinPurchaseUnitPriceCents,
+        beanPurchaseUnitPriceCents,
         paymentMode,
         manualPaymentExpireDays,
         contactWechatId
@@ -10632,7 +10655,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
 
   async function refundPurchase(payment) {
     if (!payment?.id || payment.orderStatus !== "paid") return;
-    if (!window.confirm(`确认该购买单已在线下退款吗？系统将回收已发放的${payment.kind === "coin_purchase" ? "币" : "豆豆"}及对应推荐币。`)) return;
+    if (!window.confirm(`确认该购买单已在线下退款吗？系统将回收已发放的${payment.kind === "coin_purchase" ? "币" : "豆豆"}及对应推荐金。`)) return;
     setIsBusy(true); setError(""); setStatusMessage("");
     try {
       await refundAdminPurchase(payment.id);
@@ -10643,7 +10666,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
 
   async function refundSelectedOrder() {
     if (!selectedOrder?.id || selectedOrder.orderStatus === "refunded") return;
-    if (!window.confirm("确认已在线下完成退款吗？系统会扣回本单相关推荐币；此订单将成为已退款终态。")) return;
+    if (!window.confirm("确认已在线下完成退款吗？系统会扣回本单推荐金；此订单将成为已退款终态。")) return;
     await updateOrderStatus({ adminRemark, shippingCarrier, shippingTrackingNo, orderStatus: "refunded" });
   }
 
@@ -10728,6 +10751,10 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
             <section className="order-settings-group">
               <div className="order-settings-group-head"><div><h4>认知书实体书</h4><p>售价大于 0 后才会对用户开放。</p></div><label className="apple-toggle"><input checked={bodyBookOrderingEnabled} onChange={(event) => setBodyBookOrderingEnabled(event.target.checked)} type="checkbox" /><span aria-hidden="true" /><b>{bodyBookOrderingEnabled ? "已开启" : "已关闭"}</b></label></div>
               <div className="order-settings-fields"><label className="field-label">固定售价（分）<input min="0" onChange={(event) => setBodyBookPriceCents(Number(event.target.value) || 0)} type="number" value={bodyBookPriceCents} /></label><label className="field-label">固定邮费（分）<input min="0" onChange={(event) => setBodyBookShippingFeeCents(Number(event.target.value) || 0)} type="number" value={bodyBookShippingFeeCents} /></label></div>
+            </section>
+            <section className="order-settings-group">
+              <div className="order-settings-group-head"><div><h4>购买币与豆豆</h4><p>单价只用于新建购买单；已创建的购买单仍按原金额支付。</p></div></div>
+              <div className="order-settings-fields"><label className="field-label">币单价（分）<input min="1" onChange={(event) => setCoinPurchaseUnitPriceCents(Math.max(1, Number(event.target.value) || 1))} type="number" value={coinPurchaseUnitPriceCents} /></label><label className="field-label">豆豆单价（分）<input min="1" onChange={(event) => setBeanPurchaseUnitPriceCents(Math.max(1, Number(event.target.value) || 1))} type="number" value={beanPurchaseUnitPriceCents} /></label></div>
             </section>
             <section className="order-settings-group order-settings-payment-group">
               <div className="order-settings-group-head"><div><h4>支付与确认</h4><p>微信支付由回调更新订单；人工收款由管理员确认。</p></div></div>
@@ -10892,7 +10919,7 @@ function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onR
   );
 }
 
-function ReferralAdminPage() {
+function ReferralAdminPage({ settings, onRefreshSettings }) {
   const [ledger, setLedger] = useState([]);
   const [ledgerMeta, setLedgerMeta] = useState({ total: 0, page: 1, limit: 30 });
   const [rankings, setRankings] = useState([]);
@@ -10901,6 +10928,12 @@ function ReferralAdminPage() {
   const [rankingFilters, setRankingFilters] = useState({ search: "", sortBy: "totalEarned", sortDir: "desc" });
   const [withdrawal, setWithdrawal] = useState({ accountId: "", amountYuan: "", note: "" });
   const [withdrawalTarget, setWithdrawalTarget] = useState(null);
+  const [influencers, setInfluencers] = useState([]);
+  const [influencerSearch, setInfluencerSearch] = useState("");
+  const [influencerCandidates, setInfluencerCandidates] = useState([]);
+  const [hasSearchedInfluencers, setHasSearchedInfluencers] = useState(false);
+  const [standardRatePercent, setStandardRatePercent] = useState(Number(settings?.referralStandardRateBps ?? 2000) / 100);
+  const [influencerRatePercent, setInfluencerRatePercent] = useState(Number(settings?.referralInfluencerRateBps ?? 2000) / 100);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -10912,9 +10945,9 @@ function ReferralAdminPage() {
   };
   const reasonLabel = (reason) => ({
     referral_payment_reward: "订单推荐奖励",
-    referral_payment_refund_reversal: "退款扣回推荐币",
+    referral_payment_refund_reversal: "退款扣回推荐金",
     referral_withdrawal: "提现扣除"
-  }[reason] || reason || "推荐币变动");
+  }[reason] || reason || "推荐金变动");
 
   async function loadLedger(next = {}, options = {}) {
     const filters = { ...ledgerFilters, ...next };
@@ -10934,21 +10967,78 @@ function ReferralAdminPage() {
   }
   async function refreshAll() {
     setBusy(true); setError("");
-    try { await Promise.all([loadLedger({}, { page: 1 }), loadRankings({}, { page: 1 })]); } catch (nextError) { setError(nextError.message || "读取推荐数据失败。"); } finally { setBusy(false); }
+    try {
+      const [influencerPayload] = await Promise.all([
+        fetchAdminReferralInfluencers(),
+        loadLedger({}, { page: 1 }),
+        loadRankings({}, { page: 1 })
+      ]);
+      setInfluencers(influencerPayload.influencers || []);
+    } catch (nextError) { setError(nextError.message || "读取推荐数据失败。"); } finally { setBusy(false); }
   }
   useEffect(() => { void refreshAll(); }, []);
+  useEffect(() => {
+    setStandardRatePercent(Number(settings?.referralStandardRateBps ?? 2000) / 100);
+    setInfluencerRatePercent(Number(settings?.referralInfluencerRateBps ?? 2000) / 100);
+  }, [settings?.referralStandardRateBps, settings?.referralInfluencerRateBps]);
+
+  const toRateBps = (value) => Math.min(10000, Math.max(0, Math.round(Number(value || 0) * 100)));
+  async function saveReferralRates() {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await updateAdminSettings({
+        referralStandardRateBps: toRateBps(standardRatePercent),
+        referralInfluencerRateBps: toRateBps(influencerRatePercent)
+      });
+      await onRefreshSettings?.();
+      setNotice("推荐金分成比例已保存；仅之后产生的推荐金会按新比例计算。");
+    } catch (nextError) { setError(nextError.message || "保存分成比例失败。"); } finally { setBusy(false); }
+  }
+  async function searchInfluencerCandidates() {
+    const search = influencerSearch.trim();
+    if (!search) {
+      setInfluencerCandidates([]);
+      setHasSearchedInfluencers(false);
+      return;
+    }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const payload = await fetchAdminUsers({ type: "registered", search, limit: 20 });
+      setInfluencerCandidates((payload.users || []).filter((user) => !user.isReferralInfluencer));
+      setHasSearchedInfluencers(true);
+    } catch (nextError) { setError(nextError.message || "搜索用户失败。"); } finally { setBusy(false); }
+  }
+  async function addInfluencer(accountId) {
+    if (!accountId) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await addAdminReferralInfluencer(accountId);
+      setInfluencerCandidates((current) => current.filter((user) => user.id !== accountId));
+      await refreshAll();
+      setNotice("已加入达人列表，之后产生的推荐金将按达人分成比例计算。");
+    } catch (nextError) { setError(nextError.message || "设置达人失败。"); } finally { setBusy(false); }
+  }
+  async function removeInfluencer(accountId) {
+    if (!window.confirm("确认移出达人列表吗？该用户之后产生的推荐金将按普通用户分成比例计算。")) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await removeAdminReferralInfluencer(accountId);
+      await refreshAll();
+      setNotice("已移出达人列表，之后产生的推荐金将按普通用户分成比例计算。");
+    } catch (nextError) { setError(nextError.message || "移除达人失败。"); } finally { setBusy(false); }
+  }
 
   async function submitWithdrawal() {
     if (!withdrawal.accountId || !Number(withdrawal.amountYuan) || !withdrawal.note.trim()) return;
-    if (!window.confirm(`确认已线下完成提现，并扣除 ¥${Number(withdrawal.amountYuan).toFixed(2)} 推荐币吗？该操作会写入不可删除的流水。`)) return;
+    if (!window.confirm(`确认已线下完成提现，并扣除 ¥${Number(withdrawal.amountYuan).toFixed(2)} 推荐金吗？该操作会写入不可删除的流水。`)) return;
     setBusy(true); setError(""); setNotice("");
     try {
       await createAdminReferralWithdrawal(withdrawal);
       setWithdrawal((current) => ({ ...current, amountYuan: "", note: "" }));
       setWithdrawalTarget(null);
       await Promise.all([loadLedger({}, { page: 1 }), loadRankings({}, { page: 1 })]);
-      setNotice("推荐币提现扣除已记录。");
-    } catch (nextError) { setError(nextError.message || "扣除推荐币失败。"); } finally { setBusy(false); }
+      setNotice("推荐金提现扣除已记录。");
+    } catch (nextError) { setError(nextError.message || "扣除推荐金失败。"); } finally { setBusy(false); }
   }
   const ledgerPages = Math.max(1, Math.ceil(ledgerMeta.total / Math.max(ledgerMeta.limit, 1)));
   const rankingPages = Math.max(1, Math.ceil(rankingMeta.total / Math.max(rankingMeta.limit, 1)));
@@ -10958,27 +11048,48 @@ function ReferralAdminPage() {
   }
 
   return <section className="task-page referral-admin-page" aria-label="推荐管理">
-    <div className="task-toolbar"><div><p className="eyebrow">Referrals</p><h2>推荐</h2><p className="storage-note">推荐币流水、用户排名与线下提现扣除。昵称相同的用户以账户尾号区分。</p></div><button className="secondary-button" disabled={busy} onClick={refreshAll} type="button"><RefreshCw size={18} /><span>{busy ? "刷新中" : "刷新"}</span></button></div>
+    <div className="task-toolbar"><div><p className="eyebrow">Referrals</p><h2>推荐</h2><p className="storage-note">推荐金流水、用户排名与线下提现扣除。昵称相同的用户以账户尾号区分。</p></div><button className="secondary-button" disabled={busy} onClick={refreshAll} type="button"><RefreshCw size={18} /><span>{busy ? "刷新中" : "刷新"}</span></button></div>
     {error ? <p className="error-note">{error}</p> : null}{notice ? <p className="success-note">{notice}</p> : null}
+
+    <div className="referral-admin-card referral-rate-card">
+      <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Rates</p><h3>推荐金分成比例</h3></div></div>
+      <div className="task-filters">
+        <label className="field-label task-query-field">普通用户分成比例（%）<input max="100" min="0" onChange={(event) => setStandardRatePercent(event.target.value)} step="0.01" type="number" value={standardRatePercent} /></label>
+        <label className="field-label task-query-field">达人分成比例（%）<input max="100" min="0" onChange={(event) => setInfluencerRatePercent(event.target.value)} step="0.01" type="number" value={influencerRatePercent} /></label>
+        <button className="secondary-button" disabled={busy} onClick={saveReferralRates} type="button">保存比例</button>
+      </div>
+      <p className="storage-note">按推荐人的身份与好友实付订单金额计算；历史推荐金流水不会重算。</p>
+    </div>
+
+    <div className="referral-admin-card referral-influencer-card">
+      <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Influencers</p><h3>达人列表</h3></div></div>
+      <div className="task-filters">
+        <label className="search-box"><Search size={18} /><input onChange={(event) => { setInfluencerSearch(event.target.value); setInfluencerCandidates([]); setHasSearchedInfluencers(false); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void searchInfluencerCandidates(); } }} placeholder="搜索昵称、邮箱或账户 ID" value={influencerSearch} /></label>
+        <button className="secondary-button" disabled={busy || !influencerSearch.trim()} onClick={searchInfluencerCandidates} type="button">搜索用户</button>
+      </div>
+      {influencerSearch.trim() ? <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table"><thead><tr><th>匹配用户</th><th>注册信息</th><th /></tr></thead><tbody>{influencerCandidates.map((user) => <tr key={user.id}><td><div className="user-admin-identity"><strong>{identity(user)}</strong><span>{user.email || "微信账户"}</span></div></td><td>{user.registeredAt ? formatDateTime(user.registeredAt) : "—"}</td><td><button className="secondary-button" disabled={busy} onClick={() => addInfluencer(user.id)} type="button">加入达人</button></td></tr>)}{!influencerCandidates.length ? <tr><td colSpan="3" className="order-table-empty">{hasSearchedInfluencers ? "未找到可加入的已注册用户。" : "点击“搜索用户”后显示匹配的已注册用户。"}</td></tr> : null}</tbody></table></div> : <p className="storage-note">输入昵称、邮箱或账户 ID 后搜索，再从匹配结果中加入达人。</p>}
+      <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Current</p><h3>已加入的达人</h3></div></div>
+      <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table"><thead><tr><th>用户</th><th>注册信息</th><th>设为达人时间</th><th /></tr></thead><tbody>{influencers.map((user) => <tr key={user.id}><td><div className="user-admin-identity"><strong>{identity(user)}</strong><span>{user.email || "微信账户"}</span></div></td><td>{user.registeredAt ? formatDateTime(user.registeredAt) : "—"}</td><td>{user.updatedAt ? formatDateTime(user.updatedAt) : "—"}</td><td><button className="danger-button" disabled={busy} onClick={() => removeInfluencer(user.id)} type="button">移出达人</button></td></tr>)}{!influencers.length ? <tr><td colSpan="4" className="order-table-empty">暂未设置达人。</td></tr> : null}</tbody></table></div>
+    </div>
 
     <div className="referral-admin-card referral-ranking-card">
       <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Ranking</p><h3>用户推荐排名</h3></div></div>
-      <div className="task-filters"><label className="search-box"><Search size={18} /><input onChange={(event) => setRankingFilters((current) => ({ ...current, search: event.target.value }))} placeholder="昵称、邮箱或账户 ID" value={rankingFilters.search} /></label><select onChange={(event) => setRankingFilters((current) => ({ ...current, sortBy: event.target.value }))} value={rankingFilters.sortBy}><option value="totalEarned">累计获得推荐币</option><option value="withdrawable">当前可提现推荐币</option><option value="registrations">推荐注册数</option><option value="visits">推荐访问数</option></select><select onChange={(event) => setRankingFilters((current) => ({ ...current, sortDir: event.target.value }))} value={rankingFilters.sortDir}><option value="desc">从高到低</option><option value="asc">从低到高</option></select><button className="secondary-button" onClick={() => loadRankings({}, { page: 1 }).catch((nextError) => setError(nextError.message))} type="button">筛选</button></div>
-      <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table referral-ranking-table"><thead><tr><th>用户</th><th>累计获得推荐币</th><th>当前可提现推荐币</th><th>推荐注册数</th><th>推荐访问数</th><th /></tr></thead><tbody>{rankings.map((item) => <tr key={item.account.id}><td><div className="user-admin-identity"><strong>{identity(item.account)}</strong><span>{item.account.email || "微信账户"}</span></div></td><td>{formatCurrencyCents(item.totalEarnedCents)}</td><td className={item.withdrawableCents < 0 ? "error-note" : ""}>{formatCurrencyCents(item.withdrawableCents)}{item.pendingCents ? <small>预发放 {formatCurrencyCents(item.pendingCents)}</small> : null}</td><td>{item.registeredCount}</td><td>{item.visitCount}</td><td><button className="secondary-button referral-withdraw-button" disabled={item.withdrawableCents <= 0} onClick={() => openWithdrawal(item)} type="button">提现</button></td></tr>)}{!rankings.length ? <tr><td colSpan="6" className="order-table-empty">暂无推荐数据。</td></tr> : null}</tbody></table></div>
+      <div className="task-filters"><label className="search-box"><Search size={18} /><input onChange={(event) => setRankingFilters((current) => ({ ...current, search: event.target.value }))} placeholder="昵称、邮箱或账户 ID" value={rankingFilters.search} /></label><select onChange={(event) => setRankingFilters((current) => ({ ...current, sortBy: event.target.value }))} value={rankingFilters.sortBy}><option value="totalEarned">累计获得推荐金</option><option value="withdrawable">当前可提现推荐金</option><option value="registrations">推荐注册数</option><option value="visits">推荐访问数</option></select><select onChange={(event) => setRankingFilters((current) => ({ ...current, sortDir: event.target.value }))} value={rankingFilters.sortDir}><option value="desc">从高到低</option><option value="asc">从低到高</option></select><button className="secondary-button" onClick={() => loadRankings({}, { page: 1 }).catch((nextError) => setError(nextError.message))} type="button">筛选</button></div>
+      <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table referral-ranking-table"><thead><tr><th>用户</th><th>累计获得推荐金</th><th>当前可提现推荐金</th><th>推荐注册数</th><th>推荐访问数</th><th /></tr></thead><tbody>{rankings.map((item) => <tr key={item.account.id}><td><div className="user-admin-identity"><strong>{identity(item.account)}</strong><span>{item.account.email || "微信账户"}</span></div></td><td>{formatCurrencyCents(item.totalEarnedCents)}</td><td className={item.withdrawableCents < 0 ? "error-note" : ""}>{formatCurrencyCents(item.withdrawableCents)}{item.pendingCents ? <small>预发放 {formatCurrencyCents(item.pendingCents)}</small> : null}</td><td>{item.registeredCount}</td><td>{item.visitCount}</td><td><button className="secondary-button referral-withdraw-button" disabled={item.withdrawableCents <= 0} onClick={() => openWithdrawal(item)} type="button">提现</button></td></tr>)}{!rankings.length ? <tr><td colSpan="6" className="order-table-empty">暂无推荐数据。</td></tr> : null}</tbody></table></div>
       <div className="task-pagination"><p className="storage-note">共 {rankingMeta.total} 位，当前第 {rankingMeta.page} / {rankingPages} 页。</p><div className="task-pagination-actions"><button className="secondary-button" disabled={rankingMeta.page <= 1} onClick={() => loadRankings({}, { page: rankingMeta.page - 1 }).catch((nextError) => setError(nextError.message))} type="button">上一页</button><button className="secondary-button" disabled={rankingMeta.page >= rankingPages} onClick={() => loadRankings({}, { page: rankingMeta.page + 1 }).catch((nextError) => setError(nextError.message))} type="button">下一页</button></div></div>
     </div>
 
     <div className="referral-admin-card referral-ledger-card">
       <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Ledger</p><h3>推荐明细</h3></div></div>
       <div className="task-filters"><label className="search-box"><Search size={18} /><input onChange={(event) => setLedgerFilters((current) => ({ ...current, search: event.target.value }))} placeholder="推荐人、受邀用户、邮箱或 ID" value={ledgerFilters.search} /></label><select onChange={(event) => setLedgerFilters((current) => ({ ...current, type: event.target.value }))} value={ledgerFilters.type}><option value="">全部类型</option><option value="referral_payment_reward">订单推荐奖励</option><option value="referral_payment_refund_reversal">退款扣回</option><option value="referral_withdrawal">提现扣除</option></select><select onChange={(event) => setLedgerFilters((current) => ({ ...current, status: event.target.value }))} value={ledgerFilters.status}><option value="">全部状态</option><option value="available">可提现</option><option value="pending">预发放</option></select><select onChange={(event) => setLedgerFilters((current) => ({ ...current, sortBy: event.target.value }))} value={ledgerFilters.sortBy}><option value="createdAt">按时间</option><option value="amount">按金额</option><option value="balance">按余额</option></select><select onChange={(event) => setLedgerFilters((current) => ({ ...current, sortDir: event.target.value }))} value={ledgerFilters.sortDir}><option value="desc">从高到低</option><option value="asc">从低到高</option></select><label className="field-label task-query-field">开始日期<input onChange={(event) => setLedgerFilters((current) => ({ ...current, startDate: event.target.value }))} type="date" value={ledgerFilters.startDate} /></label><label className="field-label task-query-field">结束日期<input onChange={(event) => setLedgerFilters((current) => ({ ...current, endDate: event.target.value }))} type="date" value={ledgerFilters.endDate} /></label><button className="secondary-button" onClick={() => loadLedger({}, { page: 1 }).catch((nextError) => setError(nextError.message))} type="button">筛选</button></div>
-      <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table referral-ledger-table"><thead><tr><th>时间</th><th>推荐人</th><th>受邀用户</th><th>事件</th><th>关联订单</th><th>变动</th><th>状态 / 余额</th><th>备注</th></tr></thead><tbody>{ledger.map((item) => <tr key={item.id}><td className="user-admin-date">{formatDateTime(item.createdAt)}</td><td>{identity(item.account)}</td><td>{identity(item.invitee)}</td><td>{reasonLabel(item.reason)}</td><td>{item.paymentKind ? `${item.paymentKind} · ${formatCurrencyCents(item.orderAmountCents)}` : "—"}</td><td className={item.deltaCents < 0 ? "error-note" : "success-note"}>{item.deltaCents < 0 ? "" : "+"}{formatCurrencyCents(item.deltaCents)}</td><td>{item.status === "pending" ? "预发放" : "可提现"}<small>{formatCurrencyCents(item.balanceAfterCents)}</small></td><td title={item.note}>{item.note || "—"}</td></tr>)}{!ledger.length ? <tr><td colSpan="8" className="order-table-empty">暂无推荐币流水。</td></tr> : null}</tbody></table></div>
+      <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table referral-ledger-table"><thead><tr><th>时间</th><th>推荐人</th><th>受邀用户</th><th>事件</th><th>关联订单</th><th>变动</th><th>状态 / 余额</th><th>备注</th></tr></thead><tbody>{ledger.map((item) => <tr key={item.id}><td className="user-admin-date">{formatDateTime(item.createdAt)}</td><td>{identity(item.account)}</td><td>{identity(item.invitee)}</td><td>{reasonLabel(item.reason)}</td><td>{item.paymentKind ? `${item.paymentKind} · ${formatCurrencyCents(item.orderAmountCents)}` : "—"}</td><td className={item.deltaCents < 0 ? "error-note" : "success-note"}>{item.deltaCents < 0 ? "" : "+"}{formatCurrencyCents(item.deltaCents)}</td><td>{item.status === "pending" ? "预发放" : "可提现"}<small>{formatCurrencyCents(item.balanceAfterCents)}</small></td><td title={item.note}>{item.note || "—"}</td></tr>)}{!ledger.length ? <tr><td colSpan="8" className="order-table-empty">暂无推荐金流水。</td></tr> : null}</tbody></table></div>
       <div className="task-pagination"><p className="storage-note">共 {ledgerMeta.total} 条，当前第 {ledgerMeta.page} / {ledgerPages} 页。</p><div className="task-pagination-actions"><button className="secondary-button" disabled={ledgerMeta.page <= 1} onClick={() => loadLedger({}, { page: ledgerMeta.page - 1 }).catch((nextError) => setError(nextError.message))} type="button">上一页</button><button className="secondary-button" disabled={ledgerMeta.page >= ledgerPages} onClick={() => loadLedger({}, { page: ledgerMeta.page + 1 }).catch((nextError) => setError(nextError.message))} type="button">下一页</button></div></div>
     </div>
     {withdrawalTarget ? <div className="modal-backdrop referral-withdrawal-backdrop" onClick={() => !busy && setWithdrawalTarget(null)} role="presentation">
-      <section className="prompt-modal referral-withdrawal-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="扣除推荐币">
-        <div className="modal-head"><div><p className="eyebrow">Withdrawal</p><h2>扣除推荐币</h2></div><button className="icon-button" disabled={busy} onClick={() => setWithdrawalTarget(null)} type="button"><X size={18} /></button></div>
+      <section className="prompt-modal referral-withdrawal-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="扣除推荐金">
+        <div className="modal-head"><div><p className="eyebrow">Withdrawal</p><h2>扣除推荐金</h2></div><button className="icon-button" disabled={busy} onClick={() => setWithdrawalTarget(null)} type="button"><X size={18} /></button></div>
         <div className="referral-withdrawal-user"><strong>{identity(withdrawalTarget.account)}</strong><span>当前可提现 {formatCurrencyCents(withdrawalTarget.withdrawableCents)}{withdrawalTarget.pendingCents ? ` · 预发放 ${formatCurrencyCents(withdrawalTarget.pendingCents)}` : ""}</span></div>
-        <label className="field-label">扣除推荐币数量（元）<input autoFocus max={Math.max(0, Number(withdrawalTarget.withdrawableCents || 0)) / 100} min="0.01" onChange={(event) => setWithdrawal((current) => ({ ...current, amountYuan: event.target.value }))} step="0.01" type="number" value={withdrawal.amountYuan} /></label>
+        <label className="field-label">扣除推荐金金额（元）<input autoFocus max={Math.max(0, Number(withdrawalTarget.withdrawableCents || 0)) / 100} min="0.01" onChange={(event) => setWithdrawal((current) => ({ ...current, amountYuan: event.target.value }))} step="0.01" type="number" value={withdrawal.amountYuan} /></label>
         <label className="field-label">备注<textarea onChange={(event) => setWithdrawal((current) => ({ ...current, note: event.target.value }))} placeholder="例如：微信转账，流水号 xxx" rows="3" value={withdrawal.note} /></label>
         <div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={() => setWithdrawalTarget(null)} type="button">取消</button><button className="draw-card-primary" disabled={busy || !Number(withdrawal.amountYuan) || !withdrawal.note.trim()} onClick={submitWithdrawal} type="button">确认扣除</button></div>
       </section>

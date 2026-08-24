@@ -45,6 +45,7 @@ function mapAccount(row) {
     beanBalance: Number(row.bean_balance || 0),
     referralBalanceCents: Number(row.referral_balance_cents || 0),
     referralPendingCents: Number(row.referral_pending_cents || 0),
+    isReferralInfluencer: String(row.referral_role || "standard") === "influencer",
     originalDownloadsUnlockedAt: row.original_downloads_unlocked_at || null,
     email: String(row.email || ""),
     username: String(row.username || ""),
@@ -101,6 +102,7 @@ export function createCommerceStore({ dbPath }) {
   const directory = path.dirname(dbPath);
   if (!existsSync(directory)) mkdirSync(directory, { recursive: true });
   const db = new DatabaseSync(dbPath);
+  let referralRates = { standardRateBps: 2000, influencerRateBps: 2000 };
 
   db.exec(`
     PRAGMA journal_mode = WAL;
@@ -114,6 +116,7 @@ export function createCommerceStore({ dbPath }) {
       bean_balance INTEGER NOT NULL DEFAULT 0,
       referral_balance_cents INTEGER NOT NULL DEFAULT 0,
       referral_pending_cents INTEGER NOT NULL DEFAULT 0,
+      referral_role TEXT NOT NULL DEFAULT 'standard',
       original_downloads_unlocked_at TEXT,
       wechat_nickname TEXT NOT NULL DEFAULT '',
       wechat_avatar_url TEXT NOT NULL DEFAULT '',
@@ -442,6 +445,7 @@ export function createCommerceStore({ dbPath }) {
   const addedBeanBalance = ensureAccountColumn("bean_balance", "bean_balance INTEGER NOT NULL DEFAULT 0");
   ensureAccountColumn("referral_balance_cents", "referral_balance_cents INTEGER NOT NULL DEFAULT 0");
   const addedReferralPendingBalance = ensureAccountColumn("referral_pending_cents", "referral_pending_cents INTEGER NOT NULL DEFAULT 0");
+  ensureAccountColumn("referral_role", "referral_role TEXT NOT NULL DEFAULT 'standard'");
   const paymentIntentColumns = db.prepare("PRAGMA table_info(commerce_payment_intents)").all();
   if (!paymentIntentColumns.some((column) => String(column.name || "") === "user_deleted_at")) {
     db.exec("ALTER TABLE commerce_payment_intents ADD COLUMN user_deleted_at TEXT");
@@ -617,6 +621,18 @@ export function createCommerceStore({ dbPath }) {
       + Math.max(0, Number(totals.bean_total || 0) - getManualRechargeRefundCents(accountId, "bean"));
   }
 
+  function getPaidVirtualDownloadAllowanceCount(accountId, currency) {
+    const kind = currency === "bean" ? "bean_purchase" : "coin_purchase";
+    const purchasedUnits = Number(db.prepare(`
+      SELECT COALESCE(SUM(credit_amount), 0) AS total
+      FROM commerce_payment_intents
+      WHERE account_id = ? AND kind = ? AND status = 'paid'
+    `).get(String(accountId || ""), kind)?.total || 0);
+    // Manual recharge refunds are stored as refunded wallet quantity × 100.
+    const refundedUnits = Math.floor(getManualRechargeRefundCents(accountId, currency) / 100);
+    return Math.max(0, purchasedUnits - refundedUnits);
+  }
+
   function hasOriginalImageDownloadAccess(accountId) {
     return getPaidOriginalDownloadCents(accountId) >= ORIGINAL_IMAGE_DOWNLOAD_UNLOCK_CENTS;
   }
@@ -635,7 +651,19 @@ export function createCommerceStore({ dbPath }) {
       return { paidCents, unlimited: true, total: null, used: 0, remaining: null, adjustment: getOriginalDownloadAllowanceAdjustment(accountId) };
     }
     const adjustment = getOriginalDownloadAllowanceAdjustment(accountId);
-    const total = Math.max(0, Math.floor(paidCents / 100) + adjustment);
+    const physicalCents = Number(db.prepare(`
+      SELECT COALESCE(SUM(amount_cents), 0) AS total
+      FROM commerce_payment_intents
+      WHERE account_id = ?
+        AND kind IN ('physical_order', 'body_book_order')
+        AND status = 'paid'
+    `).get(String(accountId || ""))?.total || 0);
+    const total = Math.max(0,
+      Math.floor(physicalCents / 100)
+      + getPaidVirtualDownloadAllowanceCount(accountId, "coin")
+      + getPaidVirtualDownloadAllowanceCount(accountId, "bean")
+      + adjustment
+    );
     const used = Number(db.prepare(`
       SELECT COUNT(*) AS total FROM commerce_original_download_uses WHERE account_id = ?
     `).get(String(accountId || ""))?.total || 0);
@@ -1401,15 +1429,18 @@ export function createCommerceStore({ dbPath }) {
   function rewardReferralPayment(intent) {
     const supportedKinds = new Set(["physical_order", "body_book_order", "coin_purchase", "bean_purchase"]);
     if (!supportedKinds.has(String(intent?.kind || ""))) return null;
-    const rewardCents = Math.floor(Math.max(0, Number(intent?.amountCents || 0)) * 0.2);
-    if (rewardCents <= 0) return null;
     const referral = readReferralByInviteeStatement.get(String(intent.accountId || ""));
     if (!referral?.registered_at) return null;
+    const referrer = readAccount(String(referral.referrer_account_id || ""));
+    if (!referrer) return null;
+    const rateBps = referrer.isReferralInfluencer ? referralRates.influencerRateBps : referralRates.standardRateBps;
+    const rewardCents = Math.floor(Math.max(0, Number(intent?.amountCents || 0)) * Math.max(0, Number(rateBps || 0)) / 10000);
+    if (rewardCents <= 0) return null;
     return appendReferralLedger(String(referral.referrer_account_id || ""), rewardCents, {
       reason: "referral_payment_reward",
       referenceType: "payment_intent",
       referenceId: intent.id,
-      note: `好友实付订单奖励 ${rewardCents} 分推荐币`,
+      note: `好友实付订单奖励 ${rewardCents} 分推荐金`,
       // 虚拟币/豆豆购买在支付到账时即完成；实体商品须等订单标记为已完成。
       status: ["physical_order", "body_book_order"].includes(String(intent.kind || "")) ? "pending" : "available"
     });
@@ -1466,7 +1497,7 @@ export function createCommerceStore({ dbPath }) {
       reason: "referral_payment_refund_reversal",
       referenceType: "payment_refund_reversal",
       referenceId: String(intent.id),
-      note: `关联订单退款，扣回推荐币 ${Math.abs(Number(original.delta_cents || 0))} 分`,
+      note: `关联订单退款，扣回推荐金 ${Math.abs(Number(original.delta_cents || 0))} 分`,
       status: String(original.status || "available") === "pending" ? "pending" : "available"
     });
   }
@@ -1515,7 +1546,7 @@ export function createCommerceStore({ dbPath }) {
       const account = readAccount(accountId);
       if (!account) throw new Error("账户不存在。");
       if (Number(account.referralBalanceCents || 0) < amount) {
-        const error = new Error("可提现推荐币余额不足。");
+        const error = new Error("可提现推荐金余额不足。");
         error.code = "INSUFFICIENT_REFERRAL_BALANCE";
         throw error;
       }
@@ -1970,6 +2001,31 @@ export function createCommerceStore({ dbPath }) {
       });
       return getRedemptionEntitlementSummary(account.id);
     });
+  }
+
+  function configureReferralRates({ standardRateBps, influencerRateBps } = {}) {
+    referralRates = {
+      standardRateBps: Math.min(10000, Math.max(0, Math.round(Number(standardRateBps ?? referralRates.standardRateBps) || 0))),
+      influencerRateBps: Math.min(10000, Math.max(0, Math.round(Number(influencerRateBps ?? referralRates.influencerRateBps) || 0)))
+    };
+    return { ...referralRates };
+  }
+
+  function setReferralInfluencer(accountId, enabled) {
+    const account = readAccount(accountId);
+    if (!account?.isRegistered) return null;
+    db.prepare("UPDATE commerce_accounts SET referral_role = ?, updated_at = ? WHERE id = ?")
+      .run(enabled ? "influencer" : "standard", nowIso(), account.id);
+    return readAccount(account.id);
+  }
+
+  function listReferralInfluencers() {
+    return db.prepare(`
+      SELECT * FROM commerce_accounts
+      WHERE referral_role = 'influencer'
+        AND registered_at IS NOT NULL
+      ORDER BY updated_at DESC, id ASC
+    `).all().map(mapAccount);
   }
 
   function adjustRedemptionEntitlement({ accountId, entitlementType, delta, note = "", referenceId = "" }) {
@@ -2553,6 +2609,9 @@ export function createCommerceStore({ dbPath }) {
     getOrCreateReferralLink,
     resolveReferralLink,
     getReferralSummary,
+    configureReferralRates,
+    setReferralInfluencer,
+    listReferralInfluencers,
     listAdminReferralLedger,
     listAdminReferralRankings,
     recordReferralVisit,
