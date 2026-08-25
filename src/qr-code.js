@@ -75,7 +75,7 @@ function splitCaptionLines(context, text, maxWidth) {
   return lines;
 }
 
-export async function downloadLabeledQrPng(text, label, filename, options = {}) {
+export async function createLabeledQrPngDataUrl(text, label, options = {}) {
   const pixelSize = Math.max(512, Number(options.pixelSize || 1024));
   const outerPadding = Math.round(pixelSize * 0.055);
   const qrSize = pixelSize - outerPadding * 2;
@@ -110,8 +110,22 @@ export async function downloadLabeledQrPng(text, label, filename, options = {}) 
     context.textBaseline = "top";
     lines.forEach((line, index) => context.fillText(line, pixelSize / 2, pixelSize + captionTop + lineHeight * index));
   }
-  const blob = await new Promise((resolve, reject) => {
-    canvas.toBlob((value) => (value ? resolve(value) : reject(new Error("生成风格码失败。"))), "image/png");
+  return await new Promise((resolve, reject) => {
+    canvas.toBlob((value) => {
+      if (!value) {
+        reject(new Error("生成风格码失败。"));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error("生成风格码失败。"));
+      reader.readAsDataURL(value);
+    }, "image/png");
   });
-  downloadBlob(blob, filename);
+}
+
+export async function downloadLabeledQrPng(text, label, filename, options = {}) {
+  const dataUrl = await createLabeledQrPngDataUrl(text, label, options);
+  const response = await fetch(dataUrl);
+  downloadBlob(await response.blob(), filename);
 }

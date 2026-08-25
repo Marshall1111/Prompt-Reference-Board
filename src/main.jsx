@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, QrCode, RefreshCw, Save, Search, Settings, Share2, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import HTMLFlipBook from "react-pageflip";
-import { createQrSvgDataUrl, downloadLabeledQrPng, downloadQrPng, downloadQrSvg } from "./qr-code";
+import { createLabeledQrPngDataUrl, createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
 import "./styles.css";
 
 const DEFAULT_CONTACT_WECHAT_ID = "PetPaint";
@@ -6772,15 +6772,18 @@ function makeSameStyleUrl(styleId) {
   return url.toString();
 }
 
-async function downloadStyleQrCode(style) {
+async function createStyleQrPreview(style) {
   const styleId = String(style?.id || "").trim();
   const styleName = getStyleDisplayName(style);
   if (!styleId || !styleName) throw new Error("风格信息不完整，无法生成风格码。");
-  await downloadLabeledQrPng(makeSameStyleUrl(styleId), styleName, `style-${styleId}-qr.png`, {
+  return {
+    styleName,
+    dataUrl: await createLabeledQrPngDataUrl(makeSameStyleUrl(styleId), styleName, {
     errorCorrectionLevel: "H",
     margin: 4,
     pixelSize: 1024
-  });
+    })
+  };
 }
 
 function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles, onReorderStyles, onStyleChange, onUploadImage, onViewPrompt, searchQuery, onSearchChange, styles }) {
@@ -6790,6 +6793,7 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
   const [editingId, setEditingId] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState("");
   const [actionError, setActionError] = useState("");
+  const [styleQrPreview, setStyleQrPreview] = useState(null);
   const hasRefreshedStyles = useRef(false);
   const { visibleItems, canLoadMore, sentinelRef, loadMore } = useProgressiveItems(styles, {
     initialCount: GALLERY_INITIAL_BATCH,
@@ -6881,7 +6885,7 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
   async function handleDownloadStyleQr(style) {
     setActionError("");
     try {
-      await downloadStyleQrCode(style);
+      setStyleQrPreview(await createStyleQrPreview(style));
     } catch (error) {
       setActionError(error.message || "下载风格码失败，请稍后再试。");
     }
@@ -6976,6 +6980,15 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
           {canLoadMore ? <button className="progressive-loader" onClick={loadMore} ref={sentinelRef} type="button">Load more styles</button> : null}
         </div>
       </section>
+
+      {styleQrPreview ? <div className="modal-backdrop style-qr-preview-backdrop" onClick={() => setStyleQrPreview(null)} role="presentation">
+        <section aria-label={`${styleQrPreview.styleName}风格码`} aria-modal="true" className="style-qr-preview-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+          <button aria-label="关闭风格码预览" className="icon-button" onClick={() => setStyleQrPreview(null)} type="button"><X size={18} /></button>
+          <h2>{styleQrPreview.styleName}</h2>
+          <img alt={`${styleQrPreview.styleName}风格码`} className="style-qr-preview-image" src={styleQrPreview.dataUrl} />
+          <p className="storage-note">请长按二维码保存到手机，或在电脑上右键保存图片。</p>
+        </section>
+      </div> : null}
 
       {activeEditingStyle && activeDraft ? (
         <div className="modal-backdrop" onClick={() => setEditingId("")} role="presentation">
@@ -7698,6 +7711,7 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [styleQrPreview, setStyleQrPreview] = useState(null);
   const [editingJob, setEditingJob] = useState(null);
   const [previewingJob, setPreviewingJob] = useState(null);
   const [replacingStylePreviewKey, setReplacingStylePreviewKey] = useState("");
@@ -7772,7 +7786,7 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
   async function handleDownloadStyleQr(styleMatch) {
     setError("");
     try {
-      await downloadStyleQrCode(styleMatch);
+      setStyleQrPreview(await createStyleQrPreview(styleMatch));
     } catch (nextError) {
       setError(nextError.message || "下载风格码失败，请稍后再试。");
     }
@@ -8000,6 +8014,14 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
           </button>
         </div>
       </div>
+      {styleQrPreview ? <div className="modal-backdrop style-qr-preview-backdrop" onClick={() => setStyleQrPreview(null)} role="presentation">
+        <section aria-label={`${styleQrPreview.styleName}风格码`} aria-modal="true" className="style-qr-preview-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+          <button aria-label="关闭风格码预览" className="icon-button" onClick={() => setStyleQrPreview(null)} type="button"><X size={18} /></button>
+          <h2>{styleQrPreview.styleName}</h2>
+          <img alt={`${styleQrPreview.styleName}风格码`} className="style-qr-preview-image" src={styleQrPreview.dataUrl} />
+          <p className="storage-note">请长按二维码保存到手机，或在电脑上右键保存图片。</p>
+        </section>
+      </div> : null}
       {editingJob && <JobEditModal job={editingJob} onClose={() => setEditingJob(null)} />}
       {previewingJob ? <div className="modal-backdrop" onClick={() => setPreviewingJob(null)} role="presentation">
         <section aria-label="生成图片预览" aria-modal="true" className="prompt-modal image-job-preview-modal" onClick={(event) => event.stopPropagation()} role="dialog">

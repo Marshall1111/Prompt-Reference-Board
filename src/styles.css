@@ -6626,6 +6626,42 @@ textarea {
   overflow: auto;
 }
 
+.style-qr-preview-modal {
+  display: grid;
+  gap: 14px;
+  width: min(540px, 100%);
+  max-height: 92vh;
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid #d9e1de;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #263532;
+  box-shadow: 0 24px 70px rgba(24, 32, 34, 0.24);
+}
+
+.style-qr-preview-modal .icon-button {
+  justify-self: end;
+}
+
+.style-qr-preview-modal h2 {
+  margin: 0;
+  text-align: center;
+}
+
+.style-qr-preview-image {
+  display: block;
+  width: min(100%, 460px);
+  height: auto;
+  margin: 0 auto;
+  user-select: none;
+}
+
+.style-qr-preview-modal .storage-note {
+  margin: 0;
+  text-align: center;
+}
+
 .image-job-preview-modal {
   position: relative;
   width: min(960px, 100%);
