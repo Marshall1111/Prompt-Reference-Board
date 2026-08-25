@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, QrCode, RefreshCw, Save, Search, Settings, Share2, Sparkles, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import HTMLFlipBook from "react-pageflip";
-import { createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
+import { createQrSvgDataUrl, downloadLabeledQrPng, downloadQrPng, downloadQrSvg } from "./qr-code";
 import "./styles.css";
 
 const DEFAULT_CONTACT_WECHAT_ID = "PetPaint";
@@ -4553,7 +4553,9 @@ function PublicExperiencePage({ config }) {
   const [stylePickerError, setStylePickerError] = useState("");
   const [isLoadingStylePicker, setIsLoadingStylePicker] = useState(false);
   const [sharedStyleId, setSharedStyleId] = useState(() => experienceType === "draw-card" ? String(new URLSearchParams(window.location.search).get("styleId") || "").trim() : "");
+  const [linkedSameStyleId] = useState(() => experienceType === "draw-card" ? String(new URLSearchParams(window.location.search).get("sameStyleId") || "").trim() : "");
   const sharedStylePickerOpenedRef = useRef(false);
+  const linkedSameStylePickerOpenedRef = useRef(false);
   const resultMediaRefs = useRef(new Map());
   const cardClipPanelRef = useRef(null);
   const userMenuRef = useRef(null);
@@ -4924,6 +4926,17 @@ function PublicExperiencePage({ config }) {
 
     void openStylePicker();
   }, [experienceType, sharedStyleId]);
+
+  useEffect(() => {
+    if (experienceType !== "draw-card" || !linkedSameStyleId || linkedSameStylePickerOpenedRef.current) return;
+    linkedSameStylePickerOpenedRef.current = true;
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("sameStyleId");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+
+    void openStylePicker({ sameStyleId: linkedSameStyleId });
+  }, [experienceType, linkedSameStyleId]);
 
   useEffect(() => {
     if (!sharedStyleId || !stylePickerStyles.length) return;
@@ -6751,6 +6764,25 @@ function getStyleDisplayName(style) {
   return String(style?.title || style?.name || getStyleTags(style).join("、") || style?.id || "").trim();
 }
 
+function makeSameStyleUrl(styleId) {
+  const safeStyleId = String(styleId || "").trim();
+  if (!safeStyleId) throw new Error("风格 ID 无效，无法生成风格码。");
+  const url = new URL("/", window.location.origin);
+  url.searchParams.set("sameStyleId", safeStyleId);
+  return url.toString();
+}
+
+async function downloadStyleQrCode(style) {
+  const styleId = String(style?.id || "").trim();
+  const styleName = getStyleDisplayName(style);
+  if (!styleId || !styleName) throw new Error("风格信息不完整，无法生成风格码。");
+  await downloadLabeledQrPng(makeSameStyleUrl(styleId), styleName, `style-${styleId}-qr.png`, {
+    errorCorrectionLevel: "H",
+    margin: 4,
+    pixelSize: 1024
+  });
+}
+
 function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles, onReorderStyles, onStyleChange, onUploadImage, onViewPrompt, searchQuery, onSearchChange, styles }) {
   const [drafts, setDrafts] = useState({});
   const [savingId, setSavingId] = useState("");
@@ -6846,6 +6878,15 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
     await onDeleteStyle(style.id);
   }
 
+  async function handleDownloadStyleQr(style) {
+    setActionError("");
+    try {
+      await downloadStyleQrCode(style);
+    } catch (error) {
+      setActionError(error.message || "下载风格码失败，请稍后再试。");
+    }
+  }
+
   function dropStyle(targetId) {
     if (!draggingId || draggingId === targetId) return;
     const nextIds = styles.map((style) => style.id);
@@ -6924,6 +6965,10 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
                     <Sparkles size={18} />
                     <span>AI 生图</span>
                   </button>
+                  {style.drawCardEnabled !== false ? <button aria-label="下载风格码" className="secondary-button" onClick={() => handleDownloadStyleQr(style)} type="button">
+                    <QrCode size={18} />
+                    <span>下载风格码</span>
+                  </button> : null}
                 </div>
               </article>
             );
@@ -7724,6 +7769,15 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
     }
   }
 
+  async function handleDownloadStyleQr(styleMatch) {
+    setError("");
+    try {
+      await downloadStyleQrCode(styleMatch);
+    } catch (nextError) {
+      setError(nextError.message || "下载风格码失败，请稍后再试。");
+    }
+  }
+
   useEffect(() => {
     let isActive = true;
     async function loadActiveJobs(showLoading = false) {
@@ -7858,6 +7912,7 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
           const imageSource = job.result?.previewUrl || job.result?.thumbnailUrl || job.result?.imageDataUrl || job.result?.imageUrl;
           const providerDiagnostics = formatImageJobProviderDiagnostics(job);
           const stylePreviewMatch = job.stylePreviewMatch;
+          const styleQrMatch = stylePreviewMatch?.drawCardEnabled ? stylePreviewMatch : null;
           return (
             <article className={`task-card ${job.isLiked ? "is-liked" : ""}`} key={job.jobId}>
               <div className={`task-status ${job.status}`}>{statusLabel(job.status)}</div>
@@ -7903,6 +7958,10 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
                   <Download size={18} />
                   <span>下载</span>
                 </button>
+                {styleQrMatch ? <button className="secondary-button" onClick={() => handleDownloadStyleQr(styleQrMatch)} type="button">
+                  <QrCode size={18} />
+                  <span>下载风格码</span>
+                </button> : null}
                 {stylePreviewMatch ? <>
                   <button className="secondary-button" disabled={!job.result?.imageUrl || Boolean(replacingStylePreviewKey)} onClick={() => replaceStylePreview(job, "person")} type="button">
                     {replacingStylePreviewKey === `${job.jobId}:person` ? <LoaderCircle className="spin" size={18} /> : <ImageUp size={18} />}

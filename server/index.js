@@ -13707,7 +13707,8 @@ async function queryImageJobs(options = {}) {
           ? {
               id: String(matchedStyle.id || ""),
               name: formatStyleName(matchedStyle),
-              subjectType: normalizeStyleSubjectType(matchedStyle.subjectType, matchedStyle)
+              subjectType: normalizeStyleSubjectType(matchedStyle.subjectType, matchedStyle),
+              drawCardEnabled: normalizeDrawCardEnabled(matchedStyle.drawCardEnabled, true)
             }
           : null
       };
