@@ -4549,6 +4549,7 @@ function PublicExperiencePage({ config }) {
   const [stylePickerStyles, setStylePickerStyles] = useState([]);
   const [stylePickerSubjectTab, setStylePickerSubjectTab] = useState("person");
   const [selectedStyleIds, setSelectedStyleIds] = useState([]);
+  const [sameStyleId, setSameStyleId] = useState("");
   const [stylePickerError, setStylePickerError] = useState("");
   const [isLoadingStylePicker, setIsLoadingStylePicker] = useState(false);
   const [sharedStyleId, setSharedStyleId] = useState(() => experienceType === "draw-card" ? String(new URLSearchParams(window.location.search).get("styleId") || "").trim() : "");
@@ -4844,10 +4845,24 @@ function PublicExperiencePage({ config }) {
     }
   }
 
-  async function openStylePicker() {
+  async function openStylePicker(options = {}) {
     if (isGenerationInProgress || isSubmitting || isRestoringSessionReference) return;
+    const lockedStyleId = String(options.sameStyleId || "").trim();
+    const isSameStyleMode = Boolean(lockedStyleId);
+
+    if (isSameStyleMode) {
+      const cachedStyle = stylePickerStyles.find((style) => String(style.id) === lockedStyleId);
+      setSameStyleId(lockedStyleId);
+      setSelectedStyleIds([cachedStyle?.id || lockedStyleId]);
+      // “做同款”必须使用一张新照片，不能沿用原任务的参考图。
+      setReferenceFile(null);
+      setReferenceSessionId("");
+    } else {
+      setSameStyleId("");
+    }
+
     const needsCurrentSessionReference = Boolean(sessionId && referenceSessionId !== sessionId);
-    if (needsCurrentSessionReference) {
+    if (!isSameStyleMode && needsCurrentSessionReference) {
       if (experienceType !== "draw-card" || !sessionId) {
         window.alert("请先上传参考图");
         return;
@@ -4863,7 +4878,7 @@ function PublicExperiencePage({ config }) {
       } finally {
         setIsRestoringSessionReference(false);
       }
-    } else if (!referenceFile && experienceType !== "draw-card") {
+    } else if (!isSameStyleMode && !referenceFile && experienceType !== "draw-card") {
       window.alert("请先上传参考图");
       return;
     }
@@ -4872,12 +4887,17 @@ function PublicExperiencePage({ config }) {
     window.scrollTo(0, 0);
     setError("");
     setStylePickerError("");
-    if (stylePickerStyles.length || isLoadingStylePicker || experienceType !== "draw-card") return;
+    if ((!isSameStyleMode && stylePickerStyles.length) || isLoadingStylePicker || experienceType !== "draw-card") return;
 
     setIsLoadingStylePicker(true);
     try {
       const payload = await fetchPublicDrawCardStyles();
-      setStylePickerStyles(Array.isArray(payload.styles) ? payload.styles : []);
+      const nextStyles = Array.isArray(payload.styles) ? payload.styles : [];
+      setStylePickerStyles(nextStyles);
+      if (isSameStyleMode) {
+        const lockedStyle = nextStyles.find((style) => String(style.id) === lockedStyleId);
+        setSelectedStyleIds(lockedStyle ? [lockedStyle.id] : [lockedStyleId]);
+      }
     } catch (nextError) {
       setStylePickerError(nextError.message || "读取抽卡风格失败，请稍后再试。");
     } finally {
@@ -5201,6 +5221,11 @@ function PublicExperiencePage({ config }) {
     return selectedStyleIds.map((styleId) => styleById.get(styleId)).filter(Boolean);
   }, [selectedStyleIds, stylePickerStyles]);
 
+  const lockedSameStyle = sameStyleId
+    ? stylePickerStyles.find((style) => String(style.id) === sameStyleId) || null
+    : null;
+  const isSameStyleUnavailable = Boolean(sameStyleId) && !isLoadingStylePicker && !lockedSameStyle;
+
   const stylePickerStylesBySubject = useMemo(() => ({
     person: stylePickerStyles.filter((style) => {
       const subjectType = String(style.subjectType || "both");
@@ -5215,6 +5240,7 @@ function PublicExperiencePage({ config }) {
   const isDrawCardExperience = experienceType === "draw-card";
   const canStart = Boolean(referenceFile) && !isSubmitting;
   const canStartCustomDraw = selectedStyleIds.length > 0 && !isSubmitting;
+  const canStartSameStyleDraw = Boolean(referenceFile) && Boolean(lockedSameStyle) && !isLoadingStylePicker && !isSubmitting;
   const activeResult = activeResultIndex >= 0 ? toDisplayResult(displayItems[activeResultIndex]) : activeResultIndex === -3 ? activeClipPreview : null;
   const succeededCount = Number(session?.summary?.succeeded ?? displayItems.filter((item) => item.status === "succeeded").length);
   const totalCount = Number(session?.summary?.total ?? displayItems.length);
@@ -5251,6 +5277,8 @@ function PublicExperiencePage({ config }) {
     setActiveClipPreview(null);
     setFlyingCard(null);
     setClipReceiving(false);
+    setSameStyleId("");
+    setSelectedStyleIds([]);
     setStylePickerError("");
     setShowDrawConfigModal(false);
     resultMediaRefs.current.clear();
@@ -5394,6 +5422,13 @@ function PublicExperiencePage({ config }) {
       }
       return [...current, styleId];
     });
+  }
+
+  function openSameStyle(styleId) {
+    const safeStyleId = String(styleId || "").trim();
+    if (!safeStyleId || isGenerationInProgress || isSubmitting) return;
+    closeActivePreview();
+    void openStylePicker({ sameStyleId: safeStyleId });
   }
 
   async function startDrawCard(options = {}) {
@@ -6076,13 +6111,17 @@ function PublicExperiencePage({ config }) {
             <div className="draw-card-style-picker-head">
               <div>
                 <p className="draw-card-kicker">Custom selection</p>
-                <h2>让有意义的照片更精美</h2>
+                <h2>{sameStyleId ? "做同款" : "让有意义的照片更精美"}</h2>
                 <div className="draw-card-style-picker-actions">
                   <button
                     className="draw-card-utility-link draw-card-style-picker-back-button"
                     onClick={() => {
                       setError("");
                       setStylePickerError("");
+                      if (sameStyleId) {
+                        setSameStyleId("");
+                        setSelectedStyleIds([]);
+                      }
                       setPhase(referenceFile ? "ready" : "idle");
                     }}
                     type="button"
@@ -6104,7 +6143,7 @@ function PublicExperiencePage({ config }) {
                     <div className="draw-card-upload-empty">
                       <ImageUp size={20} />
                       <strong>上传 1 张图片</strong>
-                      <span>可先挑风格，再上传图片</span>
+                      <span>{sameStyleId ? "上传一张新照片，制作同款" : "可先挑风格，再上传图片"}</span>
                     </div>
                   )}
                   <input
@@ -6119,26 +6158,27 @@ function PublicExperiencePage({ config }) {
                 </label>
 
                 <div className="draw-card-style-picker-summary">
-                  <div className="draw-card-style-picker-count">已选 {selectedStyleIds.length} / {MAX_PUBLIC_STYLE_SELECTION}</div>
-                  <p className="draw-card-meta-note">每次最多选择 {MAX_PUBLIC_STYLE_SELECTION} 种风格。成功几张扣几币，失败结果不扣币。</p>
+                  <div className="draw-card-style-picker-count">{sameStyleId ? "已锁定同款风格" : `已选 ${selectedStyleIds.length} / ${MAX_PUBLIC_STYLE_SELECTION}`}</div>
+                  <p className="draw-card-meta-note">{sameStyleId ? "上传一张新照片后，将使用同一转绘风格生成 1 张图片。" : `每次最多选择 ${MAX_PUBLIC_STYLE_SELECTION} 种风格。成功几张扣几币，失败结果不扣币。`}</p>
+                  {isSameStyleUnavailable ? <p className="error-note draw-card-inline-error">该风格暂不可用，请返回后重新选择。</p> : null}
                   {selectedDrawCardStyles.length ? (
                     <div className="draw-card-style-picker-selected">
                       {selectedDrawCardStyles.map((style, index) => (
                         <span className="draw-card-style-chip" key={style.id}>
-                          {index + 1}. {style.name || style.id}
+                          {sameStyleId ? style.name || style.id : `${index + 1}. ${style.name || style.id}`}
                         </span>
                       ))}
                     </div>
                   ) : (
-                    <p className="draw-card-meta-note">还没选风格，先点下面的小卡片。</p>
+                    <p className="draw-card-meta-note">{sameStyleId ? (isLoadingStylePicker ? "正在读取同款风格…" : "正在确认同款风格…") : "还没选风格，先点下面的小卡片。"}</p>
                   )}
 
                   <div className="draw-card-actions">
-                    <button className="draw-card-primary" disabled={!canStartCustomDraw} onClick={() => startDrawCard({ selectedStyleIds })} type="button">
+                    <button className="draw-card-primary" disabled={sameStyleId ? !canStartSameStyleDraw : !canStartCustomDraw} onClick={() => startDrawCard({ selectedStyleIds })} type="button">
                       {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
-                      <span>{isSubmitting ? "生成中" : "用选中风格开始"}</span>
+                      <span>{isSubmitting ? "生成中" : sameStyleId ? "上传新照片做同款" : "用选中风格开始"}</span>
                     </button>
-                    <button
+                    {!sameStyleId ? <button
                       className="draw-card-secondary"
                       disabled={!selectedStyleIds.length}
                       onClick={() => {
@@ -6148,14 +6188,14 @@ function PublicExperiencePage({ config }) {
                       type="button"
                     >
                       <span>清空已选</span>
-                    </button>
+                    </button> : null}
                   </div>
                 </div>
               </div>
 
               {stylePickerError ? <p className="error-note draw-card-inline-error">{stylePickerError}</p> : null}
               {isLoadingStylePicker ? <p className="storage-note">正在加载可选风格…</p> : null}
-              <div className="draw-card-style-picker-tabs" role="tablist" aria-label="风格主体">
+              {!sameStyleId ? <><div className="draw-card-style-picker-tabs" role="tablist" aria-label="风格主体">
                 {[{ value: "person", label: "人物" }, { value: "pet", label: "宠物" }].map((tab) => (
                   <button
                     aria-controls={`draw-card-style-panel-${tab.value}`}
@@ -6213,6 +6253,7 @@ function PublicExperiencePage({ config }) {
                   })}
                 </div>
               </div>
+              </> : null}
             </section>
           </div>
         </section>
@@ -6329,6 +6370,7 @@ function PublicExperiencePage({ config }) {
                     <button className="draw-card-clip-download" disabled={originalPreviewLoadingJobId === activeResult.jobId} onClick={() => handleDownloadClipOriginal(activeResult)} type="button">
                       {originalPreviewLoadingJobId === activeResult.jobId ? "加载中" : "下载原图"}
                     </button>
+                    <button className="draw-card-secondary" disabled={!activeResult.styleId || isGenerationInProgress || isSubmitting} onClick={() => openSameStyle(activeResult.styleId)} type="button"><Sparkles size={16} /><span>做同款</span></button>
                     <button className="draw-card-secondary" onClick={() => { void openDrawShare(activeResult); }} type="button"><Share2 size={16} /><span>分享</span></button>
                   </div>
                 ) : (
