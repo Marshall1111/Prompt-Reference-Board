@@ -984,7 +984,7 @@ function AdminApp({ navigate, route }) {
   const filteredStyles = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     if (!keyword) return styles;
-    return styles.filter((style) => `${style.title || ""} ${style.tags.join(" ")} ${style.prompt}`.toLowerCase().includes(keyword));
+    return styles.filter((style) => `${style.title || ""} ${getStyleTags(style).join(" ")} ${style.prompt || ""}`.toLowerCase().includes(keyword));
   }, [query, styles]);
 
   async function reloadStyles() {
@@ -1012,7 +1012,8 @@ function AdminApp({ navigate, route }) {
         prompt: "在这里填写这个风格对应的提示词。"
       })
     });
-    const created = await response.json();
+    const created = await readJsonPayload(response, "新增风格失败。");
+    if (!response.ok) throw new Error(created.message || "新增风格失败。");
     setStyles((current) => [created, ...current]);
     return created;
   }
@@ -1023,7 +1024,8 @@ function AdminApp({ navigate, route }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-    const updated = await response.json();
+    const updated = await readJsonPayload(response, "保存风格失败。");
+    if (!response.ok) throw new Error(updated.message || "保存风格失败。");
     setStyles((current) => current.map((style) => (style.id === styleId ? updated : style)));
   }
 
@@ -1040,8 +1042,10 @@ function AdminApp({ navigate, route }) {
       method: "POST",
       body: formData
     });
-    const updated = await response.json();
+    const updated = await readJsonPayload(response, "上传风格图片失败。");
+    if (!response.ok) throw new Error(updated.message || "上传风格图片失败。");
     setStyles((current) => current.map((style) => (style.id === styleId ? updated : style)));
+    return updated;
   }
 
   async function reorderVisibleStyles(orderedVisibleIds) {
@@ -1272,7 +1276,7 @@ function AdminApp({ navigate, route }) {
               <div>
                 <h2>{getStyleDisplayName(activePrompt)}</h2>
                 <div className="tag-row">
-                  {activePrompt.tags.map((tag) => (
+                  {getStyleTags(activePrompt).map((tag) => (
                     <span className="tag" key={tag}>
                       {tag}
                     </span>
@@ -6715,8 +6719,8 @@ function PublicExperiencePage({ config }) {
 
 function createStyleDraft(style) {
   return {
-    title: style?.title || style?.name || style?.tags?.join(" / ") || "",
-    tags: style?.tags?.join("，") || "",
+    title: style?.title || style?.name || getStyleTags(style).join(" / ") || "",
+    tags: getStyleTags(style).join("，"),
     subjectType: style?.subjectType || "both",
     drawCardEnabled: style?.drawCardEnabled !== false,
     drawCardWeight: Number(style?.drawCardWeight ?? DEFAULT_DRAW_CARD_WEIGHT),
@@ -6725,8 +6729,12 @@ function createStyleDraft(style) {
   };
 }
 
+function getStyleTags(style) {
+  return Array.isArray(style?.tags) ? style.tags.filter(Boolean) : [];
+}
+
 function getStyleDisplayName(style) {
-  return String(style?.title || style?.name || style?.tags?.join("、") || style?.id || "").trim();
+  return String(style?.title || style?.name || getStyleTags(style).join("、") || style?.id || "").trim();
 }
 
 function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles, onReorderStyles, onStyleChange, onUploadImage, onViewPrompt, searchQuery, onSearchChange, styles }) {
@@ -6735,6 +6743,7 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
   const [draggingId, setDraggingId] = useState("");
   const [editingId, setEditingId] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState("");
+  const [actionError, setActionError] = useState("");
   const hasRefreshedStyles = useRef(false);
   const { visibleItems, canLoadMore, sentinelRef, loadMore } = useProgressiveItems(styles, {
     initialCount: GALLERY_INITIAL_BATCH,
@@ -6767,13 +6776,18 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
   }, [confirmDeleteId, editingId, styles]);
 
   async function handleCreateStyle() {
-    const created = await onCreateStyle();
-    if (!created?.id) return;
-    setEditingId(created.id);
-    setDrafts((current) => ({
-      ...current,
-      [created.id]: createStyleDraft(created)
-    }));
+    setActionError("");
+    try {
+      const created = await onCreateStyle();
+      if (!created?.id) return;
+      setEditingId(created.id);
+      setDrafts((current) => ({
+        ...current,
+        [created.id]: createStyleDraft(created)
+      }));
+    } catch (error) {
+      setActionError(error.message || "新增风格失败，请稍后重试。");
+    }
   }
 
   function updateDraft(style, patch) {
@@ -6785,8 +6799,11 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
 
   async function saveStyle(style) {
     setSavingId(style.id);
+    setActionError("");
     try {
       await onStyleChange(style.id, drafts[style.id] || createStyleDraft(style));
+    } catch (error) {
+      setActionError(error.message || "保存风格失败，请稍后重试。");
     } finally {
       setSavingId("");
     }
@@ -6795,8 +6812,11 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
   async function handleFile(style, file, variant = "") {
     if (!file) return;
     setSavingId(style.id);
+    setActionError("");
     try {
       await onUploadImage(style.id, file, variant);
+    } catch (error) {
+      setActionError(error.message || "上传图片失败，请稍后重试。");
     } finally {
       setSavingId("");
     }
@@ -6837,6 +6857,7 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
           </label>
           <p className="storage-note">直接拖拽卡片左上角手柄可以排序，点击“编辑”会弹出窗口修改风格内容。</p>
         </div>
+        {actionError ? <p className="error-note">{actionError}</p> : null}
         <div className="gallery-grid" aria-label="风格提示词列表">
           {visibleItems.map((style) => {
             const isEditing = editingId === style.id;
@@ -6864,7 +6885,7 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
                 </div>
                 <strong className="style-card-title">{getStyleDisplayName(style)}</strong>
                 <div className="tag-row">
-                  {style.tags.map((tag) => (
+                  {getStyleTags(style).map((tag) => (
                     <span className="tag" key={tag}>
                       {tag}
                     </span>
@@ -6909,7 +6930,7 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
               <div>
                 <h2>{getStyleDisplayName(activeEditingStyle)}</h2>
                 <div className="tag-row">
-                  {activeEditingStyle.tags.map((tag) => (
+                  {getStyleTags(activeEditingStyle).map((tag) => (
                     <span className="tag" key={tag}>
                       {tag}
                     </span>
@@ -7024,6 +7045,7 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
               </button>
             </div>
             {confirmDeleteId === activeEditingStyle.id ? <p className="storage-note danger-note">再次点击“确认删除”才会真正删除这个风格。</p> : null}
+            {actionError ? <p className="error-note">{actionError}</p> : null}
           </section>
         </div>
       ) : null}
@@ -7349,7 +7371,7 @@ function ImageGeneratorModal({ onClose, style }) {
             <p className="eyebrow">gpt-image-2</p>
             <h2>AI 生图</h2>
             <div className="tag-row">
-              {style.tags.map((tag) => (
+              {getStyleTags(style).map((tag) => (
                 <span className="tag" key={tag}>
                   {tag}
                 </span>
@@ -7618,6 +7640,7 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [editingJob, setEditingJob] = useState(null);
+  const [previewingJob, setPreviewingJob] = useState(null);
   const [replacingStylePreviewKey, setReplacingStylePreviewKey] = useState("");
   const queryRef = useRef(DEFAULT_IMAGE_JOB_QUERY);
 
@@ -7858,7 +7881,7 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
                 {providerDiagnostics ? <p className="storage-note">诊断：{providerDiagnostics}</p> : null}
               </div>
               <div className="task-actions">
-                <button className="secondary-button" disabled={!job.result?.imageUrl} onClick={() => openAdminJobResult(job.jobId)} type="button">
+                <button className="secondary-button" disabled={!job.result?.imageUrl} onClick={() => setPreviewingJob(job)} type="button">
                   <Eye size={18} />
                   <span>查看</span>
                 </button>
@@ -7905,6 +7928,22 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
         </div>
       </div>
       {editingJob && <JobEditModal job={editingJob} onClose={() => setEditingJob(null)} />}
+      {previewingJob ? <div className="modal-backdrop" onClick={() => setPreviewingJob(null)} role="presentation">
+        <section aria-label="生成图片预览" aria-modal="true" className="prompt-modal image-job-preview-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+          <button aria-label="关闭预览" className="icon-button" onClick={() => setPreviewingJob(null)} type="button"><X size={20} /></button>
+          <div className="modal-head">
+            <div>
+              <p className="eyebrow">Generated image</p>
+              <h2>{previewingJob.styleName || "生成图片"}</h2>
+            </div>
+          </div>
+          <img alt={previewingJob.styleName || "AI 生成结果"} onError={() => { setPreviewingJob(null); setError("加载生成图片失败，请稍后重试。"); }} src={`/api/admin/image-jobs/${encodeURIComponent(previewingJob.jobId)}/result`} />
+          <div className="image-job-preview-actions">
+            <span className="storage-note">手机上可长按图片保存。</span>
+            <button className="draw-card-primary" onClick={() => downloadAdminJobResult(previewingJob.jobId)} type="button"><Download size={17} /><span>下载原图</span></button>
+          </div>
+        </section>
+      </div> : null}
     </section>
   );
 }
@@ -12572,19 +12611,14 @@ async function deleteImageJob(jobId) {
   }
 }
 
-function openImageSource(source) {
-  if (!source) return;
-  window.open(source, "_blank", "noopener,noreferrer");
-}
-
-function openAdminJobResult(jobId) {
-  if (!jobId) return;
-  openImageSource(`/api/admin/image-jobs/${jobId}/result`);
-}
-
 function downloadAdminJobResult(jobId) {
   if (!jobId) return;
-  openImageSource(`/api/admin/image-jobs/${jobId}/download`);
+  const link = document.createElement("a");
+  link.href = `/api/admin/image-jobs/${encodeURIComponent(jobId)}/download`;
+  link.download = "";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 function isUploadableReferenceImage(imagePath) {

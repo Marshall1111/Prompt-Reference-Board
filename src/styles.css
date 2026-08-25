@@ -6626,6 +6626,41 @@ textarea {
   overflow: auto;
 }
 
+.image-job-preview-modal {
+  position: relative;
+  width: min(960px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+}
+
+.image-job-preview-modal > .icon-button {
+  position: absolute;
+  z-index: 1;
+  top: 14px;
+  right: 14px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.image-job-preview-modal > img {
+  display: block;
+  width: 100%;
+  max-height: calc(100vh - 180px);
+  object-fit: contain;
+  background: #edf2ee;
+}
+
+.image-job-preview-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.image-job-preview-actions .draw-card-primary {
+  display: inline-flex;
+  margin: 0;
+}
+
 .generator-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

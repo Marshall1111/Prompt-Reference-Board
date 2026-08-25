@@ -1,5 +1,45 @@
 [
   {
+    "id": "style_1787624635710",
+    "title": "极简油毡版画",
+    "tags": [
+      "油毡版画"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-08-25T02:23:55.710Z",
+    "personImage": "/style-previews/style_1787624635710/cover-person.png",
+    "personImageUpdatedAt": "2026-08-25T02:40:53.819Z",
+    "personThumbnailImage": "/style-previews/style_1787624635710/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1787624635710/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-25T02:24:17.368Z",
+    "petThumbnailImage": "/style-previews/style_1787624635710/cover-pet-thumbnail.webp",
+    "prompt": "象牙白底色，图案为极简抽象LOGO，并自动匹配一个诗意英文标题和英文句子，衬线体。仅提取1个核心身份特征、1个环境关系，主体的优先级高于背景面积。参考仿Paul Catherall油毡版画风格，仅提取画面的主体特殊外轮廓，只保留主体的最低必要辨识度。将画面核心拆解简化为基础几何色块，高度符号抽象，摒弃写实细节。保留1个主色、1个深色结构色、1个浅色或中性色及最多1至2个关键强调色，英文标题和句子与主色同色。轻微水彩纸肌理，哑光象牙白底，限色低饱和撞色，无渐变、无写实习光影，大量留白，现代扁平艺术风格，文艺安静氛围。\n \n插画右下角摆放由下方艺术插画提取的小型配色色卡，色卡尺寸要小，不抢主体。画面不出现任何文字标语、签名、水印。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1787624470702",
+    "title": "复古手绘卡片",
+    "tags": [
+      "复古手绘卡片"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-08-25T02:21:10.702Z",
+    "personImage": "/style-previews/style_1787624470702/cover-person.png",
+    "personImageUpdatedAt": "2026-08-25T02:41:10.297Z",
+    "personThumbnailImage": "/style-previews/style_1787624470702/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1787624470702/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-25T02:22:52.170Z",
+    "petThumbnailImage": "/style-previews/style_1787624470702/cover-pet-thumbnail.webp",
+    "prompt": "双层纸张质感，外层是米白色粗糙粗纤维手工纸底纹，画面中间一块窄矩形色块区域（周边随性不规整），低饱和颜色，颜色自动适配参考照片。用画面种深色哑光蜡粉笔手绘，简化提取照片里的主体轮廓，极简松弛手绘线条，造型概括稚拙，去掉繁杂细节，保留物象核心形态，手绘随性不规整，轻微粗糙笔触触感，色块的上方与下方留出充足大面积留白，点缀随性潦草的柔软手写英文短句。\n \n整体氛围安静复古治愈，纸面带着浅浅旧化肌理，叠加 Risograph 孔印淡淡的细碎颗粒噪点。整体色调偏向低饱和莫兰迪，走简约文艺卡片调性，摒弃厚重阴影、写实渲染效果，画面不增加多余装饰元素。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1787363189673",
     "title": "幽默平涂漫画",
     "tags": [
