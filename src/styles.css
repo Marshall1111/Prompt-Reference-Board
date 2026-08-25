@@ -8250,7 +8250,7 @@ textarea {
   bottom: 14px;
   z-index: 2;
   min-height: 38px;
-  padding: 0 14px;
+  padding: 0 16px;
   border: 1px solid #215760;
   border-radius: 999px;
   background: #215760;
@@ -8260,6 +8260,7 @@ textarea {
   font-weight: 800;
   line-height: 1.2;
   text-align: center;
+  white-space: nowrap;
   box-shadow: 0 6px 16px rgba(33, 87, 96, 0.24);
   cursor: pointer;
   touch-action: none;
@@ -8271,8 +8272,9 @@ textarea {
 }
 
 .draw-share-compare-button::after {
-  content: "长按对比原图";
+  content: "长按此处对比原图";
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .draw-share-compare-button:hover {

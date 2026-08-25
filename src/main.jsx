@@ -1963,12 +1963,23 @@ function DrawSharePage() {
   const visitSource = useMemo(() => ({ type: "share", token }), [token]);
   const [sharedImage, setSharedImage] = useState(null);
   const [showingReference, setShowingReference] = useState(false);
+  const [mainImageLoaded, setMainImageLoaded] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!mainImageLoaded) return;
+    const referenceUrl = String(sharedImage?.references?.[0]?.originalUrl || "").trim();
+    if (!referenceUrl) return;
+    // 效果图加载完成后立即预载原始参考图，长按对比时即可立即显示。
+    const preloader = new Image();
+    preloader.decoding = "async";
+    preloader.src = referenceUrl;
+  }, [mainImageLoaded, sharedImage]);
 
   useEffect(() => {
     const button = document.querySelector(".draw-share-compare-button");
     if (!button) return undefined;
-    button.setAttribute("aria-label", "长按对比原图");
+    button.setAttribute("aria-label", "长按此处对比原图");
     let timer = 0;
     let active = false;
     const clearPress = () => {
@@ -2036,7 +2047,7 @@ function DrawSharePage() {
   return <main className="draw-card-page body-book-share-page">
     {error ? <section className="body-book-share-empty"><AlertTriangle size={30} /><h2>分享链接已失效</h2><p>{error}</p><a className="draw-card-primary" href="/">我也要做</a></section> : null}
     {!sharedImage && !error ? <section className="body-book-share-empty"><LoaderCircle className="spin" size={30} /><p>正在打开好友分享的小画…</p></section> : null}
-    {sharedImage ? <section className="body-book-share-content draw-share-content"><figure className="draw-share-figure"><div className="draw-share-stage"><img alt={sharedImage.styleName || "好友分享的小画"} className={`draw-share-stage-image${showingReference ? " is-hidden" : ""}`} decoding="async" fetchPriority="high" loading="eager" src={sharedImage.previewUrl || sharedImage.imageUrl} />{showingReference && sharedImage.references?.[0]?.originalUrl ? <img alt="好友上传的原参考图" className="draw-share-stage-image draw-share-reference-image is-visible" decoding="async" fetchPriority="high" loading="eager" src={sharedImage.references[0].originalUrl} /> : null}{sharedImage.references?.[0]?.originalUrl ? <div aria-label="对比原图" className="draw-share-compare-button" onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowingReference(true); } }} onKeyUp={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowingReference(false); } }} onLostPointerCapture={() => setShowingReference(false)} onPointerCancel={() => setShowingReference(false)} onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); event.currentTarget.setPointerCapture?.(event.pointerId); setShowingReference(true); }} onPointerLeave={() => setShowingReference(false)} onPointerUp={(event) => { event.preventDefault(); event.stopPropagation(); setShowingReference(false); }} onTouchCancel={(event) => { event.preventDefault(); setShowingReference(false); }} onTouchEnd={(event) => { event.preventDefault(); setShowingReference(false); }} onTouchStart={(event) => { event.preventDefault(); event.stopPropagation(); setShowingReference(true); }} role="button" tabIndex={0}>对比原图</div> : null}</div><figcaption>{sharedImage.styleName || "小画"}</figcaption></figure><div className="body-book-share-cta"><p>AI小画，让有意义的照片更精美。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
+    {sharedImage ? <section className="body-book-share-content draw-share-content"><figure className="draw-share-figure"><div className="draw-share-stage"><img alt={sharedImage.styleName || "好友分享的小画"} className={`draw-share-stage-image${showingReference ? " is-hidden" : ""}`} decoding="async" fetchPriority="high" loading="eager" onLoad={() => setMainImageLoaded(true)} src={sharedImage.previewUrl || sharedImage.imageUrl} />{showingReference && sharedImage.references?.[0]?.originalUrl ? <img alt="好友上传的原参考图" className="draw-share-stage-image draw-share-reference-image is-visible" decoding="async" fetchPriority="high" loading="eager" src={sharedImage.references[0].originalUrl} /> : null}{sharedImage.references?.[0]?.originalUrl ? <div aria-label="长按此处对比原图" className="draw-share-compare-button" onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowingReference(true); } }} onKeyUp={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowingReference(false); } }} onLostPointerCapture={() => setShowingReference(false)} onPointerCancel={() => setShowingReference(false)} onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); event.currentTarget.setPointerCapture?.(event.pointerId); setShowingReference(true); }} onPointerLeave={() => setShowingReference(false)} onPointerUp={(event) => { event.preventDefault(); event.stopPropagation(); setShowingReference(false); }} onTouchCancel={(event) => { event.preventDefault(); setShowingReference(false); }} onTouchEnd={(event) => { event.preventDefault(); setShowingReference(false); }} onTouchStart={(event) => { event.preventDefault(); event.stopPropagation(); setShowingReference(true); }} role="button" tabIndex={0}>对比原图</div> : null}</div><figcaption>{sharedImage.styleName || "小画"}</figcaption></figure><div className="body-book-share-cta"><p>AI小画，让有意义的照片更精美。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
   </main>;
 }
 
@@ -6136,15 +6147,17 @@ function PublicExperiencePage({ config }) {
                       setError("");
                       setStylePickerError("");
                       if (sameStyleId) {
+                        // “更多风格”：解除同款锁定，留在本页浏览全部风格。
                         setSameStyleId("");
                         setSelectedStyleIds([]);
+                        return;
                       }
                       setPhase(referenceFile ? "ready" : "idle");
                     }}
                     type="button"
                   >
                     <ArrowLeft size={18} />
-                    <span>返回主页</span>
+                    <span>{sameStyleId ? "更多风格" : "返回主页"}</span>
                   </button>
                   {renderDrawCardUtilityBar()}
                 </div>
