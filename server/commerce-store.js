@@ -1521,12 +1521,6 @@ export function createCommerceStore({ dbPath }) {
       } else if (intent.kind === "bean_purchase") {
         const count = Math.max(0, Math.trunc(Number(intent.metadata?.beanCount || intent.amountCents / 100 || 0)));
         if (count) appendBeanLedger(intent.accountId, -count, { reason: "bean_purchase_refund", referenceType: "bean_purchase_refund", referenceId: intent.id, note: note || "购买豆豆退款回收", allowNegative: true });
-      } else if (intent.kind === "physical_order") {
-        const reward = Math.max(0, Math.floor(Number(intent.amountCents || 0) / 100));
-        if (reward) appendLedger(intent.accountId, -reward, { reason: "physical_order_refund", referenceType: "physical_order_refund", referenceId: intent.id, note: note || "实体订单退款回收赠币", allowNegative: true });
-      } else if (intent.kind === "body_book_order") {
-        const reward = Math.max(0, Math.floor(Number(intent.amountCents || 0) / 100));
-        if (reward) appendBeanLedger(intent.accountId, -reward, { reason: "body_book_order_refund", referenceType: "body_book_order_refund", referenceId: intent.id, note: note || "实体书退款回收赠豆", allowNegative: true });
       }
       reverseReferralPaymentForRefund(intent);
       recordPaymentEvent({ paymentIntentId: intent.id, eventType: "payment_refunded_by_admin", eventId: `${intent.id}:refund`, success: true, payload: { note: String(note || "") } });
@@ -1760,24 +1754,7 @@ export function createCommerceStore({ dbPath }) {
         SET status = 'paid', transaction_id = ?, paid_at = ?, updated_at = ?
         WHERE id = ?
       `).run(String(transactionId || ""), now, nowIso(), intent.id);
-      if (intent.kind === "physical_order") {
-        const coinReward = Math.max(0, Math.floor(Number(intent.amountCents || 0) / 100));
-        if (coinReward > 0) {
-          appendLedger(intent.accountId, coinReward, {
-            reason: "physical_order_reward",
-            referenceType: "payment_intent_reward",
-            referenceId: intent.id,
-            note: `冰箱贴订单实付成功，赠送 ${coinReward} 币`
-          });
-        }
-        db.prepare(`
-          UPDATE commerce_fridge_coin_discount_reservations
-          SET status = 'consumed', consumed_at = COALESCE(consumed_at, ?), updated_at = ?
-          WHERE order_id = ? AND status = 'reserved'
-        `).run(now, nowIso(), intent.targetOrderId);
-        redeemPhysicalOrderOriginals(intent.accountId, intent.targetOrderId, now);
-
-      }
+      if (intent.kind === "physical_order") redeemPhysicalOrderOriginals(intent.accountId, intent.targetOrderId, now);
       if (intent.kind === "coin_purchase") {
         const coinCount = Math.max(0, Math.trunc(Number(intent.metadata?.coinCount || intent.amountCents / 100 || 0)));
         if (coinCount > 0) {
@@ -1799,23 +1776,6 @@ export function createCommerceStore({ dbPath }) {
             note: `购买 ${beanCount} 豆`
           });
         }
-      }
-      if (intent.kind === "body_book_order") {
-        const beanReward = Math.max(0, Math.floor(Number(intent.amountCents || 0) / 100));
-        if (beanReward > 0) {
-          appendBeanLedger(intent.accountId, beanReward, {
-            reason: "body_book_order_reward",
-            referenceType: "body_book_order_reward",
-            referenceId: intent.id,
-            note: `认知书实体书实付成功，赠送 ${beanReward} 豆`
-          });
-        }
-        db.prepare(`
-          UPDATE commerce_body_book_discount_reservations
-          SET status = 'consumed', consumed_at = COALESCE(consumed_at, ?), updated_at = ?
-          WHERE order_id = ? AND status = 'reserved'
-        `).run(now, nowIso(), intent.targetOrderId);
-
       }
       rewardReferralPayment(intent);
       recordPaymentEvent({ paymentIntentId: intent.id, eventType: "payment_notify", eventId, success: true, payload, headers });

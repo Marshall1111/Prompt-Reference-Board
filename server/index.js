@@ -1589,15 +1589,8 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
       requestedItems,
       likedJobById
     });
-    const discountReservation = usesFridgeRedemption ? null : commerceStore.reserveFridgeCoinDiscount({
-      accountId: req.webAccount.id,
-      orderId,
-      itemCount: amount.itemCount,
-      subtotalCents: amount.subtotalCents,
-      expiresAt
-    });
-    const coinDiscountCents = discountReservation?.discountCents || 0;
-    const payableCents = usesFridgeRedemption ? 0 : Math.max(0, amount.totalCents - coinDiscountCents);
+    const coinDiscountCents = 0;
+    const payableCents = usesFridgeRedemption ? 0 : amount.totalCents;
     if (usesFridgeRedemption) {
       try {
         commerceStore.consumeRedemptionEntitlement({
@@ -1669,7 +1662,6 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
     });
     } catch (error) {
       if (usesFridgeRedemption) commerceStore.restoreRedemptionEntitlement({ accountId: req.webAccount.id, entitlementType: "fridge_magnet_item", referenceId: orderId });
-      else commerceStore.releaseFridgeCoinDiscountReservation(orderId);
       throw error;
     }
 
@@ -1696,34 +1688,6 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
       expiresAt: created.expiresAt,
       metadata: { orderNo: created.orderNo, itemCount: created.itemCount, coinDiscountCents, payableCents }
     });
-    if (created.payableCents === 0) {
-      const paidAt = new Date().toISOString();
-      commerceStore.settlePayment({
-        outTradeNo: created.outTradeNo,
-        transactionId: `COIN-DISCOUNT-${created.outTradeNo}`,
-        paidAt,
-        payload: { mode: "coin_discount", orderId: created.id, orderNo: created.orderNo },
-        headers: {}
-      });
-      const paidOrder = orderStore.updateOrderAndAppendEvent(created.id, {
-        paymentStatus: "paid",
-        fulfillmentStatus: "new",
-        lastPaymentChannel: "coin_discount",
-        lastPaymentError: "",
-        wechatTransactionId: `COIN-DISCOUNT-${created.outTradeNo}`,
-        paidAt
-      }, {
-        eventType: "coin_discount_settled",
-        eventId: `${created.id}:coin_discount_settled`,
-        success: true,
-        payload: { coinDiscountCents, payableCents: 0 }
-      });
-      queueOrderOriginalImageBundle(paidOrder);
-      return res.status(201).json({
-        order: toPublicOrder(paidOrder, { includeToken: true }),
-        payment: { status: "already_paid", mode: "coin_discount", expiresAt: created.expiresAt }
-      });
-    }
     res.status(201).json({
       order: toPublicOrder(created, { includeToken: true }),
       payment: prepareInitialOrderPayment(created, pricing, paymentIntent)
@@ -1809,11 +1773,7 @@ app.delete("/api/orders/:orderId", requireWebAccount, async (req, res, next) => 
     const isUnpaidOrder = order.paymentStatus === "unpaid" || order.paymentStatus === "expired" || order.fulfillmentStatus === "cancelled";
     if (!isUnpaidOrder) throw createHttpError(409, "当前订单已进入处理流程，暂不支持删除。");
 
-    if (order.paymentStatus === "unpaid") {
-      if (order.experienceType === "body-book") commerceStore.releaseBodyBookDiscountReservation(order.id);
-      else commerceStore.releaseFridgeCoinDiscountReservation(order.id);
-      commerceStore.cancelPaymentIntentByOutTradeNo(order.outTradeNo);
-    }
+    if (order.paymentStatus === "unpaid") commerceStore.cancelPaymentIntentByOutTradeNo(order.outTradeNo);
     const deleted = orderStore.updateOrder(order.id, {
       paymentStatus: order.paymentStatus === "unpaid" ? "expired" : order.paymentStatus,
       fulfillmentStatus: order.fulfillmentStatus === "new" ? "cancelled" : order.fulfillmentStatus,
@@ -4230,9 +4190,6 @@ app.patch("/api/admin/orders/:orderId", requireAdmin, async (req, res) => {
     const updated = orderStore.updateOrder(req.params.orderId, patch);
     if (updated?.fulfillmentStatus === "completed") {
       commerceStore.releaseReferralPaymentForOrder(updated.id);
-    }
-    if (order.experienceType === "body-book" && order.paymentStatus === "unpaid" && updated?.paymentStatus === "expired") {
-      commerceStore.releaseBodyBookDiscountReservation(order.id);
     }
     queueOrderOriginalImageBundle(updated);
     res.json({ order: toPublicOrder(updated, { includePrivate: true }) });
@@ -6702,16 +6659,8 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
       return { ...page, imageUrl: archived?.imageUrl || page.imageUrl, thumbnailUrl: archived?.thumbnailUrl || page.thumbnailUrl };
     })
   }));
-  const remainingPayableBeforeBeans = Math.max(0, amount.totalCents - redemptionDiscountCents);
-  const discountReservation = commerceStore.reserveBodyBookDiscount({
-    accountId: req.webAccount.id,
-    orderId,
-    orderTotalCents: remainingPayableBeforeBeans,
-    maxDiscountCents: Math.max(0, requestedBookItems.totalQuantity - redemptionBookCount) * 4000,
-    expiresAt
-  });
-  const beanDiscountCents = discountReservation?.discountCents || 0;
-  const payableCents = Math.max(0, remainingPayableBeforeBeans - beanDiscountCents);
+  const beanDiscountCents = 0;
+  const payableCents = Math.max(0, amount.totalCents - redemptionDiscountCents);
   const isAlreadyPaid = payableCents === 0;
   if (redemptionBookCount > 0) {
     try {
@@ -6722,7 +6671,6 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
         referenceId: orderId
       });
     } catch (error) {
-      commerceStore.releaseBodyBookDiscountReservation(orderId);
       throw createHttpError(409, error.message || "实体认知书兑换券不足。", "实体认知书兑换券不足，请先兑换或联系客服。");
     }
   }
@@ -6787,7 +6735,6 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
     });
   } catch (error) {
     if (redemptionBookCount > 0) commerceStore.restoreRedemptionEntitlement({ accountId: req.webAccount.id, entitlementType: "body_book_print", referenceId: orderId });
-    commerceStore.releaseBodyBookDiscountReservation(orderId);
     throw error;
   }
   if (isAlreadyPaid && redemptionBookCount > 0) {
@@ -6819,34 +6766,6 @@ async function createBodyBookPhysicalOrder({ req, pricing }) {
       payableCents
     }
   });
-  if (created.payableCents === 0) {
-    const paidAt = new Date().toISOString();
-    commerceStore.settlePayment({
-      outTradeNo: created.outTradeNo,
-      transactionId: `BEAN-DISCOUNT-${created.outTradeNo}`,
-      paidAt,
-      payload: { mode: "bean_discount", orderId: created.id, orderNo: created.orderNo },
-      headers: {}
-    });
-    const paidOrder = orderStore.updateOrderAndAppendEvent(created.id, {
-      paymentStatus: "paid",
-      fulfillmentStatus: "new",
-      lastPaymentChannel: "bean_discount",
-      lastPaymentError: "",
-      wechatTransactionId: `BEAN-DISCOUNT-${created.outTradeNo}`,
-      paidAt
-    }, {
-      eventType: "bean_discount_settled",
-      eventId: `${created.id}:bean_discount_settled`,
-      success: true,
-      payload: { beanDiscountCents, payableCents: 0 }
-    });
-    queueOrderOriginalImageBundle(paidOrder);
-    return {
-      order: toPublicOrder(paidOrder, { includeToken: true }),
-      payment: { status: "already_paid", mode: "bean_discount", expiresAt: created.expiresAt }
-    };
-  }
   return {
     order: toPublicOrder(created, { includeToken: true }),
     payment: prepareInitialOrderPayment(created, pricing, paymentIntent)
@@ -8236,10 +8155,8 @@ function toPublicWebAccountState(req, account) {
     quotaUsed: 0,
     quotaRemaining: publicAccount.coinBalance,
     canGenerate: publicAccount.accountStatus !== "disabled" && publicAccount.coinBalance > 0,
-    contactMessage: publicAccount.accountStatus === "disabled" ? "该账户已被禁用，请联系管理员。" : "冰箱贴订单支付后，按实付金额赠送等额币。",
+    contactMessage: publicAccount.accountStatus === "disabled" ? "该账户已被禁用，请联系管理员。" : "",
     account: publicAccount,
-    beanPurchaseDiscount: commerceStore.getBodyBookDiscountSummary(publicAccount.id),
-    coinPurchaseDiscount: commerceStore.getFridgeCoinDiscountSummary(publicAccount.id),
     redemptionEntitlements: commerceStore.getRedemptionEntitlementSummary(publicAccount.id),
     authorizationUrl: ""
   };
