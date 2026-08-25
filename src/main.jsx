@@ -2026,7 +2026,11 @@ function DrawSharePage() {
   const makeUrl = useMemo(() => {
     const url = new URL(sharedImage?.makeUrl || "/", window.location.origin);
     const styleId = String(sharedImage?.styleId || "").trim();
-    if (styleId) url.searchParams.set("styleId", styleId);
+    if (styleId) {
+      // “我也要做”直达“做同款”模式，避免同时触发普通风格选择。
+      url.searchParams.delete("styleId");
+      url.searchParams.set("sameStyleId", styleId);
+    }
     return `${url.pathname}${url.search}${url.hash}`;
   }, [sharedImage?.makeUrl, sharedImage?.styleId]);
   return <main className="draw-card-page body-book-share-page">
