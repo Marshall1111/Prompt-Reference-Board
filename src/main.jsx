@@ -4001,6 +4001,8 @@ function DrawCardCheckoutPage() {
   const [account, setAccount] = useState(null);
   const [redemptionEntitlements, setRedemptionEntitlements] = useState({ fridgeMagnetItemCount: 0 });
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [fulfillmentMode, setFulfillmentMode] = useState("mail");
+  const [onsiteCopied, setOnsiteCopied] = useState(false);
   const pendingCheckoutRef = useRef(false);
   const hasInitializedDefaultSelectionRef = useRef(false);
 
@@ -4046,11 +4048,23 @@ function DrawCardCheckoutPage() {
   const fridgeMagnetRedemptionCount = Math.max(0, Number(redemptionEntitlements.fridgeMagnetItemCount || 0));
   const usesFridgeMagnetRedemption = totalItemCount > 0 && fridgeMagnetRedemptionCount >= totalItemCount;
   const payablePreviewCents = usesFridgeMagnetRedemption ? 0 : amountPreview.totalCents;
+  const contactWechatId = getContactWechatId(orderConfig);
 
   function toggleSelectedItem(jobId) {
     setSelectedJobIds((current) => current.includes(jobId)
       ? current.filter((item) => item !== jobId)
       : current.concat(jobId));
+  }
+
+  async function copyOnsiteWechat() {
+    try {
+      await copyText(contactWechatId);
+      setOnsiteCopied(true);
+      window.setTimeout(() => setOnsiteCopied(false), 1600);
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "复制失败，请手动复制。");
+    }
   }
 
   function updateQuantity(jobId, nextQuantity) {
@@ -4109,6 +4123,36 @@ function DrawCardCheckoutPage() {
         {clipItems.length ? (
           <>
             <section className="draw-observability-card">
+              <h3>制作方式</h3>
+              <div className="draw-card-fulfillment">
+                <span className="field-label">制作方式</span>
+                <div className="draw-card-segmented-control draw-card-fulfillment-control">
+                  <button className={`draw-card-segment${fulfillmentMode === "onsite" ? " is-active" : ""}`} onClick={() => setFulfillmentMode("onsite")} type="button">现场制作</button>
+                  <button className={`draw-card-segment${fulfillmentMode === "mail" ? " is-active" : ""}`} onClick={() => setFulfillmentMode("mail")} type="button">邮寄</button>
+                </div>
+              </div>
+              {fulfillmentMode === "onsite" ? (
+                <div className="draw-card-order-onsite">
+                  <div className="draw-card-order-summary">
+                    <p>现场制作无需在线付款，也不会生成订单。</p>
+                  </div>
+                  <div className="draw-card-onsite-wechat">
+                    <p className="field-label">请添加店家微信</p>
+                    <div className="draw-card-onsite-wechat-row">
+                      <strong>{contactWechatId}</strong>
+                      <button className="draw-card-primary" onClick={copyOnsiteWechat} type="button">
+                        <Clipboard size={16} />
+                        <span>{onsiteCopied ? "已复制" : "复制微信号"}</span>
+                      </button>
+                    </div>
+                    <p className="storage-note">请先在卡夹页下载原图，然后通过上方微信号把原图发给客服，即可现场制作。</p>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+            {fulfillmentMode === "mail" ? (
+              <>
+            <section className="draw-observability-card">
               <h3>选择图片</h3>
               <div className="draw-card-order-items checkout-order-items checkout-image-grid">
                 {clipItems.map((item, index) => {
@@ -4146,19 +4190,21 @@ function DrawCardCheckoutPage() {
                 {usesFridgeMagnetRedemption ? <p>将使用实体冰箱贴兑换权益 {totalItemCount} 个</p> : null}
                 <strong>实付 {formatCurrencyCents(payablePreviewCents)}</strong>
               </div>
-              <div className="draw-card-order-form">
-                <label className="field-label">收件人<input onChange={(event) => setOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={orderForm.receiverName} /></label>
-                <label className="field-label">手机号<input onChange={(event) => setOrderForm((current) => ({ ...current, receiverPhone: event.target.value }))} type="tel" value={orderForm.receiverPhone} /></label>
-                <label className="field-label">收货地址<input onChange={(event) => setOrderForm((current) => ({ ...current, address: event.target.value }))} type="text" value={orderForm.address} /></label>
-                <label className="field-label">备注<textarea onChange={(event) => setOrderForm((current) => ({ ...current, remark: event.target.value }))} rows="3" value={orderForm.remark} /></label>
-              </div>
-              <div className="card-actions">
-                <button className="draw-card-primary" disabled={!orderConfig?.enabled || !selectedItems.length || !totalItemCount || isSubmitting} onClick={handleSubmit} type="button">
-                  {isSubmitting ? <LoaderCircle className="spin" size={18} /> : null}
-                  <span>{isSubmitting ? "创建订单中" : formatPaymentButtonLabel(payablePreviewCents)}</span>
-                </button>
-              </div>
-            </section>
+                  <div className="draw-card-order-form">
+                    <label className="field-label">收件人<input onChange={(event) => setOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={orderForm.receiverName} /></label>
+                    <label className="field-label">手机号<input onChange={(event) => setOrderForm((current) => ({ ...current, receiverPhone: event.target.value }))} type="tel" value={orderForm.receiverPhone} /></label>
+                    <label className="field-label">收货地址<input onChange={(event) => setOrderForm((current) => ({ ...current, address: event.target.value }))} type="text" value={orderForm.address} /></label>
+                    <label className="field-label">备注<textarea onChange={(event) => setOrderForm((current) => ({ ...current, remark: event.target.value }))} rows="3" value={orderForm.remark} /></label>
+                  </div>
+                  <div className="card-actions">
+                    <button className="draw-card-primary" disabled={!orderConfig?.enabled || !selectedItems.length || !totalItemCount || isSubmitting} onClick={handleSubmit} type="button">
+                      {isSubmitting ? <LoaderCircle className="spin" size={18} /> : null}
+                      <span>{isSubmitting ? "创建订单中" : formatPaymentButtonLabel(payablePreviewCents)}</span>
+                    </button>
+                  </div>
+              </section>
+              </>
+            ) : null}
           </>
         ) : null}
       </section>

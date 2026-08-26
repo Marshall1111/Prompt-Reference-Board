@@ -3053,6 +3053,58 @@ body {
   margin: 0;
 }
 
+.draw-card-fulfillment {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.draw-card-fulfillment-control {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* 浅色"选图定制"页适配：覆盖深色主题的 draw-card-segment 样式 */
+.order-page .draw-card-segment {
+  border: 1px solid #d8d3c8;
+  background: #ffffff;
+  color: #3f454b;
+}
+
+.order-page .draw-card-segment.is-active {
+  border-color: #a07b3f;
+  background: #f2e6cd;
+  color: #4a3413;
+}
+
+.draw-card-order-onsite {
+  display: grid;
+  gap: 14px;
+}
+
+.draw-card-onsite-wechat {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #e2ddd3;
+  border-radius: 16px;
+  background: #f7f5f0;
+}
+
+.draw-card-onsite-wechat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.draw-card-onsite-wechat-row strong {
+  color: #182022;
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
+  word-break: break-all;
+}
+
 .draw-card-order-items {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
