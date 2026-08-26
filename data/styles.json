@@ -1,5 +1,145 @@
 [
   {
+    "id": "style_1787704435056",
+    "title": "极简连续线条插画",
+    "tags": [
+      "极简连续线条插画"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-08-26T00:33:55.052Z",
+    "personImage": "/style-previews/style_1787704435056/cover-person.png",
+    "personImageUpdatedAt": "2026-08-26T00:39:44.599Z",
+    "personThumbnailImage": "/style-previews/style_1787704435056/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1787704435056/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-26T00:43:04.429Z",
+    "petThumbnailImage": "/style-previews/style_1787704435056/cover-pet-thumbnail.webp",
+    "prompt": "将照片转化为极简连续线条插画；识别主体轮廓与空间走势；用纤细连续环绕的线条描绘；去除全部细节；大量留白；呈现诗意、安静、现代编辑海报式的极简美感",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1787704435057",
+    "title": "复古网版明信片插画",
+    "tags": [
+      "复古网版明信片插画"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-08-26T00:33:55.052Z",
+    "personImage": "/style-previews/style_1787704435057/cover-person.png",
+    "personImageUpdatedAt": "2026-08-26T00:39:36.645Z",
+    "personThumbnailImage": "/style-previews/style_1787704435057/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1787704435057/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-26T00:43:06.633Z",
+    "petThumbnailImage": "/style-previews/style_1787704435057/cover-pet-thumbnail.webp",
+    "prompt": "复古丝网版画明信片；2-4种低饱和复古色（灰绿/砖红/赭黄/雾蓝/米黄）；简洁色块剪影+手绘轮廓；米白粗糙纤维旧纸背景；丝网套色错位+油墨颗粒；2-4词简短英文手写；上世纪旅行明信片、独立出版物、手工孔版印刷的安静复古质感",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1787704435058",
+    "title": "平涂绘本插画",
+    "tags": [
+      "平涂绘本插画"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-08-26T00:33:55.052Z",
+    "personImage": "/style-previews/style_1787704435058/cover-person.png",
+    "personImageUpdatedAt": "2026-08-26T00:39:26.600Z",
+    "personThumbnailImage": "/style-previews/style_1787704435058/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1787704435058/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-26T00:45:10.084Z",
+    "petThumbnailImage": "/style-previews/style_1787704435058/cover-pet-thumbnail.webp",
+    "prompt": "平涂绘本插画；保留主体姿态与代表性环境；大幅删减细节概括为简洁块面；弱化写实光影；提高鲜艳度与冷暖对比；颗粒艺术插画/海报感；背景留白；鲜明、高对比、松弛、有趣、重点突出",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1787704435059",
+    "title": "几何结构插画",
+    "tags": [
+      "几何结构插画"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-08-26T00:33:55.052Z",
+    "personImage": "/style-previews/style_1787704435059/cover-person.png",
+    "personImageUpdatedAt": "2026-08-26T00:39:12.123Z",
+    "personThumbnailImage": "/style-previews/style_1787704435059/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1787704435059/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-26T00:42:50.669Z",
+    "petThumbnailImage": "/style-previews/style_1787704435059/cover-pet-thumbnail.webp",
+    "prompt": "极简几何解构插画；不原样描摹，提炼主体层级与位置关系；统一概括为块面/圆/矩/椭圆/弧形等几何形；保留固有色与明度；加入线条/虚线/箭头/节点/信息图示；主体集中画面55%，四周充足留白；Risograph颗粒+套色偏移+纸张肌理；禁止真实阴影/立体渲染/繁琐细节；克制、抽象、平面、安静、有设计感",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1787704435060",
+    "title": "手工折纸插画",
+    "tags": [
+      "手工折纸插画"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-08-26T00:33:55.052Z",
+    "personImage": "/style-previews/style_1787704435060/cover-person.png",
+    "personImageUpdatedAt": "2026-08-26T00:38:58.618Z",
+    "personThumbnailImage": "/style-previews/style_1787704435060/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1787704435060/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-26T00:44:13.802Z",
+    "petThumbnailImage": "/style-previews/style_1787704435060/cover-pet-thumbnail.webp",
+    "prompt": "真实可折叠的折纸纸艺插画；保留主体轮廓关系，概括成块，适量细节复刻；几何折面清晰、手工感强；避免塑料3D模型感和过度精密切；自然投影表现纸的饱满与工结度；哑光彩纸+纤维纹理纸背景；明信片式缩版，米白/暖白足留白；可加极简标题或小型印章；整体自然、克制、精致，像真人用纸折出摆拍",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1787704435061",
+    "title": "粗炭笔黑白插画",
+    "tags": [
+      "粗炭笔黑白插画"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-08-26T00:33:55.052Z",
+    "personImage": "/style-previews/style_1787704435061/cover-person.png",
+    "personImageUpdatedAt": "2026-08-26T00:38:46.474Z",
+    "personThumbnailImage": "/style-previews/style_1787704435061/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1787704435061/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-26T00:44:15.832Z",
+    "petThumbnailImage": "/style-previews/style_1787704435061/cover-pet-thumbnail.webp",
+    "prompt": "极简粗蜡笔/粗碳笔黑白插画；临摹原图只提取核心主体动作与少量关键环境轮廓；删除背景杂物与次要细节；粗黑蜡笔/木炭/粉笔般颗粒笔触；线条粗重断续、边缘毛躁，允许涂抹；稚拙感；黑色块面为实，白/米白纸张背景，四周充分留白；主体占50%-65%，可略偏中心；避免写实素描与精细明暗",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1787704435062",
+    "title": "包豪斯式构成插画",
+    "tags": [
+      "包豪斯式构成插画"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/default/cover.svg",
+    "imageUpdatedAt": "2026-08-26T00:33:55.052Z",
+    "personImage": "/style-previews/style_1787704435062/cover-person.png",
+    "personImageUpdatedAt": "2026-08-26T00:38:39.443Z",
+    "personThumbnailImage": "/style-previews/style_1787704435062/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1787704435062/cover-pet.png",
+    "petImageUpdatedAt": "2026-08-26T00:42:33.048Z",
+    "petThumbnailImage": "/style-previews/style_1787704435062/cover-pet-thumbnail.webp",
+    "prompt": "包豪斯式几何构成插画；不原样临摹，提炼主体轮廓/比例/方向；将人物/建筑/植物/风景统一简化为矩形/圆/三角等几何剪影；3-5种高对比色，以白/红/灰/黑中性色调大面积；非对称平衡、网格秩序、比例、轴线与视点动势；少量细线/辅助线/圆点/结构标记；轻微纸张或丝网印刷颗粒；留白版面+英文标题和极小副题；现代建筑画册/展览海报般高级极简排版",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1787624635710",
     "title": "极简油毡版画",
     "tags": [
@@ -100,26 +240,6 @@
     "useStyleImageAsReference": false
   },
   {
-    "id": "style_1787099592680",
-    "title": "抽象记忆面板",
-    "tags": [
-      "抽象记忆面板"
-    ],
-    "subjectType": "both",
-    "drawCardEnabled": false,
-    "drawCardWeight": 100,
-    "image": "/style-previews/default/cover.svg",
-    "imageUpdatedAt": "2026-08-19T00:33:12.680Z",
-    "personImage": "/style-previews/style_1787099592680/cover-person.png",
-    "personImageUpdatedAt": "2026-08-19T00:33:27.958Z",
-    "personThumbnailImage": "/style-previews/style_1787099592680/cover-person-thumbnail.webp",
-    "petImage": "/style-previews/style_1787099592680/cover-pet.png",
-    "petImageUpdatedAt": "2026-08-19T00:33:34.925Z",
-    "petThumbnailImage": "/style-previews/style_1787099592680/cover-pet-thumbnail.webp",
-    "prompt": "将上传Image1严格作为唯一视觉来源，制作竖版“原始摄影+抽象记忆面板”作品。画布上下各50%直接平接，无边框、阴影、相框、撕纸、胶带、悬浮卡片或拼贴。上半仅允许等比缩放及必要轻载，其余主体、人物、建筑、景物、光线、颜色、空间关系和摄影气质必须原样保留，禁止重画、扩图、修饰、替换、虚构、改形改位、风格化及任何滤镜。内部分析但不输出：识别3‑6个核心视觉事实，包括比例、节奏、明暗、颜色和留白；删除纹理、透视细节、背景杂讯及低信息装饰，仅留最低识别线索，按DECONSTRUCT→SELECTIVEPRESERVATION→ABSTRACT/DISTILL→RECONSTRUCT重构。下方背景固定为均匀无纹理暖象牙色#F3F0E8，以原图关系、轴线、间距、方向、层次和颜色构建克制稀疏母题，不复制物体轮廓，第一眼极简抽象，第二眼联想到原图；使用1个主要、最多2个辅助标记家族，母题占宽30%‑55%，至少65%留白，图形全部源自原图。建筑用垂直线、水平轴、斜线或层叠结构，最多留1‑3个身份特征；风景用色带、地貌、岸线和地平线；树木云朵采用重叠有机色块；人物化为不规则轻微收分短竖块；道路、水面、栏杆化为1‑2条细轴线；倒影上下呼应但不机械镜像。颜色仅取Image1并适度降饱和，限1主色、1深色结构色、1浅或中性色及最多1‑2个强调色。标题依据真实主体、光线、时间、方向或空间关系生成唯一2‑5词英文标题，简洁克制略有诗意，禁用Memory、Dream、Moment，不加解释、日期、地点、副标题；用优雅衬线字体置左下并留安全边距，颜色取原图深色调。禁止完整插画、第二风景画、图标、信息图、装饰对称、密集元素、渐变、纸纹、颗粒、噪点、发光、暗角、污渍、编号、色卡、图例、签名、Logo、水印及标题外文字。最终仅输出一张完成作品。",
-    "useStyleImageAsReference": false
-  },
-  {
     "id": "style_1787099549305",
     "title": "水彩手账速写",
     "tags": [
@@ -146,17 +266,17 @@
       "治愈水彩插画"
     ],
     "subjectType": "both",
-    "drawCardEnabled": false,
+    "drawCardEnabled": true,
     "drawCardWeight": 100,
     "image": "/style-previews/default/cover.svg",
     "imageUpdatedAt": "2026-08-19T00:31:28.061Z",
     "personImage": "/style-previews/style_1787099488061/cover-person.png",
-    "personImageUpdatedAt": "2026-08-19T00:31:37.659Z",
+    "personImageUpdatedAt": "2026-08-26T00:52:38.434Z",
     "personThumbnailImage": "/style-previews/style_1787099488061/cover-person-thumbnail.webp",
     "petImage": "/style-previews/style_1787099488061/cover-pet.png",
     "petImageUpdatedAt": "2026-08-19T00:31:44.335Z",
     "petThumbnailImage": "/style-previews/style_1787099488061/cover-pet-thumbnail.webp",
-    "prompt": "最终效果 & 版式要求 (上方50%为标题区，下方50%为裁剪后的原图实景照片片区。标题区背景:浅米色纸张肌理纯色背景，背景下方错落夸张的纸张撕裂边缘，自然参差起伏)\n标题区中央:只放一个根据参考图主体提炼出的艺术插画。周围保留宽阔留白。标题区文字:放置一行较小的诗意治愈中文短句，手写字体；居中排版，类似旅行明信片标题。整体版式像独立艺术书籍、展览目录或旅行文化海报。文字必须清晰、克制，不要抢夺插画主体。\n\n一、核心要求：分析参考图，不原样临摹照片外形，提取参考图主体，提炼画面空间结构。场景元素全部简化为基础几何图形，搭配虚线标注动线、高差、空间边界。一幅极简、诗意手绘插画。不在图中添加不存在的物体，保留主体固有色，以暖米白色、带有轻微纸张质感的背景衬托，并保留大量干净留白。主体用不规则的扁平色块、半透明水彩晕染与哑光水粉笔触概括，边缘松散、不完全整齐，保留自然的手绘痕迹、轻微套色偏移和颜料浓淡变化。下方是充满氛围感的现实实景，上方是抽离了光影的情绪表达，现实与抽象形成上下对照。删除所有真实纹理与复杂背景，禁止额外生成多余文字标题，禁止写实细节刻画。\n\n二、分步处理流程要求:请按以下顺序处理原图:①找出画面中最重要的一个主体，以及最多三个辅助元素。②删除所有不影响主体辨识度的细节。③把主体简化成大轮廓、基础几何形和不规则色块。④把人物统一处理为无五官的细长剪影。⑤将全部颜色压缩为4‑6色，并从原图中选择一项颜色作为亮色点缀。\n\n负面提示:复杂的背景和元素，线条，暗沉的色彩，边框，与图片不符的文案，在图中添加不存在的物体，低质量图像",
+    "prompt": "中央:只放一个根据参考图主体提炼出的艺术插画。周围保留宽阔留白。文字:放置一行较小的诗意治愈中文短句，手写字体；居中排版，类似旅行明信片标题。整体版式像独立艺术书籍、展览目录或旅行文化海报。文字必须清晰、克制，不要抢夺插画主体。\n\n一、核心要求：分析参考图，不原样临摹照片外形，提取参考图主体，提炼画面空间结构。场景元素全部简化为基础几何图形，搭配虚线标注动线、高差、空间边界。一幅极简、诗意手绘插画。不在图中添加不存在的物体，保留主体固有色，以暖米白色、带有轻微纸张质感的背景衬托，并保留大量干净留白。主体用不规则的扁平色块、半透明水彩晕染与哑光水粉笔触概括，边缘松散、不完全整齐，保留自然的手绘痕迹、轻微套色偏移和颜料浓淡变化。下方是充满氛围感的现实实景，上方是抽离了光影的情绪表达，现实与抽象形成上下对照。删除所有真实纹理与复杂背景，禁止额外生成多余文字标题，禁止写实细节刻画。\n\n二、分步处理流程要求:请按以下顺序处理原图:①找出画面中最重要的一个主体，以及最多三个辅助元素。②删除所有不影响主体辨识度的细节。③把主体简化成大轮廓、基础几何形和不规则色块。④把人物统一处理为无五官的细长剪影。⑤将全部颜色压缩为4‑6色，并从原图中选择一项颜色作为亮色点缀。\n\n负面提示:复杂的背景和元素，线条，暗沉的色彩，边框，与图片不符的文案，在图中添加不存在的物体，低质量图像",
     "useStyleImageAsReference": false
   },
   {
