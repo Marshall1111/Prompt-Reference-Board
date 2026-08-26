@@ -10498,7 +10498,7 @@ function UserAdminPage({ onOpenClip }) {
       <div className="task-filters">
         <select onChange={(event) => setType(event.target.value)} value={type}><option value="">全部类型</option><option value="registered">注册用户</option><option value="visitor">访客</option></select>
         <select onChange={(event) => setStatus(event.target.value)} value={status}><option value="">全部状态</option><option value="active">正常</option><option value="disabled">已禁用</option></select>
-        <label className="field-label task-query-field">最近登录时间<span className="visit-filter-range"><input aria-label="最近登录开始日期" onChange={(event) => setDateFilters((current) => ({ ...current, lastLoginStart: event.target.value }))} type="date" value={dateFilters.lastLoginStart} /><b>至</b><input aria-label="最近登录结束日期" onChange={(event) => setDateFilters((current) => ({ ...current, lastLoginEnd: event.target.value }))} type="date" value={dateFilters.lastLoginEnd} /></span></label>
+        <label className="field-label task-query-field">最近访问时间<span className="visit-filter-range"><input aria-label="最近访问开始日期" onChange={(event) => setDateFilters((current) => ({ ...current, lastLoginStart: event.target.value }))} type="date" value={dateFilters.lastLoginStart} /><b>至</b><input aria-label="最近访问结束日期" onChange={(event) => setDateFilters((current) => ({ ...current, lastLoginEnd: event.target.value }))} type="date" value={dateFilters.lastLoginEnd} /></span></label>
         <label className="field-label task-query-field">注册时间<span className="visit-filter-range"><input aria-label="注册开始日期" onChange={(event) => setDateFilters((current) => ({ ...current, registeredStart: event.target.value }))} type="date" value={dateFilters.registeredStart} /><b>至</b><input aria-label="注册结束日期" onChange={(event) => setDateFilters((current) => ({ ...current, registeredEnd: event.target.value }))} type="date" value={dateFilters.registeredEnd} /></span></label>
         <label className="search-box"><Search size={18} /><input onChange={(event) => setSearch(event.target.value)} placeholder="用户、访客 ID、邮箱或邀请人" value={search} /></label>
         <button className="secondary-button" onClick={() => load({ page: 1 })} type="button">筛选</button>
@@ -10532,7 +10532,7 @@ function UserAdminPage({ onOpenClip }) {
                 <th scope="col">下载额度</th>
                 <th scope="col">实体优惠券</th>
                 <th scope="col">注册时间</th>
-                <th scope="col">最近登录</th>
+                <th scope="col">最近访问</th>
                 <th scope="col">订单</th>
                 <th scope="col">生成任务</th>
                 <th scope="col">图片资产</th>

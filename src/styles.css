@@ -11399,6 +11399,35 @@ textarea {
   color: #ffffff;
 }
 
+/* 登录/注册弹窗保持白底深字，需覆盖小画暗色对话框的高对比浅色文字规则，
+   避免白底白字看不清。 */
+.draw-card-shell.theme-draw-card .draw-card-confirm-panel.auth-modal h2 {
+  color: #25413c;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-confirm-panel.auth-modal .storage-note,
+.draw-card-shell.theme-draw-card .draw-card-confirm-panel.auth-modal > p:not(.draw-card-kicker) {
+  color: #60706d;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-confirm-panel.auth-modal .draw-card-kicker {
+  color: #8a6a3f;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-confirm-panel.auth-modal > .icon-button {
+  border: 1px solid rgba(43, 70, 67, 0.22);
+  border-radius: 9px;
+  background: rgba(43, 70, 67, 0.06);
+  color: #25413c;
+  box-shadow: none;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-confirm-panel.auth-modal > .icon-button:not(:disabled):hover {
+  border-color: rgba(43, 70, 67, 0.42);
+  background: rgba(43, 70, 67, 0.12);
+  color: #25413c;
+}
+
 .draw-card-shell.theme-draw-card .original-download-unlock-modal .original-download-unlock-close {
   border-color: rgba(255, 255, 255, 0.32);
   background: rgba(255, 255, 255, 0.12);
