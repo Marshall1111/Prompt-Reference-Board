@@ -6000,7 +6000,7 @@ function PublicExperiencePage({ config }) {
           <div className="draw-card-account-summary">
             <span>账户币</span>
             <strong>{visitorState ? `${visitorState.account?.coinBalance || 0} 币` : "--"}</strong>
-            <p>{visitorState?.account?.canRedeemOriginalDownloads ? "已获得全账户永久原图下载权限" : `累计实付每满 1 元可免分享下载 1 张原图（剩余 ${visitorState?.account?.originalDownloadAllowance?.remaining || 0} 次）；分享被访问也可解锁对应内容`}</p>
+            <p>{visitorState?.account?.canRedeemOriginalDownloads ? "已获得全账户永久原图下载权限" : `累计实付每满 1 元可免分享下载 1 张原图（剩余 ${visitorState?.account?.originalDownloadAllowance?.remaining || 0} 次）；小画分享被新用户首次打开也可获得下载次数（每位新用户只计 1 次）`}</p>
           </div>
           {visitorState?.sourceMerchantName ? <p>来源商户：{visitorState.sourceMerchantName}</p> : null}
           <input className="field-inline-input" onChange={(event) => setInviteCode(event.target.value)} placeholder={clipInvitePlaceholder} value={inviteCode} />
@@ -6542,7 +6542,7 @@ function PublicExperiencePage({ config }) {
             <p className="draw-card-kicker">Original images</p>
             <h2>分享获得下载权限</h2>
             <ul className="original-download-rules">
-              <li>分享给新用户，且新用户点击查看后，可获得本原图下载权限。</li>
+              <li>分享给新用户，每位新用户首次打开你的分享链接后，你获得 1 次原图下载权益，可用于任意小画原图（每位新用户只计 1 次）。</li>
               <li>每购买 1 个币或豆豆，获得 1 次免分享下载权益；实体订单每实付满 1 元获得 1 次。</li>
               <li>本站累计消费 20 元，获得永久下载权益。</li>
             </ul>
@@ -6591,7 +6591,7 @@ function PublicExperiencePage({ config }) {
         </div>
       ) : null}
 
-      {drawShareTarget ? <div className="modal-backdrop draw-card-confirm" onClick={() => !drawShareBusy && setDrawShareTarget(null)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享小画"><button className="icon-button" disabled={drawShareBusy} onClick={() => setDrawShareTarget(null)} type="button"><X size={18} /></button><p className="draw-card-kicker">Share your artwork</p><h2>分享给好友</h2><p>好友可查看压缩预览。首位新访客打开链接后，即可下载这张小画的原图。</p>{drawShareUrl ? <label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={drawShareUrl} /></label> : null}{drawShareUrl ? <div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={drawShareBusy} onClick={async () => { try { await copyText(formatShareCopy(drawShareUrl, "draw")); setDrawShareNotice("链接已复制，可发送给好友。"); } catch (nextError) { setDrawShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制链接</span></button><button className="draw-card-secondary" disabled={drawShareBusy} onClick={() => { if (window.confirm("停止分享后，已复制的链接将立即失效。确定停止分享吗？")) void closeDrawShare(); }} type="button">停止分享</button></div> : null}{drawShareNotice ? <p className="success-note">{drawShareNotice}</p> : null}{drawShareError ? <p className="error-note">{drawShareError}</p> : null}</section></div> : null}
+      {drawShareTarget ? <div className="modal-backdrop draw-card-confirm" onClick={() => !drawShareBusy && setDrawShareTarget(null)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享小画"><button className="icon-button" disabled={drawShareBusy} onClick={() => setDrawShareTarget(null)} type="button"><X size={18} /></button><p className="draw-card-kicker">Share your artwork</p><h2>分享给好友</h2><p>好友可查看压缩预览。每位新访客首次打开你的任意小画分享链接后，你获得 1 次原图下载权益（每位新用户只计 1 次），可用于任意小画原图。</p>{drawShareUrl ? <label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={drawShareUrl} /></label> : null}{drawShareUrl ? <div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={drawShareBusy} onClick={async () => { try { await copyText(formatShareCopy(drawShareUrl, "draw")); setDrawShareNotice("链接已复制，可发送给好友。"); } catch (nextError) { setDrawShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制链接</span></button><button className="draw-card-secondary" disabled={drawShareBusy} onClick={() => { if (window.confirm("停止分享后，已复制的链接将立即失效。确定停止分享吗？")) void closeDrawShare(); }} type="button">停止分享</button></div> : null}{drawShareNotice ? <p className="success-note">{drawShareNotice}</p> : null}{drawShareError ? <p className="error-note">{drawShareError}</p> : null}</section></div> : null}
 
       {showPhotoChangeConfirm ? (
         <div className="modal-backdrop draw-card-confirm" onClick={() => setShowPhotoChangeConfirm(false)} role="presentation">

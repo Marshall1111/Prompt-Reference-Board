@@ -214,7 +214,8 @@ export function createCommerceStore({ dbPath }) {
     );
 
     -- Administrators can add or remove the non-share download allowance
-    -- without changing the user's payment records.
+    -- without changing the user's payment records.  Each new visitor's first
+    -- open of a draw (小画) share link also credits +1 allowance here.
     CREATE TABLE IF NOT EXISTS commerce_original_download_allowance_adjustments (
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL,
@@ -418,6 +419,7 @@ export function createCommerceStore({ dbPath }) {
     CREATE INDEX IF NOT EXISTS idx_commerce_original_download_uses_account ON commerce_original_download_uses(account_id, resource_type);
     CREATE INDEX IF NOT EXISTS idx_commerce_original_download_allowance_adjustments_account ON commerce_original_download_allowance_adjustments(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_content_share_visits_token ON commerce_content_share_visits(share_type, share_token);
+    CREATE INDEX IF NOT EXISTS idx_commerce_content_share_visits_owner_visitor ON commerce_content_share_visits(owner_account_id, visitor_id, share_type);
     CREATE INDEX IF NOT EXISTS idx_commerce_manual_recharge_refunds_account ON commerce_manual_recharge_refunds(account_id, currency, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_user_sessions_account ON commerce_user_sessions(account_id, expires_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_email_verifications_lookup ON commerce_email_verifications(email, purpose, created_at DESC);
@@ -792,12 +794,42 @@ export function createCommerceStore({ dbPath }) {
         SELECT 1 FROM commerce_account_visitors WHERE account_id = ? AND visitor_id = ? LIMIT 1
       `).get(safeOwnerAccountId, safeVisitorId);
       if (ownerVisitor) return { recorded: false, granted: false, reason: "owner" };
+      // 小画次数型权益按“人”去重：同一访客对同一分享者（跨其所有小画分享链接）
+      // 只计 1 次额度。需在写入本次访问前判断，否则会匹配到刚插入的记录。
+      const priorDrawVisitByVisitor = safeShareType === "draw"
+        ? Boolean(db.prepare(`
+            SELECT 1 FROM commerce_content_share_visits
+            WHERE share_type = 'draw' AND owner_account_id = ? AND visitor_id = ?
+            LIMIT 1
+          `).get(safeOwnerAccountId, safeVisitorId))
+        : false;
       const result = db.prepare(`
         INSERT OR IGNORE INTO commerce_content_share_visits
           (share_type, share_token, visitor_id, owner_account_id, visited_at)
         VALUES (?, ?, ?, ?, ?)
       `).run(safeShareType, safeToken, safeVisitorId, safeOwnerAccountId, nowIso());
       if (Number(result.changes || 0) <= 0) return { recorded: false, granted: false, reason: "duplicate" };
+      if (safeShareType === "draw") {
+        if (priorDrawVisitByVisitor) {
+          // 该访客已为分享者计过次数：仅记录本次访问，不再发放额度。
+          return { recorded: true, granted: false, reason: "already_credited" };
+        }
+        // 小画分享是次数型权益：每位新访客首次打开分享者的任一小画分享链接，
+        // 就给分享者账户加 1 次可下载任意原图的免分享额度。
+        // 已在事务内，直接写额度调整表（adjustOriginalDownloadAllowance 自带事务，不可嵌套调用）。
+        db.prepare(`
+          INSERT INTO commerce_original_download_allowance_adjustments (id, account_id, delta, note, created_at)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(
+          randomUUID(),
+          safeOwnerAccountId,
+          1,
+          `小画分享被新访客打开 +1 次免分享下载（分享码 ${safeToken.slice(0, 8)}）`,
+          nowIso()
+        );
+        return { recorded: true, granted: true, reason: "recorded" };
+      }
+      // 认知书分享保持原逻辑：首位新访客打开后解锁本工程全部原图。
       return {
         recorded: true,
         granted: grantOriginalDownload({
