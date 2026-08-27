@@ -1036,12 +1036,22 @@ app.get("/api/auth/wechat/callback", async (req, res, next) => {
   }
 });
 
-app.post("/api/referrals/link", requireWebAccount, (req, res, next) => {
+app.post("/api/referrals/link", requireWebAccount, async (req, res, next) => {
   try {
     assertRegisteredAccount(req);
     const referral = commerceStore.getOrCreateReferralLink(req.webAccount.id);
-    const inviteUrl = new URL(req.body?.target === "draw-card" ? "/" : "/book", getRequestOrigin(req));
+    const styleId = String(req.body?.styleId || "").trim();
+    const isDrawTarget = Boolean(styleId) || req.body?.target === "draw-card";
+    const inviteUrl = new URL(isDrawTarget ? "/" : "/book", getRequestOrigin(req));
     inviteUrl.searchParams.set("invite", referral.token);
+    if (styleId) {
+      const styles = await readStyles();
+      const style = styles.find((item) => String(item.id || "") === styleId);
+      if (!style || !normalizeDrawCardEnabled(style.drawCardEnabled, true)) {
+        throw createHttpError(400, "该风格暂不支持抽卡，无法生成风格码。");
+      }
+      inviteUrl.searchParams.set("sameStyleId", style.id);
+    }
     res.json({ inviteUrl: inviteUrl.toString() });
   } catch (error) {
     next(error);

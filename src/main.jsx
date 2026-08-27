@@ -4569,6 +4569,9 @@ function PublicExperiencePage({ config }) {
   const [drawShareBusy, setDrawShareBusy] = useState(false);
   const [drawShareNotice, setDrawShareNotice] = useState("");
   const [drawShareError, setDrawShareError] = useState("");
+  const [styleQrPreview, setStyleQrPreview] = useState(null);
+  const [styleQrBusy, setStyleQrBusy] = useState(false);
+  const [styleQrError, setStyleQrError] = useState("");
   const [pendingRemoval, setPendingRemoval] = useState(null);
   const [flyingCard, setFlyingCard] = useState(null);
   const [clipReceiving, setClipReceiving] = useState(false);
@@ -5913,6 +5916,38 @@ function PublicExperiencePage({ config }) {
     }
   }
 
+  async function openStyleQr(item) {
+    const safeStyleId = String(item?.styleId || "").trim();
+    if (!safeStyleId || styleQrBusy) return;
+    const latest = await fetchVisitorState().catch(() => visitorState);
+    if (!latest?.account?.isRegistered) {
+      setShowAuthModal(true);
+      return;
+    }
+    setVisitorState(latest);
+    setStyleQrBusy(true);
+    setStyleQrError("");
+    setStyleQrPreview(null);
+    try {
+      const payload = await createStyleInviteLink(safeStyleId);
+      const qrUrl = String(payload?.inviteUrl || "");
+      if (!qrUrl) throw new Error("生成风格码失败，请稍后再试。");
+      const styleName = String(item?.styleName || safeStyleId || "风格");
+      setStyleQrPreview({
+        styleName,
+        dataUrl: await createLabeledQrPngDataUrl(qrUrl, styleName, {
+          errorCorrectionLevel: "H",
+          margin: 4,
+          pixelSize: 1024
+        })
+      });
+    } catch (nextError) {
+      setStyleQrError(nextError.message || "生成风格码失败，请稍后再试。");
+    } finally {
+      setStyleQrBusy(false);
+    }
+  }
+
   async function closeDrawShare() {
     if (!drawShareTarget?.jobId || drawShareBusy) return;
     setDrawShareBusy(true);
@@ -6448,6 +6483,7 @@ function PublicExperiencePage({ config }) {
                     </button>
                     <button className="draw-card-secondary" disabled={!activeResult.styleId || isGenerationInProgress || isSubmitting} onClick={() => openSameStyle(activeResult.styleId)} type="button"><Sparkles size={16} /><span>做同款</span></button>
                     <button className="draw-card-secondary" onClick={() => { void openDrawShare(activeResult); }} type="button"><Share2 size={16} /><span>分享</span></button>
+                    <button className="draw-card-secondary" disabled={styleQrBusy} onClick={() => { void openStyleQr(activeResult); }} type="button"><QrCode size={16} /><span>{styleQrBusy ? "生成中" : "风格码"}</span></button>
                   </div>
                 ) : (
                   <button className="draw-card-clip-remove" onClick={() => requestRemoveFromClip(activeResult)} type="button">
@@ -6460,10 +6496,23 @@ function PublicExperiencePage({ config }) {
                   <span>{pocketAddLabel}</span>
                 </button>
               )}
+              {styleQrError ? <p className="error-note draw-card-inline-error">{styleQrError}</p> : null}
             </div>
           </section>
         </div>
       )}
+
+      {styleQrPreview ? (
+        <div className="modal-backdrop style-qr-preview-backdrop" onClick={() => setStyleQrPreview(null)} role="presentation">
+          <section aria-label={`${styleQrPreview.styleName}风格码`} aria-modal="true" className="style-qr-preview-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+            <button aria-label="关闭风格码预览" className="icon-button" onClick={() => setStyleQrPreview(null)} type="button"><X size={18} /></button>
+            <h2>扫码做同款</h2>
+            <img alt={`${styleQrPreview.styleName}风格码`} className="style-qr-preview-image" src={styleQrPreview.dataUrl} />
+            <p className="storage-note">长按二维码保存到手机，或在电脑上右键保存图片。</p>
+            <p className="storage-note">好友扫码后可直接做同款，并记为你邀请的新用户。</p>
+          </section>
+        </div>
+      ) : null}
 
       {originalPreview ? (
         <div className="modal-backdrop draw-card-lightbox" onClick={closeOriginalPreview} role="presentation">
@@ -8823,6 +8872,17 @@ async function createReferralLink(target = "") {
   });
   const payload = await readAuthJsonResponse(response, { message: "创建邀请链接失败。" });
   if (!response.ok) throw new Error(payload.message || "创建邀请链接失败。");
+  return payload;
+}
+
+async function createStyleInviteLink(styleId) {
+  const response = await fetch("/api/referrals/link", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target: "draw-card", styleId })
+  });
+  const payload = await readAuthJsonResponse(response, { message: "生成风格码失败。" });
+  if (!response.ok) throw new Error(payload.message || "生成风格码失败。");
   return payload;
 }
 
