@@ -2547,6 +2547,51 @@ body {
   line-height: 1.6;
 }
 
+.draw-card-wait-progress {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  max-width: 260px;
+  margin: 2px auto 0;
+}
+
+.draw-card-wait-progress-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.draw-card-wait-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ffb088, #ff8fb0);
+  transition: width 900ms ease;
+}
+
+.draw-card-wait-progress-caption {
+  font-size: 0.78rem;
+  color: rgba(243, 237, 225, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+
+.draw-card-result-card.is-new .draw-card-result-media img {
+  animation: drawCardResultAppear 520ms ease;
+}
+
+@keyframes drawCardResultAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+    filter: brightness(1.25);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: brightness(1);
+  }
+}
+
 .draw-card-result-placeholder.is-failed {
   border-color: rgba(255, 161, 150, 0.28);
   background: rgba(159, 36, 24, 0.08);

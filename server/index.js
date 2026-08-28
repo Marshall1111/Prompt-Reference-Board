@@ -412,7 +412,10 @@ const activeImageJobs = new Map();
 const queuedImageJobRuns = new Map();
 const queuedImageJobIds = new Set();
 let imageQueuePumpScheduled = false;
-const MAX_CONCURRENT_IMAGE_JOBS = 3;
+let imageQueuePumpRunning = false;
+const IMAGE_JOB_TIMEOUT_MS = 3 * 60 * 1000;
+const imageJobWatchdogTimers = new Map();
+const imageJobDurationSamples = new Map();
 const BODY_BOOK_SHOWCASE_REFERENCE_FILENAME = "reference";
 const drawCardSessionSyncLocks = new Map();
 const bodyBookSessionSyncLocks = new Map();
@@ -4718,6 +4721,7 @@ app.listen(port, () => {
   prepareImageJobStorage()
     .then(migrateLegacyGeneratedImages)
     .then(repairHistoricalCommissionSnapshots)
+    .then(watchdogStaleRunningJobs)
     .then(() => {
       scheduleImageQueuePump();
       void preparePendingShipmentOrderOriginalBundles();
@@ -11146,6 +11150,7 @@ function toPublicDrawCardSession(session) {
     experienceType: current.experienceType,
     status: current.status,
     message: current.message,
+    estimatedWaitSeconds: estimateImageWaitSeconds(current.experienceType),
     createdAt: current.createdAt,
     updatedAt: current.updatedAt,
     completedAt: current.completedAt,
@@ -13247,25 +13252,128 @@ function scheduleImageQueuePump() {
 }
 
 async function pumpImageQueue() {
-  while (activeImageJobs.size < MAX_CONCURRENT_IMAGE_JOBS) {
-    const next = await takeNextQueuedImageJob();
-    if (!next) return;
-    queuedImageJobIds.delete(next.jobId);
-    queuedImageJobRuns.delete(next.jobId);
-    // Reserve the slot synchronously.  executeImageJob reads the job before it
-    // installs its abort controller, and without this marker one queue pump
-    // could start more than the global concurrency limit.
-    activeImageJobs.set(next.jobId, { queued: true });
-    const runner = next.kind === "body-book-mock"
-      ? runBodyBookMockJob(next)
-      : executeImageJob(next);
-    Promise.resolve(runner)
-      .catch((error) => failQueuedImageJob(next.jobId, error))
-      .finally(() => {
-        activeImageJobs.delete(next.jobId);
-        scheduleImageQueuePump();
-      });
+  // 单泵互斥：同一时刻只允许一个泵在推进队列，避免多个泵并发取到
+  // 同一个任务导致重复启动。while(true) 会一直把当前队列清空。
+  if (imageQueuePumpRunning) return;
+  imageQueuePumpRunning = true;
+  try {
+    while (true) {
+      const next = await takeNextQueuedImageJob();
+      if (!next) return;
+      queuedImageJobIds.delete(next.jobId);
+      queuedImageJobRuns.delete(next.jobId);
+      // 并发数量限制已移除：一次性启动当前队列里的所有任务，
+      // 每个任务完成后都会再次触发 pump，以接住运行期间新提交的任务。
+      activeImageJobs.set(next.jobId, { queued: true });
+      armImageJobWatchdog(next.jobId);
+      const runner = next.kind === "body-book-mock"
+        ? runBodyBookMockJob(next)
+        : executeImageJob(next);
+      Promise.resolve(runner)
+        .catch((error) => failQueuedImageJob(next.jobId, error))
+        .finally(() => {
+          activeImageJobs.delete(next.jobId);
+          clearImageJobWatchdog(next.jobId);
+          scheduleImageQueuePump();
+        });
+    }
+  } finally {
+    imageQueuePumpRunning = false;
+    if (queuedImageJobIds.size) scheduleImageQueuePump();
   }
+}
+
+function armImageJobWatchdog(jobId) {
+  clearImageJobWatchdog(jobId);
+  const timer = setTimeout(() => {
+    imageJobWatchdogTimers.delete(jobId);
+    void watchdogFailRunningImageJob(jobId);
+  }, IMAGE_JOB_TIMEOUT_MS);
+  imageJobWatchdogTimers.set(jobId, timer);
+}
+
+function clearImageJobWatchdog(jobId) {
+  const timer = imageJobWatchdogTimers.get(jobId);
+  if (!timer) return;
+  clearTimeout(timer);
+  imageJobWatchdogTimers.delete(jobId);
+}
+
+async function watchdogFailRunningImageJob(jobId) {
+  const active = activeImageJobs.get(jobId);
+  if (active?.abortController) {
+    // 执行中的任务：中止底层调用，让 executeImageJob 的 catch 负责
+    // 落库失败状态并触发会话同步（含失败退款）。
+    active.watchdogReason = "生成超时，已自动终止。你可以重新提交一次。";
+    active.abortController.abort();
+    return;
+  }
+  const job = await readImageJob(jobId);
+  if (!job || !["queued", "running"].includes(job.status)) return;
+  await saveImageJob({
+    ...job,
+    status: "failed",
+    message: "生成超时，已自动终止。你可以重新提交一次。",
+    result: null,
+    telemetry: {
+      ...(job.telemetry || {}),
+      finalError: "generation timeout",
+      totalJobMs: IMAGE_JOB_TIMEOUT_MS
+    },
+    updatedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString()
+  });
+  await synchronizeDrawCardSessionByJobId(jobId);
+  await synchronizeBodyBookSessionByJobId(jobId);
+}
+
+// 服务重启后，磁盘上可能残留未完成的 running/queued 任务（内存队列已清空），
+// 这些任务永远不会再被推进，需要统一标记失败并触发退款。
+async function watchdogStaleRunningJobs() {
+  const jobs = await listImageJobs();
+  const staleBeforeMs = Date.now() - IMAGE_JOB_TIMEOUT_MS;
+  const staleJobs = jobs.filter((job) => {
+    if (!["queued", "running"].includes(job.status)) return false;
+    const lastAtMs = new Date(String(job.updatedAt || job.createdAt || "")).getTime();
+    return Number.isFinite(lastAtMs) && lastAtMs > 0 && lastAtMs < staleBeforeMs;
+  });
+  await Promise.all(staleJobs.map(async (job) => {
+    await saveImageJob({
+      ...job,
+      status: "failed",
+      message: "服务重启导致任务中断，已自动终止。你可以重新提交一次。",
+      result: null,
+      telemetry: {
+        ...(job.telemetry || {}),
+        finalError: "server restart interrupted job",
+        totalJobMs: IMAGE_JOB_TIMEOUT_MS
+      },
+      updatedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString()
+    });
+    await synchronizeDrawCardSessionByJobId(job.jobId);
+    await synchronizeBodyBookSessionByJobId(job.jobId);
+  }));
+  if (staleJobs.length) {
+    console.log(`Marked ${staleJobs.length} stale image job(s) as failed after restart.`);
+  }
+}
+
+function recordImageJobDuration(experienceType, ms) {
+  const key = String(experienceType || "draw-card");
+  const samples = imageJobDurationSamples.get(key) || [];
+  samples.push(Math.max(1000, Number(ms) || 0));
+  if (samples.length > 20) samples.shift();
+  imageJobDurationSamples.set(key, samples);
+}
+
+function estimateImageWaitSeconds(experienceType) {
+  const key = String(experienceType || "draw-card");
+  const samples = imageJobDurationSamples.get(key) || [];
+  if (!samples.length) return null;
+  const sorted = [...samples].sort((left, right) => left - right);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  return Math.min(180, Math.max(10, Math.round(median / 1000)));
 }
 
 async function takeNextQueuedImageJob() {
@@ -13478,6 +13586,7 @@ async function executeImageJob({ jobId, body, files, outputFormat, prompt, provi
       persistResultMs,
       totalJobMs: elapsedMs(jobRunStartedAtMs)
     });
+    recordImageJobDuration(String(job.experienceType || "draw-card"), elapsedMs(jobRunStartedAtMs));
     await synchronizeDrawCardSessionByJobId(jobId);
     await synchronizeBodyBookSessionByJobId(jobId);
   } catch (error) {
@@ -13497,10 +13606,11 @@ async function executeImageJob({ jobId, body, files, outputFormat, prompt, provi
       queuedImageJobIds.add(jobId);
       return;
     }
+    const watchdogReason = activeImageJobs.get(jobId)?.watchdogReason || "";
     await saveImageJob({
       ...latestJob,
       status: "failed",
-      message: error.name === "AbortError" ? "任务已停止。" : error.publicMessage || error.message || "生图失败，请稍后再试。",
+      message: error.name === "AbortError" ? (watchdogReason || "任务已停止。") : error.publicMessage || error.message || "生图失败，请稍后再试。",
       result: null,
       telemetry: {
         ...(latestJob.telemetry || {}),

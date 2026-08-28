@@ -4650,6 +4650,11 @@ function PublicExperiencePage({ config }) {
   const userMenuRef = useRef(null);
   const flightTimeoutRef = useRef(null);
   const clipPulseTimeoutRef = useRef(null);
+  const finishAnimTimeoutRef = useRef(null);
+  const pendingSeenAtRef = useRef(new Map());
+  const prevSucceededRef = useRef(new Set());
+  const [justFinishedIds, setJustFinishedIds] = useState(() => new Set());
+  const [elapsedTick, setElapsedTick] = useState(0);
   const contactCopiedTimeoutRef = useRef(null);
   const manualContactCopiedTimeoutRef = useRef(null);
   const manualOrderCopiedTimeoutRef = useRef(null);
@@ -5129,6 +5134,55 @@ function PublicExperiencePage({ config }) {
     });
   }, [results, sessionItems]);
 
+  const hasPendingItems = displayItems.some((item) => item.status === "queued" || item.status === "running");
+  const estimatedWaitSeconds = Number(session?.estimatedWaitSeconds || 0) > 0
+    ? Number(session.estimatedWaitSeconds)
+    : 120;
+
+  // 每张 pending 卡片记录首次出现时间，用于计算已等待秒数与伪进度。
+  useEffect(() => {
+    const nowMs = Date.now();
+    displayItems.forEach((item) => {
+      if (item.status === "queued" || item.status === "running") {
+        if (!pendingSeenAtRef.current.has(item.jobId)) {
+          pendingSeenAtRef.current.set(item.jobId, nowMs);
+        }
+      }
+    });
+  }, [displayItems]);
+
+  // 有任务在等待时，每秒驱动一次重渲染，让秒数与进度条动起来。
+  useEffect(() => {
+    if (!hasPendingItems) return undefined;
+    const timer = window.setInterval(() => setElapsedTick((tick) => tick + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [hasPendingItems]);
+
+  // 检测刚完成的卡片，给入场动画 class，2.6 秒后移除。
+  useEffect(() => {
+    const currentSucceeded = new Set(
+      displayItems.filter((item) => item.status === "succeeded").map((item) => item.jobId)
+    );
+    const newlyFinished = [...currentSucceeded].filter((jobId) => !prevSucceededRef.current.has(jobId));
+    prevSucceededRef.current = currentSucceeded;
+    if (!newlyFinished.length) return undefined;
+    setJustFinishedIds((current) => {
+      const next = new Set(current);
+      newlyFinished.forEach((jobId) => next.add(jobId));
+      return next;
+    });
+    if (finishAnimTimeoutRef.current) window.clearTimeout(finishAnimTimeoutRef.current);
+    finishAnimTimeoutRef.current = window.setTimeout(() => {
+      finishAnimTimeoutRef.current = null;
+      setJustFinishedIds((current) => {
+        const next = new Set(current);
+        newlyFinished.forEach((jobId) => next.delete(jobId));
+        return next;
+      });
+    }, 2600);
+    return undefined;
+  }, [displayItems]);
+
   function toDisplayResult(item) {
     if (!item?.result) return null;
     return {
@@ -5323,6 +5377,7 @@ function PublicExperiencePage({ config }) {
     return () => {
       if (flightTimeoutRef.current) window.clearTimeout(flightTimeoutRef.current);
       if (clipPulseTimeoutRef.current) window.clearTimeout(clipPulseTimeoutRef.current);
+      if (finishAnimTimeoutRef.current) window.clearTimeout(finishAnimTimeoutRef.current);
     };
   }, []);
 
@@ -6420,9 +6475,17 @@ function PublicExperiencePage({ config }) {
                   const isSucceeded = item.status === "succeeded" && result;
                   const isRunning = item.status === "running" || item.status === "queued";
                   const isFailed = item.status === "failed" || item.status === "cancelled";
+                  const pendingSeenAtMs = pendingSeenAtRef.current.get(item.jobId) || Date.now();
+                  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - pendingSeenAtMs) / 1000));
+                  const remainingEstimate = Math.max(5, estimatedWaitSeconds - elapsedSeconds);
+                  const waitingText = isFailed
+                    ? item.errorMessage || "该风格本轮未能成功生成。"
+                    : (estimatedWaitSeconds > 0 && waitingLineIndex === 0)
+                      ? `预计还需约 ${remainingEstimate} 秒`
+                      : waitingLines[waitingLineIndex] || "结果会在完成后自动出现。";
                   return (
                     <article
-                      className={`draw-card-result-card ${result?.isLiked ? "is-in-clip" : ""} ${isRunning ? "is-pending" : ""} ${isFailed ? "is-failed" : ""}`}
+                      className={`draw-card-result-card ${result?.isLiked ? "is-in-clip" : ""} ${isRunning ? "is-pending" : ""} ${isFailed ? "is-failed" : ""} ${justFinishedIds.has(item.jobId) ? "is-new" : ""}`}
                       key={`${item.styleId}-${item.jobId || index}`}
                     >
                       {isSucceeded ? (
@@ -6433,7 +6496,8 @@ function PublicExperiencePage({ config }) {
                         <div className={`draw-card-result-placeholder ${isFailed ? "is-failed" : "is-pending"}`}>
                           {isFailed ? <AlertTriangle size={22} /> : <LoaderCircle className="spin" size={22} />}
                           <strong>{isFailed ? "生成失败" : "正在生成"}</strong>
-                          <span>{isFailed ? item.errorMessage || "该风格本轮未能成功生成。" : waitingLines[waitingLineIndex] || "结果会在完成后自动出现。"}</span>
+                          {isRunning ? <WaitProgress elapsedSeconds={elapsedSeconds} estimatedSeconds={estimatedWaitSeconds} /> : null}
+                          <span>{waitingText}</span>
                         </div>
                       )}
                       <div className="draw-card-result-meta">
@@ -7700,6 +7764,19 @@ function ImageGeneratorModal({ onClose, style }) {
           </button>
         </div>
       </section>
+    </div>
+  );
+}
+
+function WaitProgress({ elapsedSeconds, estimatedSeconds }) {
+  const target = Math.max(10, Number(estimatedSeconds) || 120);
+  const percent = Math.min(92, Math.max(4, Math.round((elapsedSeconds / target) * 100)));
+  return (
+    <div className="draw-card-wait-progress" role="status" aria-live="polite">
+      <div className="draw-card-wait-progress-track">
+        <div className="draw-card-wait-progress-bar" style={{ width: `${percent}%` }} />
+      </div>
+      <span className="draw-card-wait-progress-caption">已等待 {elapsedSeconds}s</span>
     </div>
   );
 }
