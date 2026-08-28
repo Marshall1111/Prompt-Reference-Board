@@ -46,6 +46,8 @@ function mapAccount(row) {
     referralBalanceCents: Number(row.referral_balance_cents || 0),
     referralPendingCents: Number(row.referral_pending_cents || 0),
     isReferralInfluencer: String(row.referral_role || "standard") === "influencer",
+    isStoreOwner: String(row.store_role || "standard") === "store_owner",
+    storeWechatId: String(row.store_wechat_id || ""),
     originalDownloadsUnlockedAt: row.original_downloads_unlocked_at || null,
     email: String(row.email || ""),
     username: String(row.username || ""),
@@ -117,6 +119,8 @@ export function createCommerceStore({ dbPath }) {
       referral_balance_cents INTEGER NOT NULL DEFAULT 0,
       referral_pending_cents INTEGER NOT NULL DEFAULT 0,
       referral_role TEXT NOT NULL DEFAULT 'standard',
+      store_role TEXT NOT NULL DEFAULT 'standard',
+      store_wechat_id TEXT NOT NULL DEFAULT '',
       original_downloads_unlocked_at TEXT,
       wechat_nickname TEXT NOT NULL DEFAULT '',
       wechat_avatar_url TEXT NOT NULL DEFAULT '',
@@ -448,6 +452,8 @@ export function createCommerceStore({ dbPath }) {
   ensureAccountColumn("referral_balance_cents", "referral_balance_cents INTEGER NOT NULL DEFAULT 0");
   const addedReferralPendingBalance = ensureAccountColumn("referral_pending_cents", "referral_pending_cents INTEGER NOT NULL DEFAULT 0");
   ensureAccountColumn("referral_role", "referral_role TEXT NOT NULL DEFAULT 'standard'");
+  ensureAccountColumn("store_role", "store_role TEXT NOT NULL DEFAULT 'standard'");
+  ensureAccountColumn("store_wechat_id", "store_wechat_id TEXT NOT NULL DEFAULT ''");
   const paymentIntentColumns = db.prepare("PRAGMA table_info(commerce_payment_intents)").all();
   if (!paymentIntentColumns.some((column) => String(column.name || "") === "user_deleted_at")) {
     db.exec("ALTER TABLE commerce_payment_intents ADD COLUMN user_deleted_at TEXT");
@@ -2020,6 +2026,33 @@ export function createCommerceStore({ dbPath }) {
     `).all().map(mapAccount);
   }
 
+  function setStoreOwner(accountId, enabled, wechatId = "") {
+    const account = readAccount(accountId);
+    if (!account?.isRegistered) return null;
+    const safeWechatId = String(wechatId || "").trim().slice(0, 64);
+    db.prepare("UPDATE commerce_accounts SET store_role = ?, store_wechat_id = ?, updated_at = ? WHERE id = ?")
+      .run(enabled ? "store_owner" : "standard", enabled ? safeWechatId : "", nowIso(), account.id);
+    return readAccount(account.id);
+  }
+
+  function updateStoreOwnerWechat(accountId, wechatId) {
+    const account = readAccount(accountId);
+    if (!account?.isRegistered || !account.isStoreOwner) return account;
+    const safeWechatId = String(wechatId || "").trim().slice(0, 64);
+    db.prepare("UPDATE commerce_accounts SET store_wechat_id = ?, updated_at = ? WHERE id = ?")
+      .run(safeWechatId, nowIso(), account.id);
+    return readAccount(account.id);
+  }
+
+  function listStoreOwners() {
+    return db.prepare(`
+      SELECT * FROM commerce_accounts
+      WHERE store_role = 'store_owner'
+        AND registered_at IS NOT NULL
+      ORDER BY updated_at DESC, id ASC
+    `).all().map(mapAccount);
+  }
+
   function adjustRedemptionEntitlement({ accountId, entitlementType, delta, note = "", referenceId = "" }) {
     return withTransaction(db, () => {
       const safeAccountId = String(accountId || "");
@@ -2604,6 +2637,9 @@ export function createCommerceStore({ dbPath }) {
     configureReferralRates,
     setReferralInfluencer,
     listReferralInfluencers,
+    setStoreOwner,
+    updateStoreOwnerWechat,
+    listStoreOwners,
     listAdminReferralLedger,
     listAdminReferralRankings,
     recordReferralVisit,

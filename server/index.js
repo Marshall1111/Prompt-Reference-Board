@@ -1327,7 +1327,7 @@ app.get("/api/payments/wechat/oauth-callback", async (req, res, next) => {
 
 app.get("/api/visitor-state", async (req, res) => {
   try {
-    res.json(toPublicWebAccountState(req, req.webAccount));
+    res.json(await toPublicWebAccountState(req, req.webAccount));
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "读取访客状态失败，请稍后再试。" });
@@ -1360,6 +1360,24 @@ app.post("/api/public/merchant-source/claim", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(error.status || 400).json({ message: error.publicMessage || "锁定商户来源失败。" });
+  }
+});
+
+app.post("/api/public/store-owner/claim", async (req, res) => {
+  try {
+    const result = await claimStoreOwnerForVisitor(req, req.body?.invite || req.body?.token);
+    const activeContext = getActiveVisitorStoreOwner(result.visitor);
+    res.json({
+      storeOwnerAccountId: activeContext?.storeOwnerAccountId || "",
+      storeOwnerName: activeContext?.storeOwnerName || "",
+      storeOwnerWechatId: activeContext?.storeOwnerWechatId || "",
+      claimedNow: result.claimedNow === true,
+      expiresAt: activeContext?.storeOwnerExpiresAt || null,
+      locked: result.locked === true
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 400).json({ message: error.publicMessage || "锁定店家来源失败。" });
   }
 });
 
@@ -1527,7 +1545,7 @@ async function redeemCodeHandler(req, res) {
       });
     }
     res.json({
-      ...toPublicWebAccountState(req, beanResult.account || coinResult.account),
+      ...(await toPublicWebAccountState(req, beanResult.account || coinResult.account)),
       redemptionCoins: result.coinBonus,
       redemptionBeans: result.beanBonus,
       redemptionOriginalDownloadAllowanceCount: result.originalDownloadAllowanceCount,
@@ -3976,6 +3994,48 @@ app.delete("/api/admin/referrals/influencers/:accountId", requireAdmin, (req, re
   }
 });
 
+app.get("/api/admin/store-owners", requireAdmin, (req, res, next) => {
+  try {
+    res.json({ storeOwners: commerceStore.listStoreOwners().map(toPublicAdminUser) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/store-owners", requireAdmin, (req, res, next) => {
+  try {
+    const accountId = String(req.body?.accountId || "").trim();
+    const wechatId = String(req.body?.wechatId || "").trim();
+    const account = commerceStore.setStoreOwner(accountId, true, wechatId);
+    if (!account) throw createHttpError(404, "仅可将已注册用户设为小画店家。");
+    res.status(201).json({ storeOwner: toPublicAdminUser(account) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/store-owners/:accountId", requireAdmin, (req, res, next) => {
+  try {
+    const wechatId = String(req.body?.wechatId || "").trim();
+    if (!wechatId) throw createHttpError(400, "请填写店家微信号。");
+    const account = commerceStore.updateStoreOwnerWechat(req.params.accountId, wechatId);
+    if (!account) throw createHttpError(404, "小画店家不存在。");
+    res.json({ storeOwner: toPublicAdminUser(account) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/store-owners/:accountId", requireAdmin, (req, res, next) => {
+  try {
+    const account = commerceStore.setStoreOwner(req.params.accountId, false);
+    if (!account) throw createHttpError(404, "小画店家不存在。");
+    res.json({ storeOwner: toPublicAdminUser(account) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/admin/referrals/withdrawals", requireAdmin, (req, res, next) => {
   try {
     const accountId = String(req.body?.accountId || "").trim();
@@ -5114,6 +5174,9 @@ async function inferVisitorStateFromArtifacts(visitorId, currentText = "") {
   let activeVisitSessionId = "";
   let sourceMerchantId = readJsonStringFieldFromText(currentText, "sourceMerchantId");
   let sourceMerchantName = readJsonStringFieldFromText(currentText, "sourceMerchantName");
+  let storeOwnerAccountId = readJsonStringFieldFromText(currentText, "storeOwnerAccountId");
+  let storeOwnerName = readJsonStringFieldFromText(currentText, "storeOwnerName");
+  let storeOwnerWechatId = readJsonStringFieldFromText(currentText, "storeOwnerWechatId");
 
   await mkdir(visitSessionRoot, { recursive: true });
   const visitEntries = await readdir(visitSessionRoot, { withFileTypes: true });
@@ -5153,6 +5216,8 @@ async function inferVisitorStateFromArtifacts(visitorId, currentText = "") {
   const recoveredContactMessage = readJsonStringFieldFromText(currentText, "contactMessage");
   const recoveredSourceClaimedAt = readJsonNullableStringFieldFromText(currentText, "sourceClaimedAt");
   const recoveredSourceExpiresAt = readJsonNullableStringFieldFromText(currentText, "sourceExpiresAt");
+  const recoveredStoreOwnerClaimedAt = readJsonNullableStringFieldFromText(currentText, "storeOwnerClaimedAt");
+  const recoveredStoreOwnerExpiresAt = readJsonNullableStringFieldFromText(currentText, "storeOwnerExpiresAt");
   const createdAt = pickEarliestIsoString(recoveredCreatedAt, invitedAtFromInvite, earliestVisitCreatedAt, earliestDrawCardCreatedAt) || new Date().toISOString();
   const updatedAt = pickLatestIsoString(recoveredUpdatedAt, latestVisitActivityAt, latestDrawCardActivityAt, invitedAtFromInvite, createdAt) || createdAt;
   const lastActiveAt = pickLatestIsoString(recoveredLastActiveAt, latestVisitActivityAt, latestDrawCardActivityAt, updatedAt) || updatedAt;
@@ -5169,6 +5234,11 @@ async function inferVisitorStateFromArtifacts(visitorId, currentText = "") {
     sourceMerchantName,
     sourceClaimedAt: recoveredSourceClaimedAt,
     sourceExpiresAt: recoveredSourceExpiresAt,
+    storeOwnerAccountId,
+    storeOwnerName,
+    storeOwnerWechatId,
+    storeOwnerClaimedAt: recoveredStoreOwnerClaimedAt,
+    storeOwnerExpiresAt: recoveredStoreOwnerExpiresAt,
     invitedAt: null,
     contactMessage: recoveredContactMessage || DEFAULT_CONTACT_MESSAGE,
     lastActiveAt,
@@ -5229,6 +5299,9 @@ function normalizeVisitorState(visitor) {
   const rawSourceExpiresAt = visitor?.sourceExpiresAt || null;
   const sourceExpiresAtTime = rawSourceExpiresAt ? new Date(rawSourceExpiresAt).getTime() : NaN;
   const sourceIsActive = Number.isFinite(sourceExpiresAtTime) && sourceExpiresAtTime > Date.now();
+  const rawStoreOwnerExpiresAt = visitor?.storeOwnerExpiresAt || null;
+  const storeOwnerExpiresAtTime = rawStoreOwnerExpiresAt ? new Date(rawStoreOwnerExpiresAt).getTime() : NaN;
+  const storeOwnerIsActive = Number.isFinite(storeOwnerExpiresAtTime) && storeOwnerExpiresAtTime > Date.now();
   return {
     visitorId: String(visitor?.visitorId || randomUUID()),
     tier,
@@ -5239,6 +5312,11 @@ function normalizeVisitorState(visitor) {
     sourceMerchantName: sourceIsActive ? String(visitor?.sourceMerchantName || "").trim() : "",
     sourceClaimedAt: sourceIsActive ? visitor?.sourceClaimedAt || null : null,
     sourceExpiresAt: sourceIsActive ? rawSourceExpiresAt : null,
+    storeOwnerAccountId: storeOwnerIsActive ? String(visitor?.storeOwnerAccountId || "").trim() : "",
+    storeOwnerName: storeOwnerIsActive ? String(visitor?.storeOwnerName || "").trim() : "",
+    storeOwnerWechatId: storeOwnerIsActive ? String(visitor?.storeOwnerWechatId || "").trim() : "",
+    storeOwnerClaimedAt: storeOwnerIsActive ? visitor?.storeOwnerClaimedAt || null : null,
+    storeOwnerExpiresAt: storeOwnerIsActive ? rawStoreOwnerExpiresAt : null,
     invitedAt: null,
     contactMessage: String(visitor?.contactMessage || DEFAULT_CONTACT_MESSAGE),
     lastActiveAt: visitor?.lastActiveAt || visitor?.updatedAt || visitor?.createdAt || new Date().toISOString(),
@@ -6058,6 +6136,60 @@ async function claimMerchantSourceForVisitor(req, merchantId, signature) {
     sourceMerchantName: merchant.name,
     sourceClaimedAt: now.toISOString(),
     sourceExpiresAt,
+    updatedAt: now.toISOString()
+  });
+
+  return {
+    visitor: nextVisitor,
+    claimedNow: true,
+    locked: true
+  };
+}
+
+function getActiveVisitorStoreOwner(visitor) {
+  const safeVisitor = normalizeVisitorState(visitor);
+  if (!safeVisitor.storeOwnerAccountId || !safeVisitor.storeOwnerExpiresAt) return null;
+  return {
+    storeOwnerAccountId: safeVisitor.storeOwnerAccountId,
+    storeOwnerName: safeVisitor.storeOwnerName,
+    storeOwnerWechatId: safeVisitor.storeOwnerWechatId,
+    storeOwnerClaimedAt: safeVisitor.storeOwnerClaimedAt,
+    storeOwnerExpiresAt: safeVisitor.storeOwnerExpiresAt
+  };
+}
+
+async function claimStoreOwnerForVisitor(req, inviteToken) {
+  const safeToken = String(inviteToken || "").trim();
+  if (!safeToken) throw createHttpError(400, "缺少店家邀请参数。");
+  const link = commerceStore.resolveReferralLink(safeToken);
+  if (!link) throw createHttpError(404, "邀请链接不存在或已失效。");
+  const owner = commerceStore.readAccount(link.referrerAccountId);
+  if (!owner?.isRegistered || !owner.isStoreOwner || !owner.storeWechatId) {
+    throw createHttpError(404, "该邀请对应的用户不是小画店家。");
+  }
+  if (req.webAccount?.isRegistered && String(req.webAccount.id) === String(owner.id)) {
+    throw createHttpError(400, "不能锁定自己生成的店家风格码。");
+  }
+
+  const visitor = await getVisitorState(req);
+  const currentContext = getActiveVisitorStoreOwner(visitor);
+  if (currentContext?.storeOwnerAccountId) {
+    return {
+      visitor,
+      claimedNow: false,
+      locked: true
+    };
+  }
+
+  const now = new Date();
+  const storeOwnerExpiresAt = new Date(now.getTime() + MERCHANT_SOURCE_LOCK_MS).toISOString();
+  const nextVisitor = await saveVisitorState({
+    ...visitor,
+    storeOwnerAccountId: owner.id,
+    storeOwnerName: getAccountDisplayName(owner),
+    storeOwnerWechatId: owner.storeWechatId,
+    storeOwnerClaimedAt: now.toISOString(),
+    storeOwnerExpiresAt,
     updatedAt: now.toISOString()
   });
 
@@ -7593,7 +7725,12 @@ function toPublicVisitorState(visitor) {
     sourceMerchantId: safeVisitor.sourceMerchantId,
     sourceMerchantName: safeVisitor.sourceMerchantName,
     sourceClaimedAt: safeVisitor.sourceClaimedAt,
-    sourceExpiresAt: safeVisitor.sourceExpiresAt
+    sourceExpiresAt: safeVisitor.sourceExpiresAt,
+    storeOwnerAccountId: safeVisitor.storeOwnerAccountId,
+    storeOwnerName: safeVisitor.storeOwnerName,
+    storeOwnerWechatId: safeVisitor.storeOwnerWechatId,
+    storeOwnerClaimedAt: safeVisitor.storeOwnerClaimedAt,
+    storeOwnerExpiresAt: safeVisitor.storeOwnerExpiresAt
   };
 }
 
@@ -7620,6 +7757,11 @@ function toPublicAdminVisitor(visitor) {
     sourceMerchantName: safeVisitor.sourceMerchantName,
     sourceClaimedAt: safeVisitor.sourceClaimedAt,
     sourceExpiresAt: safeVisitor.sourceExpiresAt,
+    storeOwnerAccountId: safeVisitor.storeOwnerAccountId,
+    storeOwnerName: safeVisitor.storeOwnerName,
+    storeOwnerWechatId: safeVisitor.storeOwnerWechatId,
+    storeOwnerClaimedAt: safeVisitor.storeOwnerClaimedAt,
+    storeOwnerExpiresAt: safeVisitor.storeOwnerExpiresAt,
     invitedAt: safeVisitor.invitedAt,
     createdAt: safeVisitor.createdAt,
     updatedAt: safeVisitor.updatedAt
@@ -8155,8 +8297,10 @@ function normalizePem(value) {
   return String(value || "").trim().replace(/\\n/g, "\n");
 }
 
-function toPublicWebAccountState(req, account) {
+async function toPublicWebAccountState(req, account) {
   const publicAccount = toPublicCommerceAccount(account);
+  const visitor = await getVisitorState(req).catch(() => null);
+  const storeOwner = getActiveVisitorStoreOwner(visitor);
   return {
     visitorId: req.visitorId,
     tier: "web_account",
@@ -8168,6 +8312,10 @@ function toPublicWebAccountState(req, account) {
     contactMessage: publicAccount.accountStatus === "disabled" ? "该账户已被禁用，请联系管理员。" : "",
     account: publicAccount,
     redemptionEntitlements: commerceStore.getRedemptionEntitlementSummary(publicAccount.id),
+    storeOwnerAccountId: storeOwner?.storeOwnerAccountId || "",
+    storeOwnerName: storeOwner?.storeOwnerName || "",
+    storeOwnerWechatId: storeOwner?.storeOwnerWechatId || "",
+    storeOwnerExpiresAt: storeOwner?.storeOwnerExpiresAt || null,
     authorizationUrl: ""
   };
 }
@@ -8356,6 +8504,8 @@ function toPublicAdminUser(account) {
     coinBalance: Number(account.coinBalance ?? account.creditBalance ?? 0),
     beanBalance: Number(account.beanBalance || 0),
     isReferralInfluencer: account.isReferralInfluencer === true,
+    isStoreOwner: account.isStoreOwner === true,
+    storeWechatId: String(account.storeWechatId || ""),
     registeredAt: account.registeredAt || null,
     lastLoginAt: account.lastLoginAt || null,
     createdAt: account.createdAt || null,
@@ -8744,8 +8894,7 @@ async function listAdminUserRecords({
     }))
     .filter((record) => {
       if (!keyword) return true;
-      const inviter = toPublicAdminInviter(record);
-      return [record.username, record.email, record.id, record.accountId, record.visitorId, inviter?.name, inviter?.email]
+      return [record.username, record.email, record.id, record.accountId, record.visitorId, record.wechatNickname]
         .map((value) => String(value || "").toLowerCase())
         .join("\n")
         .includes(keyword);

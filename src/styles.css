@@ -3063,6 +3063,16 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.draw-card-fulfillment-note {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #e2ddd3;
+  border-radius: 12px;
+  background: #f7f5f0;
+  color: #5a554b;
+  font-size: 0.95rem;
+}
+
 /* 浅色"选图定制"页适配：覆盖深色主题的 draw-card-segment 样式 */
 .order-page .draw-card-segment {
   border: 1px solid #d8d3c8;
@@ -5922,6 +5932,43 @@ h2 {
   background: rgba(0, 122, 255, 0.08);
 }
 
+.store-owner-wechat-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.store-owner-wechat-value strong {
+  color: #2b6f4a;
+  letter-spacing: 0.03em;
+  word-break: break-all;
+}
+
+.store-owner-wechat-value .secondary-button {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 0.72rem;
+}
+
+.store-owner-wechat-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.store-owner-wechat-edit .field-inline-input {
+  min-width: 120px;
+}
+
+.store-owner-wechat-edit .secondary-button {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 0.72rem;
+}
+
 .referral-withdrawal-backdrop {
   background: rgba(0, 0, 0, 0.36);
   backdrop-filter: blur(14px) saturate(1.12);
@@ -8275,6 +8322,11 @@ textarea {
   height: auto;
   object-fit: contain;
   transition: opacity 120ms ease;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .draw-share-stage-image.draw-share-reference-image {

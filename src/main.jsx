@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCallback } from "react";
-import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, QrCode, RefreshCw, Save, Search, Settings, Share2, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, QrCode, RefreshCw, Save, Search, Settings, Share2, Sparkles, Store, Trash2, X } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import HTMLFlipBook from "react-pageflip";
 import { createLabeledQrPngDataUrl, createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
@@ -326,6 +326,7 @@ function readRoute() {
   if (pathname === "/admin/users") return "admin-users";
   if (pathname === "/admin/visits") return "admin-visits";
   if (pathname === "/admin/merchants") return "admin-referrals";
+  if (pathname === "/admin/store-owners") return "admin-store-owners";
   if (pathname === "/admin/referrals") return "admin-referrals";
   if (pathname === "/admin/styles") return "admin-gallery";
   if (pathname === "/admin/tasks") return "admin-tasks";
@@ -469,6 +470,7 @@ function App() {
       "public-fridge-orders": "我的冰箱贴订单",
       "admin-api-providers": "API 配置",
       "admin-referrals": "推荐管理",
+      "admin-store-owners": "商户管理",
       "admin-visits": "访问记录",
       "admin-user-clip": "图片资产"
     };
@@ -495,6 +497,7 @@ function App() {
       "admin-users": "/admin/users",
       "admin-visits": "/admin/visits",
       "admin-referrals": "/admin/referrals",
+      "admin-store-owners": "/admin/store-owners",
       "admin-tasks": "/admin/tasks",
       "admin-batch": "/admin/batch",
       "admin-invites": "/admin/invites",
@@ -1165,6 +1168,10 @@ function AdminApp({ navigate, route }) {
               <Sparkles size={18} />
               <span>推荐</span>
             </button>
+            <button aria-current={route === "admin-store-owners" ? "page" : undefined} className={`nav-button ${route === "admin-store-owners" ? "is-active" : ""}`} onClick={() => navigate("admin-store-owners")} type="button">
+              <Store size={18} />
+              <span>商户</span>
+            </button>
             <button aria-current={route === "admin-batch" ? "page" : undefined} className={`nav-button ${route === "admin-batch" ? "is-active" : ""}`} onClick={() => navigate("admin-batch")} type="button">
               <Layers3 size={18} />
               <span>批量生成</span>
@@ -1224,6 +1231,8 @@ function AdminApp({ navigate, route }) {
           />
         ) : route === "admin-referrals" ? (
           <ReferralAdminPage onRefreshSettings={() => refreshAdminSettings().then(setSettings)} settings={settings} />
+        ) : route === "admin-store-owners" ? (
+          <StoreOwnerAdminPage />
         ) : route === "admin-users" ? (
           <UserAdminPage onOpenClip={openUserClip} />
         ) : route === "admin-visits" ? (
@@ -2047,7 +2056,7 @@ function DrawSharePage() {
   return <main className="draw-card-page body-book-share-page">
     {error ? <section className="body-book-share-empty"><AlertTriangle size={30} /><h2>分享链接已失效</h2><p>{error}</p><a className="draw-card-primary" href="/">我也要做</a></section> : null}
     {!sharedImage && !error ? <section className="body-book-share-empty"><LoaderCircle className="spin" size={30} /><p>正在打开好友分享的小画…</p></section> : null}
-    {sharedImage ? <section className="body-book-share-content draw-share-content"><figure className="draw-share-figure"><div className="draw-share-stage"><img alt={sharedImage.styleName || "好友分享的小画"} className={`draw-share-stage-image${showingReference ? " is-hidden" : ""}`} decoding="async" fetchPriority="high" loading="eager" onLoad={() => setMainImageLoaded(true)} src={sharedImage.previewUrl || sharedImage.imageUrl} />{showingReference && sharedImage.references?.[0]?.originalUrl ? <img alt="好友上传的原参考图" className="draw-share-stage-image draw-share-reference-image is-visible" decoding="async" fetchPriority="high" loading="eager" src={sharedImage.references[0].originalUrl} /> : null}{sharedImage.references?.[0]?.originalUrl ? <div aria-label="长按此处对比原图" className="draw-share-compare-button" onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowingReference(true); } }} onKeyUp={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowingReference(false); } }} onLostPointerCapture={() => setShowingReference(false)} onPointerCancel={() => setShowingReference(false)} onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); event.currentTarget.setPointerCapture?.(event.pointerId); setShowingReference(true); }} onPointerLeave={() => setShowingReference(false)} onPointerUp={(event) => { event.preventDefault(); event.stopPropagation(); setShowingReference(false); }} onTouchCancel={(event) => { event.preventDefault(); setShowingReference(false); }} onTouchEnd={(event) => { event.preventDefault(); setShowingReference(false); }} onTouchStart={(event) => { event.preventDefault(); event.stopPropagation(); setShowingReference(true); }} role="button" tabIndex={0}>对比原图</div> : null}</div><figcaption>{sharedImage.styleName || "小画"}</figcaption></figure><div className="body-book-share-cta"><p>AI小画，让有意义的照片更精美。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
+    {sharedImage ? <section className="body-book-share-content draw-share-content"><figure className="draw-share-figure"><div className="draw-share-stage"><img alt={sharedImage.styleName || "好友分享的小画"} className={`draw-share-stage-image${showingReference ? " is-hidden" : ""}`} decoding="async" fetchPriority="high" loading="eager" onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()} onLoad={() => setMainImageLoaded(true)} src={sharedImage.previewUrl || sharedImage.imageUrl} />{showingReference && sharedImage.references?.[0]?.originalUrl ? <img alt="好友上传的原参考图" className="draw-share-stage-image draw-share-reference-image is-visible" decoding="async" fetchPriority="high" loading="eager" src={sharedImage.references[0].originalUrl} /> : null}{sharedImage.references?.[0]?.originalUrl ? <div aria-label="长按此处对比原图" className="draw-share-compare-button" onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowingReference(true); } }} onKeyUp={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setShowingReference(false); } }} onLostPointerCapture={() => setShowingReference(false)} onPointerCancel={() => setShowingReference(false)} onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); event.currentTarget.setPointerCapture?.(event.pointerId); setShowingReference(true); }} onPointerLeave={() => setShowingReference(false)} onPointerUp={(event) => { event.preventDefault(); event.stopPropagation(); setShowingReference(false); }} onTouchCancel={(event) => { event.preventDefault(); setShowingReference(false); }} onTouchEnd={(event) => { event.preventDefault(); setShowingReference(false); }} onTouchStart={(event) => { event.preventDefault(); event.stopPropagation(); setShowingReference(true); }} role="button" tabIndex={0}>对比原图</div> : null}</div><figcaption>{sharedImage.styleName || "小画"}</figcaption></figure><div className="body-book-share-cta"><p>AI小画，让有意义的照片更精美。</p><a className="draw-card-primary" href={makeUrl}>我也要做</a></div></section> : null}
   </main>;
 }
 
@@ -4003,6 +4012,7 @@ function DrawCardCheckoutPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [fulfillmentMode, setFulfillmentMode] = useState("mail");
   const [onsiteCopied, setOnsiteCopied] = useState(false);
+  const [storeOwnerContext, setStoreOwnerContext] = useState(null);
   const pendingCheckoutRef = useRef(false);
   const hasInitializedDefaultSelectionRef = useRef(false);
 
@@ -4022,6 +4032,15 @@ function DrawCardCheckoutPage() {
         setRedemptionEntitlements(accountPayload?.redemptionEntitlements || { fridgeMagnetItemCount: 0 });
         setOrderForm((current) => fillOrderAddressFromSaved(current, accountPayload?.account));
         setQuantities((current) => syncOrderQuantitiesWithClipItems(current, items));
+        const activeStoreOwner = String(accountPayload?.storeOwnerWechatId || "").trim()
+          ? {
+              accountId: String(accountPayload?.storeOwnerAccountId || ""),
+              name: String(accountPayload?.storeOwnerName || ""),
+              wechatId: String(accountPayload?.storeOwnerWechatId || "")
+            }
+          : null;
+        setStoreOwnerContext(activeStoreOwner);
+        if (activeStoreOwner) setFulfillmentMode("onsite");
         setError("");
       })
       .catch((nextError) => {
@@ -4039,6 +4058,10 @@ function DrawCardCheckoutPage() {
     void handleSubmit();
   }, [account?.isRegistered]);
 
+  useEffect(() => {
+    if (storeOwnerContext?.wechatId) setFulfillmentMode("onsite");
+  }, [storeOwnerContext]);
+
   const selectedItems = useMemo(
     () => clipItems.filter((item) => selectedJobIds.includes(item.jobId)),
     [clipItems, selectedJobIds]
@@ -4048,7 +4071,8 @@ function DrawCardCheckoutPage() {
   const fridgeMagnetRedemptionCount = Math.max(0, Number(redemptionEntitlements.fridgeMagnetItemCount || 0));
   const usesFridgeMagnetRedemption = totalItemCount > 0 && fridgeMagnetRedemptionCount >= totalItemCount;
   const payablePreviewCents = usesFridgeMagnetRedemption ? 0 : amountPreview.totalCents;
-  const contactWechatId = getContactWechatId(orderConfig);
+  const isStoreOwnerCheckout = Boolean(storeOwnerContext?.wechatId);
+  const contactWechatId = storeOwnerContext?.wechatId || getContactWechatId(orderConfig);
 
   function toggleSelectedItem(jobId) {
     setSelectedJobIds((current) => current.includes(jobId)
@@ -4145,7 +4169,7 @@ function DrawCardCheckoutPage() {
                         <span>{onsiteCopied ? "已复制" : "复制微信号"}</span>
                       </button>
                     </div>
-                    <p className="storage-note">请先在卡夹页下载原图，然后通过上方微信号把原图发给客服，即可现场制作。</p>
+                    <p className="storage-note">{isStoreOwnerCheckout ? "请先在卡夹页下载原图，然后通过上方微信号把原图发给店家，即可现场制作。" : "请先在卡夹页下载原图，然后通过上方微信号把原图发给客服，即可现场制作。"}</p>
                   </div>
                 </div>
               ) : null}
@@ -4569,6 +4593,7 @@ function PublicExperiencePage({ config }) {
   const [drawShareBusy, setDrawShareBusy] = useState(false);
   const [drawShareNotice, setDrawShareNotice] = useState("");
   const [drawShareError, setDrawShareError] = useState("");
+  const [drawShareCopied, setDrawShareCopied] = useState(false);
   const [styleQrPreview, setStyleQrPreview] = useState(null);
   const [styleQrBusy, setStyleQrBusy] = useState(false);
   const [styleQrError, setStyleQrError] = useState("");
@@ -4640,6 +4665,7 @@ function PublicExperiencePage({ config }) {
   const pendingReferralRef = useRef(false);
   const pendingDrawShareRef = useRef(null);
   const pendingOriginalDownloadRef = useRef(null);
+  const drawShareCopiedTimeoutRef = useRef(null);
 
   useEffect(() => {
     return () => {
@@ -4647,6 +4673,7 @@ function PublicExperiencePage({ config }) {
       if (manualContactCopiedTimeoutRef.current) window.clearTimeout(manualContactCopiedTimeoutRef.current);
       if (manualOrderCopiedTimeoutRef.current) window.clearTimeout(manualOrderCopiedTimeoutRef.current);
       if (manualMessageCopiedTimeoutRef.current) window.clearTimeout(manualMessageCopiedTimeoutRef.current);
+      if (drawShareCopiedTimeoutRef.current) window.clearTimeout(drawShareCopiedTimeoutRef.current);
     };
   }, []);
 
@@ -5199,7 +5226,13 @@ function PublicExperiencePage({ config }) {
     if (experienceType !== "draw-card") return;
     const token = new URLSearchParams(window.location.search).get("invite");
     if (!token) return;
-    captureReferral(token)
+    captureReferral(token).catch(() => {});
+    claimStoreOwnerContext(token)
+      .then(() => fetchVisitorState())
+      .then((payload) => {
+        if (!payload) return;
+        setVisitorState((current) => ({ ...(current || {}), ...payload }));
+      })
       .catch(() => {})
       .finally(() => {
         const url = new URL(window.location.href);
@@ -5897,17 +5930,14 @@ function PublicExperiencePage({ config }) {
     setDrawShareUrl("");
     setDrawShareError("");
     setDrawShareNotice("");
+    setDrawShareCopied(false);
+    if (drawShareCopiedTimeoutRef.current) window.clearTimeout(drawShareCopiedTimeoutRef.current);
     try {
       const payload = await createDrawImageShare(item.jobId);
       const nextUrl = String(payload?.shareUrl || "");
       setDrawShareUrl(nextUrl);
       if (nextUrl) {
-        try {
-          await copyText(formatShareCopy(nextUrl, "draw"));
-          setDrawShareNotice("链接已复制，可发送给好友。");
-        } catch {
-          setDrawShareNotice("链接已生成，请点击下方按钮复制。");
-        }
+        setDrawShareNotice("分享链接已生成，请点击下方按钮复制。");
       }
     } catch (nextError) {
       setDrawShareError(nextError.message || "创建分享链接失败，请稍后重试。");
@@ -6686,7 +6716,7 @@ function PublicExperiencePage({ config }) {
         </div>
       ) : null}
 
-      {drawShareTarget ? <div className="modal-backdrop draw-card-confirm" onClick={() => !drawShareBusy && setDrawShareTarget(null)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享小画"><button className="icon-button" disabled={drawShareBusy} onClick={() => setDrawShareTarget(null)} type="button"><X size={18} /></button><p className="draw-card-kicker">Share your artwork</p><h2>分享给好友</h2><p>好友可查看压缩预览。每位新访客首次打开你的任意小画分享链接后，你获得 1 次原图下载权益（每位新用户只计 1 次），可用于任意小画原图。</p>{drawShareUrl ? <label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={drawShareUrl} /></label> : null}{drawShareUrl ? <div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={drawShareBusy} onClick={async () => { try { await copyText(formatShareCopy(drawShareUrl, "draw")); setDrawShareNotice("链接已复制，可发送给好友。"); } catch (nextError) { setDrawShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制链接</span></button><button className="draw-card-secondary" disabled={drawShareBusy} onClick={() => { if (window.confirm("停止分享后，已复制的链接将立即失效。确定停止分享吗？")) void closeDrawShare(); }} type="button">停止分享</button></div> : null}{drawShareNotice ? <p className="success-note">{drawShareNotice}</p> : null}{drawShareError ? <p className="error-note">{drawShareError}</p> : null}</section></div> : null}
+      {drawShareTarget ? <div className="modal-backdrop draw-card-confirm" onClick={() => !drawShareBusy && setDrawShareTarget(null)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享小画"><button className="icon-button" disabled={drawShareBusy} onClick={() => setDrawShareTarget(null)} type="button"><X size={18} /></button><p className="draw-card-kicker">Share your artwork</p><h2>分享给好友</h2><p>好友可查看压缩预览。每位新访客首次打开你的任意小画分享链接后，你获得 1 次原图下载权益（每位新用户只计 1 次），可用于任意小画原图。</p>{drawShareUrl ? <label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={drawShareUrl} /></label> : null}{drawShareUrl ? <div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={drawShareBusy} onClick={async () => { try { await copyText(formatShareCopy(drawShareUrl, "draw")); setDrawShareCopied(true); setDrawShareNotice("链接已复制，可发送给好友。"); setDrawShareError(""); if (drawShareCopiedTimeoutRef.current) window.clearTimeout(drawShareCopiedTimeoutRef.current); drawShareCopiedTimeoutRef.current = window.setTimeout(() => setDrawShareCopied(false), 2000); } catch (nextError) { setDrawShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>{drawShareCopied ? "已复制" : "复制链接"}</span></button><button className="draw-card-secondary" disabled={drawShareBusy} onClick={() => { if (window.confirm("停止分享后，已复制的链接将立即失效。确定停止分享吗？")) void closeDrawShare(); }} type="button">停止分享</button></div> : null}{drawShareNotice ? <p className="success-note">{drawShareNotice}</p> : null}{drawShareError ? <p className="error-note">{drawShareError}</p> : null}</section></div> : null}
 
       {showPhotoChangeConfirm ? (
         <div className="modal-backdrop draw-card-confirm" onClick={() => setShowPhotoChangeConfirm(false)} role="presentation">
@@ -9629,6 +9659,53 @@ async function removeAdminReferralInfluencer(accountId) {
   return payload;
 }
 
+async function fetchAdminStoreOwners() {
+  const response = await fetch("/api/admin/store-owners");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取小画店家列表失败。");
+  return payload;
+}
+
+async function addAdminStoreOwner(accountId, wechatId) {
+  const response = await fetch("/api/admin/store-owners", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ accountId, wechatId })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "设置小画店家失败。");
+  return payload;
+}
+
+async function updateAdminStoreOwnerWechat(accountId, wechatId) {
+  const response = await fetch(`/api/admin/store-owners/${encodeURIComponent(accountId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ wechatId })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "更新店家微信号失败。");
+  return payload;
+}
+
+async function removeAdminStoreOwner(accountId) {
+  const response = await fetch(`/api/admin/store-owners/${encodeURIComponent(accountId)}`, { method: "DELETE" });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "移除小画店家失败。");
+  return payload;
+}
+
+async function claimStoreOwnerContext(inviteToken) {
+  const response = await fetch("/api/public/store-owner/claim", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ invite: inviteToken })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "锁定店家来源失败。");
+  return data;
+}
+
 async function deleteInviteCodeRequest(id) {
   const response = await fetch(`/api/admin/redemption-codes/${id}`, { method: "DELETE" });
   if (!response.ok && response.status !== 204) {
@@ -11351,6 +11428,112 @@ function ReferralAdminPage({ settings, onRefreshSettings }) {
         <div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={() => setWithdrawalTarget(null)} type="button">取消</button><button className="draw-card-primary" disabled={busy || !Number(withdrawal.amountYuan) || !withdrawal.note.trim()} onClick={submitWithdrawal} type="button">确认扣除</button></div>
       </section>
     </div> : null}
+  </section>;
+}
+
+function StoreOwnerAdminPage() {
+  const [storeOwners, setStoreOwners] = useState([]);
+  const [candidates, setCandidates] = useState([]);
+  const [search, setSearch] = useState("");
+  const [hasSearched, setHasSearched] = useState(false);
+  const [wechatByCandidate, setWechatByCandidate] = useState({});
+  const [editingWechat, setEditingWechat] = useState({});
+  const [wechatInputs, setWechatInputs] = useState({});
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const identity = (account) => {
+    if (!account) return "—";
+    const name = account.username || account.wechatNickname || "微信用户";
+    return `${name} · #${String(account.id || "").slice(-8)}`;
+  };
+
+  async function refreshAll() {
+    setBusy(true); setError("");
+    try {
+      const payload = await fetchAdminStoreOwners();
+      setStoreOwners(payload.storeOwners || []);
+    } catch (nextError) { setError(nextError.message || "读取小画店家列表失败。"); } finally { setBusy(false); }
+  }
+  useEffect(() => { void refreshAll(); }, []);
+
+  async function searchCandidates() {
+    const keyword = search.trim();
+    if (!keyword) {
+      setCandidates([]);
+      setHasSearched(false);
+      return;
+    }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const payload = await fetchAdminUsers({ type: "registered", search: keyword, limit: 20 });
+      setCandidates((payload.users || []).filter((user) => !user.isStoreOwner));
+      setHasSearched(true);
+    } catch (nextError) { setError(nextError.message || "搜索用户失败。"); } finally { setBusy(false); }
+  }
+
+  async function addStoreOwner(accountId) {
+    const wechatId = String(wechatByCandidate[accountId] || "").trim();
+    if (!wechatId) {
+      setError("请先填写店家微信号。");
+      return;
+    }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await addAdminStoreOwner(accountId, wechatId);
+      setCandidates((current) => current.filter((user) => user.id !== accountId));
+      await refreshAll();
+      setNotice("已设为小画店家，之后该店家的风格码进入选图定制时会默认选择现场制作并展示店家微信。");
+    } catch (nextError) { setError(nextError.message || "设置小画店家失败。"); } finally { setBusy(false); }
+  }
+
+  async function saveWechat(accountId) {
+    const wechatId = String(wechatInputs[accountId] || "").trim();
+    if (!wechatId) {
+      setError("请填写店家微信号。");
+      return;
+    }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await updateAdminStoreOwnerWechat(accountId, wechatId);
+      setEditingWechat((current) => ({ ...current, [accountId]: false }));
+      setWechatInputs((current) => ({ ...current, [accountId]: "" }));
+      await refreshAll();
+      setNotice("店家微信号已更新。");
+    } catch (nextError) { setError(nextError.message || "更新店家微信号失败。"); } finally { setBusy(false); }
+  }
+
+  async function removeStoreOwner(accountId) {
+    if (!window.confirm("确认移出小画店家吗？之后该用户的风格码不再默认进入店家现场制作模式。")) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await removeAdminStoreOwner(accountId);
+      await refreshAll();
+      setNotice("已移出小画店家列表。");
+    } catch (nextError) { setError(nextError.message || "移除小画店家失败。"); } finally { setBusy(false); }
+  }
+
+  function startEditWechat(account) {
+    setEditingWechat((current) => ({ ...current, [account.id]: true }));
+    setWechatInputs((current) => ({ ...current, [account.id]: account.storeWechatId || "" }));
+    setError(""); setNotice("");
+  }
+
+  return <section className="task-page referral-admin-page" aria-label="商户管理">
+    <div className="task-toolbar"><div><p className="eyebrow">Merchants</p><h2>商户</h2><p className="storage-note">将注册用户设为小画店家并维护店家微信号；扫店家的风格码进入选图定制时，默认选择现场制作并展示店家微信。</p></div><button className="secondary-button" disabled={busy} onClick={refreshAll} type="button"><RefreshCw size={18} /><span>{busy ? "刷新中" : "刷新"}</span></button></div>
+    {error ? <p className="error-note">{error}</p> : null}{notice ? <p className="success-note">{notice}</p> : null}
+
+    <div className="referral-admin-card referral-influencer-card">
+      <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Store owners</p><h3>小画店家列表</h3></div></div>
+      <div className="task-filters">
+        <label className="search-box"><Search size={18} /><input onChange={(event) => { setSearch(event.target.value); setCandidates([]); setHasSearched(false); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void searchCandidates(); } }} placeholder="搜索昵称、邮箱或账户 ID" value={search} /></label>
+        <button className="secondary-button" disabled={busy || !search.trim()} onClick={searchCandidates} type="button">搜索用户</button>
+      </div>
+      {search.trim() ? <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table"><thead><tr><th>匹配用户</th><th>注册信息</th><th>店家微信号</th><th /></tr></thead><tbody>{candidates.map((user) => <tr key={user.id}><td><div className="user-admin-identity"><strong>{identity(user)}</strong><span>{user.email || "微信账户"}</span></div></td><td>{user.registeredAt ? formatDateTime(user.registeredAt) : "—"}</td><td><input className="field-inline-input" onChange={(event) => setWechatByCandidate((current) => ({ ...current, [user.id]: event.target.value }))} placeholder="输入店家微信号" value={wechatByCandidate[user.id] || ""} /></td><td><button className="secondary-button" disabled={busy} onClick={() => addStoreOwner(user.id)} type="button">设为小画店家</button></td></tr>)}{!candidates.length ? <tr><td colSpan="4" className="order-table-empty">{hasSearched ? "未找到可加入的已注册用户。" : "点击“搜索用户”后显示匹配的已注册用户。"}</td></tr> : null}</tbody></table></div> : <p className="storage-note">输入昵称、邮箱或账户 ID 后搜索，再从匹配结果中设为小画店家。</p>}
+      <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Current</p><h3>已加入的小画店家</h3></div></div>
+      <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table"><thead><tr><th>用户</th><th>注册信息</th><th>设为店家时间</th><th>店家微信号</th><th /></tr></thead><tbody>{storeOwners.map((user) => <tr key={user.id}><td><div className="user-admin-identity"><strong>{identity(user)}</strong><span>{user.email || "微信账户"}</span></div></td><td>{user.registeredAt ? formatDateTime(user.registeredAt) : "—"}</td><td>{user.updatedAt ? formatDateTime(user.updatedAt) : "—"}</td><td>{editingWechat[user.id] ? <div className="task-filters store-owner-wechat-edit"><input className="field-inline-input" onChange={(event) => setWechatInputs((current) => ({ ...current, [user.id]: event.target.value }))} value={wechatInputs[user.id] || ""} /><button className="secondary-button" disabled={busy} onClick={() => saveWechat(user.id)} type="button">保存</button><button className="secondary-button" disabled={busy} onClick={() => setEditingWechat((current) => ({ ...current, [user.id]: false }))} type="button">取消</button></div> : <div className="store-owner-wechat-value"><strong>{user.storeWechatId || "—"}</strong><button className="secondary-button" disabled={busy} onClick={() => startEditWechat(user)} type="button"><Pencil size={14} />编辑</button></div>}</td><td><button className="danger-button" disabled={busy} onClick={() => removeStoreOwner(user.id)} type="button">移出店家</button></td></tr>)}{!storeOwners.length ? <tr><td colSpan="5" className="order-table-empty">暂未设置小画店家。</td></tr> : null}</tbody></table></div>
+    </div>
   </section>;
 }
 
