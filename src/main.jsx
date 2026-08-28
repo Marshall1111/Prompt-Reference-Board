@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCallback } from "react";
-import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Clipboard, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, Pencil, Plus, QrCode, RefreshCw, Save, Search, Settings, Share2, Sparkles, Store, Trash2, X } from "lucide-react";
+import { Activity, AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, Clipboard, Cpu, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, MemoryStick, Pencil, Plus, QrCode, RefreshCw, Save, Search, Server, Settings, Share2, Sparkles, Store, Trash2, Wifi, X, XCircle } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import HTMLFlipBook from "react-pageflip";
 import { createLabeledQrPngDataUrl, createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
@@ -334,6 +334,7 @@ function readRoute() {
   if (pathname === "/admin/invites") return "admin-invites";
   if (pathname === "/admin/api-providers") return "admin-api-providers";
   if (pathname === "/admin/storage") return "admin-storage";
+  if (pathname === "/admin/monitor") return "admin-monitor";
   return "public-draw";
 }
 
@@ -502,7 +503,8 @@ function App() {
       "admin-batch": "/admin/batch",
       "admin-invites": "/admin/invites",
       "admin-api-providers": "/admin/api-providers",
-      "admin-storage": "/admin/storage"
+      "admin-storage": "/admin/storage",
+      "admin-monitor": "/admin/monitor"
     };
     const path = pathByRoute[nextRoute] || "/";
     window.history.pushState({}, "", path);
@@ -1188,6 +1190,10 @@ function AdminApp({ navigate, route }) {
               <HardDrive size={18} />
               <span>存储管理</span>
             </button>
+            <button aria-current={route === "admin-monitor" ? "page" : undefined} className={`nav-button ${route === "admin-monitor" ? "is-active" : ""}`} onClick={() => navigate("admin-monitor")} type="button">
+              <Activity size={18} />
+              <span>系统监控</span>
+            </button>
             <button className="nav-button" onClick={handleLogout} type="button">
               <Home size={18} />
               <span>退出登录</span>
@@ -1261,6 +1267,8 @@ function AdminApp({ navigate, route }) {
             storageSummary={storageSummary}
             onRefreshStorage={() => refreshStorageSummary().then(setStorageSummary)}
           />
+        ) : route === "admin-monitor" ? (
+          <MonitorAdminPage />
         ) : (
           <GalleryPage
             onCreateStyle={createStyle}
@@ -9904,6 +9912,27 @@ async function refreshStorageSummary() {
   return payload;
 }
 
+async function fetchSystemMonitor() {
+  const response = await fetch("/api/admin/monitor/system");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取系统状态失败。");
+  return payload;
+}
+
+async function fetchNetworkMonitor() {
+  const response = await fetch("/api/admin/monitor/network");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取网络状态失败。");
+  return payload;
+}
+
+async function fetchApiHealthMonitor() {
+  const response = await fetch("/api/admin/monitor/api-health");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取 API 健康度失败。");
+  return payload;
+}
+
 async function createStorageBackupRequest() {
   const response = await fetch("/api/admin/storage/backups", {
     method: "POST"
@@ -12214,6 +12243,255 @@ function StorageAdminPage({ storageSummary, onRefreshStorage }) {
           {statusMessage ? <p className="success-note">{statusMessage}</p> : null}
           {error ? <p className="error-note">{error}</p> : null}
         </div>
+      </section>
+    </section>
+  );
+}
+
+function formatSpeed(value) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes < 0) return "--";
+  if (bytes < 1024) return `${Math.round(bytes)} B/s`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes >= 10240 ? 0 : 1)} KB/s`;
+  return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB/s`;
+}
+
+function MonitorBar({ percent }) {
+  const safe = Math.max(0, Math.min(100, Number(percent) || 0));
+  const tone = safe >= 85 ? "is-high" : safe >= 60 ? "is-mid" : "is-low";
+  return (
+    <div className="monitor-bar">
+      <div className={`monitor-bar-fill ${tone}`} style={{ width: `${safe}%` }} />
+    </div>
+  );
+}
+
+function MonitorSparkline({ values, color = "#007aff", max = 100 }) {
+  if (!values || values.length < 2) {
+    return <p className="monitor-sparkline-empty">等待采样…</p>;
+  }
+  const width = 120;
+  const height = 34;
+  const points = values
+    .map((value, index) => {
+      const x = values.length === 1 ? 0 : (index / (values.length - 1)) * width;
+      const y = height - Math.min(1, Math.max(0, (Number(value) || 0) / max)) * height;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  return (
+    <svg className="monitor-sparkline" height={height} viewBox={`0 0 ${width} ${height}`} width={width}>
+      <polyline fill="none" points={points} stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function MonitorAdminPage() {
+  const [system, setSystem] = useState(null);
+  const [network, setNetwork] = useState(null);
+  const [apiHealth, setApiHealth] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    const [systemResult, networkResult, healthResult] = await Promise.allSettled([
+      fetchSystemMonitor(),
+      fetchNetworkMonitor(),
+      fetchApiHealthMonitor()
+    ]);
+    const nextSystem = systemResult.status === "fulfilled" ? systemResult.value : null;
+    const nextNetwork = networkResult.status === "fulfilled" ? networkResult.value : null;
+    const nextHealth = healthResult.status === "fulfilled" ? healthResult.value : null;
+    if (nextSystem) setSystem(nextSystem);
+    if (nextNetwork) setNetwork(nextNetwork);
+    if (nextHealth) setApiHealth(nextHealth);
+    if (nextSystem) {
+      setHistory((current) => {
+        const next = [
+          ...current,
+          {
+            t: Date.now(),
+            cpu: nextSystem.cpu?.percent ?? null,
+            mem: nextSystem.memory?.percent ?? null,
+            disk: nextSystem.disk?.percent ?? null,
+            rx: nextNetwork?.rxBytesPerSec ?? null,
+            tx: nextNetwork?.txBytesPerSec ?? null
+          }
+        ];
+        return next.length > 60 ? next.slice(next.length - 60) : next;
+      });
+    }
+    const failures = [systemResult, networkResult, healthResult].filter((result) => result.status === "rejected");
+    setError(failures.length ? failures.map((result) => result.reason?.message || "读取监控数据失败。").join("；") : "");
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    const timer = window.setInterval(refresh, 10 * 1000);
+    return () => window.clearInterval(timer);
+  }, [refresh]);
+
+  const lastUpdated = system?.timestamp ? formatDateTime(system.timestamp) : "";
+  const cpuValues = history.map((item) => item.cpu).filter((value) => value !== null);
+  const memValues = history.map((item) => item.mem).filter((value) => value !== null);
+  const diskValues = history.map((item) => item.disk).filter((value) => value !== null);
+  const providers = apiHealth?.providers || [];
+
+  return (
+    <section className="task-page monitor-page" aria-label="系统监控">
+      <div className="task-toolbar">
+        <div>
+          <p className="eyebrow">Server monitor</p>
+          <h2>系统监控</h2>
+          <p className="storage-note">
+            每 10 秒自动刷新。查看 CPU、内存、磁盘、网络与进程资源占用，以及各生图 API 供应商最近 10 次任务的健康度。
+            {lastUpdated ? <span className="monitor-updated-at">最近更新 {lastUpdated}</span> : null}
+          </p>
+        </div>
+        <button className="secondary-button" disabled={isLoading} onClick={() => { setIsLoading(true); refresh(); }} type="button">
+          <RefreshCw className={isLoading ? "spin" : ""} size={18} />
+          <span>刷新</span>
+        </button>
+      </div>
+
+      {error ? <p className="error-note">{error}</p> : null}
+      {!system && !error ? <p className="storage-note">正在读取监控数据…</p> : null}
+
+      <div className="monitor-stat-grid">
+        <article className="task-card monitor-stat-card">
+          <div className="monitor-stat-icon"><Cpu size={18} /></div>
+          <div className="monitor-stat-label">CPU 使用率</div>
+          <div className="monitor-stat-value">{system?.cpu?.percent != null ? `${system.cpu.percent}%` : "--"}</div>
+          <MonitorBar percent={system?.cpu?.percent} />
+          <p className="storage-note">负载 1/5/15 分钟：{system?.cpu?.loadAverage?.map((value) => Number(value).toFixed(2)).join(" / ") || "--"}</p>
+        </article>
+
+        <article className="task-card monitor-stat-card">
+          <div className="monitor-stat-icon"><MemoryStick size={18} /></div>
+          <div className="monitor-stat-label">内存使用率</div>
+          <div className="monitor-stat-value">{system?.memory?.percent != null ? `${system.memory.percent}%` : "--"}</div>
+          <MonitorBar percent={system?.memory?.percent} />
+          <p className="storage-note">{system?.memory ? `${formatBytes(system.memory.usedBytes)} / ${formatBytes(system.memory.totalBytes)}` : "--"}</p>
+        </article>
+
+        <article className="task-card monitor-stat-card">
+          <div className="monitor-stat-icon"><HardDrive size={18} /></div>
+          <div className="monitor-stat-label">磁盘使用率</div>
+          <div className="monitor-stat-value">{system?.disk?.percent != null ? `${system.disk.percent}%` : "--"}</div>
+          <MonitorBar percent={system?.disk?.percent} />
+          <p className="storage-note">
+            {system?.disk ? `${formatBytes(system.disk.usedBytes)} / ${formatBytes(system.disk.totalBytes)}，可用 ${formatBytes(system.disk.freeBytes)}` : "--"}
+          </p>
+        </article>
+
+        <article className="task-card monitor-stat-card">
+          <div className="monitor-stat-icon"><Server size={18} /></div>
+          <div className="monitor-stat-label">Node 进程内存</div>
+          <div className="monitor-stat-value">{system?.processMemory ? formatBytes(system.processMemory.rssBytes) : "--"}</div>
+          <MonitorBar
+            percent={
+              system?.processMemory && system.memory?.totalBytes
+                ? Math.round((system.processMemory.rssBytes / system.memory.totalBytes) * 1000) / 10
+                : null
+            }
+          />
+          <p className="storage-note">
+            {system?.processMemory
+              ? `堆 ${formatBytes(system.processMemory.heapUsedBytes)} / ${formatBytes(system.processMemory.heapTotalBytes)}`
+              : "--"}
+          </p>
+        </article>
+      </div>
+
+      <div className="monitor-stat-grid">
+        <article className="task-card monitor-stat-card">
+          <div className="monitor-stat-icon"><ArrowDown size={18} /></div>
+          <div className="monitor-stat-label">下行带宽</div>
+          <div className="monitor-stat-value">{formatSpeed(network?.rxBytesPerSec)}</div>
+          <p className="storage-note">{network && network.supported === false ? "当前系统不支持带宽采集（仅 Linux 可用）" : "实时下行速率（最近两次采样差值）"}</p>
+        </article>
+        <article className="task-card monitor-stat-card">
+          <div className="monitor-stat-icon"><ArrowUp size={18} /></div>
+          <div className="monitor-stat-label">上行带宽</div>
+          <div className="monitor-stat-value">{formatSpeed(network?.txBytesPerSec)}</div>
+          <p className="storage-note">{network && network.supported === false ? "当前系统不支持带宽采集（仅 Linux 可用）" : "实时上行速率（最近两次采样差值）"}</p>
+        </article>
+        <article className="task-card monitor-stat-card">
+          <div className="monitor-stat-icon"><Wifi size={18} /></div>
+          <div className="monitor-stat-label">服务器信息</div>
+          <div className="monitor-stat-value is-hostname" title={system?.hostname || ""}>{system?.hostname || "--"}</div>
+          <p className="storage-note">
+            {system ? `${system.platform} ${system.arch} · Node ${system.nodeVersion} · 运行 ${formatDuration(system.osUptimeSeconds)}` : "--"}
+          </p>
+        </article>
+        <article className="task-card monitor-stat-card">
+          <div className="monitor-stat-icon"><Activity size={18} /></div>
+          <div className="monitor-stat-label">进程运行时长</div>
+          <div className="monitor-stat-value">{system?.processUptimeSeconds != null ? formatDuration(system.processUptimeSeconds) : "--"}</div>
+          <p className="storage-note">当前 Node 服务进程持续运行的时间。</p>
+        </article>
+      </div>
+
+      <section className="task-page monitor-charts" aria-label="趋势图">
+        <div className="task-toolbar">
+          <div>
+            <p className="eyebrow">Trends</p>
+            <h2>近 10 分钟趋势</h2>
+            <p className="storage-note">每 10 秒采样一次，最多保留 60 个点。</p>
+          </div>
+        </div>
+        <div className="monitor-chart-grid">
+          <div className="monitor-chart-card">
+            <span className="monitor-chart-label">CPU %</span>
+            <MonitorSparkline color="#007aff" values={cpuValues} />
+          </div>
+          <div className="monitor-chart-card">
+            <span className="monitor-chart-label">内存 %</span>
+            <MonitorSparkline color="#af52de" values={memValues} />
+          </div>
+          <div className="monitor-chart-card">
+            <span className="monitor-chart-label">磁盘 %</span>
+            <MonitorSparkline color="#34c759" values={diskValues} />
+          </div>
+        </div>
+      </section>
+
+      <section className="task-page monitor-api-health" aria-label="API 健康度">
+        <div className="task-toolbar">
+          <div>
+            <p className="eyebrow">API health</p>
+            <h2>API 供应商健康度</h2>
+            <p className="storage-note">统计各供应商最近 10 次生图任务的成功率与平均生成时长。</p>
+          </div>
+        </div>
+        {providers.length ? (
+          <div className="order-table-wrap">
+            <table className="order-table monitor-health-table">
+              <thead>
+                <tr><th>供应商</th><th>最近任务</th><th>成功率</th><th>平均生成时长</th><th>进行中</th></tr>
+              </thead>
+              <tbody>
+                {providers.map((provider) => (
+                  <tr key={provider.providerId}>
+                    <td><strong>{provider.name}</strong>{provider.model ? <small>{provider.model}</small> : null}</td>
+                    <td>{provider.taskCount} 次（成功 {provider.succeeded} / 失败 {provider.failed}）</td>
+                    <td>
+                      {provider.successRate != null
+                        ? <span className={`task-status ${provider.successRate >= 80 ? "succeeded" : provider.successRate >= 50 ? "partial" : "failed"}`}>{provider.successRate}%</span>
+                        : <span className="task-status cancelled">--</span>}
+                    </td>
+                    <td>{provider.avgDurationSeconds != null ? formatDuration(Math.round(provider.avgDurationSeconds)) : "--"}</td>
+                    <td>{provider.inProgress > 0 ? <span className="task-status running">{provider.inProgress} 个</span> : <span className="order-table-empty-action">—</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="empty-note">还没有记录到任何供应商的生图任务，生成过图片后会在这里展示健康度。</p>
+        )}
       </section>
     </section>
   );

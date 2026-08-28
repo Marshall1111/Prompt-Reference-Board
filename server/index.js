@@ -4,8 +4,9 @@ import path from "node:path";
 import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createHash, createHmac, createPrivateKey, createPublicKey, createSign, createVerify, randomInt, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
-import { access, appendFile, copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { access, appendFile, copyFile, mkdir, readFile, readdir, rename, rm, stat, statfs, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
+import os from "node:os";
 import { promisify } from "node:util";
 import { createOrderStore } from "./order-store.js";
 import { createMerchantStore } from "./merchant-store.js";
@@ -4459,6 +4460,148 @@ app.post("/api/admin/storage/cleanup", requireAdmin, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "清理历史数据失败。" });
+  }
+});
+
+app.get("/api/admin/monitor/system", requireAdmin, async (_req, res) => {
+  try {
+    const [cpu, disk] = await Promise.all([sampleCpuUsage(), readDiskUsage(rootDir)]);
+    const memTotal = os.totalmem();
+    const memFree = os.freemem();
+    const memUsed = Math.max(0, memTotal - memFree);
+    const processMem = process.memoryUsage();
+    res.json({
+      timestamp: new Date().toISOString(),
+      hostname: os.hostname(),
+      platform: os.platform(),
+      arch: os.arch(),
+      nodeVersion: process.version,
+      osUptimeSeconds: Math.floor(os.uptime()),
+      processUptimeSeconds: Math.floor(process.uptime()),
+      cpu: {
+        percent: cpu?.percent ?? null,
+        loadAverage: os.loadavg()
+      },
+      memory: {
+        totalBytes: memTotal,
+        freeBytes: memFree,
+        usedBytes: memUsed,
+        percent: memTotal ? Math.round((memUsed / memTotal) * 1000) / 10 : 0
+      },
+      processMemory: {
+        rssBytes: processMem.rss,
+        heapUsedBytes: processMem.heapUsed,
+        heapTotalBytes: processMem.heapTotal,
+        externalBytes: processMem.external,
+        arrayBuffersBytes: processMem.arrayBuffers || 0
+      },
+      disk
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取系统状态失败。" });
+  }
+});
+
+let lastNetworkSample = null;
+
+app.get("/api/admin/monitor/network", requireAdmin, async (_req, res) => {
+  try {
+    const now = Date.now();
+    const counters = readNetworkCounters();
+    if (!counters) {
+      return res.json({
+        timestamp: new Date().toISOString(),
+        supported: false,
+        rxBytesPerSec: null,
+        txBytesPerSec: null
+      });
+    }
+    let rxBytesPerSec = null;
+    let txBytesPerSec = null;
+    if (lastNetworkSample && now - lastNetworkSample.at > 0) {
+      const dtSec = (now - lastNetworkSample.at) / 1000;
+      rxBytesPerSec = Math.max(0, Math.round((counters.rx - lastNetworkSample.rx) / dtSec));
+      txBytesPerSec = Math.max(0, Math.round((counters.tx - lastNetworkSample.tx) / dtSec));
+    }
+    lastNetworkSample = { at: now, rx: counters.rx, tx: counters.tx };
+    res.json({
+      timestamp: new Date().toISOString(),
+      supported: true,
+      rxBytesPerSec,
+      txBytesPerSec
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取网络状态失败。" });
+  }
+});
+
+let apiHealthCache = { at: 0, payload: null };
+const API_HEALTH_CACHE_TTL_MS = 10 * 1000;
+
+app.get("/api/admin/monitor/api-health", requireAdmin, async (_req, res) => {
+  try {
+    const now = Date.now();
+    if (apiHealthCache.payload && now - apiHealthCache.at < API_HEALTH_CACHE_TTL_MS) {
+      return res.json({ ...apiHealthCache.payload, cached: true });
+    }
+    const jobs = await listImageJobs();
+    const providerTasks = new Map();
+    for (const job of jobs) {
+      const provider = job.provider && typeof job.provider === "object" ? job.provider : null;
+      const providerId = String(provider?.id || "").trim();
+      if (!providerId) continue;
+      let entry = providerTasks.get(providerId);
+      if (!entry) {
+        entry = {
+          providerId,
+          name: String(provider?.name || providerId),
+          model: String(provider?.model || ""),
+          tasks: []
+        };
+        providerTasks.set(providerId, entry);
+      }
+      entry.tasks.push({
+        status: String(job.status || ""),
+        createdAt: job.createdAt || null,
+        durationSeconds: Number(job.durationSeconds) > 0 ? Number(job.durationSeconds) : null
+      });
+    }
+
+    const providers = [];
+    for (const entry of providerTasks.values()) {
+      const tasks = entry.tasks
+        .filter((task) => task.createdAt)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 10);
+      const completed = tasks.filter((task) => ["succeeded", "failed", "cancelled"].includes(task.status));
+      const succeeded = tasks.filter((task) => task.status === "succeeded").length;
+      const inProgress = tasks.filter((task) => ["queued", "running", "partial"].includes(task.status)).length;
+      const durations = tasks.map((task) => task.durationSeconds).filter((value) => value !== null);
+      const avgDurationSeconds = durations.length
+        ? Math.round((durations.reduce((sum, value) => sum + value, 0) / durations.length) * 10) / 10
+        : null;
+      providers.push({
+        providerId: entry.providerId,
+        name: entry.name,
+        model: entry.model,
+        taskCount: tasks.length,
+        succeeded,
+        failed: completed.length - succeeded,
+        inProgress,
+        successRate: completed.length ? Math.round((succeeded / completed.length) * 1000) / 10 : null,
+        avgDurationSeconds
+      });
+    }
+    providers.sort((a, b) => b.taskCount - a.taskCount || b.succeeded - a.succeeded);
+
+    const payload = { timestamp: new Date().toISOString(), providers };
+    apiHealthCache = { at: now, payload };
+    res.json(payload);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取 API 健康度失败。" });
   }
 });
 
@@ -13816,6 +13959,77 @@ function kindergartenOverlayTspans(lines, lineHeight, x) {
 
 function escapeKindergartenOverlayText(value) {
   return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+
+function sleepMs(durationMs) {
+  return new Promise((resolve) => setTimeout(resolve, durationMs));
+}
+
+async function readProcStatCpu() {
+  const text = await readFile("/proc/stat", "utf-8");
+  const line = text.split("\n").find((entry) => entry.startsWith("cpu "));
+  if (!line) return null;
+  const parts = line.trim().split(/\s+/).slice(1).map(Number);
+  if (parts.length < 4 || parts.some((part) => !Number.isFinite(part))) return null;
+  const idle = parts[3] + (Number.isFinite(parts[4]) ? parts[4] : 0);
+  const total = parts.reduce((sum, part) => sum + part, 0);
+  return { idle, total };
+}
+
+async function sampleCpuUsage() {
+  if (os.platform() !== "linux") return null;
+  try {
+    const before = await readProcStatCpu();
+    if (!before) return null;
+    await sleepMs(250);
+    const after = await readProcStatCpu();
+    if (!after) return null;
+    const idleDelta = Math.max(0, after.idle - before.idle);
+    const totalDelta = Math.max(0, after.total - before.total);
+    if (totalDelta <= 0) return null;
+    const percent = Math.round(((totalDelta - idleDelta) / totalDelta) * 1000) / 10;
+    return { percent: Math.min(100, Math.max(0, percent)) };
+  } catch {
+    return null;
+  }
+}
+
+async function readDiskUsage(dirPath) {
+  try {
+    const info = await statfs(dirPath);
+    if (!info || !Number.isFinite(info.blocks) || !Number.isFinite(info.bsize)) return null;
+    const totalBytes = info.blocks * info.bsize;
+    const freeBytes = (Number.isFinite(info.bavail) ? info.bavail : info.bfree) * info.bsize;
+    const usedBytes = Math.max(0, (info.blocks - info.bfree) * info.bsize);
+    return {
+      path: path.relative(rootDir, dirPath).replace(/\\/g, "/") || ".",
+      totalBytes,
+      freeBytes,
+      usedBytes,
+      percent: totalBytes ? Math.round((usedBytes / totalBytes) * 1000) / 10 : 0
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readNetworkCounters() {
+  if (os.platform() !== "linux") return null;
+  try {
+    const text = readFileSync("/proc/net/dev", "utf-8");
+    let rx = 0;
+    let tx = 0;
+    for (const line of text.split("\n")) {
+      const match = line.match(/^\s*([^:\s]+):\s*(\d+)\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+)/);
+      if (!match) continue;
+      if (match[1] === "lo") continue;
+      rx += Number(match[2]) || 0;
+      tx += Number(match[3]) || 0;
+    }
+    return { rx, tx };
+  } catch {
+    return null;
+  }
 }
 
 async function readImageJob(jobId) {

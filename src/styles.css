@@ -11260,6 +11260,146 @@ textarea {
   align-items: baseline;
 }
 
+/* 系统监控页 */
+.admin-workspace .monitor-page {
+  gap: 16px;
+}
+
+.admin-workspace .monitor-updated-at {
+  margin-left: 10px;
+  color: #86868b;
+  font-size: 0.72rem;
+}
+
+.admin-workspace .monitor-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+}
+
+.admin-workspace .monitor-stat-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  gap: 8px;
+  min-height: 150px;
+  padding: 16px;
+}
+
+.admin-workspace .monitor-stat-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: #f2f2f7;
+  color: #007aff;
+}
+
+.admin-workspace .monitor-stat-label {
+  color: #6e6e73;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.admin-workspace .monitor-stat-value {
+  color: #1d1d1f;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-workspace .monitor-stat-value.is-hostname {
+  font-size: clamp(1rem, 1.7vw, 1.3rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  word-break: break-all;
+}
+
+.admin-workspace .monitor-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5e5ea;
+}
+
+.admin-workspace .monitor-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 420ms ease;
+}
+
+.admin-workspace .monitor-bar-fill.is-low {
+  background: #34c759;
+}
+
+.admin-workspace .monitor-bar-fill.is-mid {
+  background: #ff9500;
+}
+
+.admin-workspace .monitor-bar-fill.is-high {
+  background: #ff3b30;
+}
+
+.admin-workspace .monitor-charts,
+.admin-workspace .monitor-api-health {
+  gap: 16px;
+}
+
+.admin-workspace .monitor-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.admin-workspace .monitor-chart-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(60, 60, 67, 0.13);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 8px 24px rgba(28, 28, 30, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.admin-workspace .monitor-chart-label {
+  color: #3a3a3c;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.admin-workspace .monitor-sparkline {
+  display: block;
+}
+
+.admin-workspace .monitor-sparkline-empty {
+  margin: 0;
+  color: #86868b;
+  font-size: 0.75rem;
+}
+
+.admin-workspace .monitor-health-table td:first-child {
+  white-space: nowrap;
+}
+
+.admin-workspace .monitor-health-table td:nth-child(3) {
+  min-width: 96px;
+}
+
+.admin-workspace .monitor-health-table .task-status {
+  min-height: 28px;
+  min-width: 64px;
+  font-size: 0.76rem;
+}
+
 .admin-workspace .api-provider-test-panel {
   display: grid;
   gap: 10px;
