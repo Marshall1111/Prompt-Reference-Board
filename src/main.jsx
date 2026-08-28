@@ -8628,7 +8628,11 @@ function JobEditModal({ job, onClose }) {
         const loaded = await Promise.all(
           originals.map(async (reference, index) => {
             const response = await fetch(`/api/admin/image-jobs/${job.jobId}/references/${index}`);
-            if (!response.ok) throw new Error("Failed to fetch original reference");
+            if (!response.ok) {
+              const fetchError = new Error("Failed to fetch original reference");
+              fetchError.status = response.status;
+              throw fetchError;
+            }
             const blob = await response.blob();
             const mimeType = normalizeReferenceMimeType(blob.type || reference.mimeType, reference.url || "");
             return {
@@ -8646,9 +8650,13 @@ function JobEditModal({ job, onClose }) {
 
         if (!isActive) return;
         setReferences(loaded);
-      } catch {
+      } catch (error) {
         if (!isActive) return;
-        setError("原始参考图加载失败，请手动重新上传。");
+        if (error?.status === 401) {
+          setError("后台登录已失效，请刷新页面并重新登录后再编辑。");
+        } else {
+          setError("原始参考图加载失败，请手动重新上传。");
+        }
       }
     }
 
@@ -10428,6 +10436,7 @@ function ApiProviderAdminPage() {
                         <span className={`task-status ${providerStatusClass}`}>{provider.enabled ? "启用中" : "已禁用"}</span>
                         <span className="api-provider-chip">{provider.sourceLabel}</span>
                         {isDefault ? <span className="api-provider-chip is-primary">默认</span> : null}
+                        {provider.health?.degraded ? <span className="api-provider-chip is-degraded" title={`1 小时内因供应商自身原因失败 ${provider.health.failureCount} 次，已临时降级为最后兜底供应商`}>降级中</span> : null}
                       </div>
                     </div>
                     <div className="api-provider-meta">

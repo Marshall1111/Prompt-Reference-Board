@@ -416,6 +416,13 @@ let imageQueuePumpRunning = false;
 const IMAGE_JOB_TIMEOUT_MS = 3 * 60 * 1000;
 const imageJobWatchdogTimers = new Map();
 const imageJobDurationSamples = new Map();
+// 供应商临时降级机制：当某供应商在 1 小时内因自身原因报错达到阈值次数后，
+// 该供应商的优先级会被临时下调到最低（仍保留为最后兜底），窗口过后自动恢复。
+const IMAGE_PROVIDER_DEMOTION_THRESHOLD = 2;
+const IMAGE_PROVIDER_DEMOTION_WINDOW_MS = 60 * 60 * 1000;
+// 进程内健康状态（不落盘，重启即重置）：
+// providerId -> { failures: Array<{ at: number }> }，仅记录“供应商自身原因”的失败。
+const providerHealthState = new Map();
 const BODY_BOOK_SHOWCASE_REFERENCE_FILENAME = "reference";
 const drawCardSessionSyncLocks = new Map();
 const bodyBookSessionSyncLocks = new Map();
@@ -5824,7 +5831,7 @@ async function buildAdminApiProviderResponse() {
     defaultProviderId: getDefaultProviderId(getImageProviders(), settings),
     failoverMode: getImageProviderFailoverMode(),
     providerPriorityIds: providers.map((provider) => provider.id),
-    providers
+    providers: providers.map((provider) => ({ ...provider, health: getImageProviderHealthView(provider.id) }))
   };
 }
 
@@ -13531,7 +13538,14 @@ async function executeImageJob({ jobId, body, files, outputFormat, prompt, provi
       provider,
       providers,
       signal: abortController.signal,
-      telemetry
+      telemetry,
+      onProviderAttemptStart: () => {
+        // 每次切换到下一个供应商时刷新任务看门狗，让每个兜底供应商都
+        // 拥有独立的超时窗口，避免被第一个供应商消耗掉的总预算误终止。
+        clearImageJobWatchdog(jobId);
+        armImageJobWatchdog(jobId);
+      },
+      isRetryableAbort: () => Boolean(activeImageJobs.get(jobId)?.watchdogReason)
     });
     const providerCallMs = elapsedMs(providerCallStartedAtMs);
     const result = execution.result;
@@ -14718,7 +14732,7 @@ function resolveImageProviderEndpoint(provider, hasReferences) {
   return hasReferences ? "/images/edits" : "/images/generations";
 }
 
-async function executeImageJobWithFailover({ body, files, outputFormat, prompt, provider, providers, signal }) {
+async function executeImageJobWithFailover({ body, files, outputFormat, prompt, provider, providers, signal, telemetry, onProviderAttemptStart, isRetryableAbort }) {
   const providerChain = Array.isArray(providers) && providers.length ? providers : provider ? [provider] : [];
   if (!providerChain.length) {
     const error = new Error("No image providers configured");
@@ -14730,6 +14744,9 @@ async function executeImageJobWithFailover({ body, files, outputFormat, prompt, 
   let lastError = null;
   const attempts = [];
   for (const currentProvider of providerChain) {
+    // 每个供应商尝试都获得独立的超时窗口：第一个供应商的耗时不应消耗掉
+    // 整个任务的超时预算，导致后续兜底供应商刚启动就被看门狗误终止。
+    onProviderAttemptStart?.();
     const attemptStartedAtMs = nowMs();
     const endpoint = resolveImageProviderEndpoint(currentProvider, files.length > 0);
     const attemptProvider = {
@@ -14741,30 +14758,42 @@ async function executeImageJobWithFailover({ body, files, outputFormat, prompt, 
       const result = files.length
         ? await createImageEdit(files, prompt, outputFormat, currentProvider, body, signal)
         : await createImageGeneration(prompt, outputFormat, currentProvider, body, signal);
-      attempts.push({
+      const attempt = {
         provider: attemptProvider,
         endpoint,
         status: "succeeded",
         durationMs: elapsedMs(attemptStartedAtMs),
         statusCode: 200,
         message: ""
-      });
+      };
+      attempts.push(attempt);
+      recordImageProviderHealth(currentProvider.id, { succeeded: true, attempt });
       return {
         result,
         provider: attemptProvider,
         attempts
       };
     } catch (error) {
-      attempts.push({
+      const attempt = {
         provider: attemptProvider,
         endpoint,
         status: error.name === "AbortError" ? "aborted" : "failed",
         durationMs: elapsedMs(attemptStartedAtMs),
         statusCode: error.status || null,
         message: error.message || error.publicMessage || ""
-      });
+      };
+      attempts.push(attempt);
+      recordImageProviderHealth(currentProvider.id, { succeeded: false, attempt });
       error.imageProviderAttempts = attempts;
-      if (error.name === "AbortError") throw error;
+      if (error.name === "AbortError") {
+        // 看门狗超时中止：只当作本次尝试失败，继续尝试下一个兜底供应商；
+        // 用户主动取消：立即终止整个任务，不再切换供应商。
+        if (typeof isRetryableAbort === "function" && isRetryableAbort()) {
+          lastError = error;
+          continue;
+        }
+        throw error;
+      }
       lastError = error;
     }
   }
@@ -14918,9 +14947,89 @@ function normalizeTimeout(value) {
   return Math.min(Math.max(timeout, 60000), 3600000);
 }
 
+// 判断某次供应商调用失败是否由“供应商自身问题”引起（区别于用户图片问题）。
+// 判断依据：HTTP 状态码 + 错误信息关键词。5xx / 429 / 408 / 连接类错误 / 超时
+// / 401 / 403 / 404 视为供应商自身原因；4xx 中明确指向图片内容本身的
+// （图片无法解析、内容违规、格式不支持等）视为用户图片问题。
+function isProviderCausedAttemptFailure(attempt) {
+  if (!attempt || !attempt.provider) return false;
+  if (attempt.status === "aborted") return false;
+  const status = Number(attempt.statusCode) || 0;
+  const message = String(attempt.message || "").toLowerCase();
+  const hasInfrastructureKeyword =
+    /fetch failed|econn|network|socket|timed out|timeout|gateway|upstream|unavailable|internal server|bad gateway|service temporarily|temporarily unavailable|html|tengine|nginx|cloudflare|could not|too many requests|quota|rate limit|insufficient|billing|payment|balance|account|server error/i.test(
+      message
+    );
+  if (status >= 500 || status === 429 || status === 408) return true;
+  if (hasInfrastructureKeyword) return true;
+  if (status === 401 || status === 403 || status === 404) return true;
+  if (status >= 400 && status < 500) {
+    const userInputKeyword =
+      /image|photo|reference|input_image|attachment|file|invalid_request_error|content|moderation|safety|violat|banned|bad request|unsupported image|corrupt|decod|too large|安全|政策|被拦截|不适合|违规|审核|不安全|not allowed|policy/i.test(
+        message
+      );
+    return !userInputKeyword;
+  }
+  return false;
+}
+
+// 记录一次供应商调用结果：成功即视为恢复（清空累计错误）；失败且属于供应商
+// 自身原因时记入滚动窗口，供降级判断使用。用户图片问题不计入降级。
+function recordImageProviderHealth(providerId, { succeeded = false, attempt = null } = {}) {
+  if (!providerId) return;
+  if (succeeded) {
+    providerHealthState.delete(providerId);
+    return;
+  }
+  if (!isProviderCausedAttemptFailure(attempt)) return;
+  const now = nowMs();
+  const entry = providerHealthState.get(providerId) || { failures: [] };
+  entry.failures.push({ at: now });
+  providerHealthState.set(providerId, entry);
+  pruneImageProviderHealth(now);
+}
+
+function pruneImageProviderHealth(now = nowMs()) {
+  for (const [providerId, entry] of providerHealthState) {
+    entry.failures = entry.failures.filter((item) => now - item.at < IMAGE_PROVIDER_DEMOTION_WINDOW_MS);
+    if (!entry.failures.length) providerHealthState.delete(providerId);
+  }
+}
+
+function isImageProviderDemoted(providerId, now = nowMs()) {
+  const entry = providerHealthState.get(providerId);
+  if (!entry || !entry.failures.length) return false;
+  return entry.failures.filter((item) => now - item.at < IMAGE_PROVIDER_DEMOTION_WINDOW_MS).length >= IMAGE_PROVIDER_DEMOTION_THRESHOLD;
+}
+
+// 按健康状态稳定重排：未降级的保持原配置顺序在前，已降级的全部排到最后。
+function orderImageProvidersByHealth(providers) {
+  const healthy = [];
+  const demoted = [];
+  for (const provider of providers) {
+    (isImageProviderDemoted(provider.id) ? demoted : healthy).push(provider);
+  }
+  return healthy.concat(demoted);
+}
+
+function getImageProviderHealthView(providerId) {
+  const entry = providerHealthState.get(providerId);
+  const now = nowMs();
+  const failures = Array.isArray(entry?.failures)
+    ? entry.failures.filter((item) => now - item.at < IMAGE_PROVIDER_DEMOTION_WINDOW_MS)
+    : [];
+  return {
+    degraded: isImageProviderDemoted(providerId, now),
+    failureCount: failures.length,
+    threshold: IMAGE_PROVIDER_DEMOTION_THRESHOLD,
+    windowMs: IMAGE_PROVIDER_DEMOTION_WINDOW_MS,
+    failures: failures.map((item) => ({ at: new Date(item.at).toISOString() }))
+  };
+}
+
 function getImageProviders() {
   const mergedProviders = mergeConfiguredProviders(getEnvImageProviders(), readStoredApiProvidersSync());
-  return mergedProviders
+  const providers = mergedProviders
     .filter((provider) => provider.enabled !== false && isUsableApiKey(provider.apiKey) && provider.baseUrl)
     .map((provider) => ({
       id: provider.id,
@@ -14931,6 +15040,7 @@ function getImageProviders() {
       route: provider.route || "images",
       visionModel: provider.visionModel || DEFAULT_SUBJECT_CLASSIFIER_MODEL
     }));
+  return orderImageProvidersByHealth(providers);
 }
 
 function getEnvImageProviders() {

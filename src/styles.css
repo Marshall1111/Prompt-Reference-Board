@@ -7795,6 +7795,11 @@ textarea {
   color: #fff;
 }
 
+.api-provider-chip.is-degraded {
+  background: #fdf0ea;
+  color: #b3541e;
+}
+
 .api-provider-meta {
   display: grid;
   gap: 6px;
