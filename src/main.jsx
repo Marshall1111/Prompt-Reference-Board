@@ -331,6 +331,7 @@ function readRoute() {
   if (pathname === "/admin/api-providers") return "admin-api-providers";
   if (pathname === "/admin/storage") return "admin-storage";
   if (pathname === "/admin/monitor") return "admin-monitor";
+  if (pathname === "/styles") return "public-style-picker";
   return "public-draw";
 }
 
@@ -469,7 +470,8 @@ function App() {
       "admin-referrals": "推荐管理",
       "admin-store-owners": "商户管理",
       "admin-visits": "访问记录",
-      "admin-user-clip": "图片资产"
+      "admin-user-clip": "图片资产",
+      "public-style-picker": "风格选择"
     };
     document.title = titleByRoute[route] || "AI小画家";
   }, [route]);
@@ -501,7 +503,8 @@ function App() {
       "admin-invites": "/admin/invites",
       "admin-api-providers": "/admin/api-providers",
       "admin-storage": "/admin/storage",
-      "admin-monitor": "/admin/monitor"
+      "admin-monitor": "/admin/monitor",
+      "public-style-picker": "/styles"
     };
     const path = pathByRoute[nextRoute] || "/";
     window.history.pushState({}, "", path);
@@ -510,6 +513,9 @@ function App() {
 
   if (route === "public-draw") {
     return <LuckDrawCardPage />;
+  }
+  if (route === "public-style-picker") {
+    return <LuckDrawCardPage standaloneStylePicker />;
   }
   if (route === "public-draw-share") {
     return <DrawSharePage />;
@@ -1321,8 +1327,8 @@ function AdminApp({ navigate, route }) {
   );
 }
 
-function LuckDrawCardPage() {
-  return <PublicExperiencePage config={DRAW_CARD_EXPERIENCE_CONFIG} />;
+function LuckDrawCardPage({ standaloneStylePicker = false }) {
+  return <PublicExperiencePage config={DRAW_CARD_EXPERIENCE_CONFIG} standaloneStylePicker={standaloneStylePicker} />;
 }
 
 function FridgeMagnetPage() {
@@ -4534,7 +4540,7 @@ function FridgeMagnetOrderPage() {
   );
 }
 
-function PublicExperiencePage({ config }) {
+function PublicExperiencePage({ config, standaloneStylePicker = false }) {
   const {
     addClipErrorMessage,
     apiBase,
@@ -4574,7 +4580,7 @@ function PublicExperiencePage({ config }) {
     waitingFallback,
     waitingLines
   } = config;
-  const [phase, setPhase] = useState("idle");
+  const [phase, setPhase] = useState(() => (standaloneStylePicker && experienceType === "draw-card" ? "style-picker" : "idle"));
   const [referenceFile, setReferenceFile] = useState(null);
   const [referenceSessionId, setReferenceSessionId] = useState("");
   const [referencePreviewUrl, setReferencePreviewUrl] = useState("");
@@ -5029,6 +5035,32 @@ function PublicExperiencePage({ config }) {
     if (isSubmitting) return;
     setShowDrawConfigModal(true);
   }
+
+  // 独立风格选择页（/styles）：直接落在“风格选择”相位时自动加载风格与发布数据。
+  useEffect(() => {
+    if (!standaloneStylePicker || experienceType !== "draw-card") return;
+    if (stylePickerStyles.length && publishedStyles.length) return;
+    let active = true;
+    setIsLoadingStylePicker(true);
+    setStylePickerError("");
+    fetchPublicDrawCardStyles()
+      .then(async (stylePayload) => {
+        if (!active) return;
+        const nextStyles = Array.isArray(stylePayload.styles) ? stylePayload.styles : [];
+        setStylePickerStyles(nextStyles);
+        const publicationPayload = await refreshStylePublications(publishedTag);
+        if (!active) return;
+        setPublishedStyles(Array.isArray(publicationPayload.items) ? publicationPayload.items : []);
+      })
+      .catch((nextError) => {
+        if (active) setStylePickerError(nextError.message || "读取风格发布失败，请稍后再试。");
+      })
+      .finally(() => {
+        if (active) setIsLoadingStylePicker(false);
+      });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [standaloneStylePicker, experienceType]);
 
   useEffect(() => {
     if (experienceType !== "draw-card" || !sharedStyleId || sharedStylePickerOpenedRef.current) return;
@@ -6309,6 +6341,11 @@ function PublicExperiencePage({ config }) {
                     onClick={() => {
                       setError("");
                       setStylePickerError("");
+                      if (standaloneStylePicker) {
+                        // 独立风格选择页：返回主页。
+                        window.location.assign("/");
+                        return;
+                      }
                       if (sameStyleId) {
                         // “更多风格”：解除同款锁定，留在本页浏览全部风格。
                         setSameStyleId("");
