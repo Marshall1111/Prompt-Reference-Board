@@ -1939,57 +1939,157 @@ body {
   width: 100%;
 }
 
-.draw-card-style-picker-toolbar {
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 18px;
-  align-items: start;
+.draw-card-publication-grid {
+  columns: 2;
+  column-gap: 12px;
+  width: 100%;
 }
 
-.draw-card-style-upload {
-  position: relative;
-  display: grid;
-  min-height: 220px;
-  overflow: hidden;
+.draw-card-publication-card {
+  display: inline-grid;
+  gap: 8px;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 8px;
+  break-inside: avoid;
   border: 1px solid rgba(239, 225, 198, 0.12);
-  border-radius: 22px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
-    rgba(15, 16, 18, 0.82);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #f3ede1;
+  text-align: left;
   cursor: pointer;
 }
 
-.draw-card-style-upload input {
+.draw-card-publication-effect {
+  position: relative;
+  overflow: hidden;
+  min-height: 120px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.draw-card-publication-effect > img:first-child {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.draw-card-publication-reference {
   position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
+  top: 8px;
+  right: 8px;
+  width: 56px !important;
+  height: 75px !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.92);
+  border-radius: 8px;
+  object-fit: cover !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
 }
 
-.draw-card-style-picker-summary {
+.draw-card-publication-detail {
+  width: min(720px, 100%);
+}
+
+.draw-card-publication-detail .draw-card-lightbox-meta {
   display: grid;
-  gap: 12px;
+  gap: 8px;
+  justify-content: stretch;
 }
 
-.draw-card-style-picker-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: fit-content;
-  min-height: 34px;
-  padding: 0 12px;
-  border: 1px solid rgba(239, 225, 198, 0.16);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
-  color: #faf5eb;
-  font-size: 0.88rem;
-  font-weight: 800;
+.draw-card-lightbox-actions,
+.modal-actions,
+.admin-style-publication-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
-.draw-card-style-picker-selected {
+.style-publication-modal {
+  width: min(520px, 100%);
+}
+
+.style-publication-tag-list,
+.admin-style-publication-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.style-publication-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #cbd5d0;
+  border-radius: 999px;
+  background: #fffdf9;
+  color: #25413c;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.style-publication-tag.is-selected {
+  border-color: #115e59;
+  background: #d4eee8;
+  color: #115e59;
+}
+
+.admin-style-publication-list {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-style-publication-card {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid #ded8ce;
+  border-radius: 8px;
+  background: rgba(255, 253, 249, 0.96);
+}
+
+.admin-style-publication-images {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.admin-style-publication-images figure {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+}
+
+.admin-style-publication-images img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #f2f2f7;
+}
+
+.admin-style-publication-images figcaption {
+  color: #6e6e73;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.admin-style-publication-info {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .draw-card-publication-grid { column-gap: 8px; }
+  .admin-style-publication-card { grid-template-columns: 1fr; }
 }
 
 .draw-card-style-picker-tabs {
@@ -7470,8 +7570,7 @@ textarea {
     flex-direction: column;
   }
 
-  .draw-card-style-picker-head,
-  .draw-card-style-picker-toolbar {
+  .draw-card-style-picker-head {
     grid-template-columns: 1fr;
     align-items: stretch;
     flex-direction: column;
@@ -7484,6 +7583,8 @@ textarea {
 
   .draw-card-style-picker-tab {
     flex: 1;
+    min-width: 0;
+    padding-inline: 6px;
   }
 
   .draw-card-config-panel {
@@ -7520,10 +7621,6 @@ textarea {
   .draw-card-shell.theme-draw-card .draw-card-clip-panel.has-account {
     position: relative;
     top: auto;
-  }
-
-  .draw-card-style-upload {
-    min-height: 180px;
   }
 
   .draw-card-results-grid {

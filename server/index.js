@@ -51,9 +51,10 @@ const generatedThumbnailRoot = path.join(rootDir, "public", "generated-thumbnail
 const legacyGeneratedImageRoot = path.join(rootDir, "public", "generated-images");
 const jobReferenceRoot = path.join(rootDir, "data", "private-job-references");
 const jobReferenceThumbnailRoot = path.join(rootDir, "public", "job-reference-thumbnails");
+const stylePublicationRoot = path.join(rootDir, "public", "style-publications");
+const stylePublicationDataPath = path.join(rootDir, "data", "style-publications.json");
 const miniDataPath = path.join(rootDir, "wechat-miniprogram", "miniprogram", "data", "styles.js");
 const miniImageRoot = path.join(rootDir, "wechat-miniprogram", "miniprogram", "images-small");
-const miniCompressScript = path.join(rootDir, "tools", "compress_for_miniprogram.ps1");
 const execFileAsync = promisify(execFile);
 const RESULT_THUMBNAIL_MAX_EDGE = 384;
 const PUBLIC_PREVIEW_MAX_EDGE = 1536;
@@ -142,6 +143,7 @@ const IMAGE_JOB_QUERY_STATUS_VALUES = new Set(["all", "queued", "running", "part
 const DEFAULT_IMAGE_JOB_PAGE = 1;
 const DEFAULT_IMAGE_JOB_LIMIT = 20;
 const MAX_IMAGE_JOB_LIMIT = 100;
+const STYLE_PUBLICATION_TAGS = ["推荐", "儿童", "宠物", "绘画", "设计", "幽默"];
 const DEFAULT_PUBLIC_EXPERIENCE_TYPE = "draw-card";
 const DEFAULT_SUBJECT_CLASSIFIER_MODEL = "gpt-5.4-mini";
 const DEFAULT_SUBJECT_CLASSIFIER_BASE_URL = "https://api.openai.com/v1";
@@ -3332,6 +3334,66 @@ app.get("/api/public/clip-items/:jobId/download-original", requireWebAccount, as
   }
 });
 
+async function listPublicStylePublicationsHandler(req, res) {
+  try {
+    const tag = String(req.query?.tag || "").trim();
+    const publications = await listStylePublications();
+    res.json({
+      tags: STYLE_PUBLICATION_TAGS,
+      items: publications
+        .filter((item) => !tag || item.tags.includes(tag))
+        .sort((left, right) => String(right.updatedAt || right.createdAt || "").localeCompare(String(left.updatedAt || left.createdAt || "")))
+        .map(toPublicStylePublication)
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取风格发布失败。" });
+  }
+}
+
+app.get("/api/style-publications", listPublicStylePublicationsHandler);
+
+app.get("/api/admin/style-publications", requireAdmin, async (_req, res) => {
+  try {
+    const publications = await listStylePublications();
+    res.json({ tags: STYLE_PUBLICATION_TAGS, items: publications.map(toAdminStylePublication) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取风格发布失败。" });
+  }
+});
+
+app.patch("/api/admin/style-publications/:publicationId", requireAdmin, async (req, res) => {
+  try {
+    const publications = await listStylePublications();
+    const index = publications.findIndex((item) => item.publicationId === req.params.publicationId);
+    if (index === -1) return res.status(404).json({ message: "风格发布不存在。" });
+    publications[index] = { ...publications[index], tags: normalizeStylePublicationTags(req.body?.tags ?? req.body?.tag), updatedAt: new Date().toISOString() };
+    await saveStylePublications(publications);
+    res.json({ publication: toAdminStylePublication(publications[index]) });
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ message: error.publicMessage || "更新风格发布标签失败。" });
+  }
+});
+
+app.delete("/api/admin/style-publications/:publicationId", requireAdmin, async (req, res) => {
+  try {
+    if (!/^[a-f0-9]{32}$/i.test(String(req.params.publicationId || ""))) {
+      return res.status(400).json({ message: "风格发布 ID 不合法。" });
+    }
+    const publications = await listStylePublications();
+    const next = publications.filter((item) => item.publicationId !== req.params.publicationId);
+    if (next.length === publications.length) return res.status(404).json({ message: "风格发布不存在。" });
+    await saveStylePublications(next);
+    await rm(path.join(stylePublicationRoot, req.params.publicationId), { recursive: true, force: true });
+    res.status(204).end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "删除风格发布失败。" });
+  }
+});
+
 app.get("/api/image-jobs", requireAdmin, async (req, res) => {
   try {
     const payload = await queryImageJobs(req.query || {});
@@ -3500,6 +3562,71 @@ app.post("/api/image-jobs/:jobId/style-preview", requireAdmin, async (req, res) 
     }
     console.error(error);
     return res.status(error.status || 500).json({ message: error.publicMessage || "替换风格效果图失败。" });
+  }
+});
+
+app.post("/api/image-jobs/:jobId/style-publication", requireAdmin, async (req, res) => {
+  try {
+    const job = await readImageJob(req.params.jobId);
+    if (!job) return res.status(404).json({ message: "生图任务不存在。" });
+    if (String(job.status || "") !== "succeeded" || !job.result?.imageUrl) {
+      return res.status(409).json({ message: "只有已完成且有生成结果的任务可以发布。" });
+    }
+    const styles = await readStyles();
+    const matchedStyles = findStylesMatchingJobPrompt(styles, job.prompt);
+    if (matchedStyles.length !== 1) {
+      return res.status(409).json({ message: matchedStyles.length ? "匹配到多个同提示词风格，无法确定发布风格。" : "当前任务的提示词未匹配到图库风格。" });
+    }
+    const publication = await createStylePublicationFromJob(job, req.body?.tags, matchedStyles[0]);
+    res.status(201).json({ publication: toAdminStylePublication(publication) });
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "发布风格失败。" });
+  }
+});
+
+app.post("/api/image-jobs/:jobId/style", requireAdmin, async (req, res) => {
+  try {
+    const job = await readImageJob(req.params.jobId);
+    if (!job) return res.status(404).json({ message: "生图任务不存在。" });
+    if (String(job.status || "") !== "succeeded" || !job.result?.imageUrl) {
+      return res.status(409).json({ message: "只有已完成且有生成结果的任务可以创建新风格。" });
+    }
+
+    const sourceFile = await resolveJobImageFile(job);
+    if (!sourceFile) return res.status(404).json({ message: "任务原图不存在，无法创建新风格。" });
+
+    const mimeType = mimeForExtension(path.extname(sourceFile).toLowerCase());
+    if (!mimeType) return res.status(400).json({ message: "任务图片格式不受支持。" });
+
+    const title = normalizeStyleTitle(req.body?.title, "新风格");
+    const styles = await readStyles();
+    const now = new Date().toISOString();
+    const styleId = `style_${Date.now()}`;
+    const dir = path.join(previewRoot, styleId);
+    await mkdir(dir, { recursive: true });
+
+    const sourceBytes = await readFile(sourceFile);
+    const imageUrl = await writeStyleCoverImage(styleId, dir, sourceBytes, mimeType);
+
+    const style = {
+      id: styleId,
+      title,
+      tags: ["新风格"],
+      subjectType: "both",
+      drawCardEnabled: true,
+      drawCardWeight: DEFAULT_DRAW_CARD_WEIGHT,
+      image: imageUrl,
+      imageUpdatedAt: now,
+      prompt: String(job.prompt || ""),
+      useStyleImageAsReference: false
+    };
+    styles.unshift(style);
+    await saveStyles(styles);
+    res.status(201).json(style);
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "创建新风格失败。" });
   }
 });
 
@@ -14032,6 +14159,126 @@ function readNetworkCounters() {
   }
 }
 
+function normalizeStylePublicationTags(value) {
+  const raw = Array.isArray(value) ? value : String(value || "").split(/[,，\s]+/);
+  const tags = [...new Set(raw.map((item) => String(item || "").trim()).filter(Boolean))];
+  if (tags.some((tag) => !STYLE_PUBLICATION_TAGS.includes(tag))) {
+    throw createHttpError(400, "发布标签只能选择：推荐、儿童、宠物、绘画、设计、幽默。" );
+  }
+  return tags;
+}
+
+function getStylePublicationId(effectImageUrl) {
+  return createHash("sha256").update(String(effectImageUrl || "").trim()).digest("hex").slice(0, 32);
+}
+
+function toPublicStylePublication(publication) {
+  return {
+    publicationId: String(publication.publicationId || ""),
+    styleId: String(publication.styleId || ""),
+    styleName: String(publication.styleName || ""),
+    tags: normalizeTags(publication.tags),
+    effectImageUrl: String(publication.effectImageUrl || ""),
+    referenceImageUrl: String(publication.referenceImageUrl || ""),
+    createdAt: publication.createdAt || null,
+    updatedAt: publication.updatedAt || null
+  };
+}
+
+function toAdminStylePublication(publication) {
+  return {
+    ...toPublicStylePublication(publication),
+    jobId: String(publication.jobId || ""),
+    prompt: String(publication.prompt || ""),
+    sourceEffectImageUrl: String(publication.sourceEffectImageUrl || ""),
+    sourceReferenceImageUrl: String(publication.sourceReferenceImageUrl || "")
+  };
+}
+
+async function readStylePublications() {
+  try {
+    const raw = await readFile(stylePublicationDataPath, "utf-8");
+    // 兼容早期误写入文件末尾的字面量 "\\n"，正常保存时仍只使用真实换行。
+    const normalized = raw.replace(/\\n\s*$/, "\n");
+    const parsed = JSON.parse(normalized);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+async function saveStylePublications(publications) {
+  await mkdir(path.dirname(stylePublicationDataPath), { recursive: true });
+  await writeFile(stylePublicationDataPath, `${JSON.stringify(publications, null, 2)}\n`);
+  return publications;
+}
+
+async function listStylePublications() {
+  return (await readStylePublications()).filter((item) => item && item.publicationId && item.effectImageUrl);
+}
+
+async function createStylePublicationFromJob(job, tags, style) {
+  const sourceEffectFile = await resolveJobImageFile(job);
+  if (!sourceEffectFile) throw createHttpError(404, "任务生成图不存在，无法发布。" );
+  const references = Array.isArray(job.originalReferences)
+    ? [...job.originalReferences].sort((left, right) => Number(left?.order || 0) - Number(right?.order || 0))
+    : [];
+  const userReference = references[references.length - 1];
+  const sourceReferenceFile = userReference ? getJobReferenceFilePath(job.jobId, userReference.url) : "";
+  if (!sourceReferenceFile || !(await fileExists(sourceReferenceFile))) {
+    throw createHttpError(400, "当前任务没有可发布的用户原参考图。" );
+  }
+
+  const publicationId = getStylePublicationId(String(job.result?.imageUrl || ""));
+  const publicationDir = path.join(stylePublicationRoot, publicationId);
+  const effectSourceBytes = await readFile(sourceEffectFile);
+  const referenceSourceBytes = await readFile(sourceReferenceFile);
+  const effectThumbnail = await createImageThumbnail({
+    buffer: effectSourceBytes,
+    outputRoot: publicationDir,
+    outputName: "effect",
+    urlPrefix: `/style-publications/${publicationId}`,
+    maxEdge: PUBLIC_PREVIEW_MAX_EDGE
+  });
+  const referenceThumbnail = await createImageThumbnail({
+    buffer: referenceSourceBytes,
+    outputRoot: publicationDir,
+    outputName: "reference",
+    urlPrefix: `/style-publications/${publicationId}`,
+    maxEdge: REFERENCE_THUMBNAIL_MAX_EDGE
+  });
+  if (!effectThumbnail || !referenceThumbnail) {
+    throw createHttpError(500, "压缩发布图片失败，请检查图片处理依赖。" );
+  }
+
+  const now = new Date().toISOString();
+  const publication = {
+    publicationId,
+    jobId: String(job.jobId || ""),
+    styleId: String(style?.id || ""),
+    styleName: formatStyleName(style),
+    prompt: String(job.prompt || ""),
+    tags: normalizeStylePublicationTags(tags),
+    effectImageUrl: effectThumbnail.url,
+    referenceImageUrl: referenceThumbnail.url,
+    sourceEffectImageUrl: String(job.result?.imageUrl || ""),
+    sourceReferenceImageUrl: String(userReference.url || ""),
+    createdAt: now,
+    updatedAt: now
+  };
+  const publications = await listStylePublications();
+  const existingIndex = publications.findIndex((item) => item.publicationId === publicationId);
+  if (existingIndex >= 0) {
+    publication.createdAt = publications[existingIndex].createdAt || now;
+    publications[existingIndex] = publication;
+  } else {
+    publications.push(publication);
+  }
+  await saveStylePublications(publications);
+  return publication;
+}
+
 async function readImageJob(jobId) {
   if (!isSafeImageJobId(jobId)) return null;
   try {
@@ -15709,17 +15956,46 @@ async function compressMiniImage(styleId, sourcePath, mimeType) {
   if (mimeType === "image/svg+xml") return;
   const targetPath = path.join(miniImageRoot, `${styleId}.jpg`);
   await mkdir(miniImageRoot, { recursive: true });
-  await execFileAsync("powershell.exe", [
-    "-NoProfile",
-    "-ExecutionPolicy",
-    "Bypass",
-    "-File",
-    miniCompressScript,
-    "-Source",
-    sourcePath,
-    "-Target",
-    targetPath
-  ]);
+
+  const sharp = await loadSharpModule();
+  if (!sharp) throw new Error("SHARP_UNAVAILABLE");
+  await sharp(sourcePath)
+    .resize({
+      width: 480,
+      height: 480,
+      fit: "inside",
+      withoutEnlargement: true
+    })
+    .jpeg({ quality: 56 })
+    .toFile(targetPath);
+}
+
+async function writeStyleCoverImage(styleId, dir, bytes, mimeType) {
+  if (mimeType === "image/svg+xml") {
+    const filename = "cover.svg";
+    await writeFile(path.join(dir, filename), bytes);
+    return `/style-previews/${styleId}/${filename}`;
+  }
+
+  const sharp = await loadSharpModule();
+  if (sharp) {
+    const filename = "cover.webp";
+    await sharp(bytes)
+      .resize({
+        width: 512,
+        height: 512,
+        fit: "inside",
+        withoutEnlargement: true
+      })
+      .webp({ quality: 80 })
+      .toFile(path.join(dir, filename));
+    return `/style-previews/${styleId}/${filename}`;
+  }
+
+  const ext = extensionForMime(mimeType);
+  const filename = `cover.${ext}`;
+  await writeFile(path.join(dir, filename), bytes);
+  return `/style-previews/${styleId}/${filename}`;
 }
 
 function getPreviewFilePath(imagePath) {

@@ -122,11 +122,6 @@ function getSizeLabel(size) {
 }
 const GALLERY_INITIAL_BATCH = 18;
 const GALLERY_BATCH_STEP = 12;
-const STYLE_SUBJECT_TYPE_OPTIONS = [
-  { value: "both", label: "通用（人物/宠物都可）" },
-  { value: "person", label: "仅人物" },
-  { value: "pet", label: "仅宠物" }
-];
 const DEFAULT_DRAW_CARD_WEIGHT = 100;
 
 const REFERENCE_UPLOAD_LIMITS = {
@@ -329,6 +324,7 @@ function readRoute() {
   if (pathname === "/admin/store-owners") return "admin-store-owners";
   if (pathname === "/admin/referrals") return "admin-referrals";
   if (pathname === "/admin/styles") return "admin-gallery";
+  if (pathname === "/admin/style-publications") return "admin-style-publications";
   if (pathname === "/admin/tasks") return "admin-tasks";
   if (pathname === "/admin/batch") return "admin-batch";
   if (pathname === "/admin/invites") return "admin-invites";
@@ -493,6 +489,7 @@ function App() {
       "public-fridge-order": window.location.pathname,
       "public-body-book-order": window.location.pathname,
       "admin-gallery": "/gallery",
+      "admin-style-publications": "/admin/style-publications",
       "admin-login": "/admin/login",
       "admin-orders": "/admin/orders",
       "admin-users": "/admin/users",
@@ -1154,6 +1151,10 @@ function AdminApp({ navigate, route }) {
               <ListTodo size={18} />
               <span>任务记录</span>
             </button>
+            <button aria-current={route === "admin-style-publications" ? "page" : undefined} className={`nav-button ${route === "admin-style-publications" ? "is-active" : ""}`} onClick={() => navigate("admin-style-publications")} type="button">
+              <Sparkles size={18} />
+              <span>风格发布</span>
+            </button>
             <button aria-current={route === "admin-orders" ? "page" : undefined} className={`nav-button ${route === "admin-orders" ? "is-active" : ""}`} onClick={() => navigate("admin-orders")} type="button">
               <Clipboard size={18} />
               <span>订单管理</span>
@@ -1217,6 +1218,8 @@ function AdminApp({ navigate, route }) {
           />
         ) : route === "admin-tasks" ? (
           <ImageJobsPage onStylePreviewReplaced={reloadStyles} />
+        ) : route === "admin-style-publications" ? (
+          <AdminStylePublicationsPage />
         ) : route === "admin-orders" ? (
           <OrderAdminPage
             initialOrders={orders}
@@ -4644,7 +4647,9 @@ function PublicExperiencePage({ config }) {
   const [manualPaymentCardUrl, setManualPaymentCardUrl] = useState("");
   const [visitTrackingReady, setVisitTrackingReady] = useState(false);
   const [stylePickerStyles, setStylePickerStyles] = useState([]);
-  const [stylePickerSubjectTab, setStylePickerSubjectTab] = useState("person");
+  const [publishedStyles, setPublishedStyles] = useState([]);
+  const [publishedTag, setPublishedTag] = useState("推荐");
+  const [activePublishedStyle, setActivePublishedStyle] = useState(null);
   const [selectedStyleIds, setSelectedStyleIds] = useState([]);
   const [sameStyleId, setSameStyleId] = useState("");
   const [stylePickerError, setStylePickerError] = useState("");
@@ -4988,24 +4993,29 @@ function PublicExperiencePage({ config }) {
       window.alert("请先上传参考图");
       return;
     }
-    setPhase("style-picker");
+    setPhase(isSameStyleMode ? "ready" : "style-picker");
     // 风格页与首页共用同一个页面容器；切换内容时浏览器不会自动重置滚动位置。
     window.scrollTo(0, 0);
     setError("");
     setStylePickerError("");
-    if ((!isSameStyleMode && stylePickerStyles.length) || isLoadingStylePicker || experienceType !== "draw-card") return;
+    if (experienceType !== "draw-card") return;
+    if (stylePickerStyles.length && publishedStyles.length) return;
 
     setIsLoadingStylePicker(true);
     try {
-      const payload = await fetchPublicDrawCardStyles();
-      const nextStyles = Array.isArray(payload.styles) ? payload.styles : [];
+      const [stylePayload, publicationPayload] = await Promise.all([
+        stylePickerStyles.length ? Promise.resolve({ styles: stylePickerStyles }) : fetchPublicDrawCardStyles(),
+        refreshStylePublications(publishedTag)
+      ]);
+      const nextStyles = Array.isArray(stylePayload.styles) ? stylePayload.styles : [];
       setStylePickerStyles(nextStyles);
+      setPublishedStyles(Array.isArray(publicationPayload.items) ? publicationPayload.items : []);
       if (isSameStyleMode) {
         const lockedStyle = nextStyles.find((style) => String(style.id) === lockedStyleId);
         setSelectedStyleIds(lockedStyle ? [lockedStyle.id] : [lockedStyleId]);
       }
     } catch (nextError) {
-      setStylePickerError(nextError.message || "读取抽卡风格失败，请稍后再试。");
+      setStylePickerError(nextError.message || "读取风格发布失败，请稍后再试。");
     } finally {
       setIsLoadingStylePicker(false);
     }
@@ -5047,7 +5057,6 @@ function PublicExperiencePage({ config }) {
     const sharedStyle = stylePickerStyles.find((style) => String(style.id) === sharedStyleId);
     if (sharedStyle) {
       setSelectedStyleIds([sharedStyle.id]);
-      setStylePickerSubjectTab(String(sharedStyle.subjectType || "both") === "pet" ? "pet" : "person");
     }
     setSharedStyleId("");
   }, [sharedStyleId, stylePickerStyles]);
@@ -5389,30 +5398,18 @@ function PublicExperiencePage({ config }) {
     };
   }, []);
 
-  const selectedDrawCardStyles = useMemo(() => {
-    const styleById = new Map(stylePickerStyles.map((style) => [style.id, style]));
-    return selectedStyleIds.map((styleId) => styleById.get(styleId)).filter(Boolean);
-  }, [selectedStyleIds, stylePickerStyles]);
-
   const lockedSameStyle = sameStyleId
     ? stylePickerStyles.find((style) => String(style.id) === sameStyleId) || null
     : null;
-  const isSameStyleUnavailable = Boolean(sameStyleId) && !isLoadingStylePicker && !lockedSameStyle;
 
-  const stylePickerStylesBySubject = useMemo(() => ({
-    person: stylePickerStyles.filter((style) => {
-      const subjectType = String(style.subjectType || "both");
-      return subjectType === "both" || subjectType === "person";
-    }),
-    pet: stylePickerStyles.filter((style) => {
-      const subjectType = String(style.subjectType || "both");
-      return subjectType === "both" || subjectType === "pet";
-    })
-  }), [stylePickerStyles]);
+  const publicStyleItems = publishedStyles.filter((item) => item.effectImageUrl);
+  const getPublishedStylePrompt = (publication) => {
+    if (publication?.prompt) return publication.prompt;
+    return stylePickerStyles.find((style) => String(style.id) === String(publication?.styleId))?.prompt || "";
+  };
 
   const isDrawCardExperience = experienceType === "draw-card";
   const canStart = Boolean(referenceFile) && !isSubmitting;
-  const canStartCustomDraw = selectedStyleIds.length > 0 && !isSubmitting;
   const canStartSameStyleDraw = Boolean(referenceFile) && Boolean(lockedSameStyle) && !isLoadingStylePicker && !isSubmitting;
   const activeResult = activeResultIndex >= 0 ? toDisplayResult(displayItems[activeResultIndex]) : activeResultIndex === -3 ? activeClipPreview : null;
   const succeededCount = Number(session?.summary?.succeeded ?? displayItems.filter((item) => item.status === "succeeded").length);
@@ -5580,21 +5577,6 @@ function PublicExperiencePage({ config }) {
     if (!jobId) return;
     if (node) resultMediaRefs.current.set(jobId, node);
     else resultMediaRefs.current.delete(jobId);
-  }
-
-  function toggleSelectedStyle(styleId) {
-    if (!styleId) return;
-    setStylePickerError("");
-    setSelectedStyleIds((current) => {
-      if (current.includes(styleId)) {
-        return current.filter((item) => item !== styleId);
-      }
-      if (current.length >= MAX_PUBLIC_STYLE_SELECTION) {
-        setStylePickerError(`最多选择 ${MAX_PUBLIC_STYLE_SELECTION} 种风格。`);
-        return current;
-      }
-      return [...current, styleId];
-    });
   }
 
   function openSameStyle(styleId) {
@@ -6267,19 +6249,26 @@ function PublicExperiencePage({ config }) {
 
                 <div className={`draw-card-actions${isDrawCardExperience ? " draw-card-home-actions" : ""}`}>
                   {isDrawCardExperience ? (
-                    <>
-                      <button className="draw-card-secondary" onClick={openStylePicker} type="button">
-                        <span>选择风格</span>
+                    sameStyleId ? (
+                      <button className="draw-card-primary" disabled={!canStartSameStyleDraw} onClick={() => startDrawCard({ selectedStyleIds })} type="button">
+                        {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+                        <span>{isSubmitting ? "生成中" : "上传照片做同款"}</span>
                       </button>
-                      <button className="draw-card-secondary draw-card-home-random-button" onClick={openRandomDrawConfig} type="button">
-                        {isSubmitting ? <LoaderCircle className="spin" size={18} /> : null}
-                        <span>{isSubmitting ? startButtonLoading : startButtonIdle}</span>
-                      </button>
-                      <button className="draw-card-secondary draw-card-recent-session-button" disabled={isOpeningLatestSession} onClick={openLatestSession} type="button">
-                        {isOpeningLatestSession ? <LoaderCircle className="spin" size={18} /> : null}
-                        <span>{isOpeningLatestSession ? "读取中" : "最近生成"}</span>
-                      </button>
-                    </>
+                    ) : (
+                      <>
+                        <button className="draw-card-secondary" onClick={openStylePicker} type="button">
+                          <span>选择风格</span>
+                        </button>
+                        <button className="draw-card-secondary draw-card-home-random-button" onClick={openRandomDrawConfig} type="button">
+                          {isSubmitting ? <LoaderCircle className="spin" size={18} /> : null}
+                          <span>{isSubmitting ? startButtonLoading : startButtonIdle}</span>
+                        </button>
+                        <button className="draw-card-secondary draw-card-recent-session-button" disabled={isOpeningLatestSession} onClick={openLatestSession} type="button">
+                          {isOpeningLatestSession ? <LoaderCircle className="spin" size={18} /> : null}
+                          <span>{isOpeningLatestSession ? "读取中" : "最近生成"}</span>
+                        </button>
+                      </>
+                    )
                   ) : (
                     <>
                       <button className="draw-card-primary" disabled={!canStart} onClick={startDrawCard} type="button">
@@ -6338,126 +6327,43 @@ function PublicExperiencePage({ config }) {
               </div>
             </div>
 
-            <section className="draw-card-upload-panel draw-card-style-picker-panel">
-              <div className="draw-card-style-picker-toolbar">
-                <label className={`draw-card-style-upload ${referencePreviewUrl ? "has-image" : ""}`} htmlFor="draw-card-style-picker-input">
-                  {referencePreviewUrl ? (
-                    <img alt={previewAlt} className="draw-card-upload-preview" src={referencePreviewUrl} />
-                  ) : (
-                    <div className="draw-card-upload-empty">
-                      <ImageUp size={20} />
-                      <strong>上传 1 张图片</strong>
-                      <span>{sameStyleId ? "上传一张新照片，制作同款" : "可先挑风格，再上传图片"}</span>
-                    </div>
-                  )}
-                  <input
-                    accept="image/png,image/jpeg,image/webp"
-                    id="draw-card-style-picker-input"
-                    onChange={(event) => {
-                      handleFileChange(event.target.files?.[0] || null, { successPhase: "style-picker", invalidPhase: "style-picker" });
-                      event.target.value = "";
-                    }}
-                    type="file"
-                  />
-                </label>
-
-                <div className="draw-card-style-picker-summary">
-                  <div className="draw-card-style-picker-count">{sameStyleId ? "已锁定同款风格" : `已选 ${selectedStyleIds.length} / ${MAX_PUBLIC_STYLE_SELECTION}`}</div>
-                  <p className="draw-card-meta-note">{sameStyleId ? "上传一张新照片后，将使用同一转绘风格生成 1 张图片。" : `每次最多选择 ${MAX_PUBLIC_STYLE_SELECTION} 种风格。成功几张扣几币，失败结果不扣币。`}</p>
-                  {isSameStyleUnavailable ? <p className="error-note draw-card-inline-error">该风格暂不可用，请返回后重新选择。</p> : null}
-                  {selectedDrawCardStyles.length ? (
-                    <div className="draw-card-style-picker-selected">
-                      {selectedDrawCardStyles.map((style, index) => (
-                        <span className="draw-card-style-chip" key={style.id}>
-                          {sameStyleId ? style.name || style.id : `${index + 1}. ${style.name || style.id}`}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="draw-card-meta-note">{sameStyleId ? (isLoadingStylePicker ? "正在读取同款风格…" : "正在确认同款风格…") : "还没选风格，先点下面的小卡片。"}</p>
-                  )}
-
-                  <div className="draw-card-actions">
-                    <button className="draw-card-primary" disabled={sameStyleId ? !canStartSameStyleDraw : !canStartCustomDraw} onClick={() => startDrawCard({ selectedStyleIds })} type="button">
-                      {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
-                      <span>{isSubmitting ? "生成中" : sameStyleId ? "上传新照片做同款" : "用选中风格开始"}</span>
-                    </button>
-                    {!sameStyleId ? <button
-                      className="draw-card-secondary"
-                      disabled={!selectedStyleIds.length}
-                      onClick={() => {
-                        setStylePickerError("");
-                        setSelectedStyleIds([]);
-                      }}
-                      type="button"
-                    >
-                      <span>清空已选</span>
-                    </button> : null}
-                  </div>
-                </div>
-              </div>
-
+            <section className="draw-card-style-picker-panel">
               {stylePickerError ? <p className="error-note draw-card-inline-error">{stylePickerError}</p> : null}
               {isLoadingStylePicker ? <p className="storage-note">正在加载可选风格…</p> : null}
-              {!sameStyleId ? <><div className="draw-card-style-picker-tabs" role="tablist" aria-label="风格主体">
-                {[{ value: "person", label: "人物" }, { value: "pet", label: "宠物" }].map((tab) => (
-                  <button
-                    aria-controls={`draw-card-style-panel-${tab.value}`}
-                    aria-selected={stylePickerSubjectTab === tab.value}
-                    className={`draw-card-style-picker-tab ${stylePickerSubjectTab === tab.value ? "is-active" : ""}`}
-                    id={`draw-card-style-tab-${tab.value}`}
-                    key={tab.value}
-                    onClick={() => setStylePickerSubjectTab(tab.value)}
-                    role="tab"
-                    type="button"
-                  >
-                    {tab.label}
+              <div className="draw-card-style-picker-tabs" role="tablist" aria-label="风格标签">
+                {STYLE_PUBLICATION_TAGS.map((tag) => (
+                  <button aria-selected={publishedTag === tag} className={`draw-card-style-picker-tab ${publishedTag === tag ? "is-active" : ""}`} key={tag} onClick={async () => {
+                    setPublishedTag(tag);
+                    try {
+                      const payload = await refreshStylePublications(tag);
+                      setPublishedStyles(Array.isArray(payload.items) ? payload.items : []);
+                    } catch (nextError) { setStylePickerError(nextError.message); }
+                  }} role="tab" type="button">{tag}</button>
+                ))}
+              </div>
+              <div className="draw-card-publication-grid">
+                {publicStyleItems.map((item) => (
+                  <button className="draw-card-publication-card" key={item.publicationId} onClick={() => setActivePublishedStyle(item)} type="button">
+                    <div className="draw-card-publication-effect">
+                      <img alt={`${item.styleName}发布效果`} src={item.effectImageUrl} />
+                      {(item.referenceThumbnailUrl || item.referenceImageUrl) ? <img alt="用户原图缩略图" className="draw-card-publication-reference" src={item.referenceThumbnailUrl || item.referenceImageUrl} /> : null}
+                    </div>
+                    <strong>{item.styleName}</strong>
                   </button>
                 ))}
               </div>
-              <div className="draw-card-style-slider" aria-live="polite">
-                <div className={`draw-card-style-slider-track ${stylePickerSubjectTab === "pet" ? "is-showing-pet" : "is-showing-person"}`}>
-                  {[{ value: "person", label: "人物" }, { value: "pet", label: "宠物" }].map((tab) => {
-                    const isActive = stylePickerSubjectTab === tab.value;
-                    const styles = stylePickerStylesBySubject[tab.value];
-                    return (
-                      <section
-                        aria-hidden={!isActive}
-                        aria-labelledby={`draw-card-style-tab-${tab.value}`}
-                        className="draw-card-style-tab-panel"
-                        id={`draw-card-style-panel-${tab.value}`}
-                        key={tab.value}
-                        role="tabpanel"
-                      >
-                        {!isLoadingStylePicker && !styles.length ? <p className="empty-note">当前没有可选的{tab.label}或通用风格。</p> : null}
-                        <div className="draw-card-style-grid" aria-label={`可选${tab.label}风格`}>
-                          {styles.map((style) => {
-                            const isSelected = selectedStyleIds.includes(style.id);
-                            const previewImage = tab.value === "pet" ? style.petGalleryImage : style.personGalleryImage;
-                            const previewImageUpdatedAt = tab.value === "pet" ? style.petImageUpdatedAt : style.personImageUpdatedAt;
-                            return (
-                              <button
-                                className={`draw-card-style-card ${isSelected ? "is-selected" : ""}`}
-                                key={`${tab.value}-${style.id}`}
-                                onClick={() => toggleSelectedStyle(style.id)}
-                                tabIndex={isActive ? 0 : -1}
-                                type="button"
-                              >
-                                <div className="draw-card-style-card-media">
-                                  <StylePreviewImage alt={style.name || "风格示意图"} className="draw-card-style-card-image" previewImage={previewImage} previewImageUpdatedAt={previewImageUpdatedAt} style={style} />
-                                  {isSelected ? <span className="draw-card-style-card-check"><Check size={14} /></span> : null}
-                                </div>
-                                <span className="draw-card-style-card-name">{style.name || style.id}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </section>
-                    );
-                  })}
-                </div>
-              </div>
-              </> : null}
+              {!isLoadingStylePicker && !publicStyleItems.length ? <p className="empty-note">当前标签还没有发布效果。</p> : null}
+              {activePublishedStyle ? <div className="modal-backdrop draw-card-lightbox" onClick={() => setActivePublishedStyle(null)} role="presentation">
+                <section className="draw-card-lightbox-panel draw-card-publication-detail" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={`${activePublishedStyle.styleName}风格详情`}>
+                  <button className="icon-button" onClick={() => setActivePublishedStyle(null)} type="button" aria-label="关闭详情"><X size={18} /></button>
+                  <img alt={`${activePublishedStyle.styleName}发布效果`} src={activePublishedStyle.effectImageUrl} />
+                  <div className="draw-card-lightbox-meta"><strong>{activePublishedStyle.styleName}</strong><span>{getPublishedStylePrompt(activePublishedStyle)}</span></div>
+                  <div className="draw-card-lightbox-actions">
+                    <button className="draw-card-primary" onClick={() => openSameStyle(activePublishedStyle.styleId)} type="button"><Sparkles size={16} /><span>做同款</span></button>
+                    <button className="draw-card-secondary" onClick={async () => { try { await copyText(getPublishedStylePrompt(activePublishedStyle)); setStylePickerError("提示词已复制。"); } catch (nextError) { setStylePickerError(nextError.message || "复制提示词失败。"); } }} type="button"><Clipboard size={16} /><span>复制提示词</span></button>
+                  </div>
+                </section>
+              </div> : null}
             </section>
           </div>
         </section>
@@ -7225,28 +7131,10 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
               </div>
             </div>
             <div className="style-editor-preview">
-              {activeDraft.subjectType === "both" ? <>
-                <div className="style-editor-variant-previews">
-                  <div className="style-editor-variant-preview">
-                    <strong>人物效果图</strong>
-                    {activeEditingStyle.personImage ? <div className="image-frame"><StylePreviewImage alt={`${getStyleDisplayName(activeEditingStyle)}人物效果图`} previewImage={activeEditingStyle.personGalleryImage || activeEditingStyle.personImage} previewImageUpdatedAt={activeEditingStyle.personImageUpdatedAt} style={activeEditingStyle} /></div> : <div className="style-editor-image-placeholder">尚未上传人物效果图</div>}
-                  </div>
-                  <div className="style-editor-variant-preview">
-                    <strong>宠物效果图</strong>
-                    {activeEditingStyle.petImage ? <div className="image-frame"><StylePreviewImage alt={`${getStyleDisplayName(activeEditingStyle)}宠物效果图`} previewImage={activeEditingStyle.petGalleryImage || activeEditingStyle.petImage} previewImageUpdatedAt={activeEditingStyle.petImageUpdatedAt} style={activeEditingStyle} /></div> : <div className="style-editor-image-placeholder">尚未上传宠物效果图</div>}
-                  </div>
-                </div>
-                <div className="style-editor-variant-upload-actions">
-                  <label className="secondary-button file-button"><ImageUp size={18} /><span>{activeEditingStyle.personImage ? "替换人物效果图" : "上传人物效果图"}</span><input accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => handleFile(activeEditingStyle, event.target.files?.[0], "person")} type="file" /></label>
-                  <label className="secondary-button file-button"><ImageUp size={18} /><span>{activeEditingStyle.petImage ? "替换宠物效果图" : "上传宠物效果图"}</span><input accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => handleFile(activeEditingStyle, event.target.files?.[0], "pet")} type="file" /></label>
-                </div>
-                <p className="storage-note">通用风格必须分别上传人物和宠物效果图；公共小画页会按当前标签展示对应缩略图。</p>
-              </> : <>
-                <div className="image-frame">
-                  <StylePreviewImage alt={`${getStyleDisplayName(activeEditingStyle)}示例图`} style={activeEditingStyle} />
-                </div>
-                <p className="storage-note">图片保存在 public/style-previews/{activeEditingStyle.id}/cover.*，标题、标签、适用主体、抽卡开关、抽卡权重和提示词保存在 data/styles.json。</p>
-              </>}
+              <div className="image-frame">
+                <StylePreviewImage alt={`${getStyleDisplayName(activeEditingStyle)}示例图`} previewImage={activeEditingStyle.personGalleryImage || activeEditingStyle.personImage || activeEditingStyle.petGalleryImage || activeEditingStyle.petImage} previewImageUpdatedAt={activeEditingStyle.personImageUpdatedAt || activeEditingStyle.petImageUpdatedAt} style={activeEditingStyle} />
+              </div>
+              <p className="storage-note">图片保存在 public/style-previews/{activeEditingStyle.id}/cover.*，标题、标签、抽卡开关、抽卡权重和提示词保存在 data/styles.json。</p>
             </div>
             <div className="manage-body style-editor-fields">
               <label className="field-label">
@@ -7264,16 +7152,6 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
                   placeholder="例如：人像，宠物，动漫"
                   value={activeDraft.tags}
                 />
-              </label>
-              <label className="field-label">
-                适用主体
-                <select onChange={(event) => updateDraft(activeEditingStyle, { subjectType: event.target.value })} value={activeDraft.subjectType || "both"}>
-                  {STYLE_SUBJECT_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
               </label>
               <label className="field-label checkbox-field">
                 <span>参与抽卡</span>
@@ -7316,12 +7194,12 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
               <button className="secondary-button" onClick={() => setEditingId("")} type="button">
                 关闭
               </button>
-              {activeDraft.subjectType !== "both" ? <label className="secondary-button file-button">
+              <label className="secondary-button file-button">
                 <ImageUp size={18} />
                 <span>替换图片</span>
-                <input accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => handleFile(activeEditingStyle, event.target.files?.[0])} type="file" />
-              </label> : null}
-              <button className="copy-button" disabled={savingId === activeEditingStyle.id || (activeDraft.subjectType === "both" && (!activeEditingStyle.personImage || !activeEditingStyle.petImage))} onClick={() => saveStyle(activeEditingStyle)} type="button">
+                <input accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => handleFile(activeEditingStyle, event.target.files?.[0], "person")} type="file" />
+              </label>
+              <button className="copy-button" disabled={savingId === activeEditingStyle.id} onClick={() => saveStyle(activeEditingStyle)} type="button">
                 <Save size={18} />
                 <span>{savingId === activeEditingStyle.id ? "保存中" : "保存"}</span>
               </button>
@@ -7926,6 +7804,95 @@ async function prepareReferenceForUpload(reference) {
   }
 }
 
+function AdminStylePublicationsPage() {
+  const [items, setItems] = useState([]);
+  const [tags, setTags] = useState(STYLE_PUBLICATION_TAGS);
+  const [draftTags, setDraftTags] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [busyId, setBusyId] = useState("");
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  async function loadPublications() {
+    setIsLoading(true);
+    try {
+      const payload = await refreshAdminStylePublications();
+      const nextItems = Array.isArray(payload.items) ? payload.items : [];
+      setItems(nextItems);
+      setTags(Array.isArray(payload.tags) && payload.tags.length ? payload.tags : STYLE_PUBLICATION_TAGS);
+      setDraftTags(Object.fromEntries(nextItems.map((item) => [item.publicationId, Array.isArray(item.tags) ? item.tags : []])));
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "读取风格发布失败。");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => { void loadPublications(); }, []);
+
+  function toggleTag(publicationId, tag) {
+    setDraftTags((current) => {
+      const selected = current[publicationId] || [];
+      return { ...current, [publicationId]: selected.includes(tag) ? selected.filter((item) => item !== tag) : [...selected, tag] };
+    });
+  }
+
+  async function saveTags(item) {
+    const nextTags = draftTags[item.publicationId] || [];
+    if (!nextTags.length) { setError("每条风格发布至少保留一个标签。"); return; }
+    setBusyId(item.publicationId);
+    try {
+      const updated = await updateAdminStylePublication(item.publicationId, nextTags);
+      setItems((current) => current.map((entry) => entry.publicationId === item.publicationId ? { ...entry, ...updated } : entry));
+      setNotice("标签已更新。");
+      setError("");
+    } catch (nextError) { setError(nextError.message || "更新标签失败。"); }
+    finally { setBusyId(""); }
+  }
+
+  async function removePublication(item) {
+    if (!window.confirm(`确定删除“${item.styleName || "未命名风格"}”的发布记录吗？`)) return;
+    setBusyId(item.publicationId);
+    try {
+      await deleteAdminStylePublication(item.publicationId);
+      setItems((current) => current.filter((entry) => entry.publicationId !== item.publicationId));
+      setNotice("发布记录已删除。");
+      setError("");
+    } catch (nextError) { setError(nextError.message || "删除风格发布失败。"); }
+    finally { setBusyId(""); }
+  }
+
+  return <section className="admin-style-publications-page">
+    <div className="task-toolbar">
+      <div><p className="eyebrow">Style publications</p><h2>风格发布</h2><p className="storage-note">管理公开风格效果、原图、提示词和发布标签。</p></div>
+      <button className="secondary-button" onClick={() => void loadPublications()} type="button"><RefreshCw size={18} /><span>{isLoading ? "刷新中" : "刷新"}</span></button>
+    </div>
+    {error ? <p className="error-note">{error}</p> : null}
+    {notice ? <p className="success-note">{notice}</p> : null}
+    {!isLoading && !items.length ? <p className="empty-note">还没有风格发布记录。</p> : null}
+    <div className="admin-style-publication-list">
+      {items.map((item) => {
+        const selectedTags = draftTags[item.publicationId] || [];
+        const effectUrl = item.effectImageUrl || item.sourceEffectImageUrl;
+        const referenceUrl = item.referenceImageUrl || item.sourceReferenceImageUrl;
+        return <article className="admin-style-publication-card" key={item.publicationId}>
+          <div className="admin-style-publication-images">
+            <figure><img alt="发布效果图" src={effectUrl} /><figcaption>效果图</figcaption></figure>
+            <figure><img alt="用户原图" src={referenceUrl} /><figcaption>原图</figcaption></figure>
+          </div>
+          <div className="admin-style-publication-info">
+            <div className="task-meta-row"><strong>{item.styleName || "未命名风格"}</strong><span>风格 ID：{item.styleId || "未记录"}</span><span>任务：{item.jobId || "未记录"}</span></div>
+            <p className="task-prompt">{item.prompt || "未记录提示词"}</p>
+            <div className="admin-style-publication-tags">{tags.map((tag) => <button aria-pressed={selectedTags.includes(tag)} className={`style-publication-tag ${selectedTags.includes(tag) ? "is-selected" : ""}`} key={tag} onClick={() => toggleTag(item.publicationId, tag)} type="button">{selectedTags.includes(tag) ? <Check size={14} /> : null}<span>{tag}</span></button>)}</div>
+            <div className="admin-style-publication-actions"><button className="copy-button" disabled={busyId === item.publicationId} onClick={() => void saveTags(item)} type="button"><Pencil size={17} /><span>{busyId === item.publicationId ? "保存中" : "保存标签"}</span></button><button className="danger-button" disabled={busyId === item.publicationId} onClick={() => void removePublication(item)} type="button"><Trash2 size={17} /><span>删除</span></button></div>
+          </div>
+        </article>;
+      })}
+    </div>
+  </section>;
+}
+
 function ImageJobsPage({ onStylePreviewReplaced }) {
   const [jobs, setJobs] = useState([]);
   const [jobTotal, setJobTotal] = useState(0);
@@ -7942,6 +7909,12 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
   const [editingJob, setEditingJob] = useState(null);
   const [previewingJob, setPreviewingJob] = useState(null);
   const [replacingStylePreviewKey, setReplacingStylePreviewKey] = useState("");
+  const [publishingJob, setPublishingJob] = useState(null);
+  const [publishingTags, setPublishingTags] = useState([]);
+  const [publishingBusy, setPublishingBusy] = useState(false);
+  const [creatingStyleJob, setCreatingStyleJob] = useState(null);
+  const [newStyleName, setNewStyleName] = useState("");
+  const [creatingStyleBusy, setCreatingStyleBusy] = useState(false);
   const queryRef = useRef(DEFAULT_IMAGE_JOB_QUERY);
 
   function syncQueryState(requestQuery, payload) {
@@ -7990,16 +7963,16 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
     }
   }
 
-  async function replaceStylePreview(job, variant) {
+  async function replaceStylePreview(job) {
     if (!job?.jobId || !job?.stylePreviewMatch) return;
 
-    const replacementKey = `${job.jobId}:${variant}`;
-    const variantLabel = variant === "pet" ? "宠物" : "人物";
+    const replacementKey = `${job.jobId}:example`;
+    const variantLabel = "示例图";
     setReplacingStylePreviewKey(replacementKey);
     setError("");
     setNotice("");
     try {
-      await replaceImageJobStylePreview(job.jobId, variant);
+      await replaceImageJobStylePreview(job.jobId, "person");
       await onStylePreviewReplaced?.();
       await loadDashboard(queryRef.current, { showLoading: false });
       setNotice(`已用当前任务图片替换“${job.stylePreviewMatch.name}”的${variantLabel}效果图。`);
@@ -8007,6 +7980,68 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
       setError(nextError.message || "替换风格效果图失败。");
     } finally {
       setReplacingStylePreviewKey("");
+    }
+  }
+
+  async function openPublicationModal(job) {
+    setPublishingJob(job);
+    setPublishingTags(Array.isArray(job?.stylePublication?.tags) ? job.stylePublication.tags : []);
+    setError("");
+    setNotice("");
+  }
+
+  function togglePublishingTag(tag) {
+    setPublishingTags((current) => current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag]);
+  }
+
+  async function publishStyle() {
+    if (!publishingJob?.jobId) return;
+    if (!publishingTags.length) {
+      setError("请至少选择一个发布标签。");
+      return;
+    }
+    setPublishingBusy(true);
+    setError("");
+    try {
+      await publishImageJobStyle(publishingJob.jobId, publishingTags);
+      await loadDashboard(queryRef.current, { showLoading: false });
+      setPublishingJob(null);
+      setNotice("风格已发布，重复发布会按本次所选标签覆盖。");
+    } catch (nextError) {
+      setError(nextError.message || "发布风格失败。");
+    } finally {
+      setPublishingBusy(false);
+    }
+  }
+
+  function openCreateStyleModal(job) {
+    setCreatingStyleJob(job);
+    setNewStyleName("");
+    setError("");
+    setNotice("");
+  }
+
+  async function createNewStyleFromJob() {
+    if (!creatingStyleJob?.jobId) return;
+    const styleName = newStyleName.trim();
+    if (!styleName) {
+      setError("请输入风格名称。");
+      return;
+    }
+    setCreatingStyleBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await createImageJobStyle(creatingStyleJob.jobId, styleName);
+      await onStylePreviewReplaced?.();
+      await loadDashboard(queryRef.current, { showLoading: false });
+      setCreatingStyleJob(null);
+      setNewStyleName("");
+      setNotice(`新风格“${styleName}”已创建，该任务现已匹配图库风格。`);
+    } catch (nextError) {
+      setError(nextError.message || "创建新风格失败。");
+    } finally {
+      setCreatingStyleBusy(false);
     }
   }
 
@@ -8195,22 +8230,28 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
                   <Eye size={18} />
                   <span>查看</span>
                 </button>
-                <button className="secondary-button" disabled={!job.result?.imageUrl} onClick={() => downloadAdminJobResult(job.jobId)} type="button">
-                  <Download size={18} />
-                  <span>下载</span>
-                </button>
+                {!stylePreviewMatch ? <>
+                  <button className="secondary-button" disabled={!job.result?.imageUrl} onClick={() => downloadAdminJobResult(job.jobId)} type="button">
+                    <Download size={18} />
+                    <span>下载</span>
+                  </button>
+                  <button className="copy-button" disabled={!job.result?.imageUrl} onClick={() => openCreateStyleModal(job)} type="button">
+                    <Plus size={18} />
+                    <span>创建新风格</span>
+                  </button>
+                </> : null}
                 {styleQrMatch ? <button className="secondary-button" onClick={() => handleDownloadStyleQr(styleQrMatch)} type="button">
                   <QrCode size={18} />
                   <span>下载风格码</span>
                 </button> : null}
                 {stylePreviewMatch ? <>
-                  <button className="secondary-button" disabled={!job.result?.imageUrl || Boolean(replacingStylePreviewKey)} onClick={() => replaceStylePreview(job, "person")} type="button">
-                    {replacingStylePreviewKey === `${job.jobId}:person` ? <LoaderCircle className="spin" size={18} /> : <ImageUp size={18} />}
-                    <span>{replacingStylePreviewKey === `${job.jobId}:person` ? "替换中" : "替换人物效果"}</span>
+                  <button className="secondary-button" disabled={!job.result?.imageUrl || Boolean(replacingStylePreviewKey)} onClick={() => replaceStylePreview(job)} type="button">
+                    {replacingStylePreviewKey === `${job.jobId}:example` ? <LoaderCircle className="spin" size={18} /> : <ImageUp size={18} />}
+                    <span>{replacingStylePreviewKey === `${job.jobId}:example` ? "替换中" : "替换示例图"}</span>
                   </button>
-                  <button className="secondary-button" disabled={!job.result?.imageUrl || Boolean(replacingStylePreviewKey)} onClick={() => replaceStylePreview(job, "pet")} type="button">
-                    {replacingStylePreviewKey === `${job.jobId}:pet` ? <LoaderCircle className="spin" size={18} /> : <ImageUp size={18} />}
-                    <span>{replacingStylePreviewKey === `${job.jobId}:pet` ? "替换中" : "替换宠物效果"}</span>
+                  <button className="copy-button" disabled={!job.result?.imageUrl} onClick={() => openPublicationModal(job)} type="button">
+                    <Sparkles size={18} />
+                    <span>发布</span>
                   </button>
                 </> : null}
                 <button className="copy-button" onClick={() => setEditingJob(job)} type="button">
@@ -8247,6 +8288,33 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
           <h2>{styleQrPreview.styleName}</h2>
           <img alt={`${styleQrPreview.styleName}风格码`} className="style-qr-preview-image" src={styleQrPreview.dataUrl} />
           <p className="storage-note">请长按二维码保存到手机，或在电脑上右键保存图片。</p>
+        </section>
+      </div> : null}
+      {creatingStyleJob ? <div className="modal-backdrop" onClick={() => !creatingStyleBusy && setCreatingStyleJob(null)} role="presentation">
+        <section aria-label="创建新风格" aria-modal="true" className="prompt-modal style-publication-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+          <button aria-label="关闭创建新风格弹窗" className="icon-button" disabled={creatingStyleBusy} onClick={() => setCreatingStyleJob(null)} type="button"><X size={20} /></button>
+          <div className="modal-head"><div><p className="eyebrow">New style</p><h2>创建新风格</h2><p className="storage-note">将基于当前任务的提示词与效果图创建一个新的图库风格。</p></div></div>
+          <label className="field-label">
+            风格名称
+            <input autoFocus disabled={creatingStyleBusy} maxLength={40} onChange={(event) => setNewStyleName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !creatingStyleBusy) createNewStyleFromJob(); }} placeholder="例如：波普红底插画" type="text" value={newStyleName} />
+          </label>
+          <div className="modal-actions">
+            <button className="secondary-button" disabled={creatingStyleBusy} onClick={() => setCreatingStyleJob(null)} type="button">取消</button>
+            <button className="copy-button" disabled={creatingStyleBusy || !newStyleName.trim()} onClick={createNewStyleFromJob} type="button">{creatingStyleBusy ? <LoaderCircle className="spin" size={18} /> : <Plus size={18} />}<span>{creatingStyleBusy ? "创建中" : "创建"}</span></button>
+          </div>
+        </section>
+      </div> : null}
+      {publishingJob ? <div className="modal-backdrop" onClick={() => !publishingBusy && setPublishingJob(null)} role="presentation">
+        <section aria-label="发布风格" aria-modal="true" className="prompt-modal style-publication-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+          <button aria-label="关闭发布弹窗" className="icon-button" disabled={publishingBusy} onClick={() => setPublishingJob(null)} type="button"><X size={20} /></button>
+          <div className="modal-head"><div><p className="eyebrow">Style publication</p><h2>发布风格</h2><p className="storage-note">请选择至少一个标签；再次发布会使用本次选择覆盖已有标签。</p></div></div>
+          <div className="style-publication-tag-list" role="group" aria-label="发布标签">
+            {STYLE_PUBLICATION_TAGS.map((tag) => <button aria-pressed={publishingTags.includes(tag)} className={`style-publication-tag ${publishingTags.includes(tag) ? "is-selected" : ""}`} key={tag} onClick={() => togglePublishingTag(tag)} type="button">{publishingTags.includes(tag) ? <Check size={15} /> : null}<span>{tag}</span></button>)}
+          </div>
+          <div className="modal-actions">
+            <button className="secondary-button" disabled={publishingBusy} onClick={() => setPublishingJob(null)} type="button">取消</button>
+            <button className="copy-button" disabled={publishingBusy || !publishingTags.length} onClick={publishStyle} type="button">{publishingBusy ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}<span>{publishingBusy ? "发布中" : "确认发布"}</span></button>
+          </div>
         </section>
       </div> : null}
       {editingJob && <JobEditModal job={editingJob} onClose={() => setEditingJob(null)} />}
@@ -8859,6 +8927,64 @@ function JobEditModal({ job, onClose }) {
       </section>
     </div>
   );
+}
+
+const STYLE_PUBLICATION_TAGS = ["推荐", "儿童", "宠物", "绘画", "设计", "幽默"];
+
+async function refreshStylePublications(tag = "") {
+  const query = tag ? `?tag=${encodeURIComponent(tag)}` : "";
+  const response = await fetch(`/api/style-publications${query}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取风格发布失败。");
+  return payload;
+}
+
+async function publishImageJobStyle(jobId, tags) {
+  const response = await fetch(`/api/image-jobs/${encodeURIComponent(jobId)}/style-publication`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tags })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "发布风格失败。");
+  return payload.publication;
+}
+
+async function createImageJobStyle(jobId, title) {
+  const response = await fetch(`/api/image-jobs/${encodeURIComponent(jobId)}/style`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.message || "创建新风格失败。");
+  return payload;
+}
+
+async function refreshAdminStylePublications() {
+  const response = await fetch("/api/admin/style-publications");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取风格发布失败。");
+  return payload;
+}
+
+async function updateAdminStylePublication(publicationId, tags) {
+  const response = await fetch(`/api/admin/style-publications/${encodeURIComponent(publicationId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tags })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "更新风格发布标签失败。");
+  return payload.publication;
+}
+
+async function deleteAdminStylePublication(publicationId) {
+  const response = await fetch(`/api/admin/style-publications/${encodeURIComponent(publicationId)}`, { method: "DELETE" });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.message || "删除风格发布失败。");
+  }
 }
 
 async function refreshStyles() {
