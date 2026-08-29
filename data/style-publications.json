@@ -649,5 +649,113 @@
     "sourceReferenceImageUrl": "/job-references/d946bd0b-ac0c-4dc1-9d60-0cd7ad6cd888/1-1782657546728.jpg",
     "createdAt": "2026-08-29T08:19:21.199Z",
     "updatedAt": "2026-08-29T08:19:21.199Z"
+  },
+  {
+    "publicationId": "164721b149871a078200fe0ea7d0a734",
+    "jobId": "e135d08a-c3b9-420a-a34c-373ff01e9320",
+    "styleId": "style_1780359249273",
+    "styleName": "童趣治愈色块",
+    "prompt": "变换整个图片风格，变成复杂画风治愈系插画，童趣涂鸦风格，意识流，大色块，颗粒感，增加肌理，抽象插画，扁平插画。采用大色块填充和颗粒质感，色彩鲜艳饱和，具有童趣涂鸦的随意感和意识流的自由表达。",
+    "tags": [
+      "儿童",
+      "推荐",
+      "绘画"
+    ],
+    "effectImageUrl": "/style-publications/164721b149871a078200fe0ea7d0a734/effect.webp",
+    "referenceImageUrl": "/style-publications/164721b149871a078200fe0ea7d0a734/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/e135d08a-c3b9-420a-a34c-373ff01e9320.png",
+    "sourceReferenceImageUrl": "/job-references/e135d08a-c3b9-420a-a34c-373ff01e9320/1-1780824455375.jpg",
+    "createdAt": "2026-08-29T09:53:37.504Z",
+    "updatedAt": "2026-08-29T09:53:37.504Z"
+  },
+  {
+    "publicationId": "056434649e64b551043a749ed8c91179",
+    "jobId": "3a84a0f9-bb87-4205-b7ce-3ad016a98f5e",
+    "styleId": "style_1787363044547",
+    "styleName": "极简线条手绘",
+    "prompt": "Transform this photo into a minimal hand-drawn illustration on cream textured paper background. Keep only the main subject's pose and silhouette, remove all background.主体居中，周围大量留白. Use thin black sketchy contour lines with a loose, imperfect hand-drawn feel. Fill with a few flat color blocks extracted from the original photo，色块不完全填满线条边界，要有手绘平涂的随意感。色块不超过5种颜色，减少阴影细节。low saturation, slightly irregular edges like marker.人物简化为基础形状，面部特征尽量少（点眼、简单的鼻子、小嘴），比例略显笨拙。如果有眼睛就保留眼镜 。A few minimal environment lines at the bottom. Large empty space around the subject. Add elegant English title text at the bottom in serif font. Nostalgic sketchbook aesthetic, no shading, no gradients, no realistic details.\n\nNegative: photorealistic, detailed background, facial features, eyes, nose, mouth, complex shading, 3D, vector art, clean perfect lines, digital painting, gradients, realistic texture, crowded, blurry, watermark",
+    "tags": [
+      "儿童",
+      "推荐",
+      "绘画"
+    ],
+    "effectImageUrl": "/style-publications/056434649e64b551043a749ed8c91179/effect.webp",
+    "referenceImageUrl": "/style-publications/056434649e64b551043a749ed8c91179/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/3a84a0f9-bb87-4205-b7ce-3ad016a98f5e.png",
+    "sourceReferenceImageUrl": "/job-references/3a84a0f9-bb87-4205-b7ce-3ad016a98f5e/1-1787364426731.jpg",
+    "createdAt": "2026-08-29T10:12:55.910Z",
+    "updatedAt": "2026-08-29T10:12:55.910Z"
+  },
+  {
+    "publicationId": "e0b2f061c507b41ba2978ccf5ee952bc",
+    "jobId": "abcc7bde-cd42-4772-bfb3-1d5a744f727c",
+    "styleId": "style_1780183870275",
+    "styleName": "萌宠角色卡",
+    "prompt": "Use the uploaded pet photo as reference.\nPreserve the pet's exact fur pattern, colors, markings, face shape, ears and tail.\nTransform the pet into a charming anthropomorphic character.\nStanding upright like a human.\nRandomly generate profession, outfit and personality.\nThe character should look cute, elegant and memorable.\nSTYLE:\nstorybook illustration,\nstylized character design,\nflat illustration,\nsimple shapes,\nclean line art,\nminimal shading,\nminimal rendering,\ngraphic illustration,\nchildren's book artwork,\nvintage poster illustration,\n2D illustration,\nvector-like artwork,\nplayful and charming,\nfocus on character silhouette,\nlimited color palette,\nDESIGN:\nfull body portrait,\ncentered composition,\nsimple decorative card frame,\nminimal background,\nplain background,\ncharacter-focused layout,\nfashion illustration feeling,\ncollectible character card,\nNO realistic fur,\nNO cinematic lighting,\nNO fantasy visual effects,\nNO complex background,\nNO 3D rendering,\nNO photorealism,\nNO game concept art,\nNO hyper detail,\nNO magical particles,\nNO dramatic atmosphere",
+    "tags": [
+      "推荐",
+      "宠物",
+      "设计",
+      "幽默"
+    ],
+    "effectImageUrl": "/style-publications/e0b2f061c507b41ba2978ccf5ee952bc/effect.webp",
+    "referenceImageUrl": "/style-publications/e0b2f061c507b41ba2978ccf5ee952bc/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/abcc7bde-cd42-4772-bfb3-1d5a744f727c.png",
+    "sourceReferenceImageUrl": "/job-references/abcc7bde-cd42-4772-bfb3-1d5a744f727c/1-1780636006964.jpg",
+    "createdAt": "2026-08-29T10:15:08.343Z",
+    "updatedAt": "2026-08-29T10:15:08.343Z"
+  },
+  {
+    "publicationId": "7337f517f23c87e2ed46c4f5dc79eb8c",
+    "jobId": "4ed7eb71-3cf8-497b-bcae-2199345cab35",
+    "styleId": "style_1782608242639",
+    "styleName": "童趣剪纸插画",
+    "prompt": "Transform the entire image into a single decorative folk flat illustration with playful doodle elements. Preserve the main subject and overall composition, but simplify all objects into clean, flat shapes with minimal detail. Use a bold, whimsical color palette that is clearly different from the original image. Add a handmade, slightly imperfect feel, as if illustrated with cut-paper shapes and simple hand-drawn marks on white paper. Keep the background clean and bright, with a clear white-paper look. Make the final result cute, childlike, cohesive, charming, and whimsical.",
+    "tags": [
+      "儿童",
+      "推荐",
+      "绘画"
+    ],
+    "effectImageUrl": "/style-publications/7337f517f23c87e2ed46c4f5dc79eb8c/effect.webp",
+    "referenceImageUrl": "/style-publications/7337f517f23c87e2ed46c4f5dc79eb8c/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/4ed7eb71-3cf8-497b-bcae-2199345cab35.png",
+    "sourceReferenceImageUrl": "/job-references/4ed7eb71-3cf8-497b-bcae-2199345cab35/1-1783927773915.jpg",
+    "createdAt": "2026-08-29T10:16:57.148Z",
+    "updatedAt": "2026-08-29T10:16:57.148Z"
+  },
+  {
+    "publicationId": "c66f986db7193e1cc8dcd81e1e69022a",
+    "jobId": "98c1693c-6895-4676-927a-b5061768d936",
+    "styleId": "style_1782608242639",
+    "styleName": "童趣剪纸插画",
+    "prompt": "Transform the entire image into a single decorative folk flat illustration with playful doodle elements. Preserve the main subject and overall composition, but simplify all objects into clean, flat shapes with minimal detail. Use a bold, whimsical color palette that is clearly different from the original image. Add a handmade, slightly imperfect feel, as if illustrated with cut-paper shapes and simple hand-drawn marks on white paper. Keep the background clean and bright, with a clear white-paper look. Make the final result cute, childlike, cohesive, charming, and whimsical.",
+    "tags": [
+      "推荐",
+      "设计"
+    ],
+    "effectImageUrl": "/style-publications/c66f986db7193e1cc8dcd81e1e69022a/effect.webp",
+    "referenceImageUrl": "/style-publications/c66f986db7193e1cc8dcd81e1e69022a/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/98c1693c-6895-4676-927a-b5061768d936.png",
+    "sourceReferenceImageUrl": "/job-references/98c1693c-6895-4676-927a-b5061768d936/1-1784380801897.jpg",
+    "createdAt": "2026-08-29T10:17:09.097Z",
+    "updatedAt": "2026-08-29T10:17:09.097Z"
+  },
+  {
+    "publicationId": "e5c167da54deabd7f07afd5cfe599652",
+    "jobId": "adf6a50d-a709-45f4-8d39-4fccbcdbb20f",
+    "styleId": "style_1779179328013",
+    "styleName": "复古旅行卡通海报",
+    "prompt": "将照片转换成高饱和度复古旅行海报风格的平面卡通插画（flat cartoon poster illustration）。人物整体采用儿童绘本式的夸张卡通比例，脸部高度简化和平面化，使用圆润几何造型、大色块上色、极少面部细节、粗黑色描边，弱化真实皮肤纹理和真实五官结构，不要写实感。\n\n整体风格参考：retro travel poster、flat illustration、storybook art、vector cartoon、mid-century poster、bold colorful graphic design。画面使用强烈撞色、高饱和橙色、黄色、蓝绿色、深蓝色，带复古印刷颗粒感和手绘纹理。\n\n人物表情要阳光可爱，但采用二维动画式处理，眼睛、嘴巴、腮红、头发都尽量图形化和符号化，避免真实照片转绘效果。背景加入卡通城市、树木、蓝天、云朵、道路、旅行箱、路牌等元素，整体构图像儿童绘本封面和复古宣传海报。\n\n加入大面积手绘英文标语，例如 “HAPPY TRAVEL”、“DREAM BIG”、“VIBRANT ENERGY”、“SLOW DOWN”，字体夸张醒目。\n\n避免：realistic face、photo texture、real skin、3D render、cinematic lighting、high detail skin、semi-realistic illustration、AI photo style、complex shadow、photorealism。\n\nmake the face look more like a flat cartoon graphic than a painted realistic portrait",
+    "tags": [
+      "儿童",
+      "推荐",
+      "设计"
+    ],
+    "effectImageUrl": "/style-publications/e5c167da54deabd7f07afd5cfe599652/effect.webp",
+    "referenceImageUrl": "/style-publications/e5c167da54deabd7f07afd5cfe599652/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/adf6a50d-a709-45f4-8d39-4fccbcdbb20f.png",
+    "sourceReferenceImageUrl": "/job-references/adf6a50d-a709-45f4-8d39-4fccbcdbb20f/1-1781524371403.jpg",
+    "createdAt": "2026-08-29T11:58:13.347Z",
+    "updatedAt": "2026-08-29T11:58:13.347Z"
   }
 ]
