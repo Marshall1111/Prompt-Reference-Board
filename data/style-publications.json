@@ -7,7 +7,7 @@
     "prompt": "矢量平面插画，半色调网点印刷纹理，波普艺术风格，复古漫画书艺术，怀旧儿童绘本插画，网点印刷风格，图形设计，可爱俏皮，清晰线条，点状纹理，粗糙印刷质感，2D平面设计，无真实阴影，通过半色调网点密度表现阴影，有限色彩方案，鲜艳饱和色彩，有限色彩选择，无渐变，无复杂细节，简洁造型，高对比度，粗黑轮廓线，儿童绘本风格，怀旧195D‑60年代印刷艺术，画面无字，突出手绘质感，手工绘制不完善、不固定，整个画面背景为红色细腻颗粒纹理纸质质感，上方有适配画面的英文字母",
     "tags": [
       "儿童",
-      "设计",
+      "日常",
       "推荐"
     ],
     "effectImageUrl": "/style-publications/a8fb473a1a9ffe183c8b4ba6d283e319/effect.webp",
@@ -26,7 +26,7 @@
     "tags": [
       "儿童",
       "推荐",
-      "设计"
+      "日常"
     ],
     "effectImageUrl": "/style-publications/f55c8b9505fce38f5ca12a76d40e25a6/effect.webp",
     "referenceImageUrl": "/style-publications/f55c8b9505fce38f5ca12a76d40e25a6/reference.webp",
@@ -42,7 +42,7 @@
     "styleName": "窄幅多风格拼接",
     "prompt": "请将我上传的每一张照片分别制作成一张独立的高级设计海报，不多图拼接，每张照片单独输出。不能拉伸、扭曲、改动主体本身\n\n整体采用 2:3竖版构图。画面从上到下严格三等分为三个横向区域，每个区域高度必须精确占整体画面的1/3，三层比例严格为1:1:1，不允许出现比例偏差。区域之间无缝衔接，无分隔线、无留白间隙。这里的“无留白间隙”仅指层与层的接缝不能出现空隙；每层内部仍可按照对应风格保留负空间、纸面或纯色背景。\n\n三层全部以同一张上传照片为唯一依据，呈现同一主体、同一瞬间和同一空间关系。严格保持主体身份、数量、关键结构、比例、姿态、动作方向、视线、观察视角、透视、遮挡、左右位置、前后关系与核心叙事一致。三层不是三张互不相关的新构图，而是同一画面的连续风格转译。由于每层均为约2:1的极扁横幅，主体应横向组织，并保留适量左右呼吸空间；允许对背景进行自然横向延展或轻微裁切，但不得拉伸主体、裁掉关键部位、改变人物关系，或另造与原图无关的场景。\n\n三层的视觉重心、主体占比和轮廓落点尽量上下对齐，形成从真实摄影逐步过渡到目标风格的连贯演化。每层都必须完整填满自身1/3的区域。不要添加层号、分隔线、边框、拼贴缝隙、水印或Logo。除非某层风格说明明确要求少量编辑文字、票据标记或手写注释，否则不要额外生成文字；即使需要文字，也必须少量、克制、不遮挡主体，并尽量避免乱码。\n\n第一层｜韩式稚拙扁平插画\n\n在本层约2:1的扁横幅区域中，将第一层的真实主体转译为“韩式稚拙扁平插画”风格。保持与第一层一致的主体身份、数量、关键结构、姿态、左右位置、视角、空间关系与核心叙事，再完整执行以下视觉要求：\n\n从照片中提取最具识别性的主体、轮廓、姿态与叙事关系，重构为轻松、稚拙的韩式扁平编辑插画。保留原图的大致布局、物体关系和核心动作，但去除写实光影、透视和材质细节，将主体概括成圆润、简单、略带夸张的几何形状，以粗糙抖动、局部断开的黑色手绘轮廓搭配纯色平涂，让画面保持一眼可辨又不过度写实。\n\n构图保持一个明确视觉中心，其余物体作为陪衬，通过大小差、错位、遮挡、轻微裁切和不完全对称建立轻快节奏。背景使用大面积明亮纯色与留白承托主体，可保留左右或局部完整色块作为呼吸空间，不堆积复杂场景，让画面像经过精心设计的儿童绘本或独立编辑插画，而不是照片卡通化。\n\n配色从上传的原图中提取最有生命力和辨识度的颜色，再转化为高明度、高纯度、数量有限的扁平色块；可使用亮蓝、红、黄、绿、白等具有童趣张力的色彩关系，但不机械套用固定色卡。背景与主体形成鲜明面积对比，避免渐变、阴影、灰脏色、复杂混色和塑料感。\n\n文字同样采用稚拙而有设计感的编辑逻辑。从照片的主体、动作、情绪或故事中提炼一个简短英文标题，并搭配少量极小短句、对象词、地点词、编号或俏皮注释。主标题可使用略带手写感、粗细不均或轻微歪斜的字体，小字则保持清晰克制；文字可以沿主体轮廓、色块边缘、留白区域或画面轴线排列，也可出现轻微旋转、错位、拆分和穿插，使文字像插画本身的一部分，而不是后期贴上的排版。\n\n整体呈现原始影像 × 稚拙扁平插画 × 轻松编辑设计的视觉气质，明快、童趣、亲切、俏皮、松弛又有设计感。无论主体是人物、动物、植物、建筑、器物、交通工具、食物或自然场景，都应保持原图身份与插画重构之间清晰的视觉呼应，避免廉价卡通、复杂描绘、三维质感、商业贴纸感和模板化儿童插画。\n\n第二层｜童话版画绘本\n\n在本层约2:1的扁横幅区域中，将第一层的真实主体转译为“童话版画绘本”风格。保持与第一层一致的主体身份、数量、关键结构、姿态、左右位置、视角、空间关系与核心叙事，再完整执行以下视觉要求：\n\n从照片中提取最具识别性的主体、轮廓、姿态与叙事关系，重构为童话版画式手绘图像。不要机械描摹细节，而是将主体压缩为一两个清楚的大体块，以钝拙剪影、略微夸张的比例和少量关键边缘，保留原始对象的身份、动作、功能与情绪。画面从原图内容中提炼出一个大面积低明度或高反差的结构场，作为包裹主体的容器、路径、框架或密度层；背景像故事发生的外壳一样从原图空间与意义中生长出来，形成遮挡、裁切、吞没与局部露出的结构叙事。整体采用平面叙事透视和绘本页面式层级，可使用俯视压缩、侧向移动、正面框架、路径引导、尺度跳跃或边缘裁切组织阅读。\n\n配色从上传的原图提取，并保持明确的三层关系：大面积暗结构色负责重量与边界，适量浅色或留白负责呼吸，小面积高饱和情绪色负责读图路线与故事信号。最重要的信息仅以少量鲜明色块集中在面部、姿态、路径、器物功能点、环境标识或叙事焦点上，并始终被深色结构或浅色负形压住，让画面鲜艳但不平均。色相可随主题情绪调整，但面积比例与明度秩序保持稳定。\n\n线条只在功能、路径、边界、纹理和识别处出现，保持稀疏、手绘、略不准的细线。所有色块保持平面化处理，同时保留干刷、颗粒、飞白、纸纹、喷点和轻微套印错位，呈现丝网印刷与粉蜡笔共同完成的手工质感，避免写实光影、复杂体积、光滑矢量边缘、三维渲染和塑料质感。\n\n整体构图简洁、低细节、高识别，暗场包裹亮色信号，兼具可爱叙事与厚重版画感。若画面包含文字，可将文字处理为小标识、物体面板或边缘注释，数量精简，服从图形结构；字形圆钝，粗细略不均，密度低，带有自然手写感，使其像画面的一部分而不是后期贴上去的说明。整体参考童话绘本、手工版画、编辑插画与艺术出版物气质，呈现统一、鲜明、可迁移的作者化视觉语言。\n\n第三层｜乐高积木艺术重构\n\n在本层约2:1的扁横幅区域中，将第一层的真实主体转译为“乐高积木艺术重构”风格。保持与第一层一致的主体身份、数量、关键结构、姿态、左右位置、视角、空间关系与核心叙事，再完整执行以下视觉要求：\n\n从照片中提取最具识别性的主体、轮廓、姿态与叙事关系，先理解其核心身份、动作特征与寓意，再重构为乐高 / 《我的世界》（Minecraft）式的像素积木视觉。不要简单卡通化，而是通过体素、积木、模块化几何和拼搭逻辑重新概括主体，使人物、动物、植物、建筑、器物、交通工具或自然景观都保留一眼可辨的核心特征，不强行拟人化。\n\n主体作为唯一视觉核心，通过方块化比例、清晰剪影、模块层级和局部夸张建立辨识度。背景保持极简、安静、低信息量，不还原完整环境，不铺设复杂地块和无关道具，以大面积纯色或极轻微色阶变化作为空间，只保留极少量底座、块面或阴影承托主体，形成“鲜明主体、大面积留白、环境退后”的高级玩具陈列感。\n\n配色从上传的原图中提取最具辨识度和精气神的颜色，再转化为高纯度、高饱和、明艳清晰的积木色组。颜色应像真实注塑积木一样饱满、干净、直接，强调鲜红、亮黄、纯蓝、鲜绿、橙色、紫色等清晰色相之间的块面关系，同时保留原图自身的综合色彩身份。主体颜色可以比原图更纯、更亮、更有能量，但不要荧光、霓虹或糖果渐变；避免莫兰迪色、灰蒙色、粉彩化和刻意降低饱和度。背景应明显更浅、更单纯，让高饱和积木主体成为绝对焦点。\n\n材质强调真实哑光ABS积木材质与体素拼搭感，表面平整而略带柔和塑料反光，模块之间保留清晰拼接缝隙、层级和自然接触阴影。光线柔和而清晰，让颜色保持鲜艳通透，同时表现积木厚度和立体结构，避免金属感、玻璃感、过度电脑渲染反光和廉价游戏截图质感。\n\n文字作为辅助设计元素，从照片的主体身份、动作、情绪或寓意中提炼一个简短英文标题，并搭配极少量标签词或微型注释。文字可使用模块化、像素化或积木说明书式的排版语言，与主体轮廓、底座和留白形成对齐或巧妙穿插，但始终保持克制，不抢主体。\n\n整体呈现原始影像 × 明艳积木重构的视觉关系：原图是真实世界，本层画面像将同一主题重新搭建成一件精致的积木艺术品。画面应鲜活、清爽、可爱而不幼稚，具有高级玩具品牌、设计收藏品和现代编辑海报的视觉气质，避免低饱和、灰脏色、复杂《我的世界》（Minecraft）场景、满地积木、儿童游戏界面和电商玩具展示感。",
     "tags": [
-      "设计",
+      "日常",
       "幽默"
     ],
     "effectImageUrl": "/style-publications/525ed85fee7eddcc358b81b2043d5db9/effect.webp",
@@ -95,7 +95,7 @@
     "tags": [
       "推荐",
       "幽默",
-      "绘画"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/8398e88ef5faddcdfbad8cfd47d14cdb/effect.webp",
     "referenceImageUrl": "/style-publications/8398e88ef5faddcdfbad8cfd47d14cdb/reference.webp",
@@ -112,7 +112,7 @@
     "prompt": "Create a complete image-to-image redraw from the supplied photo as one 2:3 vertical collectible travel memory sticker card.\n\nUse warm off-white uncoated paper with a continuous 4–5% outer margin. The upper 66–68% is one large, near-square, unframed scene illustration printed directly on the paper, with subtly rough edges. Do not use an outline, keyline, inner card, mat, rounded frame, or shadow around the illustration. Leave a shallow exposed-paper footer beneath it, centered with exactly three small English keywords shown once:\n“[KEYWORD 1] · [KEYWORD 2] · [KEYWORD 3]”\n\nThe lower 30–32% contains exactly six separate source-derived travel journaling stickers:\n1. [MAIN SUBJECT FRAGMENT]\n2. [PAIRED SUBJECT OR VARIATION]\n3. [ENVIRONMENTAL FORM]\n4. [STRUCTURAL OR ARCHITECTURAL FRAGMENT]\n5. [FUNCTIONAL OBJECT]\n6. [SMALL ATMOSPHERIC OR SCALE CUE]\n\nGive every sticker a thick, irregular warm-white hand-cut border and a subtle flat paper shadow. Make 2–3 stickers larger and the others smaller. Arrange them across the bottom area in calm, irregular, slightly staggered rows with generous negative space. Do not place stickers on the right side of the card.\n\nPreserve the main identification anchor from the source photo: [IDENTIFICATION ANCHOR]. Preserve its silhouette, proportion, position, relationship to the scene, and signature colors, but redraw it entirely in the same illustrated medium. Never retain a photorealistic patch.\n[OPTIONAL: Preserve this exact landmark text once in the main illustration: “[VERBATIM TEXT]”. Otherwise preserve no source text.]\n\nRebuild the source scene using 5–8 broad, low-saturation matte color families. The first read should be 3–6 oversized blunt shapes and quiet negative space, not visual detail. Expand the source-supported quiet field of [SKY / WATER / ROAD / WALL / SNOW / SAND / GROUND]. Simplify vegetation into 1–3 lumpy tonal masses, buildings and geology into flat planes, and people or animals into compact faceless silhouettes.\n\nUse a cohesive matte gouache, cut-paper, risograph, and screen-print visual language with fine, uniform paper grain. Use hand-cut, chalky, dry-brushed, slightly uneven edges; allow subtle pigment-density variation and soft print misregistration. Keep the mood observational, spacious, humane, slow, and lightly nostalgic. Use restrained source-derived colors with one or two accents, flat color shadows, and very little near-black.\n\nDo not add any title, caption, date, writing area, postal mark, address line, subtitle, additional readable text, watermark, or signature.\n\nNegative prompt: photorealistic, photographic patch, photo collage, realistic photography, watermark, signature, extra text, title, caption, date, writing area, postal marks, address lines, subtitle, frame, border, keyline, inner card, rounded frame, glossy 3D, smooth gradient, dramatic lighting, visible marker strokes, watercolor wash, painterly photo filter, oil painting, polished vector art, anime, clip art, detailed leaves, repeated textures, masonry detail, realistic anatomy, cluttered layout, unrelated objects, stickers on the right side, fewer than six stickers, more than six stickers.",
     "tags": [
       "推荐",
-      "设计"
+      "日常"
     ],
     "effectImageUrl": "/style-publications/f647de1528384daba42519e1440501e5/effect.webp",
     "referenceImageUrl": "/style-publications/f647de1528384daba42519e1440501e5/reference.webp",
@@ -131,7 +131,7 @@
       "幽默",
       "推荐",
       "儿童",
-      "绘画"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/3af3d273dd36b83972b40de4bd51efc0/effect.webp",
     "referenceImageUrl": "/style-publications/3af3d273dd36b83972b40de4bd51efc0/reference.webp",
@@ -149,7 +149,7 @@
     "tags": [
       "宠物",
       "推荐",
-      "绘画"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/69f153d98b80e90b884b6d056b028a86/effect.webp",
     "referenceImageUrl": "/style-publications/69f153d98b80e90b884b6d056b028a86/reference.webp",
@@ -166,7 +166,7 @@
     "prompt": "以上传的照片为大致参考，参考其中的头发、肤色和主要特征，制作一张插画。围绕参照图来构图，让她毫无疑问成为主角。只包含上传照片中可见的人。采用极简、简单的纯平涂色另类漫画插画风格，搭配简洁统一的手绘线条。人物简化为基础形状，面部特征尽量少（点眼、简单的鼻子、小嘴），比例略显笨拙。少量使用纯色块来形成对比。居中构图，留出大量空白，不要背景细节。整体风格要一本正经、情绪中性，带一点安静的荒诞感。幽默应来自隐含的古怪逻辑、别扭的视觉关系，或对琐碎小事的过于严肃处理。加入基于姿态或情境的细微幽默，更像观察所得，而不是夸张打闹。\r\n \r\n加上小而简单的文字，随意摆放，传达一种冷淡、就事论事式的荒诞感。不要阴影，不要纹理，不要细致刻画。避免关于角色身份的常见文化陈词滥调或刻板印象；幽默不要依赖典型的“nsfw”套路。",
     "tags": [
       "推荐",
-      "绘画",
+      "旅行",
       "幽默",
       "儿童"
     ],
@@ -187,7 +187,7 @@
       "推荐",
       "儿童",
       "幽默",
-      "绘画"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/8f98a6e4b98acf4117b6749a72ed52d5/effect.webp",
     "referenceImageUrl": "/style-publications/8f98a6e4b98acf4117b6749a72ed52d5/reference.webp",
@@ -221,7 +221,7 @@
     "prompt": "原图转为插画\r\n整体画风：极简拙朴手绘插画，造型高度概括符号化，比例笨拙可爱，仅保留核心识别特征；复古丝网印刷肌理，随性松弛，不追求完美精致\r\n线条上色：深蓝色歪扭轮廓线，粗细不均、断续断线，带手绘自然抖动动感，刻意粗糙不工整；单色系平涂纯色，无渐变、阴影、明暗过渡，低饱和度色彩，正面平视无透视\r\n背景处理：暖调米白底色，主体居中，大面积留白，无多余装饰",
     "tags": [
       "儿童",
-      "绘画"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/ef621e89b418724e7c31826dca10bd08/effect.webp",
     "referenceImageUrl": "/style-publications/ef621e89b418724e7c31826dca10bd08/reference.webp",
@@ -273,7 +273,7 @@
     "prompt": "原图转为插画\n整体画风：极简拙朴手绘插画，造型高度概括符号化，比例笨拙可爱，仅保留核心识别特征；复古丝网印刷肌理，随性松弛，不追求完美精致\n线条上色：深蓝色歪扭轮廓线，粗细不均、断续断线，带手绘自然抖动动感，刻意粗糙不工整；单色系平涂纯色，无渐变、阴影、明暗过渡，低饱和度色彩，正面平视无透视\n背景处理：暖调米白底色，主体居中，大面积留白，无多余装饰",
     "tags": [
       "宠物",
-      "绘画",
+      "旅行",
       "推荐"
     ],
     "effectImageUrl": "/style-publications/ff93e2347a0fe6fe4369ceec8c77dfd2/effect.webp",
@@ -291,7 +291,7 @@
     "prompt": "转绘成独立卡通插画，新天真流行艺术风格，丑萌趣味人物，超细黑色轮廓线，高饱和度明快平涂色彩，手绘随性不规则线条，低保真涂鸦质感，怪诞无厘头趣味，夸张面部神态，微猎奇却软萌可爱，极简背景，现代街头艺术氛围，摒弃精致流水线画风。",
     "tags": [
       "幽默",
-      "设计",
+      "日常",
       "儿童"
     ],
     "effectImageUrl": "/style-publications/317a8a38a3be463b6c83b9cd47f565b3/effect.webp",
@@ -310,7 +310,7 @@
     "tags": [
       "儿童",
       "推荐",
-      "绘画"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/ff8a74b515005beaad17fba4706f013d/effect.webp",
     "referenceImageUrl": "/style-publications/ff8a74b515005beaad17fba4706f013d/reference.webp",
@@ -327,7 +327,7 @@
     "prompt": "以照片中宠物为主体，去掉原图中除了主体以外的背景物品，以印象派的艺术风格呈现，画面中是一只头戴花环的可爱小宠物，脸部表情俏皮又温顺，身上的毛发在光影的映照下闪烁着微光。花环由多种颜色的花朵精心编织而成，环绕在宠物的头上，增添了几分甜美与浪漫。整幅画运用了印象派丰富的色彩和轻快的笔触，色调柔和而温暖，超高的画质使得每一处细节都清晰可见，给人一种身临其境的感觉。",
     "tags": [
       "宠物",
-      "绘画",
+      "旅行",
       "推荐"
     ],
     "effectImageUrl": "/style-publications/c4684b81b4b52417caaa0fd69ecffee8/effect.webp",
@@ -393,7 +393,7 @@
     "prompt": "Transform the entire image into a single decorative folk flat illustration with playful doodle elements. Preserve the main subject and overall composition, but simplify all objects into clean, flat shapes with minimal detail. Use a bold, whimsical color palette that is clearly different from the original image. Add a handmade, slightly imperfect feel, as if illustrated with cut-paper shapes and simple hand-drawn marks on white paper. Keep the background clean and bright, with a clear white-paper look. Make the final result cute, childlike, cohesive, charming, and whimsical.",
     "tags": [
       "宠物",
-      "设计"
+      "日常"
     ],
     "effectImageUrl": "/style-publications/43b31980749e48fb052960d846f9a9ee/effect.webp",
     "referenceImageUrl": "/style-publications/43b31980749e48fb052960d846f9a9ee/reference.webp",
@@ -410,7 +410,7 @@
     "prompt": "把参考图中的主体变成一个萌风Q版角色，凌乱粗糙的黑色线稿，幼态比例，像小孩随手涂鸦但极具设计感，粗笔触、水粉厚涂、蜡笔质感，边缘随意外扩，留白背景、可爱、手绘感极强，不精致，故意画歪，松散构图，低饱和奶油色调，艺术涂鸦插画。",
     "tags": [
       "儿童",
-      "绘画"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/d4b9d8f99d03e552e7e3db93665e0136/effect.webp",
     "referenceImageUrl": "/style-publications/d4b9d8f99d03e552e7e3db93665e0136/reference.webp",
@@ -427,7 +427,7 @@
     "prompt": "根据上传图片，提取3-5个最具辨识度的特征，重新设计为复古8-bit像素头像（主体居中，纯色背景）。主动抽象、夸张、Q版化，避免写实或1:1还原。\n像素风格：清晰像素块，黑色描边，大色块，强轮廓，极简五官，图标化。\n颜色：主体与背景高饱和撞色（背景色提取原画面中的主要颜色），避免固定配色。\n表情根据气质设计（呆萌/酷脸等），物品可不加人脸。\n禁止实景、3D、厚涂、插画感。输出高度抽象、像素感强的头像IP，非原图翻版。",
     "tags": [
       "儿童",
-      "设计"
+      "日常"
     ],
     "effectImageUrl": "/style-publications/4ae9790a2675b90a0d37e20ba53ec677/effect.webp",
     "referenceImageUrl": "/style-publications/4ae9790a2675b90a0d37e20ba53ec677/reference.webp",
@@ -444,7 +444,7 @@
     "prompt": "根据上传图片，提取3-5个最具辨识度的特征，重新设计为复古8-bit像素头像（主体居中，纯色背景）。主动抽象、夸张、Q版化，避免写实或1:1还原。\r\n像素风格：清晰像素块，黑色描边，大色块，强轮廓，极简五官，图标化。\r\n颜色：主体与背景高饱和撞色（背景色提取原画面中的主要颜色），避免固定配色。\r\n表情根据气质设计（呆萌/酷脸等），物品可不加人脸。\r\n禁止实景、3D、厚涂、插画感。输出高度抽象、像素感强的头像IP，非原图翻版。",
     "tags": [
       "推荐",
-      "设计"
+      "日常"
     ],
     "effectImageUrl": "/style-publications/309abe05bb3c80b3932928b59a5016bd/effect.webp",
     "referenceImageUrl": "/style-publications/309abe05bb3c80b3932928b59a5016bd/reference.webp",
@@ -461,7 +461,7 @@
     "prompt": "参考输入的小动物照片，将画面转化为极简拙趣手绘插画。保留动物的种类、数量、主要姿势、身体轮廓和最有辨识度的特征，例如猫咪的花纹、狗狗的耳朵、兔子的长耳、鸟的喙或仓鼠的圆润体型，但不要完整描摹照片。\r\n\r\n使用稀疏、随意、略微抖动的黑色手绘线条概括动物。造型天真笨拙，身体比例可以适当夸张：脑袋偏大、四肢短小、身体圆润。轮廓允许歪斜、断开和不完全闭合，像用黑色签字笔随手画出的儿童涂鸦，不追求准确结构与写实比例。\r\n\r\n动物面部极度简化，只用圆点、短线或简单弧线表现眼睛、鼻子和嘴巴，保留原照片中的典型神态，如发呆、好奇、困倦、警惕或委屈。不要画复杂五官和精细毛发。\r\n\r\n大幅删除照片中的背景和次要物品，只保留 1—2 个与动物互动的代表元素，例如纸箱、玩具、食盆、靠垫、花盆、毛线球或小树枝。可以适当夸张动物与物品的大小关系，让它趴在巨大的杯子旁、钻进过小的纸箱、盯着一颗水果，形成轻微荒诞又可爱的日常情节。\r\n\r\n背景使用纯白或微暖的米白色，保留约 75%‑85% 的空白。主体尺寸较小，放在画面中央偏下或角落，只保留必要的地面线和少量动作符号，不绘制完整房间或复杂环境。\r\n\r\n整体以黑色线稿为主，只选择一种亮色进行小面积点缀，例如嫩绿色、紫色、橙色、粉色或蓝色，用于动物的项圈、花纹、玩具、植物或动作线。不要大面积上色，不要阴影、渐变和写实光影。\r\n\r\n可在左上角加入一行很小的英文短句和对应的简短中文，文案根据动物的动作或神态生成，轻松、幽默、治愈，使用纤细疏朗的无衬线字体。\r\n\r\n整体呈现极简新消费品牌插画、拙趣涂鸦、编辑插画与日常视觉诗歌的感觉，松弛、可爱、克制、有一点冷幽默。\r\n\r\n画面中不得出现人物、手臂、人体剪影、真实品牌名称、Logo、水印、手机界面或黑色外框。输出一张独立插画。",
     "tags": [
       "宠物",
-      "设计",
+      "日常",
       "推荐"
     ],
     "effectImageUrl": "/style-publications/3c47f16f46ff4c12bfdb1a632f8f6996/effect.webp",
@@ -479,7 +479,7 @@
     "prompt": "请将上传的任意照片转化为包豪斯式几何构成插画：保留有辨识度的轮廓、比例、方向和主体关系，将人物、建筑、植物、物品或空间场景简化为矩形、圆形、三角形、线段、色块与几何剪影。保留原图最关键的结构特征与主色，但控制在3-5种高对比颜色以内，以米白、灰黑等中性色作为大面积背景，搭配红、黄、蓝、绿等强调色。画面强调非对称平衡、网格秩序、比例关系、轴线与视觉动势，可加入少量细线、辅助线、圆点或结构标记强化设计感。整体细节极少，边缘利落，平涂无写实光影，带轻微纸张或丝网印刷颗粒。主体缩小置于版面中央或偏一侧，四周保持大量留白，下方或侧边搭配一行克制的衬线英文标题和极小副标题，形成现代建筑画册、展览海报般的高级极简排版。",
     "tags": [
       "儿童",
-      "设计"
+      "日常"
     ],
     "effectImageUrl": "/style-publications/d75c6fd43eed10bf1c3da848040b2108/effect.webp",
     "referenceImageUrl": "/style-publications/d75c6fd43eed10bf1c3da848040b2108/reference.webp",
@@ -513,7 +513,7 @@
     "prompt": "请将上传的任意照片转化为平涂绘本插画：保留原图核心主体、姿态与代表性环境元素，大幅删减细节，将物体概括成简洁、柔和、略带稚拙感的轮廓与大色块；弱化写实光影、材质与立体感，根据原图提取主色并适当提高纯度和冷暖对比，使主体突出、色彩鲜明；加入少量纸张颗粒、蜡笔或印刷肌理，呈现现代绘本与艺术设计海报感。排版做成规整的矩形插画框，不要把背景完整铺满，让主体块和环境元素以自由、松散、不规则的留白和笔触自然组合，边缘参差；局部保留纤细植物、建筑、景物等向两侧自然展开，但所有重要元素完整可见。整体插画要舒适、有留白、元素完整，上方留出适当空白，下方加入简短英文或中文写意。整体要求：极简、平涂、抽象感、重点突出、鲜明、高对比、松弛、有趣。",
     "tags": [
       "儿童",
-      "设计",
+      "日常",
       "推荐"
     ],
     "effectImageUrl": "/style-publications/31d34f95b047aa426c3b342e49e9a57e/effect.webp",
@@ -531,7 +531,7 @@
     "prompt": "请为我上传的每张照片制作一张独立的高端设计海报，不要多图拼贴，每张照片都要单独输出。\r\n\t\r\n从照片中提取了最具辨识度的主体、轮廓、姿势和叙事关系，将它们重构成一幅轻松笨拙的韩式平面编辑插图。保留原图的整体布局、物体关系和核心动作，但去除逼真的光影、透视和材质细节，将主体简化为圆润、简洁、略带夸张的几何形状，搭配粗糙、抖动、部分破损的手绘黑色轮廓和纯色填充，保持图像即刻可识别且不过于写实。\r\n\t\r\n构图保持一个清晰的视觉中心，其他元素作为辅助点缀，通过大小差异、错位、遮挡、细微裁剪和不完全对称性，营造出俏皮的节奏。背景采用大面积明亮的纯色和负空间来支撑主体，保留左右或部分完整的色块作为缓冲空间，避免杂乱场景，使图像更像精心设计的儿童图画书或独立编辑插图，而非卡通化的照片。\r\n\t\r\n色彩调色板从上方照片中提取最鲜艳、最易识别的颜色，将其转化为高色度、高纯度、有限数量的平面色块;你可以使用鲜艳的蓝色、红色、黄色、绿色、白色及其他色彩关系，带有孩童般的张力，但不会机械地套用固定的配色方案。背景与主体形成鲜明的区域对比，避免了渐变、阴影、浑浊的灰色、复杂的混合和塑料质感。\r\n\t\r\n文本遵循一种笨拙但设计意识强烈的编辑逻辑。从照片的主要主题、动作、情感或故事中提炼出一个简短的英文标题，搭配几个简短短语、宾语、地名、数字或俏皮的注释。主标题可能使用略带手写风格、粗细不均或倾斜的字体，而小文字则保持清晰克制;文本可以沿着主题轮廓、色块边缘、负空间区域或框架轴线对齐，也可以带有轻微旋转、错位、分割和交织，使文本感觉像插图本身的一部分，而非后来添加的排版。\r\n\t\r\n总体来说，呈现真实摄影的视觉氛围×笨拙的平面插画×轻松愉快的编辑设计——明亮、童真、友好、俏皮",
     "tags": [
       "宠物",
-      "设计",
+      "日常",
       "幽默"
     ],
     "effectImageUrl": "/style-publications/f639a3f46e3a6323edfff3a56e89b7b6/effect.webp",
@@ -567,7 +567,7 @@
     "tags": [
       "儿童",
       "推荐",
-      "绘画"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/b36136cc0c30babe2454385a4bfc3d78/effect.webp",
     "referenceImageUrl": "/style-publications/b36136cc0c30babe2454385a4bfc3d78/reference.webp",
@@ -585,7 +585,7 @@
     "tags": [
       "宠物",
       "推荐",
-      "绘画"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/b2a3fa996f1a582e56d034dd1aa1d814/effect.webp",
     "referenceImageUrl": "/style-publications/b2a3fa996f1a582e56d034dd1aa1d814/reference.webp",
@@ -619,7 +619,7 @@
     "prompt": "原图转为插画\r\n整体画风：极简拙朴手绘插画，造型高度概括符号化，比例笨拙可爱，仅保留核心识别特征；复古丝网印刷肌理，随性松弛，不追求完美精致\r\n线条上色：深蓝色歪扭轮廓线，粗细不均、断续断线，带手绘自然抖动动感，刻意粗糙不工整；单色系平涂纯色，无渐变、阴影、明暗过渡，低饱和度色彩，正面平视无透视\r\n背景处理：暖调米白底色，主体居中，大面积留白，无多余装饰",
     "tags": [
       "推荐",
-      "绘画",
+      "旅行",
       "儿童"
     ],
     "effectImageUrl": "/style-publications/a3822772d9b34534d40934105f132e3f/effect.webp",
@@ -638,7 +638,7 @@
     "tags": [
       "儿童",
       "推荐",
-      "绘画"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/164721b149871a078200fe0ea7d0a734/effect.webp",
     "referenceImageUrl": "/style-publications/164721b149871a078200fe0ea7d0a734/reference.webp",
@@ -656,7 +656,7 @@
     "tags": [
       "儿童",
       "推荐",
-      "绘画"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/056434649e64b551043a749ed8c91179/effect.webp",
     "referenceImageUrl": "/style-publications/056434649e64b551043a749ed8c91179/reference.webp",
@@ -708,7 +708,7 @@
     "prompt": "Transform the entire image into a single decorative folk flat illustration with playful doodle elements. Preserve the main subject and overall composition, but simplify all objects into clean, flat shapes with minimal detail. Use a bold, whimsical color palette that is clearly different from the original image. Add a handmade, slightly imperfect feel, as if illustrated with cut-paper shapes and simple hand-drawn marks on white paper. Keep the background clean and bright, with a clear white-paper look. Make the final result cute, childlike, cohesive, charming, and whimsical.",
     "tags": [
       "推荐",
-      "设计"
+      "日常"
     ],
     "effectImageUrl": "/style-publications/c66f986db7193e1cc8dcd81e1e69022a/effect.webp",
     "referenceImageUrl": "/style-publications/c66f986db7193e1cc8dcd81e1e69022a/reference.webp",
@@ -725,7 +725,7 @@
     "prompt": "将照片转换成高饱和度复古旅行海报风格的平面卡通插画（flat cartoon poster illustration）。人物整体采用儿童绘本式的夸张卡通比例，脸部高度简化和平面化，使用圆润几何造型、大色块上色、极少面部细节、粗黑色描边，弱化真实皮肤纹理和真实五官结构，不要写实感。\n\n整体风格参考：retro travel poster、flat illustration、storybook art、vector cartoon、mid-century poster、bold colorful graphic design。画面使用强烈撞色、高饱和橙色、黄色、蓝绿色、深蓝色，带复古印刷颗粒感和手绘纹理。\n\n人物表情要阳光可爱，但采用二维动画式处理，眼睛、嘴巴、腮红、头发都尽量图形化和符号化，避免真实照片转绘效果。背景加入卡通城市、树木、蓝天、云朵、道路、旅行箱、路牌等元素，整体构图像儿童绘本封面和复古宣传海报。\n\n加入大面积手绘英文标语，例如 “HAPPY TRAVEL”、“DREAM BIG”、“VIBRANT ENERGY”、“SLOW DOWN”，字体夸张醒目。\n\n避免：realistic face、photo texture、real skin、3D render、cinematic lighting、high detail skin、semi-realistic illustration、AI photo style、complex shadow、photorealism。\n\nmake the face look more like a flat cartoon graphic than a painted realistic portrait",
     "tags": [
       "儿童",
-      "设计"
+      "日常"
     ],
     "effectImageUrl": "/style-publications/e5c167da54deabd7f07afd5cfe599652/effect.webp",
     "referenceImageUrl": "/style-publications/e5c167da54deabd7f07afd5cfe599652/reference.webp",
@@ -741,7 +741,7 @@
     "styleName": "复古旅行日志",
     "prompt": "以我上传的照片为唯一内容依据，做一页复古旅行日志编辑页，整页是一张温暖的象牙白纸，可见纸张纤维纹理。\r\n纸上是这个场景的极简手绘丝网印刷插图。只挑最有辨识度、最能代表这个空间性格的少数几件物件来画，省略墙面、天花板、地面和背景结构，也省略杂乱重复的小物件；保留下来的物件保持照片里的空间位置、前后层次和相对大小，构图与照片一致，绝不排成一行或做成产品目录式平铺。\r\n炭黑色粗糙墨线，明显的丝网印手感——线条边缘毛糙起刺、多处断线缺墨，转角和粗线处油墨积聚溢出，个别地方墨色不匀、发虚漏白；不做排线和阴影填充。少数物件做平涂色块，色块与轮廓线故意套色错位几毫米，边缘叠色露白，内部有网目质感和吸墨斑驳。\r\n平涂只用四支油墨：赭石金、赤陶橙、橄榄绿、靛蓝。每件物件的颜色跟随它在原照片里的实际颜色，取最接近的一支，不要为了配色和谐换色相；原照片里是中性色或深色的物件保持炭黑线稿不上色。\r\n纸面留白过半，插图集中在偏上位置，四周不画到边框。插图下方留白处左对齐排一小块等宽打字机风格英文档案文本，分四行，字号很小：\r\n{ 在此填写地点 }\r\nNo. 021\r\n三个概括画面的英文关键词 / 用斜杠分隔\r\n2026",
     "tags": [
-      "设计"
+      "日常"
     ],
     "effectImageUrl": "/style-publications/82187c32400def849104d94e52389eb0/effect.webp",
     "referenceImageUrl": "/style-publications/82187c32400def849104d94e52389eb0/reference.webp",
@@ -757,7 +757,7 @@
     "styleName": "复古水彩插画",
     "prompt": "提取照片中最具识别性的主体、轮廓、姿态与叙事关系，重构为轻盈、稚拙、复古的手绘编辑插画。不要机械复刻细节，以概括造型、适度夸张比例、符号化特征和幽默视觉隐喻重新表达，同时保持原物一眼可辨。融合现代主义编辑插画、包豪斯平面构成、儿童绘本、稚拙艺术与时尚速写气质，形体简练，轮廓略带迟疑与手工误差，局部特征可适度放大，让画面兼具故事感、时尚感与俏皮感。\r\n \r\n配色从上方照片中提取，采用高明度、低至中等饱和度的柔和有限色盘，以近似色统一氛围，小面积互补色制造视觉跳点。使用水彩、水粉、彩铅、粉蜡笔与干刷混合质感，保留纸张颗粒、透底、笔触断裂、边缘毛糙、轻微脏色与旧印刷套色偏差。\r\n \r\n背景大面积留白，仅以松散淡彩、局部斜线或简单几何元素承托主体，避免复杂场景堆积、写实光影、光滑矢量、3D渲染和过度精修。\r\n \r\n文字从照片的地点、人物、场景或主题中提炼少量英文关键词、标题、编号或适配金句，并延续下半部分的手绘编辑语言。主标题采用略带稚拙与复古感的手写艺术字，辅助文字使用克制温和的无衬线或衬线字体，可轻微错位、倾斜、拉伸、叠色或产生旧印刷套色偏移，让文字像插画的一部分自然生长在画面中，而不是后期贴上的排版元素。\r\n \r\n整体使用米白或浅色背景与大量留白，上下画面通过相同的主体特征、色彩、姿态和视觉符号形成呼应。整体气质轻松、俏皮、复古、温柔、聪明、时髦、幽默、浪漫、松弛，略带笨拙与古怪自信，像一页被精心保存的旧时尚绘本与现代艺术杂志。",
     "tags": [
-      "设计",
+      "日常",
       "推荐"
     ],
     "effectImageUrl": "/style-publications/d93faffa05c8e8d6ac23bcbebf5623db/effect.webp",
@@ -775,7 +775,7 @@
     "prompt": "基于上传的参考原图生成一张图。\r\n干净的米白色纸张，带有细微天然纸纤维纹理；禁止严重泛黄、污渍、裂纹、火烧痕迹、过度做旧古董效果。\r\n纸张面板内：图章 + 文字标题组合的整体宽度，占纸张面板宽度的 20%。图章与文字组合放置在纸张面板的居中位置。文字不要覆盖图章，纸张面板其余 80% 区域保持安静留白。\r\n \r\n【主体图章制作规则】提取照片中最具识别性的主体、造型、姿态与叙述关系，重构为极简插画。高度提炼并减少复杂细节，只保留最关键的视觉特征，以纤细、略带不稳定感的精致线条和微小背景的明显色块重新表达，让人迅速识别原始主题。根据原图最具识别性的主体匹配对应图章外形：\r\n圆形 / 椭圆形图章：圆润物体、人脸、图标、仪式类画面\r\n方形边框图章：招牌、密集建筑、商铺门面\r\n长条形山脊式图章：一排人物、队伍、海岸线、宽幅风景\r\n拱形图章：窗户、大门、通道、拱形物体\r\n不规则剪影图章：外形辨识度高的建筑、车辆、树木、雕像、特色物件\r\n \r\n图章油墨效果：干印油墨质感、磨损半调网点、边缘油墨残缺、按压不均匀痕迹、轻微套色错位；图章仅保留原图主体色调关系，油墨色调保持柔和低饱和度，没有背景色；外形细节：方形图章必须四边完整可见方形边框，允许边角油墨磨损残缺，禁止干净光滑的数码边框；圆形图章轮廓保持完整圆形，允许少量油墨缺口；剪影图章保留物体原始轮廓，不要外加多余矩形外框。\r\n \r\n【打字机小字标题】在图章下方生成一行褪色复古打字机文字。主标题：1‑3 个大写英文单词 副标题：2‑4 个小写画面关键词，关键词之间用斜杠 / 分隔",
     "tags": [
       "推荐",
-      "设计"
+      "日常"
     ],
     "effectImageUrl": "/style-publications/5c517d89f272ebd079c8adeaa0f5c1d7/effect.webp",
     "referenceImageUrl": "/style-publications/5c517d89f272ebd079c8adeaa0f5c1d7/reference.webp",
@@ -792,7 +792,7 @@
     "prompt": "请将我上传的每一张照片分别制作成一张独立的高级设计海报。提取照片中最具识别性的**主体、轮廓、姿态与叙事关系**，理解原画面真正有趣、动人或具有隐喻感的核心后重新概括。不要完整描摹照片，只保留一个主要叙事中心和少量必要线索，用极简、童真、略显笨拙的手绘方式重新表达，使人一眼能联想到原图，同时产生新的幽默、诗意或日常观察。文字使用英文。\r\n\t\r\n画面使用**红色与蓝色两种固定手绘墨色**，除极浅纸张背景外不增加其他主色。蓝色清爽、复古、略带蜡笔或圆珠笔感，红色温暖、鲜明、略带朱红或番茄红气质；两色通过线条、局部填色、符号和文字自然交替，不平均分配，也不大面积铺满。",
     "tags": [
       "推荐",
-      "绘画"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/1f4093158d514e924d50bc1d0619f5da/effect.webp",
     "referenceImageUrl": "/style-publications/1f4093158d514e924d50bc1d0619f5da/reference.webp",
@@ -809,7 +809,7 @@
     "prompt": "请将我上传的每一张照片分别制作成一张独立的高级设计海报。\r\n提取照片中最具识别性的主体、轮廓、姿态与叙事关系，重构为极简纸感手绘封面插画。高度提炼并删减复杂细节，只保留最关键的视觉特征，以纤细、略带不稳定感的手绘线条和少量明确的丙烯平涂色块重新表达，让人一眼识别原始主题。主体保持小而集中，约占下半部分10%-20%，四周大面积留白，背景以粗糙白纸或浅色纸张为主，仅用极少量线条或色面暗示环境。\r\n \r\n配色从上方照片提取并压缩为不超过4种主要颜色，色块鲜明、完整、克制，保留纸张颗粒、手工涂抹和轻微不规则边缘。线条负责提示结构，色块负责建立主体。避免彩铅、蜡笔、水彩晕染、纯线稿、复杂写实、厚重油画、光滑数字插画和3D质感。\r\n \r\n可加入少量简洁文字，根据照片内容灵活使用标题、主题词、对象名称、地点、年份、编号或短句，文字排版疏朗克制，与留白和插画自然融合，具有艺术书封、独立出版物和儿童绘本式设计感。整体呈现小主体、大留白、强提炼、高识别度、安静、童趣、轻松、诗意而高级的视觉气质，避免商业卡通感、电商感和模板感。",
     "tags": [
       "推荐",
-      "绘画"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/381f9f4d5e8adeb99533f8686fbb20ee/effect.webp",
     "referenceImageUrl": "/style-publications/381f9f4d5e8adeb99533f8686fbb20ee/reference.webp",
@@ -826,7 +826,7 @@
     "prompt": "请以我上传图片中的单一主体为核心，生成1张极简治愈系白底创意海报。\r\n \r\n将上传图片里的所有物体作为画面中唯一的真实摄影主体并精修，保留主体的核心外形、颜色、材质、纹理、装饰细节和识别特征，并统一放置在纯白背景中，主体“居中”偏下，整体保留大面积留白，呈现出国际品牌广告式的高级静物摄影感。\r\n \r\n在主体周围加入少量黑色马克笔手绘线稿，包括小人、箭头、波浪线、云朵等。\r\n \r\n其中 4‑5 个黑色线稿小人 要围绕主体展开互动，像在一个微缩世界里认真工作。\r\n \r\n这些互动动作必须根据主体本身特点自动设计，例如：检查、擦拭、补水、运输、维修、挖取、测量、整理、休息、观察等，动作要和主体特征相关，而不是随机装饰。\r\n \r\n画面空白加入一句黑色手写短中文文案，文案根据主体特点自动生成，旁边配一个手绘箭头指向主体。\r\n \r\n整体风格要求：极简、安静、治愈、高级、克制、真实摄影感、留白充足、有故事感。\r\n不要复杂背景、不要 Logo、不要彩色插画、不要边框、不要大段排版、不要卡通化、不要动漫风、不要明显 AI 绘画感。",
     "tags": [
       "推荐",
-      "设计"
+      "日常"
     ],
     "effectImageUrl": "/style-publications/8676f8192b1a785e098f2b321ef0ea7a/effect.webp",
     "referenceImageUrl": "/style-publications/8676f8192b1a785e098f2b321ef0ea7a/reference.webp",
@@ -842,7 +842,7 @@
     "styleName": "怀旧社论书页",
     "prompt": "基于参考图像，创作一页怀旧日的社论风格照片转素描艺术书页面。保留原始照片中的相同主体、姿势、面部表情、服装、构图和情感氛围。将完全相同的场景和人物转化为温暖的米白色纹理纸上的松散黑白手绘墨水插图，带有富有表现力的不完美线条、粗糙的交叉阴影、最小化的阴影处理，以及手工素描本的美学。围绕插图添加优雅的社论排版，包括一个小编号标题、简短的诗意手写风格说明文字，营造高端当代摄影杂志或日式视觉日记的感觉，文字中不要出现日期和地点。保留大量的奶油色留白空间、细微的纸张纹理、略显不完美的墨水印刷、低调的复古布局、精致的极简平面设计、情感温暖且电影感十足、照片与绘图之间连贯的过渡、高细节、自然比例、真实的人体解剖结构、无水印、无标志。",
     "tags": [
-      "绘画"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/ce4d4de03ecb27de92042254cf556a88/effect.webp",
     "referenceImageUrl": "/style-publications/ce4d4de03ecb27de92042254cf556a88/reference.webp",

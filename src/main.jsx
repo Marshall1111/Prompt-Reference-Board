@@ -8966,7 +8966,7 @@ function JobEditModal({ job, onClose }) {
   );
 }
 
-const STYLE_PUBLICATION_TAGS = ["推荐", "儿童", "宠物", "绘画", "设计", "幽默"];
+const STYLE_PUBLICATION_TAGS = ["推荐", "儿童", "宠物", "旅行", "日常", "幽默"];
 
 async function refreshStylePublications(tag = "") {
   const query = tag ? `?tag=${encodeURIComponent(tag)}` : "";

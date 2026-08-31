@@ -143,7 +143,7 @@ const IMAGE_JOB_QUERY_STATUS_VALUES = new Set(["all", "queued", "running", "part
 const DEFAULT_IMAGE_JOB_PAGE = 1;
 const DEFAULT_IMAGE_JOB_LIMIT = 20;
 const MAX_IMAGE_JOB_LIMIT = 100;
-const STYLE_PUBLICATION_TAGS = ["推荐", "儿童", "宠物", "绘画", "设计", "幽默"];
+const STYLE_PUBLICATION_TAGS = ["推荐", "儿童", "宠物", "旅行", "日常", "幽默"];
 const DEFAULT_PUBLIC_EXPERIENCE_TYPE = "draw-card";
 const DEFAULT_SUBJECT_CLASSIFIER_MODEL = "gpt-5.4-mini";
 const DEFAULT_SUBJECT_CLASSIFIER_BASE_URL = "https://api.openai.com/v1";
@@ -14163,7 +14163,7 @@ function normalizeStylePublicationTags(value) {
   const raw = Array.isArray(value) ? value : String(value || "").split(/[,，\s]+/);
   const tags = [...new Set(raw.map((item) => String(item || "").trim()).filter(Boolean))];
   if (tags.some((tag) => !STYLE_PUBLICATION_TAGS.includes(tag))) {
-    throw createHttpError(400, "发布标签只能选择：推荐、儿童、宠物、绘画、设计、幽默。" );
+    throw createHttpError(400, "发布标签只能选择：推荐、儿童、宠物、旅行、日常、幽默。" );
   }
   return tags;
 }
