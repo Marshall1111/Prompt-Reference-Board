@@ -34,6 +34,86 @@ function Run-Step {
   }
 }
 
+function Get-UnixEpochSeconds {
+  param([datetime]$Dt)
+  return [DateTimeOffset]::new($Dt.ToUniversalTime()).ToUnixTimeSeconds()
+}
+
+function Sync-IncrementalDirectory {
+  param(
+    [string]$RemoteDir,
+    [string]$PublicDir,
+    [string]$RemoteTempTar,
+    [string]$LocalTempTar
+  )
+
+  $localBase = Join-Path $PublicDir $RemoteDir
+  New-Item -ItemType Directory -Force -Path $localBase | Out-Null
+
+  # 1. 获取远程文件清单: 大小|修改时间(秒)|相对路径
+  Write-Host "  获取远程文件清单 ..." -ForegroundColor Gray
+  $remoteRaw = & ssh "${RemoteUser}@${RemoteHost}" "cd '${RemoteAppPath}/public' && find '${RemoteDir}' -type f -exec stat -c '%s|%Y|%n' {} +" 2>$null
+  if ($LASTEXITCODE -ne 0) {
+    throw "获取远程 ${RemoteDir} 文件清单失败"
+  }
+
+  $prefix = "${RemoteDir}/"
+  $remoteFiles = @{}
+  foreach ($line in $remoteRaw) {
+    if ([string]::IsNullOrWhiteSpace($line)) { continue }
+    $parts = $line.Split('|')
+    if ($parts.Count -lt 3) { continue }
+    $rel = $parts[2]
+    if ($rel.StartsWith($prefix)) { $rel = $rel.Substring($prefix.Length) }
+    $remoteFiles[$rel] = @{ size = [int64]$parts[0]; mtime = [int64]$parts[1] }
+  }
+
+  # 2. 获取本地文件清单
+  $localFiles = @{}
+  if (Test-Path $localBase) {
+    Get-ChildItem $localBase -Recurse -File | ForEach-Object {
+      $rel = $_.FullName.Substring($localBase.Length).TrimStart('\', '/').Replace('\', '/')
+      $localFiles[$rel] = @{ size = $_.Length; mtime = Get-UnixEpochSeconds $_.LastWriteTimeUtc }
+    }
+  }
+
+  # 3. 对比: 本地不存在 / 大小不同 / 修改时间不同 => 需要更新
+  $changed = @()
+  foreach ($rel in $remoteFiles.Keys) {
+    $r = $remoteFiles[$rel]
+    if (-not $localFiles.ContainsKey($rel)) { $changed += $rel; continue }
+    $l = $localFiles[$rel]
+    if ($l.size -ne $r.size -or $l.mtime -ne $r.mtime) { $changed += $rel }
+  }
+
+  if ($changed.Count -eq 0) {
+    Write-Host "  无需更新的文件（${RemoteDir} 已是最新）" -ForegroundColor Green
+    return
+  }
+
+  $changedSize = [int64](($changed | ForEach-Object { [int64]$remoteFiles[$_].size } | Measure-Object -Sum).Sum)
+  Write-Host "  需要更新 $($changed.Count) 个文件（约 $([math]::Round($changedSize / 1MB, 1)) MB），开始打包下载 ..." -ForegroundColor Yellow
+
+  if (Test-Path $LocalTempTar) { Remove-Item $LocalTempTar -Force }
+
+  # 4. 只打包需要更新的文件
+  $tarArgs = ($changed | ForEach-Object { "'${RemoteDir}/$_'" }) -join ' '
+  & ssh "${RemoteUser}@${RemoteHost}" "cd '${RemoteAppPath}/public' && tar -czf '${RemoteTempTar}' $tarArgs"
+  if ($LASTEXITCODE -ne 0) { throw "在服务器上打包 ${RemoteDir} 失败" }
+
+  & scp "${RemoteUser}@${RemoteHost}:${RemoteTempTar}" $LocalTempTar
+  if ($LASTEXITCODE -ne 0) { throw "下载 ${RemoteDir} 失败" }
+
+  & tar -xzf $LocalTempTar -C $PublicDir
+  if ($LASTEXITCODE -ne 0) { throw "解压 ${RemoteDir} 失败" }
+
+  # 5. 清理远程临时文件
+  & ssh "${RemoteUser}@${RemoteHost}" "rm -f '${RemoteTempTar}'"
+  if ($LASTEXITCODE -ne 0) { throw "清理远程临时文件失败" }
+
+  if (Test-Path $LocalTempTar) { Remove-Item $LocalTempTar -Force }
+}
+
 Require-Command "ssh"
 Require-Command "scp"
 Require-Command "tar"
@@ -50,28 +130,8 @@ try {
     & scp "${RemoteUser}@${RemoteHost}:${RemoteAppPath}/data/style-groups.json" (Join-Path $dataDir "style-groups.json")
   }
 
-  if (Test-Path $localTempTar) {
-    Remove-Item $localTempTar -Force
-  }
-
-  Run-Step "同步风格预览图 style-previews" {
-    & ssh "${RemoteUser}@${RemoteHost}" "cd '${RemoteAppPath}/public' && tar -czf '${RemoteTempTar}' style-previews"
-    if ($LASTEXITCODE -ne 0) {
-      throw "在服务器上打包 style-previews 失败"
-    }
-    & scp "${RemoteUser}@${RemoteHost}:${RemoteTempTar}" $localTempTar
-    if ($LASTEXITCODE -ne 0) {
-      throw "下载 style-previews 失败"
-    }
-    & tar -xzf $localTempTar -C $publicDir
-    if ($LASTEXITCODE -ne 0) {
-      throw "解压 style-previews 失败"
-    }
-    & ssh "${RemoteUser}@${RemoteHost}" "rm -f '${RemoteTempTar}'"
-  }
-
-  if (Test-Path $localTempTar) {
-    Remove-Item $localTempTar -Force
+  Run-Step "同步风格预览图 style-previews (增量)" {
+    Sync-IncrementalDirectory -RemoteDir "style-previews" -PublicDir $publicDir -RemoteTempTar $RemoteTempTar -LocalTempTar $localTempTar
   }
 
   Write-Host ""

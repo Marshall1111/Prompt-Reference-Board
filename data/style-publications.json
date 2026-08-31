@@ -20,9 +20,9 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 17,
+      "推荐": 16,
       "儿童": 8,
-      "日常": 9
+      "日常": 8
     }
   },
   {
@@ -46,9 +46,9 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 16,
+      "推荐": 15,
       "儿童": 7,
-      "日常": 8
+      "日常": 7
     }
   },
   {
@@ -71,7 +71,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "日常": 7,
+      "日常": 6,
       "幽默": 4
     }
   },
@@ -95,7 +95,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 15,
+      "推荐": 14,
       "幽默": 3
     }
   },
@@ -119,7 +119,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 13,
+      "推荐": 12,
       "儿童": 6
     }
   },
@@ -144,7 +144,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 14,
+      "推荐": 13,
       "旅行": 7,
       "幽默": 2
     }
@@ -170,7 +170,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 2,
-      "日常": 18
+      "日常": 17
     }
   },
   {
@@ -195,7 +195,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 34,
+      "推荐": 33,
       "儿童": 22,
       "旅行": 18,
       "幽默": 11
@@ -222,7 +222,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 33,
+      "推荐": 32,
       "宠物": 14,
       "旅行": 17
     }
@@ -249,7 +249,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 32,
+      "推荐": 31,
       "儿童": 21,
       "旅行": 16,
       "幽默": 10
@@ -277,7 +277,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 31,
+      "推荐": 30,
       "儿童": 20,
       "旅行": 15,
       "幽默": 9
@@ -352,7 +352,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 30,
+      "推荐": 29,
       "宠物": 13,
       "幽默": 7
     }
@@ -377,7 +377,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 29,
+      "推荐": 28,
       "宠物": 12
     }
   },
@@ -402,7 +402,7 @@
     "effectGridWidth": 480,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 28,
+      "推荐": 27,
       "宠物": 11,
       "旅行": 13
     }
@@ -429,7 +429,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "儿童": 17,
-      "日常": 17,
+      "日常": 16,
       "幽默": 6
     }
   },
@@ -454,7 +454,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 27,
+      "推荐": 26,
       "儿童": 16,
       "旅行": 12
     }
@@ -480,7 +480,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 26,
+      "推荐": 25,
       "宠物": 10,
       "旅行": 11
     }
@@ -572,7 +572,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "宠物": 6,
-      "日常": 16
+      "日常": 15
     }
   },
   {
@@ -620,7 +620,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "儿童": 14,
-      "日常": 15
+      "日常": 14
     }
   },
   {
@@ -643,8 +643,8 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 25,
-      "日常": 14
+      "推荐": 24,
+      "日常": 13
     }
   },
   {
@@ -668,9 +668,9 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 24,
+      "推荐": 23,
       "宠物": 5,
-      "日常": 13
+      "日常": 12
     }
   },
   {
@@ -694,7 +694,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "儿童": 13,
-      "日常": 12
+      "日常": 11
     }
   },
   {
@@ -717,7 +717,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 23,
+      "推荐": 22,
       "儿童": 12
     }
   },
@@ -742,9 +742,9 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 22,
+      "推荐": 21,
       "儿童": 11,
-      "日常": 11
+      "日常": 10
     }
   },
   {
@@ -769,7 +769,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "宠物": 4,
-      "日常": 10,
+      "日常": 9,
       "幽默": 5
     }
   },
@@ -793,7 +793,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 21,
+      "推荐": 20,
       "儿童": 10
     }
   },
@@ -818,7 +818,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 20,
+      "推荐": 19,
       "儿童": 9,
       "旅行": 9
     }
@@ -844,7 +844,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 19,
+      "推荐": 18,
       "宠物": 3,
       "旅行": 8
     }
@@ -869,7 +869,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 18,
+      "推荐": 17,
       "宠物": 2
     }
   },
@@ -894,7 +894,7 @@
     "effectGridWidth": 480,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 7,
+      "推荐": 6,
       "儿童": 1,
       "旅行": 4
     }
@@ -920,7 +920,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 8,
+      "推荐": 7,
       "儿童": 2,
       "旅行": 5
     }
@@ -946,7 +946,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 9,
+      "推荐": 8,
       "儿童": 3,
       "旅行": 6
     }
@@ -972,7 +972,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 10,
+      "推荐": 9,
       "宠物": 1,
       "幽默": 1
     }
@@ -997,7 +997,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 11,
+      "推荐": 10,
       "儿童": 4
     }
   },
@@ -1021,8 +1021,8 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 12,
-      "日常": 4
+      "推荐": 11,
+      "日常": 3
     }
   },
   {
@@ -1046,7 +1046,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "儿童": 5,
-      "日常": 5
+      "日常": 4
     }
   },
   {
@@ -1068,7 +1068,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "日常": 6
+      "日常": 5
     }
   },
   {
@@ -1091,8 +1091,8 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 6,
-      "日常": 3
+      "推荐": 5,
+      "日常": 2
     }
   },
   {
@@ -1102,21 +1102,19 @@
     "styleName": "纪念图章",
     "prompt": "基于上传的参考原图生成一张图。\r\n干净的米白色纸张，带有细微天然纸纤维纹理；禁止严重泛黄、污渍、裂纹、火烧痕迹、过度做旧古董效果。\r\n纸张面板内：图章 + 文字标题组合的整体宽度，占纸张面板宽度的 20%。图章与文字组合放置在纸张面板的居中位置。文字不要覆盖图章，纸张面板其余 80% 区域保持安静留白。\r\n \r\n【主体图章制作规则】提取照片中最具识别性的主体、造型、姿态与叙述关系，重构为极简插画。高度提炼并减少复杂细节，只保留最关键的视觉特征，以纤细、略带不稳定感的精致线条和微小背景的明显色块重新表达，让人迅速识别原始主题。根据原图最具识别性的主体匹配对应图章外形：\r\n圆形 / 椭圆形图章：圆润物体、人脸、图标、仪式类画面\r\n方形边框图章：招牌、密集建筑、商铺门面\r\n长条形山脊式图章：一排人物、队伍、海岸线、宽幅风景\r\n拱形图章：窗户、大门、通道、拱形物体\r\n不规则剪影图章：外形辨识度高的建筑、车辆、树木、雕像、特色物件\r\n \r\n图章油墨效果：干印油墨质感、磨损半调网点、边缘油墨残缺、按压不均匀痕迹、轻微套色错位；图章仅保留原图主体色调关系，油墨色调保持柔和低饱和度，没有背景色；外形细节：方形图章必须四边完整可见方形边框，允许边角油墨磨损残缺，禁止干净光滑的数码边框；圆形图章轮廓保持完整圆形，允许少量油墨缺口；剪影图章保留物体原始轮廓，不要外加多余矩形外框。\r\n \r\n【打字机小字标题】在图章下方生成一行褪色复古打字机文字。主标题：1‑3 个大写英文单词 副标题：2‑4 个小写画面关键词，关键词之间用斜杠 / 分隔",
     "tags": [
-      "推荐",
-      "日常"
+      "旅行"
     ],
     "effectImageUrl": "/style-publications/5c517d89f272ebd079c8adeaa0f5c1d7/effect.webp",
+    "effectGridImageUrl": "/style-publications/5c517d89f272ebd079c8adeaa0f5c1d7/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
     "referenceImageUrl": "/style-publications/5c517d89f272ebd079c8adeaa0f5c1d7/reference.webp",
     "sourceEffectImageUrl": "/generated-images/43a6a931-7661-4484-b877-0b160700bcd8.png",
     "sourceReferenceImageUrl": "/job-references/43a6a931-7661-4484-b877-0b160700bcd8/1-1788130151211.jpg",
     "createdAt": "2026-08-30T22:51:22.707Z",
-    "updatedAt": "2026-08-30T22:51:22.707Z",
-    "effectGridImageUrl": "/style-publications/5c517d89f272ebd079c8adeaa0f5c1d7/effect-small.webp",
-    "effectGridWidth": 427,
-    "effectGridHeight": 640,
+    "updatedAt": "2026-08-31T07:10:58.417Z",
     "sortOrders": {
-      "推荐": 5,
-      "日常": 2
+      "旅行": 22
     }
   },
   {
@@ -1211,6 +1209,72 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "旅行": 1
+    }
+  },
+  {
+    "publicationId": "b0bf0fd5b7898c1a80671b2fd6558c67",
+    "jobId": "9bbe8711-d2b3-41ec-8877-7a184c03789d",
+    "styleId": "style_1788159825487",
+    "styleName": "浓彩旅行静物",
+    "prompt": "将每张旅行照片分别制作成一张独立的2:3竖版「浓彩水粉旅行静物」\r\n 不要完整重画场景或将整张照片简单水粉化。先分析原图，再选取4—8个最能代表主体、地点和旅行记忆的真实物件或视觉片段，如人物随身物、动物特征、交通工具、建筑局部、街道设施、植物、食物、器皿、家具、道路标记、自然元素或招牌轮廓。只能选择原图中存在或明确相关的内容，不固定使用某类物件。\r\n将所选元素重新组织成一组非对称旅行静物。允许调整尺度、距离、遮挡和空间位置，使其像从旅途中拾取并重新陈列的视觉标本，但须保留各元素的身份和关键特征。静物团占下半区域约45%—68%，四周保留连续、完整的温暖米白纸面；不得沿底边平均排列、填满背景或用零碎装饰破坏留白。\r\n采用真正不透明的浓彩水粉，结合少量丙烯和干刷质感。配色完全提取自当前照片并压缩为4—7种主色，不套固定色卡。使用哑光、覆盖力强的直接色块；轮廓从原图最深色中提取，以松动、不均匀、略带迟疑的手绘线完成。保留刷毛、干刷缺口、颜料厚薄变化、毛糙边缘、少量寻找线和底纸透出；高光使用纸白或直接的白色水粉笔触。\r\n \r\n【文字】生成前根据照片中可确认的内容，逐字确定并仅渲染以下三组英文：1.1—3词主标题；2.  STUDY NO. XX 形式的编号；3.5—10词的简短观察句。\r\n主标题须在预览尺寸下清晰可读，采用粗厚、略窄或略圆、轻微歪斜的手绘水粉大字，呈现哑光颜料、刷毛、干刷缺口、毛糙边缘和不均匀字距，不得像后期添加的数字字体。编号和观察句使用清晰的小号人文无衬线、旧铅字或轻松手写体，可有轻微缺墨、纸齿和手工错位。文字颜色取自原图和静物，置于连续留白中，可与静物边缘轻微咬合，但不得遮挡关键内容。\r\n不得生成未预先确定的文字，也不得虚构地名、日期、品牌、招牌内容、作者、签名、Logo、二维码、水印或长文。\r\n \r\n避免：透明水彩、完整场景描摹、同构图低清重画、照片写实绘画、平滑渐变、喷枪、矢量轮廓、油画厚涂、塑料3D、卡通、动漫、儿童涂色感、复制招牌、虚构标签、细小难读文字、精致杂志字体、悬浮数字文字、过度装饰、填满留白及缺少上方原图对照。\r\n核心要求：必须主动筛选并重组代表性元素，以浓彩水粉、手绘标题和大片纸白，将同一场景转化为旅行静物标本。",
+    "tags": [
+      "旅行"
+    ],
+    "effectImageUrl": "/style-publications/b0bf0fd5b7898c1a80671b2fd6558c67/effect.webp",
+    "effectGridImageUrl": "/style-publications/b0bf0fd5b7898c1a80671b2fd6558c67/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/b0bf0fd5b7898c1a80671b2fd6558c67/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/9bbe8711-d2b3-41ec-8877-7a184c03789d.png",
+    "sourceReferenceImageUrl": "/job-references/9bbe8711-d2b3-41ec-8877-7a184c03789d/1-1788154730794.jpg",
+    "createdAt": "2026-08-31T07:09:57.804Z",
+    "updatedAt": "2026-08-31T07:09:57.804Z",
+    "sortOrders": {
+      "旅行": 19
+    }
+  },
+  {
+    "publicationId": "f37eded5c0413aa7828d2863240fc2ce",
+    "jobId": "b1e3c597-9d58-4839-9079-29d57dc73ca7",
+    "styleId": "style_1788159857956",
+    "styleName": "地标小像",
+    "prompt": "将每张含有清晰建筑或人工地标的旅行照片分别制作成一张独立的2:3竖版「民间墨线设色地标小像」\r\n不要完整重画照片，也不要使用照片描边滤镜。先识别建筑最具身份的2—4项结构，如标志性轮廓、屋顶、穹顶、塔楼、门洞、台阶、基座、廊柱、雕塑、桥头、围墙或水岸，只保留让主体一眼可辨的最少信息。主动删除游客、车辆、广告、标牌、密集植物、重复窗格、砖缝、雕花、复杂檐口、天空纹理和摄影噪声，但不得删除决定建筑身份的结构。\r\n建筑小像占下半区域约36%—55%，置于中部、中下部或根据原图重心自然偏向一侧；四周保留45%—60%的连续温暖白纸。先删除背景，再缩小主体，不得将完整风景压缩后塞入下半区域，也不得填满纸面。若原图没有可辨识的建筑或人工地标，不得虚构，应说明该照片不适合此风格。\r\n【墨线】在温暖偏白、带细微纤维的哑光画纸上，以粗重、略带抖动的黑色毛笔、粗墨笔或油性记号笔重新描绘主体。墨线须体现真实手腕压力和纸面阻力，具有粗细不均、轻微迟疑与回折、局部重描、偶尔断线、小块墨团、毛糙纸齿和少量不闭合轮廓。先用少量坚定外轮廓抓住建筑关键结构，再用极少短线、点状墨痕或黑色小块提示内部关系。线条可略显笨拙，但结构必须准确；不得成为精细建筑钢笔画、自动描边、统一矢量轮廓或儿童填色稿。\r\n【设色】仅使用从当前原图提取的2—3种标志色，与纸白、黑墨组成完整色盘。优先选择建筑代表色、一个真实环境色，必要时加入一个深色视觉锚点。将颜色轻微降低饱和度，形成饱满、略旧、哑光的水粉平涂。保留刷痕、不均匀覆盖、轻微越线、局部错位、漏白、边缘缺口和纸纹透出。颜色只用于主要墙面、屋顶、地面或少量不规则背板，不得填满背景或形成封闭数字填色。\r\n【留白与排版】建筑与文字分别占据两块有间隔的纸白区域：建筑偏左时文字置于右侧或右上方；建筑偏右时文字置于左侧或左上方。两者之间保持明显呼吸距离，并至少保留一块完整、连续、无图无字的纸白。\r\n生成前根据照片事实逐字确定并仅渲染一块：1.1—3个英文单词的地点或场景标题；2.  STUDY NO. XX 或 LANDMARK NOTE ；3.5—10个英文单词的观察句，描述真实可见的结构、颜色、环境或天气。无法确认地点时，使用真实场景主题作为标题，不得猜测城市、建筑名称、日期或坐标。\r\n主标题采用略带迟疑感的粗笔英文大写、油性记号笔字或手工旧铅字，占下半区域宽度约20%—32%，必须清晰可读。编号和观察句为标题字高的45%—65%，使用小号旧铅字、手写边注或人文无衬线体。文字使用黑墨或原图中的深色，允许轻微断墨、纸齿和手工错位，但不得成为悬浮的光滑数字排版。\r\n整体应像旅途中认真绘制的一枚民间建筑小像：主动删除细节、缩小地标、保留大片纸白，以粗重迟疑墨线和两三块略微越线的旧色平涂抓住建筑性格。\r\n避免：固定地域或寺庙模板、红墙蓝底公式、虚构石狮、旗帜、印章及地域符号、中国书法、假中文、复制其他建筑、精细建筑线稿、透明水彩、自动照片描边、矢量插图、封闭填色、半调网点、橡胶印章满版纹理、木刻排线、卡通地标、完整背景、过量细节、满幅绘画、难读小字、作者名、签名、社交账号、Logo、二维码",
+    "tags": [
+      "旅行"
+    ],
+    "effectImageUrl": "/style-publications/f37eded5c0413aa7828d2863240fc2ce/effect.webp",
+    "effectGridImageUrl": "/style-publications/f37eded5c0413aa7828d2863240fc2ce/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/f37eded5c0413aa7828d2863240fc2ce/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/b1e3c597-9d58-4839-9079-29d57dc73ca7.png",
+    "sourceReferenceImageUrl": "/job-references/b1e3c597-9d58-4839-9079-29d57dc73ca7/1-1788154263089.jpg",
+    "createdAt": "2026-08-31T07:10:05.729Z",
+    "updatedAt": "2026-08-31T07:10:05.729Z",
+    "sortOrders": {
+      "旅行": 20
+    }
+  },
+  {
+    "publicationId": "aa45590a6186325424fbc74de88dad12",
+    "jobId": "ed573774-bcbf-422f-b70f-6c4db73e66bd",
+    "styleId": "style_1788159987359",
+    "styleName": "扁平矢量插画",
+    "prompt": "提取照片中最具识别性的主体、轮廓、姿态与叙事关系，重构为一张 premium minimalist flat-vector travel poster 风格的场景化插画。不要机械描摹照片，而是根据原图的视觉个性，提炼一个最具代表性的主视觉焦点，并围绕它补充 2–4 个最能说明环境气质、日常方式、地方感或生活状态的辅助元素。\r\n\t\r\n构图应根据主体本身的气质重新组织，利用一个明确焦点、清晰前后层次、适度留白和安静有序的视觉节奏建立画面；可根据原图自然转化为街道、广场、岸边、庭院、通道、平台、植物场景、室内角落或带有生活线索的环境片段。\r\n\t\r\n主体始终是第一视觉中心，其余元素仅用于强化“这是这个地方 / 这个对象 / 这种情境”的独特性，避免拼贴式地标堆积、明信片式罗列和过度叙事。若画面需要人物，仅保留 3–6 个小尺度人物，并让其自然融入环境，不设单一主角。\r\n\t\r\n整体风格采用高级极简扁平矢量插画：日系文具感、精品贴纸插画、现代 editorial travel branding 气质，使用简洁几何形、柔和轮廓、统一线重、平涂色块和克制细节，画面清新、安静、精致、当代。避免写实、厚重阴影、水彩肌理、纸张纹理、复杂笔触、渐变、拥挤背景和过多细节。\r\n\t\r\n配色以柔和、通透、略微去饱和的高级色系为基础，可从原图中提炼综合色温进行调整，但整体保持轻盈统一。以浅粉蓝、雾蓝、天空蓝、空气感冷调蓝营造主氛围，再以象牙白、奶油白、浅米色、柔和灰绿、建筑中性色保持平衡；仅允许少量 dusty rose 或 muted blush 作为微小点缀，用于花、服饰、小标识、遮阳篷或局部装饰，使画面既有呼吸感又不失精致层次。\r\n\t\r\n从原图的地点、对象名称、主题词、状态或氛围中提炼一个简短标题，置于留白充足的位置，并搭配一句简短、克制、具有气质的 tagline。文字应保持 understated、editorial、spacious、premium 的排版气质，不压过画面；必要时可加入少量小字信息、坐标式注释或微型说明，使文字像高级旅行品牌或精品明信片中的视觉标识，自然融入构图，而不是后期贴上的标题栏。",
+    "tags": [
+      "旅行"
+    ],
+    "effectImageUrl": "/style-publications/aa45590a6186325424fbc74de88dad12/effect.webp",
+    "effectGridImageUrl": "/style-publications/aa45590a6186325424fbc74de88dad12/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/aa45590a6186325424fbc74de88dad12/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/ed573774-bcbf-422f-b70f-6c4db73e66bd.png",
+    "sourceReferenceImageUrl": "/job-references/ed573774-bcbf-422f-b70f-6c4db73e66bd/1-1788153952586.jpg",
+    "createdAt": "2026-08-31T07:10:13.783Z",
+    "updatedAt": "2026-08-31T07:10:13.783Z",
+    "sortOrders": {
+      "旅行": 21
     }
   }
 ]

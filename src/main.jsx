@@ -220,8 +220,6 @@ const DRAW_CARD_EXPERIENCE_CONFIG = {
   subtitle: "让有意义的照片更精美",
   waitingLines: ["总计需要约 5 分钟，请耐心等待。", "无需保持当前页面开启，可切到后台，稍后回来查看结果。", "正在制作 AI 小画，你可以稍后回来查看。"],
   waitingFallback: "生成已提交，无需保持当前页面开启，可切到后台，稍后回来查看结果。",
-  startButtonIdle: "试试手气",
-  startButtonLoading: "任务启动中",
   resultsKicker: "Collection",
   resultsTitle: "本轮已全部完成",
   resultsSubtitle: "右侧卡夹会收纳你选中的结果。点击结果可放大查看，加入时会直接飞入卡夹。",
@@ -331,6 +329,8 @@ function readRoute() {
   if (pathname === "/admin/api-providers") return "admin-api-providers";
   if (pathname === "/admin/storage") return "admin-storage";
   if (pathname === "/admin/monitor") return "admin-monitor";
+  if (pathname === "/tasks") return "public-draw-tasks";
+  if (pathname === "/clip") return "public-draw-clip";
   if (pathname === "/styles") return "public-style-picker";
   return "public-draw";
 }
@@ -471,7 +471,9 @@ function App() {
       "admin-store-owners": "商户管理",
       "admin-visits": "访问记录",
       "admin-user-clip": "图片资产",
-      "public-style-picker": "风格选择"
+      "public-style-picker": "风格选择",
+      "public-draw-tasks": "最近任务",
+      "public-draw-clip": "我的卡夹"
     };
     document.title = titleByRoute[route] || "AI小画家";
   }, [route]);
@@ -504,7 +506,9 @@ function App() {
       "admin-api-providers": "/admin/api-providers",
       "admin-storage": "/admin/storage",
       "admin-monitor": "/admin/monitor",
-      "public-style-picker": "/styles"
+      "public-style-picker": "/styles",
+      "public-draw-tasks": "/tasks",
+      "public-draw-clip": "/clip"
     };
     const path = pathByRoute[nextRoute] || "/";
     window.history.pushState({}, "", path);
@@ -512,10 +516,16 @@ function App() {
   }
 
   if (route === "public-draw") {
-    return <LuckDrawCardPage />;
+    return <LuckDrawCardPage standaloneStylePicker />;
   }
   if (route === "public-style-picker") {
     return <LuckDrawCardPage standaloneStylePicker />;
+  }
+  if (route === "public-draw-tasks") {
+    return <LuckDrawCardPage recentTasks />;
+  }
+  if (route === "public-draw-clip") {
+    return <LuckDrawCardPage standaloneClip />;
   }
   if (route === "public-draw-share") {
     return <DrawSharePage />;
@@ -872,48 +882,6 @@ function CoinPurchaseModal({ coinCount, busy, error, payment, purchase, unitPric
     {isPaid ? <><p className="success-note">购买成功，{purchase.coinCount} 币已到账。</p><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={onClose} type="button">完成</button></div></> : isExpired ? <><p className="error-note">该购买单已过期，未产生扣款。请重新创建购买单后再支付。</p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" onClick={onClose} type="button">关闭</button><button className="draw-card-primary" disabled={busy} onClick={onRestart} type="button">重新购买</button></div></> : isManual ? <article className="manual-payment-guide"><strong>请扫描商户收款码付款</strong><img alt="微信商户收款码" className="manual-payment-qr" src="/payment/wechat-merchant-collection.png" /><p>应付金额 {formatCurrencyCents(amountCents)}</p><p>购买单号：{purchase?.purchaseNo || "--"}</p><small>付款后管理员确认到账，币将自动发放。</small></article> : isNative ? <article className="native-payment-panel"><h3>请使用微信扫码付款</h3><p className="storage-note">应付金额 {formatCurrencyCents(amountCents)}，扫码后无需手动输入金额。</p><img alt="购买币微信支付二维码" className="native-payment-qr" src={createQrSvgDataUrl(payment.codeUrl, { margin: 1 })} /><p className="storage-note">支付成功后币会自动到账。</p></article> : <><div className="body-book-wallet-actions">{[10, 20, 40, 100].map((count) => <button className="draw-card-secondary" disabled={busy || Boolean(purchase)} key={count} onClick={() => onCountChange(count)} type="button">{count} 币</button>)}</div><label className="body-book-wallet-field"><span>购买数量（1–1000 币）</span><input disabled={busy || Boolean(purchase)} min="1" max={MAX_BEAN_PURCHASE_COUNT} onChange={(event) => onCountChange(event.target.value)} type="number" value={coinCount} /></label><p className="body-book-bean-balance">应付 <strong>{formatCurrencyCents(amountCents)}</strong></p><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={busy} onClick={onClose} type="button">取消</button><button className="draw-card-primary" disabled={busy || safeCount < 1} onClick={purchase ? onRetry : onSubmit} type="button">{busy ? "处理中" : purchase ? "重新发起支付" : `支付 ${formatCurrencyCents(amountCents)}`}</button></div></>}
     {error ? <p className="error-note">{error}</p> : null}
   </section></div>;
-}
-
-function DrawCardConfigModal({ busy, error, onClose, onSubmit }) {
-  const [subjectType, setSubjectType] = useState("");
-  const [drawCount, setDrawCount] = useState(DEFAULT_PUBLIC_DRAW_COUNT);
-  const requestedDrawCount = Math.min(Math.max(Number(drawCount) || DEFAULT_PUBLIC_DRAW_COUNT, MIN_PUBLIC_DRAW_COUNT), MAX_PUBLIC_STYLE_SELECTION);
-
-  return (
-    <div className="modal-backdrop draw-card-confirm" onClick={onClose} role="presentation">
-      <section className="draw-card-confirm-panel draw-card-config-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="抽卡设置">
-        <button className="icon-button" onClick={onClose} type="button" aria-label="关闭抽卡设置"><X size={18} /></button>
-        <div>
-          <p className="draw-card-kicker">Draw settings</p>
-          <h2>设置本次抽卡</h2>
-          <p className="storage-note">选好照片主体和出图张数后，系统会随机抽取合适风格开始生成。</p>
-        </div>
-        <div className="draw-card-config-panel">
-          <div className="draw-card-config-group">
-            <span className="draw-card-config-label">照片主体</span>
-            <div className="draw-card-segmented-control" role="radiogroup" aria-label="照片主体">
-              {DRAW_CARD_SUBJECT_OPTIONS.map((option) => <button className={`draw-card-segment ${subjectType === option.value ? "is-active" : ""}`} disabled={busy} key={option.value} onClick={() => setSubjectType(option.value)} type="button">{option.label}</button>)}
-            </div>
-          </div>
-          <div className="draw-card-count-control">
-            <span className="draw-card-config-label">本次抽卡</span>
-            <div className="draw-card-count-options" role="radiogroup" aria-label="本次抽卡张数">
-              {DRAW_CARD_COUNT_OPTIONS.map((count) => <button className={`draw-card-segment ${requestedDrawCount === count ? "is-active" : ""}`} disabled={busy} key={count} onClick={() => setDrawCount(count)} type="button">{count}张</button>)}
-            </div>
-          </div>
-          <p className="draw-card-meta-note">本次最多消耗 {requestedDrawCount} 币，失败结果不扣币。</p>
-        </div>
-        {error ? <p className="error-note">{error}</p> : null}
-        <div className="draw-card-confirm-actions">
-          <button className="draw-card-secondary" disabled={busy} onClick={onClose} type="button">取消</button>
-          <button className="draw-card-primary" disabled={!subjectType || busy} onClick={() => onSubmit({ subjectType, drawCount: requestedDrawCount })} type="button">
-            {busy ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
-            <span>{busy ? "任务启动中" : "确认抽卡"}</span>
-          </button>
-        </div>
-      </section>
-    </div>
-  );
 }
 
 function AdminApp({ navigate, route }) {
@@ -1327,8 +1295,8 @@ function AdminApp({ navigate, route }) {
   );
 }
 
-function LuckDrawCardPage({ standaloneStylePicker = false }) {
-  return <PublicExperiencePage config={DRAW_CARD_EXPERIENCE_CONFIG} standaloneStylePicker={standaloneStylePicker} />;
+function LuckDrawCardPage({ standaloneStylePicker = false, recentTasks = false, standaloneClip = false }) {
+  return <PublicExperiencePage config={DRAW_CARD_EXPERIENCE_CONFIG} standaloneStylePicker={standaloneStylePicker} recentTasks={recentTasks} standaloneClip={standaloneClip} />;
 }
 
 function FridgeMagnetPage() {
@@ -4025,11 +3993,26 @@ function DrawCardCheckoutPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [account, setAccount] = useState(null);
+  const [visitorState, setVisitorState] = useState(null);
   const [redemptionEntitlements, setRedemptionEntitlements] = useState({ fridgeMagnetItemCount: 0 });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [fulfillmentMode, setFulfillmentMode] = useState("mail");
   const [onsiteCopied, setOnsiteCopied] = useState(false);
   const [storeOwnerContext, setStoreOwnerContext] = useState(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const userMenuRef = useRef(null);
+  const [showCoinInfo, setShowCoinInfo] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactCopied, setContactCopied] = useState(false);
+  const contactCopiedTimeoutRef = useRef(null);
+  const [inviteCode, setInviteCode] = useState("");
+  const [coinPurchaseCount, setCoinPurchaseCount] = useState(20);
+  const [coinPurchase, setCoinPurchase] = useState(null);
+  const [coinPurchasePayment, setCoinPurchasePayment] = useState(null);
+  const [coinPurchaseBusy, setCoinPurchaseBusy] = useState(false);
+  const [coinPurchaseError, setCoinPurchaseError] = useState("");
+  const [showCoinPurchase, setShowCoinPurchase] = useState(false);
   const pendingCheckoutRef = useRef(false);
   const hasInitializedDefaultSelectionRef = useRef(false);
 
@@ -4046,6 +4029,7 @@ function DrawCardCheckoutPage() {
         }
         setOrderConfig(config || null);
         setAccount(accountPayload?.account || null);
+        setVisitorState(accountPayload);
         setRedemptionEntitlements(accountPayload?.redemptionEntitlements || { fridgeMagnetItemCount: 0 });
         setOrderForm((current) => fillOrderAddressFromSaved(current, accountPayload?.account));
         setQuantities((current) => syncOrderQuantitiesWithClipItems(current, items));
@@ -4078,6 +4062,21 @@ function DrawCardCheckoutPage() {
   useEffect(() => {
     if (storeOwnerContext?.wechatId) setFulfillmentMode("onsite");
   }, [storeOwnerContext]);
+
+  useEffect(() => {
+    if (!showUserMenu) return undefined;
+    function handleOutsideClick(event) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) setShowUserMenu(false);
+    }
+    window.addEventListener("mousedown", handleOutsideClick);
+    return () => window.removeEventListener("mousedown", handleOutsideClick);
+  }, [showUserMenu]);
+
+  useEffect(() => {
+    return () => {
+      if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
+    };
+  }, []);
 
   const selectedItems = useMemo(
     () => clipItems.filter((item) => selectedJobIds.includes(item.jobId)),
@@ -4139,20 +4138,192 @@ function DrawCardCheckoutPage() {
     }
   }
 
-  return (
-    <main className="app-shell">
-      <section className="workspace order-page">
-        <div className="task-toolbar">
-          <div>
-            <p className="eyebrow">Custom magnets</p>
-            <h2>选图定制</h2>
-            <p className="storage-note">点击图片即可选择要制作的冰箱贴。</p>
-          </div>
-          <button className="secondary-button" onClick={() => window.location.assign("/")} type="button">
-            <ArrowLeft size={18} />
-            <span>返回卡夹</span>
+  async function handleLogout() {
+    setIsLoggingOut(true);
+    try {
+      await logoutCurrentAccount();
+      const payload = await fetchVisitorState().catch(() => null);
+      setVisitorState(payload);
+      setAccount(payload?.account || null);
+      setClipItems([]);
+      setShowUserMenu(false);
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "退出登录失败，请稍后再试。");
+    } finally {
+      setIsLoggingOut(false);
+    }
+  }
+
+  async function handleCopyContactWeChat() {
+    try {
+      await copyText(getContactWechatId(orderConfig));
+      setContactCopied(true);
+      if (contactCopiedTimeoutRef.current) window.clearTimeout(contactCopiedTimeoutRef.current);
+      contactCopiedTimeoutRef.current = window.setTimeout(() => setContactCopied(false), 1600);
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "复制失败，请手动复制。");
+    }
+  }
+
+  function openCoinPurchase() {
+    if (!visitorState?.account?.isRegistered) {
+      setShowCoinInfo(false);
+      setShowAuthModal(true);
+      return;
+    }
+    setCoinPurchase(null);
+    setCoinPurchasePayment(null);
+    setCoinPurchaseError("");
+    setCoinPurchaseCount(20);
+    setShowCoinInfo(false);
+    setShowCoinPurchase(true);
+  }
+
+  function restartCoinPurchase() {
+    setCoinPurchase(null);
+    setCoinPurchasePayment(null);
+    setCoinPurchaseError("");
+  }
+
+  async function applyCoinPurchasePayment(payload) {
+    const nextPurchase = payload?.purchase || null;
+    const nextPayment = payload?.payment || null;
+    if (nextPurchase) setCoinPurchase(nextPurchase);
+    setCoinPurchasePayment(nextPayment);
+    if (nextPayment?.status === "requires_authorization" && nextPayment.authorizationUrl) {
+      window.location.assign(nextPayment.authorizationUrl);
+      return;
+    }
+    if (nextPayment?.channel === "wechat_jsapi" && nextPayment.jsapi) {
+      await invokeWechatJsapiPayment(nextPayment.jsapi);
+      const refreshed = await fetchCoinPurchase(nextPurchase?.id || coinPurchase?.id);
+      setCoinPurchase(refreshed.purchase);
+      const nextVisitorState = await fetchVisitorState();
+      setVisitorState(nextVisitorState);
+      setAccount(nextVisitorState?.account || null);
+    }
+  }
+
+  async function prepareCoinPurchase(purchaseId, code = "") {
+    if (!purchaseId) return;
+    setCoinPurchaseBusy(true);
+    setCoinPurchaseError("");
+    try {
+      await applyCoinPurchasePayment(await payCoinPurchase(purchaseId, code ? { code } : {}));
+    } catch (nextError) {
+      setCoinPurchaseError(nextError.message || "发起币购买支付失败，请稍后重试。");
+    } finally {
+      setCoinPurchaseBusy(false);
+    }
+  }
+
+  async function submitCoinPurchase() {
+    const count = Math.trunc(Number(coinPurchaseCount || 0));
+    if (coinPurchaseBusy) return;
+    if (!Number.isFinite(count) || count < 1 || count > MAX_BEAN_PURCHASE_COUNT) {
+      setCoinPurchaseError(`请输入 1 到 ${MAX_BEAN_PURCHASE_COUNT} 之间的整数。`);
+      return;
+    }
+    setCoinPurchaseBusy(true);
+    setCoinPurchaseError("");
+    try {
+      const created = await createCoinPurchase({ coinCount: count });
+      setCoinPurchase(created.purchase);
+      setCoinPurchasePayment(created.payment || null);
+      if (created.payment?.channel !== "manual_collection") {
+        await applyCoinPurchasePayment(await payCoinPurchase(created.purchase.id, {}));
+      }
+    } catch (nextError) {
+      setCoinPurchaseError(nextError.message || "创建币购买单失败，请稍后重试。");
+    } finally {
+      setCoinPurchaseBusy(false);
+    }
+  }
+
+  async function handleRedeemInviteCode() {
+    if (!inviteCode.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    setError("");
+    try {
+      const payload = await redeemInviteCode(inviteCode);
+      setVisitorState(payload);
+      setAccount(payload?.account || null);
+      setInviteCode("");
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "兑换失败，请检查兑换码。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function renderCheckoutPrimaryNav() {
+    return (
+      <div className="draw-card-style-picker-nav">
+        <button className="draw-card-utility-link" onClick={() => window.location.assign("/")} type="button">
+          <span>主页</span>
+        </button>
+        <button className="draw-card-utility-link" onClick={() => window.location.assign("/tasks")} type="button">
+          <span>任务</span>
+        </button>
+        <button className="draw-card-utility-link" onClick={() => window.location.assign("/clip")} type="button">
+          <span>卡夹</span>
+        </button>
+      </div>
+    );
+  }
+
+  function renderCheckoutUtilityBar() {
+    const accountName = visitorState?.account?.username || "我的账户";
+    const isRegistered = Boolean(visitorState?.account?.isRegistered);
+    const wechatAvatarUrl = String(visitorState?.account?.wechatAvatarUrl || "").trim();
+    return (
+      <div className="draw-card-utility-bar draw-card-utility-bar-draw">
+        <button className="draw-card-utility-link draw-card-coin-balance" onClick={() => setShowCoinInfo(true)} type="button">
+          余额 {visitorState ? <><span className="draw-card-coin-count">{visitorState.account?.coinBalance || 0}</span> 币</> : "--"}
+        </button>
+        <div className="draw-card-user-area" ref={userMenuRef}>
+          <button
+            aria-label={isRegistered ? `账户：${accountName}` : "登录或注册"}
+            className={`draw-card-utility-link draw-card-account-button${isRegistered ? " is-signed-in" : " is-guest"}`}
+            onClick={() => isRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)}
+            title={isRegistered ? accountName : "登录 / 注册"}
+            type="button"
+          >
+            {isRegistered && wechatAvatarUrl ? <img alt="" src={wechatAvatarUrl} /> : <span>{isRegistered ? accountName.slice(0, 1) : "登录"}</span>}
           </button>
+          {showUserMenu && isRegistered ? (
+            <div className="draw-card-user-inline-menu" role="menu">
+              <span className="draw-card-user-inline-menu-name">{accountName}</span>
+              <button onClick={() => window.location.assign("/fridge/orders")} role="menuitem" type="button">我的订单</button>
+              <button onClick={() => window.location.assign("/book/referrals?source=draw")} role="menuitem" type="button">我的邀请</button>
+              <button disabled={isLoggingOut} onClick={handleLogout} role="menuitem" type="button">{isLoggingOut ? "正在退出" : "退出登录"}</button>
+            </div>
+          ) : null}
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <main className="draw-card-shell theme-draw-card draw-card-checkout-page">
+      <div className="draw-card-ambient draw-card-ambient-a" />
+      <div className="draw-card-ambient draw-card-ambient-b" />
+      <section className="draw-card-stage draw-card-checkout-stage">
+        <div className="draw-card-checkout">
+          <div className="draw-card-checkout-head">
+            <div>
+              <p className="draw-card-kicker">Custom magnets</p>
+              <h2>选图定制</h2>
+              <p className="draw-card-subtitle">点击图片即可选择要制作的冰箱贴。</p>
+            </div>
+            <div className="draw-card-checkout-head-actions">
+              {renderCheckoutPrimaryNav()}
+              {renderCheckoutUtilityBar()}
+            </div>
+          </div>
         {isLoading ? <p className="storage-note">正在读取卡夹…</p> : null}
         {error ? <p className="error-note">{error}</p> : null}
         {!isLoading && !clipItems.length ? (
@@ -4166,7 +4337,6 @@ function DrawCardCheckoutPage() {
             <section className="draw-observability-card">
               <h3>制作方式</h3>
               <div className="draw-card-fulfillment">
-                <span className="field-label">制作方式</span>
                 <div className="draw-card-segmented-control draw-card-fulfillment-control">
                   <button className={`draw-card-segment${fulfillmentMode === "onsite" ? " is-active" : ""}`} onClick={() => setFulfillmentMode("onsite")} type="button">现场制作</button>
                   <button className={`draw-card-segment${fulfillmentMode === "mail" ? " is-active" : ""}`} onClick={() => setFulfillmentMode("mail")} type="button">邮寄</button>
@@ -4248,17 +4418,86 @@ function DrawCardCheckoutPage() {
             ) : null}
           </>
         ) : null}
+        </div>
       </section>
       {showAuthModal ? (
         <AuthModal
           onAuthenticated={async (nextAccount) => {
             const nextVisitorState = await fetchVisitorState().catch(() => null);
+            setVisitorState(nextVisitorState);
             setAccount(nextVisitorState?.account || nextAccount);
             setOrderForm((current) => fillOrderAddressFromSaved(current, nextVisitorState?.account || nextAccount));
             setShowAuthModal(false);
           }}
           onClose={() => { pendingCheckoutRef.current = false; setShowAuthModal(false); }}
         />
+      ) : null}
+      {showCoinInfo ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => setShowCoinInfo(false)} role="presentation">
+          <section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的币">
+            <button className="icon-button" onClick={() => setShowCoinInfo(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button>
+            <p className="draw-card-kicker">My coins</p>
+            <h2>我的币</h2>
+            <p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.coinBalance || 0 : "--"}</strong> 币</p>
+            <p className="body-book-bean-cost-note">每成功生成 1 张图片消耗 1 币，生成失败不消耗币。</p>
+            <ul className="body-book-bean-benefits">
+              <li>购买单价：{formatCurrencyCents(orderConfig?.coinPurchaseUnitPriceCents || 100)} / 币。</li>
+              <li>邀请新用户注册可获得 5 币；好友每笔实付订单返 20% 推荐金。</li>
+            </ul>
+            <div className="body-book-wallet-actions">
+              <button className="draw-card-primary" onClick={openCoinPurchase} type="button">购买币</button>
+              <button className="draw-card-secondary" onClick={() => window.location.assign("/book/referrals?source=draw")} type="button">邀请好友</button>
+              <button className="draw-card-secondary" onClick={() => { setShowCoinInfo(false); setShowContactModal(true); }} type="button">联系客服</button>
+            </div>
+            <label className="body-book-wallet-field">
+              <span>兑换码</span>
+              <input disabled={isSubmitting} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入兑换码" value={inviteCode} />
+            </label>
+            <div className="body-book-wallet-actions">
+              <button className="draw-card-primary" disabled={isSubmitting || !inviteCode.trim()} onClick={handleRedeemInviteCode} type="button">兑换</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+      {showCoinPurchase ? (
+        <CoinPurchaseModal
+          coinCount={coinPurchaseCount}
+          busy={coinPurchaseBusy}
+          error={coinPurchaseError}
+          payment={coinPurchasePayment}
+          purchase={coinPurchase}
+          unitPriceCents={orderConfig?.coinPurchaseUnitPriceCents}
+          onClose={() => setShowCoinPurchase(false)}
+          onCountChange={setCoinPurchaseCount}
+          onRestart={restartCoinPurchase}
+          onRetry={() => prepareCoinPurchase(coinPurchase?.id)}
+          onSubmit={submitCoinPurchase}
+        />
+      ) : null}
+      {showContactModal ? (
+        <div className="modal-backdrop draw-card-confirm" onClick={() => setShowContactModal(false)} role="presentation">
+          <section className="draw-card-confirm-panel draw-card-contact-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="联系客服">
+            <button className="icon-button" onClick={() => setShowContactModal(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button>
+            <div className="draw-card-contact-copy">
+              <h3>联系客服</h3>
+              <p>请加微信</p>
+              <button className="draw-card-contact-id" onClick={handleCopyContactWeChat} type="button">
+                <span>{getContactWechatId(orderConfig)}</span>
+                <Clipboard size={16} />
+              </button>
+              <p className="draw-card-contact-note">{contactCopied ? "微信号已复制" : "点击微信号即可一键复制"}</p>
+            </div>
+            <div className="draw-card-confirm-actions">
+              <button className="draw-card-secondary" onClick={handleCopyContactWeChat} type="button">
+                <Clipboard size={16} />
+                <span>{contactCopied ? "已复制" : "复制微信号"}</span>
+              </button>
+              <button className="draw-card-primary" onClick={() => setShowContactModal(false)} type="button">
+                <span>我知道了</span>
+              </button>
+            </div>
+          </section>
+        </div>
       ) : null}
     </main>
   );
@@ -4540,7 +4779,7 @@ function FridgeMagnetOrderPage() {
   );
 }
 
-function PublicExperiencePage({ config, standaloneStylePicker = false }) {
+function PublicExperiencePage({ config, standaloneStylePicker = false, recentTasks = false, standaloneClip = false }) {
   const {
     addClipErrorMessage,
     apiBase,
@@ -4633,7 +4872,6 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
   const [referralNotice, setReferralNotice] = useState("");
   const [referralError, setReferralError] = useState("");
   const [showContactModal, setShowContactModal] = useState(false);
-  const [showDrawConfigModal, setShowDrawConfigModal] = useState(false);
   const [showPhotoRequiredModal, setShowPhotoRequiredModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -4660,6 +4898,9 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
   const [sameStyleId, setSameStyleId] = useState("");
   const [stylePickerError, setStylePickerError] = useState("");
   const [isLoadingStylePicker, setIsLoadingStylePicker] = useState(false);
+  const [recentTaskItems, setRecentTaskItems] = useState([]);
+  const [recentTasksLoading, setRecentTasksLoading] = useState(false);
+  const [recentTasksError, setRecentTasksError] = useState("");
   const [sharedStyleId, setSharedStyleId] = useState(() => experienceType === "draw-card" ? String(new URLSearchParams(window.location.search).get("styleId") || "").trim() : "");
   const [linkedSameStyleId] = useState(() => experienceType === "draw-card" ? String(new URLSearchParams(window.location.search).get("sameStyleId") || "").trim() : "");
   const sharedStylePickerOpenedRef = useRef(false);
@@ -5027,15 +5268,6 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
     }
   }
 
-  function openRandomDrawConfig() {
-    if (!referenceFile) {
-      setShowPhotoRequiredModal(true);
-      return;
-    }
-    if (isSubmitting) return;
-    setShowDrawConfigModal(true);
-  }
-
   // 独立风格选择页（/styles）：直接落在“风格选择”相位时自动加载风格与发布数据。
   useEffect(() => {
     if (!standaloneStylePicker || experienceType !== "draw-card") return;
@@ -5183,6 +5415,19 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
     });
   }, [results, sessionItems]);
 
+  const recentTaskDisplayItems = useMemo(() => recentTaskItems.map((item, index) => {
+    const fallbackResult = item?.result && typeof item.result === "object" ? item.result : null;
+    return {
+      order: Number(item?.order ?? index),
+      jobId: String(item?.jobId || ""),
+      styleId: String(item?.styleId || ""),
+      styleName: String(item?.styleName || ""),
+      status: String(item?.status || (fallbackResult ? "succeeded" : "queued")),
+      result: fallbackResult,
+      errorMessage: String(item?.errorMessage || "")
+    };
+  }), [recentTaskItems]);
+
   const hasPendingItems = displayItems.some((item) => item.status === "queued" || item.status === "running");
   const estimatedWaitSeconds = Number(session?.estimatedWaitSeconds || 0) > 0
     ? Number(session.estimatedWaitSeconds)
@@ -5231,6 +5476,43 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
     }, 2600);
     return undefined;
   }, [displayItems]);
+
+  // 最近任务页：挂载即拉取；只要有运行/排队中的任务就每 8s 轮询，全部结束后停止。
+  useEffect(() => {
+    if (!recentTasks || experienceType !== "draw-card") return undefined;
+    let isActive = true;
+    let timer = null;
+
+    async function loadRecentTasks() {
+      try {
+        const payload = await fetchRecentDrawCardTasks(apiBase);
+        if (!isActive) return;
+        const tasks = Array.isArray(payload.tasks) ? payload.tasks : [];
+        setRecentTaskItems(tasks);
+        setRecentTasksError("");
+        const hasPending = tasks.some((task) => task.status === "queued" || task.status === "running");
+        if (hasPending) {
+          if (!timer) timer = window.setInterval(() => { void loadRecentTasks(); }, 8000);
+        } else if (timer) {
+          window.clearInterval(timer);
+          timer = null;
+        }
+      } catch (nextError) {
+        if (!isActive) return;
+        setRecentTasksError(nextError.message || "读取最近任务失败，请稍后再试。");
+      } finally {
+        if (isActive) setRecentTasksLoading(false);
+      }
+    }
+
+    setRecentTasksLoading(true);
+    void loadRecentTasks();
+
+    return () => {
+      isActive = false;
+      if (timer) window.clearInterval(timer);
+    };
+  }, [recentTasks, experienceType, apiBase]);
 
   function toDisplayResult(item) {
     if (!item?.result) return null;
@@ -5443,7 +5725,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
   const isDrawCardExperience = experienceType === "draw-card";
   const canStart = Boolean(referenceFile) && !isSubmitting;
   const canStartSameStyleDraw = Boolean(referenceFile) && Boolean(lockedSameStyle) && !isLoadingStylePicker && !isSubmitting;
-  const activeResult = activeResultIndex >= 0 ? toDisplayResult(displayItems[activeResultIndex]) : activeResultIndex === -3 ? activeClipPreview : null;
+  const activeResult = activeResultIndex >= 0 ? toDisplayResult((recentTasks ? recentTaskDisplayItems : displayItems)[activeResultIndex]) : activeResultIndex === -3 ? activeClipPreview : null;
   const succeededCount = Number(session?.summary?.succeeded ?? displayItems.filter((item) => item.status === "succeeded").length);
   const totalCount = Number(session?.summary?.total ?? displayItems.length);
   const currentSessionStatus = String(session?.status || "");
@@ -5482,7 +5764,6 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
     setSameStyleId("");
     setSelectedStyleIds([]);
     setStylePickerError("");
-    setShowDrawConfigModal(false);
     resultMediaRefs.current.clear();
   }
 
@@ -5498,6 +5779,10 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
 
   function returnToHome() {
     if (isGenerationInProgress) return;
+    if (experienceType === "draw-card") {
+      window.location.assign("/");
+      return;
+    }
     // 保留当前会话与生成结果，用户可随时通过“最近生成”重新打开。
     setPhase("idle");
     setError("");
@@ -5528,6 +5813,22 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
 
   function updateResultCardState(jobId, patch) {
     setResults((current) => current.map((item) => (item.jobId === jobId ? { ...item, ...patch } : item)));
+    setRecentTaskItems((current) =>
+      current.map((item) =>
+        item.jobId === jobId
+          ? {
+              ...item,
+              result: item.result
+                ? {
+                    ...item.result,
+                    isLiked: Object.prototype.hasOwnProperty.call(patch, "isLiked") ? patch.isLiked : item.result.isLiked,
+                    likedAt: Object.prototype.hasOwnProperty.call(patch, "likedAt") ? patch.likedAt : item.result.likedAt
+                  }
+                : item.result
+            }
+          : item
+      )
+    );
     setSession((current) =>
       current
         ? {
@@ -5685,7 +5986,6 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message || createErrorMessage);
 
-      setShowDrawConfigModal(false);
       setReferenceSessionId(String(payload?.sessionId || ""));
       applySession(payload);
       refreshVisitorStateSilently();
@@ -6070,6 +6370,22 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
     }
   }
 
+  function renderDrawCardPrimaryNav() {
+    return (
+      <div className="draw-card-style-picker-nav">
+        <button className="draw-card-utility-link" onClick={() => window.location.assign("/")} type="button">
+          <span>主页</span>
+        </button>
+        <button className="draw-card-utility-link" onClick={() => window.location.assign("/tasks")} type="button">
+          <span>任务</span>
+        </button>
+        <button className="draw-card-utility-link" onClick={() => window.location.assign("/clip")} type="button">
+          <span>卡夹</span>
+        </button>
+      </div>
+    );
+  }
+
   function renderDrawCardUtilityBar() {
     const accountName = visitorState?.account?.username || "我的账户";
     const isRegistered = Boolean(visitorState?.account?.isRegistered);
@@ -6077,7 +6393,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
     return (
       <div className="draw-card-utility-bar draw-card-utility-bar-draw">
         <button className="draw-card-utility-link draw-card-coin-balance" onClick={() => setShowCoinInfo(true)} type="button">
-          余额 {visitorState ? `${visitorState.account?.coinBalance || 0} 币` : "--"}
+          余额 {visitorState ? <><span className="draw-card-coin-count">{visitorState.account?.coinBalance || 0}</span> 币</> : "--"}
         </button>
         <div className="draw-card-user-area" ref={userMenuRef}>
           <button
@@ -6242,7 +6558,97 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
       <div className="draw-card-ambient draw-card-ambient-a" />
       <div className="draw-card-ambient draw-card-ambient-b" />
       {experienceType === "draw-card" && !["idle", "ready", "style-picker"].includes(phase) ? renderDrawCardUtilityBar() : null}
-      {(phase === "idle" || phase === "ready") && (
+
+      {recentTasks && experienceType === "draw-card" ? (
+        <section className="draw-card-stage">
+          <div className="draw-card-recent-tasks-page">
+            <div className="draw-card-recent-tasks-head">
+              <div>
+                <p className="draw-card-kicker">Recent tasks</p>
+                <h2>最近任务</h2>
+              </div>
+              <div className="draw-card-recent-tasks-head-actions">
+                {renderDrawCardPrimaryNav()}
+                {renderDrawCardUtilityBar()}
+              </div>
+            </div>
+
+            <p className="draw-card-recent-tasks-note">仅保留最近 24 小时的任务，喜欢的图片请及时加入卡夹。</p>
+
+            {recentTasksError ? <p className="error-note draw-card-inline-error">{recentTasksError}</p> : null}
+            {recentTasksLoading && !recentTaskItems.length ? <p className="storage-note">正在加载最近任务…</p> : null}
+            {!recentTasksLoading && !recentTaskItems.length ? (
+              <div className="draw-card-recent-tasks-empty">
+                <p>最近 24 小时还没有任务。</p>
+              </div>
+            ) : (
+              <div className="draw-card-recent-tasks-grid">
+                {recentTaskDisplayItems.map((item, index) => {
+                  const result = toDisplayResult(item);
+                  const isSucceeded = item.status === "succeeded" && result;
+                  const isRunning = item.status === "running" || item.status === "queued";
+                  const isFailed = item.status === "failed" || item.status === "cancelled";
+                  return (
+                    <article
+                      className={`draw-card-result-card ${result?.isLiked ? "is-in-clip" : ""} ${isRunning ? "is-pending" : ""} ${isFailed ? "is-failed" : ""}`}
+                      key={`recent-${item.jobId || index}`}
+                    >
+                      {isSucceeded ? (
+                        <button className="draw-card-result-media" onClick={() => setActiveResultIndex(index)} type="button">
+                          <img alt={`${resultAltPrefix} ${index + 1}`} src={result.imageUrl || result.thumbnailUrl} />
+                        </button>
+                      ) : (
+                        <div className={`draw-card-result-placeholder ${isFailed ? "is-failed" : "is-pending"}`}>
+                          {isFailed ? <AlertTriangle size={22} /> : <LoaderCircle className="spin" size={22} />}
+                          <strong>{isFailed ? "生成失败" : "正在生成"}</strong>
+                          <span>{isFailed ? (item.errorMessage || "该风格本轮未能成功生成。") : "结果会在完成后自动出现。"}</span>
+                        </div>
+                      )}
+                      <div className="draw-card-result-meta">
+                        <span>{item.styleName || `${resultNameFallback} ${index + 1}`}</span>
+                        {isSucceeded ? (
+                          <button className={`draw-card-save-button ${result.isLiked ? "is-liked" : ""}`} disabled={Boolean(result.isLiked)} onClick={() => addToClip(result)} type="button">
+                            {result.isLiked ? <Check size={16} /> : <Sparkles size={16} />}
+                            <span>{result.isLiked ? pocketAddedLabel : pocketAddLabel}</span>
+                          </button>
+                        ) : (
+                          <span className={`task-status ${item.status}`}>{statusLabel(item.status)}</span>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+            <div className="draw-card-recent-tasks-actions">
+              <button className="draw-card-primary" onClick={() => window.location.assign("/clip")} type="button">
+                <span>去卡夹</span>
+              </button>
+              <button className="draw-card-secondary" onClick={() => window.location.assign("/")} type="button">
+                <span>再做一张</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : standaloneClip && experienceType === "draw-card" ? (
+        <section className="draw-card-stage">
+          <div className="draw-card-clip-page">
+            <div className="draw-card-clip-page-head">
+              <div>
+                <p className="draw-card-kicker">{clipKicker}</p>
+                <h2>{clipTitle}</h2>
+              </div>
+              <div className="draw-card-clip-page-head-actions">
+                {renderDrawCardPrimaryNav()}
+                {renderDrawCardUtilityBar()}
+              </div>
+            </div>
+            {renderClipPanel({ showCollection: true, showAccount: false })}
+          </div>
+        </section>
+      ) : null}
+
+      {(phase === "idle" || phase === "ready") && !recentTasks && !standaloneClip && (
         <section className="draw-card-stage">
           <div className={`draw-card-stage-layout${isDrawCardExperience ? " draw-card-stage-layout-no-account" : ""}`}>
             <div className="draw-card-stage-main">
@@ -6291,10 +6697,6 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
                         <button className="draw-card-secondary" onClick={openStylePicker} type="button">
                           <span>选择风格</span>
                         </button>
-                        <button className="draw-card-secondary draw-card-home-random-button" onClick={openRandomDrawConfig} type="button">
-                          {isSubmitting ? <LoaderCircle className="spin" size={18} /> : null}
-                          <span>{isSubmitting ? startButtonLoading : startButtonIdle}</span>
-                        </button>
                         <button className="draw-card-secondary draw-card-recent-session-button" disabled={isOpeningLatestSession} onClick={openLatestSession} type="button">
                           {isOpeningLatestSession ? <LoaderCircle className="spin" size={18} /> : null}
                           <span>{isOpeningLatestSession ? "读取中" : "最近生成"}</span>
@@ -6319,8 +6721,6 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
 
                 {error ? <p className="error-note draw-card-inline-error">{error}</p> : null}
               </section>
-
-              {isDrawCardExperience ? renderClipPanel({ showAccount: false }) : null}
             </div>
 
             {isDrawCardExperience ? null : <div>{renderClipPanel()}</div>}
@@ -6328,37 +6728,16 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
         </section>
       )}
 
-      {phase === "style-picker" && experienceType === "draw-card" ? (
+      {phase === "style-picker" && experienceType === "draw-card" && !recentTasks && !standaloneClip ? (
         <section className="draw-card-stage">
           <div className="draw-card-style-picker-page">
             <div className="draw-card-style-picker-head">
               <div>
-                <p className="draw-card-kicker">Custom selection</p>
-                <h2>{sameStyleId ? "做同款" : "让有意义的照片更精美"}</h2>
+                <img className="draw-card-handwritten-title" src="/ui/ai-artist-title.png" alt={title} />
+                <p className="draw-card-subtitle">让有意义的照片更精美</p>
+                {sameStyleId ? <span className="draw-card-style-picker-same-style-badge">做同款</span> : null}
                 <div className="draw-card-style-picker-actions">
-                  <button
-                    className="draw-card-utility-link draw-card-style-picker-back-button"
-                    onClick={() => {
-                      setError("");
-                      setStylePickerError("");
-                      if (standaloneStylePicker) {
-                        // 独立风格选择页：返回主页。
-                        window.location.assign("/");
-                        return;
-                      }
-                      if (sameStyleId) {
-                        // “更多风格”：解除同款锁定，留在本页浏览全部风格。
-                        setSameStyleId("");
-                        setSelectedStyleIds([]);
-                        return;
-                      }
-                      setPhase(referenceFile ? "ready" : "idle");
-                    }}
-                    type="button"
-                  >
-                    <ArrowLeft size={18} />
-                    <span>{sameStyleId ? "更多风格" : "返回主页"}</span>
-                  </button>
+                  {renderDrawCardPrimaryNav()}
                   {renderDrawCardUtilityBar()}
                 </div>
               </div>
@@ -6412,7 +6791,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
         </section>
       ) : null}
 
-      {phase === "results" && (
+      {phase === "results" && !recentTasks && !standaloneClip && (
         <section className="draw-card-stage draw-card-stage-results">
           <div className="draw-card-results-head">
             <div>
@@ -6477,16 +6856,15 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
                   <ArrowLeft size={18} />
                   <span>返回</span>
                 </button>
-                {isDrawCardExperience ? <button className="draw-card-secondary draw-card-results-restart draw-card-results-change-style" disabled={isGenerationInProgress || isRestoringSessionReference} onClick={openStylePicker} type="button">
+                {isDrawCardExperience ? <button className="draw-card-secondary draw-card-results-restart draw-card-results-change-style" disabled={isGenerationInProgress || isRestoringSessionReference} onClick={() => window.location.assign("/")} type="button">
                   <Sparkles size={18} />
-                  <span>{isRestoringSessionReference ? "读取中" : "换风格"}</span>
+                  <span>换风格</span>
                 </button> : null}
                 <button className="draw-card-secondary draw-card-results-restart draw-card-results-new-photo" disabled={isGenerationInProgress} onClick={requestPhotoChange} type="button">
                   <RefreshCw size={18} />
                   <span>换照片</span>
                 </button>
               </div>
-              {isDrawCardExperience ? renderClipPanel({ showAccount: false }) : null}
             </div>
 
             {isDrawCardExperience ? null : renderClipPanel()}
@@ -6494,7 +6872,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
         </section>
       )}
 
-      {phase === "error" && (
+      {phase === "error" && !recentTasks && !standaloneClip && (
         <section className="draw-card-stage draw-card-stage-error">
           <div className="draw-card-error-panel">
             <p className="draw-card-kicker">Unavailable</p>
@@ -6596,15 +6974,6 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
         >
           <img alt="" src={flyingCard.src} />
         </div>
-      ) : null}
-
-      {showDrawConfigModal && isDrawCardExperience ? (
-        <DrawCardConfigModal
-          busy={isSubmitting}
-          error={error}
-          onClose={() => setShowDrawConfigModal(false)}
-          onSubmit={(settings) => startDrawCard(settings)}
-        />
       ) : null}
 
       {showPhotoRequiredModal ? (
@@ -12744,6 +13113,17 @@ async function fetchLatestPublicExperienceSession(apiBase, fallbackMessage) {
   const payload = await response.json();
   if (!response.ok) {
     const error = new Error(payload.message || fallbackMessage || "读取最近生成任务失败，请稍后再试。");
+    error.status = response.status;
+    throw error;
+  }
+  return payload;
+}
+
+async function fetchRecentDrawCardTasks(apiBase, fallbackMessage) {
+  const response = await fetch(`${apiBase}/sessions/recent`);
+  const payload = await response.json();
+  if (!response.ok) {
+    const error = new Error(payload.message || fallbackMessage || "读取最近任务失败，请稍后再试。");
     error.status = response.status;
     throw error;
   }

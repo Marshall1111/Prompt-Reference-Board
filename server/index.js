@@ -81,6 +81,8 @@ const WEB_WECHAT_OAUTH_STATE_COOKIE_NAME = "pg_wechat_oauth_state";
 const ADMIN_COOKIE_NAME = "pg_admin";
 const VISITOR_INVITE_BONUS = 5;
 const VISITOR_RUNNING_JOB_LIMIT = 1;
+// 小画（draw-card）允许用户多任务并行；冰箱贴等其它经验仍保持单个。
+const VISITOR_RUNNING_DRAW_CARD_JOB_LIMIT = 12;
 const VISITOR_RATE_WINDOW_MS = 10 * 60 * 1000;
 const VISITOR_RATE_LIMIT = 6;
 const IP_RATE_WINDOW_MS = 10 * 60 * 1000;
@@ -2329,6 +2331,16 @@ app.post("/api/draw-card/sessions", requireWebAccount, beginDrawCardRequestTelem
 
 app.get("/api/draw-card/sessions/latest", requireWebAccount, async (req, res) => {
   return handleGetLatestPublicExperienceSession(req, res, "draw-card");
+});
+
+app.get("/api/draw-card/sessions/recent", requireWebAccount, async (req, res) => {
+  try {
+    const tasks = await listRecentDrawCardTasks(req.webAccount);
+    res.json({ tasks });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "读取最近任务失败，请稍后再试。" });
+  }
 });
 
 app.get("/api/draw-card/sessions/:sessionId/reference", requireWebAccount, async (req, res) => {
@@ -4981,10 +4993,10 @@ app.use((req, res) => {
   if (pathname === "/fridge" || pathname === "/fridge/" || pathname === "/fridge/magnet" || pathname === "/fridge/magnet/") {
     return res.redirect(302, "/");
   }
-  if (pathname === "/" || pathname === "/book" || pathname === "/book/" || pathname === "/book/cart" || pathname === "/book/orders" || pathname === "/book/orders/" || pathname.startsWith("/book/orders/") || pathname === "/fridge/orders" || pathname === "/fridge/orders/" || pathname.startsWith("/fridge/orders/") || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
+  if (pathname === "/" || pathname === "/tasks" || pathname === "/clip" || pathname === "/book" || pathname === "/book/" || pathname === "/book/cart" || pathname === "/book/orders" || pathname === "/book/orders/" || pathname.startsWith("/book/orders/") || pathname === "/fridge/orders" || pathname === "/fridge/orders/" || pathname.startsWith("/fridge/orders/") || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
     return res.sendFile(path.join(rootDir, "dist", "index.html"));
   }
-  if (pathname === "/luck" || pathname === "/manage" || pathname === "/tasks" || pathname === "/batch") {
+  if (pathname === "/luck" || pathname === "/manage" || pathname === "/batch") {
     return res.redirect(pathname === "/luck" ? "/" : "/admin/login");
   }
   res.sendFile(path.join(rootDir, "dist", "index.html"));
@@ -10240,7 +10252,8 @@ async function estimateDrawCardQuotaCost(options = {}) {
 async function enforceVisitorRunningJobLimit(visitorId, config = getPublicExperienceConfig(DEFAULT_PUBLIC_EXPERIENCE_TYPE)) {
   const jobs = await listImageJobs();
   const running = jobs.filter((job) => job.visibility === "public" && job.ownerVisitorId === visitorId && ["queued", "running"].includes(job.status));
-  if (running.length >= VISITOR_RUNNING_JOB_LIMIT) {
+  const limit = config?.experienceType === "draw-card" ? VISITOR_RUNNING_DRAW_CARD_JOB_LIMIT : VISITOR_RUNNING_JOB_LIMIT;
+  if (running.length >= limit) {
     throw createHttpError(409, config?.runningLimitMessage || "当前已有进行中的公开生成，请等待这一轮完成。");
   }
 }
@@ -11088,6 +11101,37 @@ async function readLatestAccountDrawCardSession(account, visitorId, experienceTy
   if (!latest) return null;
   if (!["queued", "running", "succeeded", "partial"].includes(String(latest.status || ""))) return null;
   return latest;
+}
+
+async function listRecentDrawCardTasks(account, { hours = 24 } = {}) {
+  if (!account?.id) return [];
+  const cutoffAt = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+  const sessions = await listDrawCardSessions();
+  const owned = sessions.filter(
+    (session) =>
+      accountOwnsPublicRecord(account, session) &&
+      normalizePublicExperienceType(session.experienceType) === "draw-card" &&
+      String(session.createdAt || "") >= cutoffAt
+  );
+  const tasks = [];
+  for (const rawSession of owned) {
+    const session = await synchronizeDrawCardSession(rawSession);
+    for (const item of session?.items || []) {
+      tasks.push({
+        sessionId: session.sessionId,
+        order: item.order,
+        jobId: item.jobId,
+        styleId: item.styleId,
+        styleName: item.styleName,
+        status: item.status,
+        errorMessage: item.errorMessage || "",
+        result: item.result ? toPublicPreviewResult(item.result) : null,
+        createdAt: session.createdAt || "",
+        updatedAt: session.updatedAt || session.completedAt || session.createdAt || ""
+      });
+    }
+  }
+  return tasks.sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)));
 }
 
 async function saveDrawCardSession(session) {

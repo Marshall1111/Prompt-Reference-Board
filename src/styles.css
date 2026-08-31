@@ -1915,6 +1915,32 @@ body {
   margin-top: 18px;
 }
 
+.draw-card-style-picker-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.draw-card-style-picker-nav .draw-card-utility-link {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.draw-card-style-picker-same-style-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+  padding: 2px 10px;
+  border: 1px solid rgba(255, 216, 149, 0.3);
+  border-radius: 999px;
+  background: rgba(255, 216, 149, 0.12);
+  color: #fff0c8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
 .draw-card-style-picker-back-button {
   display: inline-flex;
   min-height: 38px;
@@ -1938,6 +1964,137 @@ body {
 
 .draw-card-style-picker-panel {
   width: 100%;
+  min-width: 0;
+}
+
+.draw-card-recent-tasks-page,
+.draw-card-clip-page {
+  width: min(1180px, 100%);
+  min-width: 0;
+}
+
+.draw-card-recent-tasks-head,
+.draw-card-clip-page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  min-width: 0;
+}
+
+.draw-card-recent-tasks-head > div:first-child,
+.draw-card-clip-page-head > div:first-child {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.draw-card-recent-tasks-head-actions,
+.draw-card-clip-page-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.draw-card-recent-tasks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, calc(50% - 6px)), 1fr));
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.draw-card-recent-tasks-empty {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  border: 1px dashed rgba(239, 225, 198, 0.16);
+  border-radius: 16px;
+  color: rgba(243, 237, 225, 0.5);
+  text-align: center;
+  padding: 24px;
+}
+
+.draw-card-recent-tasks-note {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 216, 149, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 216, 149, 0.06);
+  color: rgba(243, 237, 225, 0.72);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.draw-card-recent-tasks-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-recent-tasks-page .draw-card-utility-bar-draw,
+.draw-card-shell.theme-draw-card .draw-card-clip-page .draw-card-utility-bar-draw {
+  position: static;
+  z-index: auto;
+  width: auto;
+  margin: 0;
+  transform: none;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-page .draw-card-clip-panel.has-collection {
+  position: static;
+  top: auto;
+  width: 100%;
+  min-width: 0;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-page .draw-card-clip-panel.has-collection .draw-card-clip-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  overflow: visible;
+  scroll-snap-type: none;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-page .draw-card-clip-thumbnail {
+  width: 100%;
+  justify-self: stretch;
+  flex: none;
+  padding: 12px;
+  border-width: 2px;
+  border-radius: 16px;
+}
+
+/* 卡夹页专属：四角铆钉更大、更靠外，营造更明显的亚克力磁吸边框。 */
+.draw-card-shell.theme-draw-card .draw-card-clip-page .acrylic-magnet-corner {
+  width: 17px;
+  height: 17px;
+  border-width: 2px;
+}
+
+.draw-card-shell.theme-draw-card .draw-card-clip-page .acrylic-magnet-corner.top-left { top: 9px; left: 9px; }
+.draw-card-shell.theme-draw-card .draw-card-clip-page .acrylic-magnet-corner.top-right { top: 9px; right: 9px; }
+.draw-card-shell.theme-draw-card .draw-card-clip-page .acrylic-magnet-corner.bottom-left { bottom: 9px; left: 9px; }
+.draw-card-shell.theme-draw-card .draw-card-clip-page .acrylic-magnet-corner.bottom-right { right: 9px; bottom: 9px; }
+
+.draw-card-clip-page .draw-card-clip-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.draw-card-clip-page .draw-card-clip-head > div:first-child {
+  display: grid;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -2340,11 +2497,6 @@ body {
 
 .draw-card-shell.theme-draw-card .draw-card-utility-bar-draw {
   align-items: center;
-  min-height: 38px;
-}
-
-.draw-card-shell.theme-draw-card .draw-card-utility-bar-draw .draw-card-coin-balance {
-  height: 38px;
   min-height: 38px;
 }
 
@@ -3872,27 +4024,6 @@ button:disabled {
   text-transform: uppercase;
 }
 
-.luck-entry {
-  display: inline-flex;
-  align-items: center;
-  margin-top: 12px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #8b9994;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  opacity: 0.56;
-  text-transform: uppercase;
-  transition: opacity 180ms ease, color 180ms ease;
-}
-
-.luck-entry:hover {
-  color: #54625d;
-  opacity: 0.92;
-}
-
 .subtle-entry-row {
   display: flex;
   flex-wrap: wrap;
@@ -4074,9 +4205,12 @@ button:disabled {
 }
 
 .draw-card-coin-balance {
-  color: #fff0c8;
-  border-color: rgba(255, 216, 149, 0.26);
-  background: rgba(255, 216, 149, 0.1);
+  /* 与其它顶栏按钮保持同款胶囊样式；金色高亮仅作用于内部数字（.draw-card-coin-count） */
+}
+
+.draw-card-coin-count {
+  color: #ffd895;
+  font-weight: 800;
 }
 
 button.draw-card-utility-link {
@@ -7869,6 +8003,29 @@ textarea {
     align-items: center;
     justify-items: start;
   }
+
+  .draw-card-style-picker-actions {
+    flex-wrap: wrap;
+  }
+
+  .draw-card-style-picker-nav {
+    flex-wrap: wrap;
+  }
+
+  .draw-card-recent-tasks-head,
+  .draw-card-clip-page-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .draw-card-recent-tasks-head-actions,
+  .draw-card-clip-page-head-actions {
+    flex-wrap: wrap;
+  }
+
+  .draw-card-recent-tasks-actions > button {
+    flex: 1 1 auto;
+  }
 }
 
 @media (max-width: 640px) {
@@ -10384,6 +10541,196 @@ textarea {
   background: #fff0f0;
   color: #d70015;
   box-shadow: none;
+}
+
+/* ========== 选图定制页：深色 HMI 风格（作用域） ========== */
+.draw-card-shell.theme-draw-card.draw-card-checkout-page {
+  min-height: 100vh;
+}
+
+.draw-card-checkout-stage {
+  align-content: start;
+  gap: 16px;
+  padding-block: 28px;
+}
+
+.draw-card-checkout {
+  display: grid;
+  gap: 16px;
+  width: min(960px, 100%);
+  min-width: 0;
+  margin-inline: auto;
+}
+
+.draw-card-checkout-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+  min-width: 0;
+}
+
+.draw-card-checkout-head > div:first-child {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.draw-card-checkout-head h2 {
+  margin: 0;
+  font-size: clamp(2.6rem, 5vw, 4.5rem);
+}
+
+.draw-card-checkout-head .draw-card-subtitle {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.draw-card-checkout-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 顶栏余额/头像：置于页头内联布局，不再绝对定位 */
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .draw-card-utility-bar-draw {
+  position: static;
+  z-index: auto;
+  width: auto;
+  margin: 0;
+  transform: none;
+}
+
+/* 内容卡片：深色面板 */
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .draw-observability-card {
+  border-color: rgba(239, 225, 198, 0.15);
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025)),
+    rgba(21, 22, 25, 0.78);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.2);
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .draw-observability-card {
+  padding: 18px;
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page :is(h3, strong) {
+  color: #f6efe4;
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .storage-note {
+  color: rgba(243, 237, 225, 0.64);
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .error-note {
+  border-color: rgba(255, 139, 122, 0.35);
+  background: rgba(120, 32, 24, 0.28);
+  color: #ffc4ba;
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .success-note {
+  color: #8fe3c2;
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .field-label {
+  color: rgba(243, 237, 225, 0.86);
+}
+
+/* 订单信息与表单 */
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .draw-card-order-summary p,
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .draw-card-order-summary strong {
+  color: rgba(243, 237, 225, 0.86);
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .draw-card-order-form input,
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .draw-card-order-form textarea {
+  min-height: 44px;
+  border: 1px solid rgba(239, 225, 198, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+  color: #f6efe4;
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .draw-card-order-form textarea {
+  min-height: 84px;
+  padding: 12px;
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .draw-card-order-form input:focus,
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .draw-card-order-form textarea:focus {
+  outline: 3px solid rgba(255, 216, 149, 0.22);
+  outline-offset: 2px;
+  border-color: rgba(255, 216, 149, 0.55);
+}
+
+/* 现场制作说明 */
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .draw-card-onsite-wechat,
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .draw-card-fulfillment-note {
+  border-color: rgba(239, 225, 198, 0.15);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(243, 237, 225, 0.78);
+}
+
+/* 图片选择控件：深色适配 */
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .checkout-image-option {
+  border-color: transparent;
+  background: transparent;
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .checkout-image-option:hover {
+  border-color: rgba(255, 216, 149, 0.45);
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .checkout-image-option.is-selected {
+  border-color: #f0c98f;
+  background: rgba(255, 216, 149, 0.08);
+  box-shadow: 0 0 0 4px rgba(240, 201, 143, 0.28), 0 8px 18px rgba(0, 0, 0, 0.22);
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .checkout-image-quantity {
+  border-color: rgba(255, 216, 149, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .checkout-image-quantity button {
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff0c8;
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .checkout-image-quantity button:hover:not(:disabled) {
+  background: rgba(255, 216, 149, 0.14);
+  color: #fff3d6;
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .checkout-image-quantity button:disabled {
+  color: rgba(240, 201, 143, 0.3);
+}
+
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .checkout-image-quantity span {
+  color: #fff0c8;
+}
+
+/* 空状态提示 */
+.draw-card-shell.theme-draw-card.draw-card-checkout-page .draw-observability-card p {
+  color: rgba(243, 237, 225, 0.7);
+}
+
+/* 窄屏：页头纵向堆叠 */
+@media (max-width: 820px) {
+  .draw-card-checkout-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .draw-card-checkout-head-actions {
+    flex-wrap: wrap;
+  }
 }
 
 .body-book-page :is(.body-book-order-delete, .body-book-library-delete, .danger-button):hover:not(:disabled) {
