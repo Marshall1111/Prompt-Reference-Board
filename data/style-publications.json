@@ -817,5 +817,38 @@
     "sourceReferenceImageUrl": "/job-references/dd01ffb9-ae39-4f80-9fcb-c83eff6352e5/1-1788138466569.jpg",
     "createdAt": "2026-08-31T01:12:29.272Z",
     "updatedAt": "2026-08-31T01:12:29.272Z"
+  },
+  {
+    "publicationId": "8676f8192b1a785e098f2b321ef0ea7a",
+    "jobId": "f4da73c2-cba2-4fbd-90d1-76c93b35321f",
+    "styleId": "style_1788139496099",
+    "styleName": "Xi茶海报",
+    "prompt": "请以我上传图片中的单一主体为核心，生成1张极简治愈系白底创意海报。\r\n \r\n将上传图片里的所有物体作为画面中唯一的真实摄影主体并精修，保留主体的核心外形、颜色、材质、纹理、装饰细节和识别特征，并统一放置在纯白背景中，主体“居中”偏下，整体保留大面积留白，呈现出国际品牌广告式的高级静物摄影感。\r\n \r\n在主体周围加入少量黑色马克笔手绘线稿，包括小人、箭头、波浪线、云朵等。\r\n \r\n其中 4‑5 个黑色线稿小人 要围绕主体展开互动，像在一个微缩世界里认真工作。\r\n \r\n这些互动动作必须根据主体本身特点自动设计，例如：检查、擦拭、补水、运输、维修、挖取、测量、整理、休息、观察等，动作要和主体特征相关，而不是随机装饰。\r\n \r\n画面空白加入一句黑色手写短中文文案，文案根据主体特点自动生成，旁边配一个手绘箭头指向主体。\r\n \r\n整体风格要求：极简、安静、治愈、高级、克制、真实摄影感、留白充足、有故事感。\r\n不要复杂背景、不要 Logo、不要彩色插画、不要边框、不要大段排版、不要卡通化、不要动漫风、不要明显 AI 绘画感。",
+    "tags": [
+      "推荐",
+      "设计"
+    ],
+    "effectImageUrl": "/style-publications/8676f8192b1a785e098f2b321ef0ea7a/effect.webp",
+    "referenceImageUrl": "/style-publications/8676f8192b1a785e098f2b321ef0ea7a/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/f4da73c2-cba2-4fbd-90d1-76c93b35321f.png",
+    "sourceReferenceImageUrl": "/job-references/f4da73c2-cba2-4fbd-90d1-76c93b35321f/1-1788139902605.jpg",
+    "createdAt": "2026-08-31T01:33:14.053Z",
+    "updatedAt": "2026-08-31T01:33:14.053Z"
+  },
+  {
+    "publicationId": "ce4d4de03ecb27de92042254cf556a88",
+    "jobId": "6c2bed35-d8d0-4304-9fbb-6dfde659c168",
+    "styleId": "style_1788139429617",
+    "styleName": "怀旧社论书页",
+    "prompt": "基于参考图像，创作一页怀旧日的社论风格照片转素描艺术书页面。保留原始照片中的相同主体、姿势、面部表情、服装、构图和情感氛围。将完全相同的场景和人物转化为温暖的米白色纹理纸上的松散黑白手绘墨水插图，带有富有表现力的不完美线条、粗糙的交叉阴影、最小化的阴影处理，以及手工素描本的美学。围绕插图添加优雅的社论排版，包括一个小编号标题、简短的诗意手写风格说明文字，营造高端当代摄影杂志或日式视觉日记的感觉，文字中不要出现日期和地点。保留大量的奶油色留白空间、细微的纸张纹理、略显不完美的墨水印刷、低调的复古布局、精致的极简平面设计、情感温暖且电影感十足、照片与绘图之间连贯的过渡、高细节、自然比例、真实的人体解剖结构、无水印、无标志。",
+    "tags": [
+      "绘画"
+    ],
+    "effectImageUrl": "/style-publications/ce4d4de03ecb27de92042254cf556a88/effect.webp",
+    "referenceImageUrl": "/style-publications/ce4d4de03ecb27de92042254cf556a88/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/6c2bed35-d8d0-4304-9fbb-6dfde659c168.png",
+    "sourceReferenceImageUrl": "/job-references/6c2bed35-d8d0-4304-9fbb-6dfde659c168/1-1788141983978.jpg",
+    "createdAt": "2026-08-31T02:07:53.945Z",
+    "updatedAt": "2026-08-31T02:07:53.945Z"
   }
 ]
