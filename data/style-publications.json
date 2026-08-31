@@ -15,7 +15,10 @@
     "sourceEffectImageUrl": "/generated-images/bc0b5627-23bd-4f85-8a69-e695e672252d.png",
     "sourceReferenceImageUrl": "/job-references/bc0b5627-23bd-4f85-8a69-e695e672252d/1-1787912622256.jpg",
     "createdAt": "2026-08-29T03:58:21.257Z",
-    "updatedAt": "2026-08-29T23:43:42.739Z"
+    "updatedAt": "2026-08-29T23:43:42.739Z",
+    "effectGridImageUrl": "/style-publications/a8fb473a1a9ffe183c8b4ba6d283e319/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "f55c8b9505fce38f5ca12a76d40e25a6",
@@ -33,7 +36,10 @@
     "sourceEffectImageUrl": "/generated-images/6f105ba2-b860-4031-95e0-430238aeb8d2.png",
     "sourceReferenceImageUrl": "/job-references/6f105ba2-b860-4031-95e0-430238aeb8d2/1-1787900022004.jpg",
     "createdAt": "2026-08-29T07:29:26.660Z",
-    "updatedAt": "2026-08-29T23:43:45.682Z"
+    "updatedAt": "2026-08-29T23:43:45.682Z",
+    "effectGridImageUrl": "/style-publications/f55c8b9505fce38f5ca12a76d40e25a6/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "525ed85fee7eddcc358b81b2043d5db9",
@@ -50,7 +56,10 @@
     "sourceEffectImageUrl": "/generated-images/0169e70c-288a-482d-9737-bfc49a78ef81.png",
     "sourceReferenceImageUrl": "/job-references/0169e70c-288a-482d-9737-bfc49a78ef81/1-1787899890901.jpg",
     "createdAt": "2026-08-29T07:31:02.856Z",
-    "updatedAt": "2026-08-29T23:43:46.996Z"
+    "updatedAt": "2026-08-29T23:43:46.996Z",
+    "effectGridImageUrl": "/style-publications/525ed85fee7eddcc358b81b2043d5db9/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "d12281df06be4a4e687f7f3e581f16bb",
@@ -67,7 +76,10 @@
     "sourceEffectImageUrl": "/generated-images/a8a957c0-583c-4614-ba16-94632e3a6396.png",
     "sourceReferenceImageUrl": "/job-references/a8a957c0-583c-4614-ba16-94632e3a6396/1-1787983280743.jpg",
     "createdAt": "2026-08-29T07:33:32.442Z",
-    "updatedAt": "2026-08-29T23:43:48.371Z"
+    "updatedAt": "2026-08-29T23:43:48.371Z",
+    "effectGridImageUrl": "/style-publications/d12281df06be4a4e687f7f3e581f16bb/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "824aad736afec59812e7a4b8a6f1aafc",
@@ -84,7 +96,10 @@
     "sourceEffectImageUrl": "/generated-images/7e7899b0-4267-4d9e-8695-abe1331d13c3.png",
     "sourceReferenceImageUrl": "/job-references/7e7899b0-4267-4d9e-8695-abe1331d13c3/2-1787767181395.jpg",
     "createdAt": "2026-08-29T07:35:21.289Z",
-    "updatedAt": "2026-08-29T23:43:57.174Z"
+    "updatedAt": "2026-08-29T23:43:57.174Z",
+    "effectGridImageUrl": "/style-publications/824aad736afec59812e7a4b8a6f1aafc/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "8398e88ef5faddcdfbad8cfd47d14cdb",
@@ -102,7 +117,10 @@
     "sourceEffectImageUrl": "/generated-images/a3b69ea1-6e74-4d62-852e-a5986fe1e4cd.png",
     "sourceReferenceImageUrl": "/job-references/a3b69ea1-6e74-4d62-852e-a5986fe1e4cd/2-1787766661707.jpg",
     "createdAt": "2026-08-29T07:35:35.536Z",
-    "updatedAt": "2026-08-29T23:43:54.179Z"
+    "updatedAt": "2026-08-29T23:43:54.179Z",
+    "effectGridImageUrl": "/style-publications/8398e88ef5faddcdfbad8cfd47d14cdb/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "f647de1528384daba42519e1440501e5",
@@ -119,7 +137,10 @@
     "sourceEffectImageUrl": "/generated-images/bcd81fe5-d596-4e7b-a6a2-f2172d469fe8.png",
     "sourceReferenceImageUrl": "/job-references/bcd81fe5-d596-4e7b-a6a2-f2172d469fe8/1-1787639613226.jpg",
     "createdAt": "2026-08-29T07:36:25.403Z",
-    "updatedAt": "2026-08-29T07:36:25.403Z"
+    "updatedAt": "2026-08-29T07:36:25.403Z",
+    "effectGridImageUrl": "/style-publications/f647de1528384daba42519e1440501e5/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "3af3d273dd36b83972b40de4bd51efc0",
@@ -138,7 +159,10 @@
     "sourceEffectImageUrl": "/generated-images/26b97128-7989-4074-a5a1-a3504677fffe.png",
     "sourceReferenceImageUrl": "/job-references/26b97128-7989-4074-a5a1-a3504677fffe/1-1787469369360.jpg",
     "createdAt": "2026-08-29T07:36:53.312Z",
-    "updatedAt": "2026-08-29T07:36:53.312Z"
+    "updatedAt": "2026-08-29T07:36:53.312Z",
+    "effectGridImageUrl": "/style-publications/3af3d273dd36b83972b40de4bd51efc0/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "69f153d98b80e90b884b6d056b028a86",
@@ -156,7 +180,10 @@
     "sourceEffectImageUrl": "/generated-images/6c032bad-d524-4336-bc80-4a7686672a24.png",
     "sourceReferenceImageUrl": "/job-references/6c032bad-d524-4336-bc80-4a7686672a24/1-1787463602295.jpg",
     "createdAt": "2026-08-29T07:39:49.007Z",
-    "updatedAt": "2026-08-29T07:39:49.007Z"
+    "updatedAt": "2026-08-29T07:39:49.007Z",
+    "effectGridImageUrl": "/style-publications/69f153d98b80e90b884b6d056b028a86/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "7a4c53b39eee05fd370e01b80f09dbea",
@@ -175,7 +202,10 @@
     "sourceEffectImageUrl": "/generated-images/c56b66bc-8abe-4660-b8ac-1e36520cb033.png",
     "sourceReferenceImageUrl": "/job-references/c56b66bc-8abe-4660-b8ac-1e36520cb033/1-1787353756511.jpg",
     "createdAt": "2026-08-29T07:40:22.984Z",
-    "updatedAt": "2026-08-29T07:40:22.984Z"
+    "updatedAt": "2026-08-29T07:40:22.984Z",
+    "effectGridImageUrl": "/style-publications/7a4c53b39eee05fd370e01b80f09dbea/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "8f98a6e4b98acf4117b6749a72ed52d5",
@@ -194,7 +224,10 @@
     "sourceEffectImageUrl": "/generated-images/80a2c1c1-2b94-4359-bddc-49313e280a8d.png",
     "sourceReferenceImageUrl": "/job-references/80a2c1c1-2b94-4359-bddc-49313e280a8d/1-1787353837212.jpg",
     "createdAt": "2026-08-29T07:40:35.110Z",
-    "updatedAt": "2026-08-29T07:40:35.110Z"
+    "updatedAt": "2026-08-29T07:40:35.110Z",
+    "effectGridImageUrl": "/style-publications/8f98a6e4b98acf4117b6749a72ed52d5/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "4007458b934d189ea23208e2d1b0b885",
@@ -211,7 +244,10 @@
     "sourceEffectImageUrl": "/generated-images/3fed59ce-d9d8-4d43-9e97-e1ac015d705b.png",
     "sourceReferenceImageUrl": "/job-references/3fed59ce-d9d8-4d43-9e97-e1ac015d705b/1-1787364426690.jpg",
     "createdAt": "2026-08-29T07:40:50.825Z",
-    "updatedAt": "2026-08-29T07:40:50.825Z"
+    "updatedAt": "2026-08-29T07:40:50.825Z",
+    "effectGridImageUrl": "/style-publications/4007458b934d189ea23208e2d1b0b885/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "ef621e89b418724e7c31826dca10bd08",
@@ -228,7 +264,10 @@
     "sourceEffectImageUrl": "/generated-images/ebe68e8a-a3f5-4112-9801-68c5a89ee978.png",
     "sourceReferenceImageUrl": "/job-references/ebe68e8a-a3f5-4112-9801-68c5a89ee978/1-1787350175606.jpg",
     "createdAt": "2026-08-29T07:41:39.053Z",
-    "updatedAt": "2026-08-29T07:41:39.053Z"
+    "updatedAt": "2026-08-29T07:41:39.053Z",
+    "effectGridImageUrl": "/style-publications/ef621e89b418724e7c31826dca10bd08/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "db2cfc7728f75413dd17904a519638e0",
@@ -246,7 +285,10 @@
     "sourceEffectImageUrl": "/generated-images/80b6c439-ebe6-4efb-918a-fc81a9f8e2d9.png",
     "sourceReferenceImageUrl": "/job-references/80b6c439-ebe6-4efb-918a-fc81a9f8e2d9/1-1785817755217.jpg",
     "createdAt": "2026-08-29T07:45:54.709Z",
-    "updatedAt": "2026-08-29T07:45:54.709Z"
+    "updatedAt": "2026-08-29T07:45:54.709Z",
+    "effectGridImageUrl": "/style-publications/db2cfc7728f75413dd17904a519638e0/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "f926075b6ec5a79a52f216cc76de9f80",
@@ -263,7 +305,10 @@
     "sourceEffectImageUrl": "/generated-images/f0d7f026-78c3-4357-b374-f88b1e0548b5.png",
     "sourceReferenceImageUrl": "/job-references/f0d7f026-78c3-4357-b374-f88b1e0548b5/1-1785810680010.jpg",
     "createdAt": "2026-08-29T07:46:25.049Z",
-    "updatedAt": "2026-08-29T07:46:25.049Z"
+    "updatedAt": "2026-08-29T07:46:25.049Z",
+    "effectGridImageUrl": "/style-publications/f926075b6ec5a79a52f216cc76de9f80/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "ff93e2347a0fe6fe4369ceec8c77dfd2",
@@ -281,7 +326,10 @@
     "sourceEffectImageUrl": "/generated-images/57b47359-8482-40ff-b540-31b17ca0fea9.png",
     "sourceReferenceImageUrl": "/job-references/57b47359-8482-40ff-b540-31b17ca0fea9/1-1785460195635.jpg",
     "createdAt": "2026-08-29T07:47:37.269Z",
-    "updatedAt": "2026-08-29T07:47:37.269Z"
+    "updatedAt": "2026-08-29T07:47:37.269Z",
+    "effectGridImageUrl": "/style-publications/ff93e2347a0fe6fe4369ceec8c77dfd2/effect-small.webp",
+    "effectGridWidth": 480,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "317a8a38a3be463b6c83b9cd47f565b3",
@@ -299,7 +347,10 @@
     "sourceEffectImageUrl": "/generated-images/bae54a75-a52e-457d-b018-22c14bd333b5.png",
     "sourceReferenceImageUrl": "/job-references/bae54a75-a52e-457d-b018-22c14bd333b5/1-1785537089019.jpg",
     "createdAt": "2026-08-29T07:47:52.997Z",
-    "updatedAt": "2026-08-29T07:47:52.997Z"
+    "updatedAt": "2026-08-29T07:47:52.997Z",
+    "effectGridImageUrl": "/style-publications/317a8a38a3be463b6c83b9cd47f565b3/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "ff8a74b515005beaad17fba4706f013d",
@@ -317,7 +368,10 @@
     "sourceEffectImageUrl": "/generated-images/4b179a59-dee2-4dc5-b5db-66878e830722.png",
     "sourceReferenceImageUrl": "/job-references/4b179a59-dee2-4dc5-b5db-66878e830722/1-1785578861578.jpg",
     "createdAt": "2026-08-29T07:48:10.969Z",
-    "updatedAt": "2026-08-29T07:48:10.969Z"
+    "updatedAt": "2026-08-29T07:48:10.969Z",
+    "effectGridImageUrl": "/style-publications/ff8a74b515005beaad17fba4706f013d/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "c4684b81b4b52417caaa0fd69ecffee8",
@@ -335,7 +389,10 @@
     "sourceEffectImageUrl": "/generated-images/b19cfbaf-05c9-4ab7-8f0e-8a0ece2c5f9c.png",
     "sourceReferenceImageUrl": "/job-references/b19cfbaf-05c9-4ab7-8f0e-8a0ece2c5f9c/1-1785455187584.jpg",
     "createdAt": "2026-08-29T07:48:55.130Z",
-    "updatedAt": "2026-08-29T07:48:55.130Z"
+    "updatedAt": "2026-08-29T07:48:55.130Z",
+    "effectGridImageUrl": "/style-publications/c4684b81b4b52417caaa0fd69ecffee8/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "82fc3aa36b3745af1eee8c689395c966",
@@ -351,7 +408,10 @@
     "sourceEffectImageUrl": "/generated-images/c71cf12d-e3d3-4555-95d7-6e5e27f5027f.png",
     "sourceReferenceImageUrl": "/job-references/c71cf12d-e3d3-4555-95d7-6e5e27f5027f/1-1785456581545.jpg",
     "createdAt": "2026-08-29T07:49:10.854Z",
-    "updatedAt": "2026-08-29T07:49:10.854Z"
+    "updatedAt": "2026-08-29T07:49:10.854Z",
+    "effectGridImageUrl": "/style-publications/82fc3aa36b3745af1eee8c689395c966/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "1293d1f5e439314e728f65cbaef7f032",
@@ -367,7 +427,10 @@
     "sourceEffectImageUrl": "/generated-images/cedfc2c2-a89e-4174-a5e1-289355ff8f35.png",
     "sourceReferenceImageUrl": "/job-references/cedfc2c2-a89e-4174-a5e1-289355ff8f35/1-1785457640120.jpg",
     "createdAt": "2026-08-29T07:49:25.026Z",
-    "updatedAt": "2026-08-29T07:49:25.026Z"
+    "updatedAt": "2026-08-29T07:49:25.026Z",
+    "effectGridImageUrl": "/style-publications/1293d1f5e439314e728f65cbaef7f032/effect-small.webp",
+    "effectGridWidth": 426,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "dd60d80021926ff3f49df85e67864719",
@@ -383,7 +446,10 @@
     "sourceEffectImageUrl": "/generated-images/9e57b7b7-65bd-4f3e-b9f1-10d7c43f76a1.png",
     "sourceReferenceImageUrl": "/job-references/9e57b7b7-65bd-4f3e-b9f1-10d7c43f76a1/1-1785457125540.jpg",
     "createdAt": "2026-08-29T07:49:30.935Z",
-    "updatedAt": "2026-08-29T07:49:30.935Z"
+    "updatedAt": "2026-08-29T07:49:30.935Z",
+    "effectGridImageUrl": "/style-publications/dd60d80021926ff3f49df85e67864719/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "43b31980749e48fb052960d846f9a9ee",
@@ -400,7 +466,10 @@
     "sourceEffectImageUrl": "/generated-images/36db05dd-3e57-4455-b913-7222dfcdd98c.png",
     "sourceReferenceImageUrl": "/job-references/36db05dd-3e57-4455-b913-7222dfcdd98c/1-1785215060539.jpg",
     "createdAt": "2026-08-29T07:49:50.972Z",
-    "updatedAt": "2026-08-29T07:49:50.972Z"
+    "updatedAt": "2026-08-29T07:49:50.972Z",
+    "effectGridImageUrl": "/style-publications/43b31980749e48fb052960d846f9a9ee/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "d4b9d8f99d03e552e7e3db93665e0136",
@@ -417,7 +486,10 @@
     "sourceEffectImageUrl": "/generated-images/70b7f0ff-3dfc-4a0f-a652-3c3e4ebd2d57.png",
     "sourceReferenceImageUrl": "/job-references/70b7f0ff-3dfc-4a0f-a652-3c3e4ebd2d57/1-1785046793148.jpg",
     "createdAt": "2026-08-29T07:50:39.011Z",
-    "updatedAt": "2026-08-29T07:50:39.011Z"
+    "updatedAt": "2026-08-29T07:50:39.011Z",
+    "effectGridImageUrl": "/style-publications/d4b9d8f99d03e552e7e3db93665e0136/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "4ae9790a2675b90a0d37e20ba53ec677",
@@ -434,7 +506,10 @@
     "sourceEffectImageUrl": "/generated-images/5ef33fae-8382-498d-a612-c83d62f9348b.png",
     "sourceReferenceImageUrl": "/job-references/5ef33fae-8382-498d-a612-c83d62f9348b/1-1784005249528.jpg",
     "createdAt": "2026-08-29T07:52:14.944Z",
-    "updatedAt": "2026-08-29T07:52:14.944Z"
+    "updatedAt": "2026-08-29T07:52:14.944Z",
+    "effectGridImageUrl": "/style-publications/4ae9790a2675b90a0d37e20ba53ec677/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "309abe05bb3c80b3932928b59a5016bd",
@@ -451,7 +526,10 @@
     "sourceEffectImageUrl": "/generated-images/577daa2a-e5cb-4070-afe6-48330834c42f.png",
     "sourceReferenceImageUrl": "/job-references/577daa2a-e5cb-4070-afe6-48330834c42f/1-1782991441051.jpg",
     "createdAt": "2026-08-29T07:54:44.918Z",
-    "updatedAt": "2026-08-29T07:54:44.918Z"
+    "updatedAt": "2026-08-29T07:54:44.918Z",
+    "effectGridImageUrl": "/style-publications/309abe05bb3c80b3932928b59a5016bd/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "3c47f16f46ff4c12bfdb1a632f8f6996",
@@ -469,7 +547,10 @@
     "sourceEffectImageUrl": "/generated-images/6526396c-592e-49f7-b3a7-1672c5378ed9.png",
     "sourceReferenceImageUrl": "/job-references/6526396c-592e-49f7-b3a7-1672c5378ed9/1-1787990380830.jpg",
     "createdAt": "2026-08-29T08:01:18.014Z",
-    "updatedAt": "2026-08-29T08:01:18.014Z"
+    "updatedAt": "2026-08-29T08:01:18.014Z",
+    "effectGridImageUrl": "/style-publications/3c47f16f46ff4c12bfdb1a632f8f6996/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "d75c6fd43eed10bf1c3da848040b2108",
@@ -486,7 +567,10 @@
     "sourceEffectImageUrl": "/generated-images/65386a70-23d6-4d4d-8fbf-c1ba9113d0a0.png",
     "sourceReferenceImageUrl": "/job-references/65386a70-23d6-4d4d-8fbf-c1ba9113d0a0/1-1787990346659.jpg",
     "createdAt": "2026-08-29T08:01:28.289Z",
-    "updatedAt": "2026-08-29T08:01:28.289Z"
+    "updatedAt": "2026-08-29T08:01:28.289Z",
+    "effectGridImageUrl": "/style-publications/d75c6fd43eed10bf1c3da848040b2108/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "08736649f23bdbe246e54a60a057ba38",
@@ -503,7 +587,10 @@
     "sourceEffectImageUrl": "/generated-images/014f981f-1f4a-4f2e-bf82-6cb0a463ad87.png",
     "sourceReferenceImageUrl": "/job-references/014f981f-1f4a-4f2e-bf82-6cb0a463ad87/1-1787990448578.jpg",
     "createdAt": "2026-08-29T08:01:50.811Z",
-    "updatedAt": "2026-08-29T08:01:50.811Z"
+    "updatedAt": "2026-08-29T08:01:50.811Z",
+    "effectGridImageUrl": "/style-publications/08736649f23bdbe246e54a60a057ba38/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "31d34f95b047aa426c3b342e49e9a57e",
@@ -521,7 +608,10 @@
     "sourceEffectImageUrl": "/generated-images/3c89efbe-eb17-4fc2-bd30-2ec4ab6e4b2f.png",
     "sourceReferenceImageUrl": "/job-references/3c89efbe-eb17-4fc2-bd30-2ec4ab6e4b2f/1-1787816256108.jpg",
     "createdAt": "2026-08-29T08:15:29.875Z",
-    "updatedAt": "2026-08-29T08:15:29.875Z"
+    "updatedAt": "2026-08-29T08:15:29.875Z",
+    "effectGridImageUrl": "/style-publications/31d34f95b047aa426c3b342e49e9a57e/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "f639a3f46e3a6323edfff3a56e89b7b6",
@@ -539,7 +629,10 @@
     "sourceEffectImageUrl": "/generated-images/064cd830-e7bf-458d-9697-5e9d4a66c232.png",
     "sourceReferenceImageUrl": "/job-references/064cd830-e7bf-458d-9697-5e9d4a66c232/1-1787793431432.jpg",
     "createdAt": "2026-08-29T08:15:52.219Z",
-    "updatedAt": "2026-08-29T08:15:52.219Z"
+    "updatedAt": "2026-08-29T08:15:52.219Z",
+    "effectGridImageUrl": "/style-publications/f639a3f46e3a6323edfff3a56e89b7b6/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "0494e1669be4ed5d4b3c18b8d8060e93",
@@ -556,7 +649,10 @@
     "sourceEffectImageUrl": "/generated-images/39c0c431-b7b2-4de3-8594-079183d68b48.png",
     "sourceReferenceImageUrl": "/job-references/39c0c431-b7b2-4de3-8594-079183d68b48/1-1787793231948.jpg",
     "createdAt": "2026-08-29T08:16:10.362Z",
-    "updatedAt": "2026-08-29T08:16:10.362Z"
+    "updatedAt": "2026-08-29T08:16:10.362Z",
+    "effectGridImageUrl": "/style-publications/0494e1669be4ed5d4b3c18b8d8060e93/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "b36136cc0c30babe2454385a4bfc3d78",
@@ -574,7 +670,10 @@
     "sourceEffectImageUrl": "/generated-images/d1580a52-4655-4049-bbd6-bd0988bd23d6.png",
     "sourceReferenceImageUrl": "/job-references/d1580a52-4655-4049-bbd6-bd0988bd23d6/2-1787793213596.jpg",
     "createdAt": "2026-08-29T08:16:19.641Z",
-    "updatedAt": "2026-08-29T08:16:19.641Z"
+    "updatedAt": "2026-08-29T08:16:19.641Z",
+    "effectGridImageUrl": "/style-publications/b36136cc0c30babe2454385a4bfc3d78/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "b2a3fa996f1a582e56d034dd1aa1d814",
@@ -592,7 +691,10 @@
     "sourceEffectImageUrl": "/generated-images/132d9c2c-e1ec-4a45-9d11-d056e2141c13.png",
     "sourceReferenceImageUrl": "/job-references/132d9c2c-e1ec-4a45-9d11-d056e2141c13/1-1787793168342.jpg",
     "createdAt": "2026-08-29T08:16:30.168Z",
-    "updatedAt": "2026-08-29T08:16:30.168Z"
+    "updatedAt": "2026-08-29T08:16:30.168Z",
+    "effectGridImageUrl": "/style-publications/b2a3fa996f1a582e56d034dd1aa1d814/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "89a41161c23dc69ca6aec3ae96de65af",
@@ -609,7 +711,10 @@
     "sourceEffectImageUrl": "/generated-images/54f3811d-4c15-41bd-8531-edeaf56fe74b.png",
     "sourceReferenceImageUrl": "/job-references/54f3811d-4c15-41bd-8531-edeaf56fe74b/1-1787812824649.jpg",
     "createdAt": "2026-08-29T08:18:15.240Z",
-    "updatedAt": "2026-08-29T08:18:15.240Z"
+    "updatedAt": "2026-08-29T08:18:15.240Z",
+    "effectGridImageUrl": "/style-publications/89a41161c23dc69ca6aec3ae96de65af/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "a3822772d9b34534d40934105f132e3f",
@@ -627,7 +732,10 @@
     "sourceEffectImageUrl": "/generated-images/d946bd0b-ac0c-4dc1-9d60-0cd7ad6cd888.png",
     "sourceReferenceImageUrl": "/job-references/d946bd0b-ac0c-4dc1-9d60-0cd7ad6cd888/1-1782657546728.jpg",
     "createdAt": "2026-08-29T08:19:21.199Z",
-    "updatedAt": "2026-08-29T23:44:14.112Z"
+    "updatedAt": "2026-08-29T23:44:14.112Z",
+    "effectGridImageUrl": "/style-publications/a3822772d9b34534d40934105f132e3f/effect-small.webp",
+    "effectGridWidth": 480,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "164721b149871a078200fe0ea7d0a734",
@@ -645,7 +753,10 @@
     "sourceEffectImageUrl": "/generated-images/e135d08a-c3b9-420a-a34c-373ff01e9320.png",
     "sourceReferenceImageUrl": "/job-references/e135d08a-c3b9-420a-a34c-373ff01e9320/1-1780824455375.jpg",
     "createdAt": "2026-08-29T09:53:37.504Z",
-    "updatedAt": "2026-08-29T23:44:13.088Z"
+    "updatedAt": "2026-08-29T23:44:13.088Z",
+    "effectGridImageUrl": "/style-publications/164721b149871a078200fe0ea7d0a734/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "056434649e64b551043a749ed8c91179",
@@ -663,7 +774,10 @@
     "sourceEffectImageUrl": "/generated-images/3a84a0f9-bb87-4205-b7ce-3ad016a98f5e.png",
     "sourceReferenceImageUrl": "/job-references/3a84a0f9-bb87-4205-b7ce-3ad016a98f5e/1-1787364426731.jpg",
     "createdAt": "2026-08-29T10:12:55.910Z",
-    "updatedAt": "2026-08-29T23:44:12.067Z"
+    "updatedAt": "2026-08-29T23:44:12.067Z",
+    "effectGridImageUrl": "/style-publications/056434649e64b551043a749ed8c91179/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "e0b2f061c507b41ba2978ccf5ee952bc",
@@ -681,7 +795,10 @@
     "sourceEffectImageUrl": "/generated-images/abcc7bde-cd42-4772-bfb3-1d5a744f727c.png",
     "sourceReferenceImageUrl": "/job-references/abcc7bde-cd42-4772-bfb3-1d5a744f727c/1-1780636006964.jpg",
     "createdAt": "2026-08-29T10:15:08.343Z",
-    "updatedAt": "2026-08-29T23:44:10.334Z"
+    "updatedAt": "2026-08-29T23:44:10.334Z",
+    "effectGridImageUrl": "/style-publications/e0b2f061c507b41ba2978ccf5ee952bc/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "7337f517f23c87e2ed46c4f5dc79eb8c",
@@ -698,7 +815,10 @@
     "sourceEffectImageUrl": "/generated-images/4ed7eb71-3cf8-497b-bcae-2199345cab35.png",
     "sourceReferenceImageUrl": "/job-references/4ed7eb71-3cf8-497b-bcae-2199345cab35/1-1783927773915.jpg",
     "createdAt": "2026-08-29T10:16:57.148Z",
-    "updatedAt": "2026-08-29T23:44:08.852Z"
+    "updatedAt": "2026-08-29T23:44:08.852Z",
+    "effectGridImageUrl": "/style-publications/7337f517f23c87e2ed46c4f5dc79eb8c/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "c66f986db7193e1cc8dcd81e1e69022a",
@@ -715,7 +835,10 @@
     "sourceEffectImageUrl": "/generated-images/98c1693c-6895-4676-927a-b5061768d936.png",
     "sourceReferenceImageUrl": "/job-references/98c1693c-6895-4676-927a-b5061768d936/1-1784380801897.jpg",
     "createdAt": "2026-08-29T10:17:09.097Z",
-    "updatedAt": "2026-08-29T23:44:07.156Z"
+    "updatedAt": "2026-08-29T23:44:07.156Z",
+    "effectGridImageUrl": "/style-publications/c66f986db7193e1cc8dcd81e1e69022a/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "e5c167da54deabd7f07afd5cfe599652",
@@ -732,7 +855,10 @@
     "sourceEffectImageUrl": "/generated-images/adf6a50d-a709-45f4-8d39-4fccbcdbb20f.png",
     "sourceReferenceImageUrl": "/job-references/adf6a50d-a709-45f4-8d39-4fccbcdbb20f/1-1781524371403.jpg",
     "createdAt": "2026-08-29T11:58:13.347Z",
-    "updatedAt": "2026-08-29T23:44:05.616Z"
+    "updatedAt": "2026-08-29T23:44:05.616Z",
+    "effectGridImageUrl": "/style-publications/e5c167da54deabd7f07afd5cfe599652/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "82187c32400def849104d94e52389eb0",
@@ -748,7 +874,10 @@
     "sourceEffectImageUrl": "/generated-images/1206f9c8-6117-46ee-912a-3307e1f99879.png",
     "sourceReferenceImageUrl": "/job-references/1206f9c8-6117-46ee-912a-3307e1f99879/1-1788046585720.jpg",
     "createdAt": "2026-08-29T23:40:59.364Z",
-    "updatedAt": "2026-08-29T23:44:03.727Z"
+    "updatedAt": "2026-08-29T23:44:03.727Z",
+    "effectGridImageUrl": "/style-publications/82187c32400def849104d94e52389eb0/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "d93faffa05c8e8d6ac23bcbebf5623db",
@@ -765,7 +894,10 @@
     "sourceEffectImageUrl": "/generated-images/6bf1b726-a5c6-4dd4-8cb8-e1f316257298.png",
     "sourceReferenceImageUrl": "/job-references/6bf1b726-a5c6-4dd4-8cb8-e1f316257298/1-1788047467894.jpg",
     "createdAt": "2026-08-29T23:53:56.852Z",
-    "updatedAt": "2026-08-29T23:53:56.852Z"
+    "updatedAt": "2026-08-29T23:53:56.852Z",
+    "effectGridImageUrl": "/style-publications/d93faffa05c8e8d6ac23bcbebf5623db/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "5c517d89f272ebd079c8adeaa0f5c1d7",
@@ -782,7 +914,10 @@
     "sourceEffectImageUrl": "/generated-images/43a6a931-7661-4484-b877-0b160700bcd8.png",
     "sourceReferenceImageUrl": "/job-references/43a6a931-7661-4484-b877-0b160700bcd8/1-1788130151211.jpg",
     "createdAt": "2026-08-30T22:51:22.707Z",
-    "updatedAt": "2026-08-30T22:51:22.707Z"
+    "updatedAt": "2026-08-30T22:51:22.707Z",
+    "effectGridImageUrl": "/style-publications/5c517d89f272ebd079c8adeaa0f5c1d7/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "1f4093158d514e924d50bc1d0619f5da",
@@ -799,7 +934,10 @@
     "sourceEffectImageUrl": "/generated-images/f5ae17cc-56bc-4ddb-884a-da9d479a06d8.png",
     "sourceReferenceImageUrl": "/job-references/f5ae17cc-56bc-4ddb-884a-da9d479a06d8/1-1788138637216.jpg",
     "createdAt": "2026-08-31T01:12:21.694Z",
-    "updatedAt": "2026-08-31T01:12:21.694Z"
+    "updatedAt": "2026-08-31T01:12:21.694Z",
+    "effectGridImageUrl": "/style-publications/1f4093158d514e924d50bc1d0619f5da/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "381f9f4d5e8adeb99533f8686fbb20ee",
@@ -816,7 +954,10 @@
     "sourceEffectImageUrl": "/generated-images/dd01ffb9-ae39-4f80-9fcb-c83eff6352e5.png",
     "sourceReferenceImageUrl": "/job-references/dd01ffb9-ae39-4f80-9fcb-c83eff6352e5/1-1788138466569.jpg",
     "createdAt": "2026-08-31T01:12:29.272Z",
-    "updatedAt": "2026-08-31T01:12:29.272Z"
+    "updatedAt": "2026-08-31T01:12:29.272Z",
+    "effectGridImageUrl": "/style-publications/381f9f4d5e8adeb99533f8686fbb20ee/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "8676f8192b1a785e098f2b321ef0ea7a",
@@ -833,7 +974,10 @@
     "sourceEffectImageUrl": "/generated-images/f4da73c2-cba2-4fbd-90d1-76c93b35321f.png",
     "sourceReferenceImageUrl": "/job-references/f4da73c2-cba2-4fbd-90d1-76c93b35321f/1-1788139902605.jpg",
     "createdAt": "2026-08-31T01:33:14.053Z",
-    "updatedAt": "2026-08-31T01:33:14.053Z"
+    "updatedAt": "2026-08-31T01:33:14.053Z",
+    "effectGridImageUrl": "/style-publications/8676f8192b1a785e098f2b321ef0ea7a/effect-small.webp",
+    "effectGridWidth": 426,
+    "effectGridHeight": 640
   },
   {
     "publicationId": "ce4d4de03ecb27de92042254cf556a88",
@@ -849,6 +993,9 @@
     "sourceEffectImageUrl": "/generated-images/6c2bed35-d8d0-4304-9fbb-6dfde659c168.png",
     "sourceReferenceImageUrl": "/job-references/6c2bed35-d8d0-4304-9fbb-6dfde659c168/1-1788141983978.jpg",
     "createdAt": "2026-08-31T02:07:53.945Z",
-    "updatedAt": "2026-08-31T02:07:53.945Z"
+    "updatedAt": "2026-08-31T02:07:53.945Z",
+    "effectGridImageUrl": "/style-publications/ce4d4de03ecb27de92042254cf556a88/effect-small.webp",
+    "effectGridWidth": 512,
+    "effectGridHeight": 640
   }
 ]

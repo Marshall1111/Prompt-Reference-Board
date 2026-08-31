@@ -58,6 +58,7 @@ const miniImageRoot = path.join(rootDir, "wechat-miniprogram", "miniprogram", "i
 const execFileAsync = promisify(execFile);
 const RESULT_THUMBNAIL_MAX_EDGE = 384;
 const PUBLIC_PREVIEW_MAX_EDGE = 1536;
+const STYLE_GRID_PREVIEW_MAX_EDGE = 640;
 const REFERENCE_THUMBNAIL_MAX_EDGE = 240;
 const DRAW_CARD_GROUP_NAME = "抽卡";
 const BODY_BOOK_MAX_REFERENCE_COUNT = 3;
@@ -14179,6 +14180,9 @@ function toPublicStylePublication(publication) {
     styleName: String(publication.styleName || ""),
     tags: normalizeTags(publication.tags),
     effectImageUrl: String(publication.effectImageUrl || ""),
+    effectGridImageUrl: String(publication.effectGridImageUrl || publication.effectImageUrl || ""),
+    effectGridWidth: Number(publication.effectGridWidth) || null,
+    effectGridHeight: Number(publication.effectGridHeight) || null,
     referenceImageUrl: String(publication.referenceImageUrl || ""),
     createdAt: publication.createdAt || null,
     updatedAt: publication.updatedAt || null
@@ -14241,6 +14245,13 @@ async function createStylePublicationFromJob(job, tags, style) {
     urlPrefix: `/style-publications/${publicationId}`,
     maxEdge: PUBLIC_PREVIEW_MAX_EDGE
   });
+  const effectGridThumbnail = await createImageThumbnail({
+    buffer: effectSourceBytes,
+    outputRoot: publicationDir,
+    outputName: "effect-small",
+    urlPrefix: `/style-publications/${publicationId}`,
+    maxEdge: STYLE_GRID_PREVIEW_MAX_EDGE
+  });
   const referenceThumbnail = await createImageThumbnail({
     buffer: referenceSourceBytes,
     outputRoot: publicationDir,
@@ -14261,6 +14272,9 @@ async function createStylePublicationFromJob(job, tags, style) {
     prompt: String(job.prompt || ""),
     tags: normalizeStylePublicationTags(tags),
     effectImageUrl: effectThumbnail.url,
+    effectGridImageUrl: (effectGridThumbnail && effectGridThumbnail.url) ? effectGridThumbnail.url : effectThumbnail.url,
+    effectGridWidth: effectGridThumbnail?.width || null,
+    effectGridHeight: effectGridThumbnail?.height || null,
     referenceImageUrl: referenceThumbnail.url,
     sourceEffectImageUrl: String(job.result?.imageUrl || ""),
     sourceReferenceImageUrl: String(userReference.url || ""),

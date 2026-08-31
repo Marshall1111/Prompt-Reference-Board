@@ -9,7 +9,8 @@
     "server": "node server/index.js",
     "build": "vite build",
     "start": "node server/index.js",
-    "backfill:thumbnails": "node tools/backfill-image-thumbnails.mjs"
+    "backfill:thumbnails": "node tools/backfill-image-thumbnails.mjs",
+    "backfill:style-previews": "node tools/backfill-style-publication-previews.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.1.1",

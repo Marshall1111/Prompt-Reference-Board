@@ -1899,6 +1899,7 @@ body {
   display: grid;
   gap: 22px;
   width: min(1180px, 100%);
+  min-width: 0;
 }
 
 .draw-card-style-picker-head {
@@ -1937,27 +1938,30 @@ body {
 
 .draw-card-style-picker-panel {
   width: 100%;
+  min-width: 0;
 }
 
 .draw-card-publication-grid {
-  columns: 2;
-  column-gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, calc(50% - 6px)), 1fr));
+  gap: 12px;
   width: 100%;
 }
 
 .draw-card-publication-card {
-  display: inline-grid;
+  display: grid;
   gap: 8px;
   width: 100%;
-  margin: 0 0 12px;
+  min-width: 0;
   padding: 8px;
-  break-inside: avoid;
   border: 1px solid rgba(239, 225, 198, 0.12);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.04);
   color: #f3ede1;
   text-align: left;
   cursor: pointer;
+  content-visibility: auto;
+  contain-intrinsic-size: 220px 320px;
 }
 
 .draw-card-publication-effect {
@@ -2088,7 +2092,7 @@ body {
 }
 
 @media (max-width: 640px) {
-  .draw-card-publication-grid { column-gap: 8px; }
+  .draw-card-publication-grid { gap: 8px; }
   .admin-style-publication-card { grid-template-columns: 1fr; }
 }
 

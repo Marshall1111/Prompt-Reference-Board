@@ -6382,8 +6382,14 @@ function PublicExperiencePage({ config, standaloneStylePicker = false }) {
                 {publicStyleItems.map((item) => (
                   <button className="draw-card-publication-card" key={item.publicationId} onClick={() => setActivePublishedStyle(item)} type="button">
                     <div className="draw-card-publication-effect">
-                      <img alt={`${item.styleName}发布效果`} src={item.effectImageUrl} />
-                      {(item.referenceThumbnailUrl || item.referenceImageUrl) ? <img alt="用户原图缩略图" className="draw-card-publication-reference" src={item.referenceThumbnailUrl || item.referenceImageUrl} /> : null}
+                      <img
+                        alt={`${item.styleName}发布效果`}
+                        decoding="async"
+                        loading="lazy"
+                        src={item.effectGridImageUrl || item.effectImageUrl}
+                        style={item.effectGridWidth && item.effectGridHeight ? { aspectRatio: `${item.effectGridWidth} / ${item.effectGridHeight}` } : undefined}
+                      />
+                      {(item.referenceThumbnailUrl || item.referenceImageUrl) ? <img alt="用户原图缩略图" className="draw-card-publication-reference" decoding="async" loading="lazy" src={item.referenceThumbnailUrl || item.referenceImageUrl} /> : null}
                     </div>
                     <strong>{item.styleName}</strong>
                   </button>

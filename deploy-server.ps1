@@ -79,6 +79,7 @@ $remoteCommand = @(
   "cd '$RemoteAppPath'",
   "npm install",
   "if grep -q '""backfill:thumbnails""' package.json; then npm run backfill:thumbnails; fi",
+  "if grep -q '""backfill:style-previews""' package.json; then npm run backfill:style-previews; fi",
   "npm run build",
   "sudo systemctl restart prompt-gallery",
   "rm -f '$RemoteArchivePath'"
