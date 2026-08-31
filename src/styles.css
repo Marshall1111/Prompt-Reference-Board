@@ -2010,6 +2010,44 @@ body {
   justify-content: flex-end;
 }
 
+.admin-style-publication-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 4px;
+}
+
+.admin-style-publication-filter .style-publication-tag {
+  min-height: 30px;
+  padding: 0 14px;
+}
+
+.style-publication-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #6e6e73;
+  font-size: 0.85rem;
+}
+
+.style-publication-rank-input {
+  width: 78px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #cbd5d0;
+  border-radius: 8px;
+  background: #fffdf9;
+  color: #25413c;
+  font: inherit;
+  font-weight: 700;
+  text-align: center;
+}
+
+.style-publication-rank-input:focus {
+  outline: 2px solid #115e59;
+  border-color: #115e59;
+}
+
 .style-publication-modal {
   width: min(520px, 100%);
 }

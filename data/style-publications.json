@@ -18,7 +18,12 @@
     "updatedAt": "2026-08-29T23:43:42.739Z",
     "effectGridImageUrl": "/style-publications/a8fb473a1a9ffe183c8b4ba6d283e319/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 17,
+      "儿童": 8,
+      "日常": 9
+    }
   },
   {
     "publicationId": "f55c8b9505fce38f5ca12a76d40e25a6",
@@ -39,7 +44,12 @@
     "updatedAt": "2026-08-29T23:43:45.682Z",
     "effectGridImageUrl": "/style-publications/f55c8b9505fce38f5ca12a76d40e25a6/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 16,
+      "儿童": 7,
+      "日常": 8
+    }
   },
   {
     "publicationId": "525ed85fee7eddcc358b81b2043d5db9",
@@ -59,7 +69,11 @@
     "updatedAt": "2026-08-29T23:43:46.996Z",
     "effectGridImageUrl": "/style-publications/525ed85fee7eddcc358b81b2043d5db9/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "日常": 7,
+      "幽默": 4
+    }
   },
   {
     "publicationId": "d12281df06be4a4e687f7f3e581f16bb",
@@ -79,7 +93,11 @@
     "updatedAt": "2026-08-29T23:43:48.371Z",
     "effectGridImageUrl": "/style-publications/d12281df06be4a4e687f7f3e581f16bb/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 15,
+      "幽默": 3
+    }
   },
   {
     "publicationId": "824aad736afec59812e7a4b8a6f1aafc",
@@ -99,7 +117,11 @@
     "updatedAt": "2026-08-29T23:43:57.174Z",
     "effectGridImageUrl": "/style-publications/824aad736afec59812e7a4b8a6f1aafc/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 13,
+      "儿童": 6
+    }
   },
   {
     "publicationId": "8398e88ef5faddcdfbad8cfd47d14cdb",
@@ -120,7 +142,12 @@
     "updatedAt": "2026-08-29T23:43:54.179Z",
     "effectGridImageUrl": "/style-publications/8398e88ef5faddcdfbad8cfd47d14cdb/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 14,
+      "旅行": 7,
+      "幽默": 2
+    }
   },
   {
     "publicationId": "f647de1528384daba42519e1440501e5",
@@ -140,7 +167,11 @@
     "updatedAt": "2026-08-29T07:36:25.403Z",
     "effectGridImageUrl": "/style-publications/f647de1528384daba42519e1440501e5/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 2,
+      "日常": 18
+    }
   },
   {
     "publicationId": "3af3d273dd36b83972b40de4bd51efc0",
@@ -162,7 +193,13 @@
     "updatedAt": "2026-08-29T07:36:53.312Z",
     "effectGridImageUrl": "/style-publications/3af3d273dd36b83972b40de4bd51efc0/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 34,
+      "儿童": 22,
+      "旅行": 18,
+      "幽默": 11
+    }
   },
   {
     "publicationId": "69f153d98b80e90b884b6d056b028a86",
@@ -183,7 +220,12 @@
     "updatedAt": "2026-08-29T07:39:49.007Z",
     "effectGridImageUrl": "/style-publications/69f153d98b80e90b884b6d056b028a86/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 33,
+      "宠物": 14,
+      "旅行": 17
+    }
   },
   {
     "publicationId": "7a4c53b39eee05fd370e01b80f09dbea",
@@ -205,7 +247,13 @@
     "updatedAt": "2026-08-29T07:40:22.984Z",
     "effectGridImageUrl": "/style-publications/7a4c53b39eee05fd370e01b80f09dbea/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 32,
+      "儿童": 21,
+      "旅行": 16,
+      "幽默": 10
+    }
   },
   {
     "publicationId": "8f98a6e4b98acf4117b6749a72ed52d5",
@@ -227,7 +275,13 @@
     "updatedAt": "2026-08-29T07:40:35.110Z",
     "effectGridImageUrl": "/style-publications/8f98a6e4b98acf4117b6749a72ed52d5/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 31,
+      "儿童": 20,
+      "旅行": 15,
+      "幽默": 9
+    }
   },
   {
     "publicationId": "4007458b934d189ea23208e2d1b0b885",
@@ -247,7 +301,11 @@
     "updatedAt": "2026-08-29T07:40:50.825Z",
     "effectGridImageUrl": "/style-publications/4007458b934d189ea23208e2d1b0b885/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "儿童": 19,
+      "幽默": 8
+    }
   },
   {
     "publicationId": "ef621e89b418724e7c31826dca10bd08",
@@ -267,7 +325,11 @@
     "updatedAt": "2026-08-29T07:41:39.053Z",
     "effectGridImageUrl": "/style-publications/ef621e89b418724e7c31826dca10bd08/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "儿童": 18,
+      "旅行": 14
+    }
   },
   {
     "publicationId": "db2cfc7728f75413dd17904a519638e0",
@@ -288,7 +350,12 @@
     "updatedAt": "2026-08-29T07:45:54.709Z",
     "effectGridImageUrl": "/style-publications/db2cfc7728f75413dd17904a519638e0/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 30,
+      "宠物": 13,
+      "幽默": 7
+    }
   },
   {
     "publicationId": "f926075b6ec5a79a52f216cc76de9f80",
@@ -308,7 +375,11 @@
     "updatedAt": "2026-08-29T07:46:25.049Z",
     "effectGridImageUrl": "/style-publications/f926075b6ec5a79a52f216cc76de9f80/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 29,
+      "宠物": 12
+    }
   },
   {
     "publicationId": "ff93e2347a0fe6fe4369ceec8c77dfd2",
@@ -329,7 +400,12 @@
     "updatedAt": "2026-08-29T07:47:37.269Z",
     "effectGridImageUrl": "/style-publications/ff93e2347a0fe6fe4369ceec8c77dfd2/effect-small.webp",
     "effectGridWidth": 480,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 28,
+      "宠物": 11,
+      "旅行": 13
+    }
   },
   {
     "publicationId": "317a8a38a3be463b6c83b9cd47f565b3",
@@ -350,7 +426,12 @@
     "updatedAt": "2026-08-29T07:47:52.997Z",
     "effectGridImageUrl": "/style-publications/317a8a38a3be463b6c83b9cd47f565b3/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "儿童": 17,
+      "日常": 17,
+      "幽默": 6
+    }
   },
   {
     "publicationId": "ff8a74b515005beaad17fba4706f013d",
@@ -371,7 +452,12 @@
     "updatedAt": "2026-08-29T07:48:10.969Z",
     "effectGridImageUrl": "/style-publications/ff8a74b515005beaad17fba4706f013d/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 27,
+      "儿童": 16,
+      "旅行": 12
+    }
   },
   {
     "publicationId": "c4684b81b4b52417caaa0fd69ecffee8",
@@ -392,7 +478,12 @@
     "updatedAt": "2026-08-29T07:48:55.130Z",
     "effectGridImageUrl": "/style-publications/c4684b81b4b52417caaa0fd69ecffee8/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 26,
+      "宠物": 10,
+      "旅行": 11
+    }
   },
   {
     "publicationId": "82fc3aa36b3745af1eee8c689395c966",
@@ -411,7 +502,10 @@
     "updatedAt": "2026-08-29T07:49:10.854Z",
     "effectGridImageUrl": "/style-publications/82fc3aa36b3745af1eee8c689395c966/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "宠物": 9
+    }
   },
   {
     "publicationId": "1293d1f5e439314e728f65cbaef7f032",
@@ -430,7 +524,10 @@
     "updatedAt": "2026-08-29T07:49:25.026Z",
     "effectGridImageUrl": "/style-publications/1293d1f5e439314e728f65cbaef7f032/effect-small.webp",
     "effectGridWidth": 426,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "宠物": 8
+    }
   },
   {
     "publicationId": "dd60d80021926ff3f49df85e67864719",
@@ -449,7 +546,10 @@
     "updatedAt": "2026-08-29T07:49:30.935Z",
     "effectGridImageUrl": "/style-publications/dd60d80021926ff3f49df85e67864719/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "宠物": 7
+    }
   },
   {
     "publicationId": "43b31980749e48fb052960d846f9a9ee",
@@ -469,7 +569,11 @@
     "updatedAt": "2026-08-29T07:49:50.972Z",
     "effectGridImageUrl": "/style-publications/43b31980749e48fb052960d846f9a9ee/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "宠物": 6,
+      "日常": 16
+    }
   },
   {
     "publicationId": "d4b9d8f99d03e552e7e3db93665e0136",
@@ -489,7 +593,11 @@
     "updatedAt": "2026-08-29T07:50:39.011Z",
     "effectGridImageUrl": "/style-publications/d4b9d8f99d03e552e7e3db93665e0136/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "儿童": 15,
+      "旅行": 10
+    }
   },
   {
     "publicationId": "4ae9790a2675b90a0d37e20ba53ec677",
@@ -509,7 +617,11 @@
     "updatedAt": "2026-08-29T07:52:14.944Z",
     "effectGridImageUrl": "/style-publications/4ae9790a2675b90a0d37e20ba53ec677/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "儿童": 14,
+      "日常": 15
+    }
   },
   {
     "publicationId": "309abe05bb3c80b3932928b59a5016bd",
@@ -529,7 +641,11 @@
     "updatedAt": "2026-08-29T07:54:44.918Z",
     "effectGridImageUrl": "/style-publications/309abe05bb3c80b3932928b59a5016bd/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 25,
+      "日常": 14
+    }
   },
   {
     "publicationId": "3c47f16f46ff4c12bfdb1a632f8f6996",
@@ -550,7 +666,12 @@
     "updatedAt": "2026-08-29T08:01:18.014Z",
     "effectGridImageUrl": "/style-publications/3c47f16f46ff4c12bfdb1a632f8f6996/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 24,
+      "宠物": 5,
+      "日常": 13
+    }
   },
   {
     "publicationId": "d75c6fd43eed10bf1c3da848040b2108",
@@ -570,7 +691,11 @@
     "updatedAt": "2026-08-29T08:01:28.289Z",
     "effectGridImageUrl": "/style-publications/d75c6fd43eed10bf1c3da848040b2108/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "儿童": 13,
+      "日常": 12
+    }
   },
   {
     "publicationId": "08736649f23bdbe246e54a60a057ba38",
@@ -590,7 +715,11 @@
     "updatedAt": "2026-08-29T08:01:50.811Z",
     "effectGridImageUrl": "/style-publications/08736649f23bdbe246e54a60a057ba38/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 23,
+      "儿童": 12
+    }
   },
   {
     "publicationId": "31d34f95b047aa426c3b342e49e9a57e",
@@ -611,7 +740,12 @@
     "updatedAt": "2026-08-29T08:15:29.875Z",
     "effectGridImageUrl": "/style-publications/31d34f95b047aa426c3b342e49e9a57e/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 22,
+      "儿童": 11,
+      "日常": 11
+    }
   },
   {
     "publicationId": "f639a3f46e3a6323edfff3a56e89b7b6",
@@ -632,7 +766,12 @@
     "updatedAt": "2026-08-29T08:15:52.219Z",
     "effectGridImageUrl": "/style-publications/f639a3f46e3a6323edfff3a56e89b7b6/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "宠物": 4,
+      "日常": 10,
+      "幽默": 5
+    }
   },
   {
     "publicationId": "0494e1669be4ed5d4b3c18b8d8060e93",
@@ -652,7 +791,11 @@
     "updatedAt": "2026-08-29T08:16:10.362Z",
     "effectGridImageUrl": "/style-publications/0494e1669be4ed5d4b3c18b8d8060e93/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 21,
+      "儿童": 10
+    }
   },
   {
     "publicationId": "b36136cc0c30babe2454385a4bfc3d78",
@@ -673,7 +816,12 @@
     "updatedAt": "2026-08-29T08:16:19.641Z",
     "effectGridImageUrl": "/style-publications/b36136cc0c30babe2454385a4bfc3d78/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 20,
+      "儿童": 9,
+      "旅行": 9
+    }
   },
   {
     "publicationId": "b2a3fa996f1a582e56d034dd1aa1d814",
@@ -694,7 +842,12 @@
     "updatedAt": "2026-08-29T08:16:30.168Z",
     "effectGridImageUrl": "/style-publications/b2a3fa996f1a582e56d034dd1aa1d814/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 19,
+      "宠物": 3,
+      "旅行": 8
+    }
   },
   {
     "publicationId": "89a41161c23dc69ca6aec3ae96de65af",
@@ -714,7 +867,11 @@
     "updatedAt": "2026-08-29T08:18:15.240Z",
     "effectGridImageUrl": "/style-publications/89a41161c23dc69ca6aec3ae96de65af/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 18,
+      "宠物": 2
+    }
   },
   {
     "publicationId": "a3822772d9b34534d40934105f132e3f",
@@ -735,7 +892,12 @@
     "updatedAt": "2026-08-29T23:44:14.112Z",
     "effectGridImageUrl": "/style-publications/a3822772d9b34534d40934105f132e3f/effect-small.webp",
     "effectGridWidth": 480,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 7,
+      "儿童": 1,
+      "旅行": 4
+    }
   },
   {
     "publicationId": "164721b149871a078200fe0ea7d0a734",
@@ -756,7 +918,12 @@
     "updatedAt": "2026-08-29T23:44:13.088Z",
     "effectGridImageUrl": "/style-publications/164721b149871a078200fe0ea7d0a734/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 8,
+      "儿童": 2,
+      "旅行": 5
+    }
   },
   {
     "publicationId": "056434649e64b551043a749ed8c91179",
@@ -777,7 +944,12 @@
     "updatedAt": "2026-08-29T23:44:12.067Z",
     "effectGridImageUrl": "/style-publications/056434649e64b551043a749ed8c91179/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 9,
+      "儿童": 3,
+      "旅行": 6
+    }
   },
   {
     "publicationId": "e0b2f061c507b41ba2978ccf5ee952bc",
@@ -798,7 +970,12 @@
     "updatedAt": "2026-08-29T23:44:10.334Z",
     "effectGridImageUrl": "/style-publications/e0b2f061c507b41ba2978ccf5ee952bc/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 10,
+      "宠物": 1,
+      "幽默": 1
+    }
   },
   {
     "publicationId": "7337f517f23c87e2ed46c4f5dc79eb8c",
@@ -818,7 +995,11 @@
     "updatedAt": "2026-08-29T23:44:08.852Z",
     "effectGridImageUrl": "/style-publications/7337f517f23c87e2ed46c4f5dc79eb8c/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 11,
+      "儿童": 4
+    }
   },
   {
     "publicationId": "c66f986db7193e1cc8dcd81e1e69022a",
@@ -838,7 +1019,11 @@
     "updatedAt": "2026-08-29T23:44:07.156Z",
     "effectGridImageUrl": "/style-publications/c66f986db7193e1cc8dcd81e1e69022a/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 12,
+      "日常": 4
+    }
   },
   {
     "publicationId": "e5c167da54deabd7f07afd5cfe599652",
@@ -858,7 +1043,11 @@
     "updatedAt": "2026-08-29T23:44:05.616Z",
     "effectGridImageUrl": "/style-publications/e5c167da54deabd7f07afd5cfe599652/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "儿童": 5,
+      "日常": 5
+    }
   },
   {
     "publicationId": "82187c32400def849104d94e52389eb0",
@@ -877,7 +1066,10 @@
     "updatedAt": "2026-08-29T23:44:03.727Z",
     "effectGridImageUrl": "/style-publications/82187c32400def849104d94e52389eb0/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "日常": 6
+    }
   },
   {
     "publicationId": "d93faffa05c8e8d6ac23bcbebf5623db",
@@ -897,7 +1089,11 @@
     "updatedAt": "2026-08-29T23:53:56.852Z",
     "effectGridImageUrl": "/style-publications/d93faffa05c8e8d6ac23bcbebf5623db/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 6,
+      "日常": 3
+    }
   },
   {
     "publicationId": "5c517d89f272ebd079c8adeaa0f5c1d7",
@@ -917,7 +1113,11 @@
     "updatedAt": "2026-08-30T22:51:22.707Z",
     "effectGridImageUrl": "/style-publications/5c517d89f272ebd079c8adeaa0f5c1d7/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 5,
+      "日常": 2
+    }
   },
   {
     "publicationId": "1f4093158d514e924d50bc1d0619f5da",
@@ -937,7 +1137,11 @@
     "updatedAt": "2026-08-31T01:12:21.694Z",
     "effectGridImageUrl": "/style-publications/1f4093158d514e924d50bc1d0619f5da/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 4,
+      "旅行": 3
+    }
   },
   {
     "publicationId": "381f9f4d5e8adeb99533f8686fbb20ee",
@@ -957,7 +1161,11 @@
     "updatedAt": "2026-08-31T01:12:29.272Z",
     "effectGridImageUrl": "/style-publications/381f9f4d5e8adeb99533f8686fbb20ee/effect-small.webp",
     "effectGridWidth": 427,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "推荐": 3,
+      "旅行": 2
+    }
   },
   {
     "publicationId": "8676f8192b1a785e098f2b321ef0ea7a",
@@ -966,18 +1174,22 @@
     "styleName": "Xi茶海报",
     "prompt": "请以我上传图片中的单一主体为核心，生成1张极简治愈系白底创意海报。\r\n \r\n将上传图片里的所有物体作为画面中唯一的真实摄影主体并精修，保留主体的核心外形、颜色、材质、纹理、装饰细节和识别特征，并统一放置在纯白背景中，主体“居中”偏下，整体保留大面积留白，呈现出国际品牌广告式的高级静物摄影感。\r\n \r\n在主体周围加入少量黑色马克笔手绘线稿，包括小人、箭头、波浪线、云朵等。\r\n \r\n其中 4‑5 个黑色线稿小人 要围绕主体展开互动，像在一个微缩世界里认真工作。\r\n \r\n这些互动动作必须根据主体本身特点自动设计，例如：检查、擦拭、补水、运输、维修、挖取、测量、整理、休息、观察等，动作要和主体特征相关，而不是随机装饰。\r\n \r\n画面空白加入一句黑色手写短中文文案，文案根据主体特点自动生成，旁边配一个手绘箭头指向主体。\r\n \r\n整体风格要求：极简、安静、治愈、高级、克制、真实摄影感、留白充足、有故事感。\r\n不要复杂背景、不要 Logo、不要彩色插画、不要边框、不要大段排版、不要卡通化、不要动漫风、不要明显 AI 绘画感。",
     "tags": [
-      "推荐",
-      "日常"
+      "日常",
+      "推荐"
     ],
     "effectImageUrl": "/style-publications/8676f8192b1a785e098f2b321ef0ea7a/effect.webp",
     "referenceImageUrl": "/style-publications/8676f8192b1a785e098f2b321ef0ea7a/reference.webp",
     "sourceEffectImageUrl": "/generated-images/f4da73c2-cba2-4fbd-90d1-76c93b35321f.png",
     "sourceReferenceImageUrl": "/job-references/f4da73c2-cba2-4fbd-90d1-76c93b35321f/1-1788139902605.jpg",
     "createdAt": "2026-08-31T01:33:14.053Z",
-    "updatedAt": "2026-08-31T01:33:14.053Z",
+    "updatedAt": "2026-08-31T04:18:30.592Z",
     "effectGridImageUrl": "/style-publications/8676f8192b1a785e098f2b321ef0ea7a/effect-small.webp",
     "effectGridWidth": 426,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "日常": 1,
+      "推荐": 1
+    }
   },
   {
     "publicationId": "ce4d4de03ecb27de92042254cf556a88",
@@ -996,6 +1208,9 @@
     "updatedAt": "2026-08-31T02:07:53.945Z",
     "effectGridImageUrl": "/style-publications/ce4d4de03ecb27de92042254cf556a88/effect-small.webp",
     "effectGridWidth": 512,
-    "effectGridHeight": 640
+    "effectGridHeight": 640,
+    "sortOrders": {
+      "旅行": 1
+    }
   }
 ]

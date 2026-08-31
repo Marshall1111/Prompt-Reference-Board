@@ -3338,14 +3338,17 @@ app.get("/api/public/clip-items/:jobId/download-original", requireWebAccount, as
 async function listPublicStylePublicationsHandler(req, res) {
   try {
     const tag = String(req.query?.tag || "").trim();
-    const publications = await listStylePublications();
-    res.json({
-      tags: STYLE_PUBLICATION_TAGS,
-      items: publications
-        .filter((item) => !tag || item.tags.includes(tag))
-        .sort((left, right) => String(right.updatedAt || right.createdAt || "").localeCompare(String(left.updatedAt || left.createdAt || "")))
-        .map(toPublicStylePublication)
-    });
+    const publications = normalizeStylePublicationSortOrders(await listStylePublications());
+    const items = publications
+      .filter((item) => !tag || item.tags.includes(tag))
+      .sort((left, right) => {
+        const leftRank = getStylePublicationSort(left, tag) ?? Number.MAX_SAFE_INTEGER;
+        const rightRank = getStylePublicationSort(right, tag) ?? Number.MAX_SAFE_INTEGER;
+        if (leftRank !== rightRank) return leftRank - rightRank;
+        return String(right.updatedAt || right.createdAt || "").localeCompare(String(left.updatedAt || left.createdAt || ""));
+      })
+      .map(toPublicStylePublication);
+    res.json({ tags: STYLE_PUBLICATION_TAGS, items });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "读取风格发布失败。" });
@@ -3369,12 +3372,19 @@ app.patch("/api/admin/style-publications/:publicationId", requireAdmin, async (r
     const publications = await listStylePublications();
     const index = publications.findIndex((item) => item.publicationId === req.params.publicationId);
     if (index === -1) return res.status(404).json({ message: "风格发布不存在。" });
+    if (req.body?.sort !== undefined) {
+      const { tag, position } = req.body.sort || {};
+      const next = setStylePublicationSort(publications, req.params.publicationId, String(tag || ""), position);
+      await saveStylePublications(next);
+      return res.json({ publication: toAdminStylePublication(next[index]) });
+    }
     publications[index] = { ...publications[index], tags: normalizeStylePublicationTags(req.body?.tags ?? req.body?.tag), updatedAt: new Date().toISOString() };
-    await saveStylePublications(publications);
-    res.json({ publication: toAdminStylePublication(publications[index]) });
+    const next = normalizeStylePublicationSortOrders(publications);
+    await saveStylePublications(next);
+    res.json({ publication: toAdminStylePublication(next[index]) });
   } catch (error) {
     console.error(error);
-    res.status(400).json({ message: error.publicMessage || "更新风格发布标签失败。" });
+    res.status(400).json({ message: error.publicMessage || "更新风格发布失败。" });
   }
 });
 
@@ -3386,7 +3396,7 @@ app.delete("/api/admin/style-publications/:publicationId", requireAdmin, async (
     const publications = await listStylePublications();
     const next = publications.filter((item) => item.publicationId !== req.params.publicationId);
     if (next.length === publications.length) return res.status(404).json({ message: "风格发布不存在。" });
-    await saveStylePublications(next);
+    await saveStylePublications(normalizeStylePublicationSortOrders(next));
     await rm(path.join(stylePublicationRoot, req.params.publicationId), { recursive: true, force: true });
     res.status(204).end();
   } catch (error) {
@@ -14169,6 +14179,87 @@ function normalizeStylePublicationTags(value) {
   return tags;
 }
 
+// 读取某条发布在指定标签下的排序号；未设置时返回 null。
+function getStylePublicationSort(publication, tag) {
+  const value = Number(publication?.sortOrders?.[tag]);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+// 归一化每条发布的每标签排序：丢弃不属于该发布标签的排序项，并把每个标签内的排序压缩为连续的 1..N。
+// 未设置排序的成员（例如新加入的标签）按创建时间追加到该标签末尾，即“默认排最后”。
+function normalizeStylePublicationSortOrders(publications) {
+  const next = publications.map((publication) => ({ ...publication }));
+  for (const publication of next) {
+    const tags = Array.isArray(publication.tags) ? publication.tags : [];
+    const sortOrders = publication.sortOrders && typeof publication.sortOrders === "object" ? { ...publication.sortOrders } : {};
+    for (const tag of Object.keys(sortOrders)) {
+      if (!tags.includes(tag)) delete sortOrders[tag];
+    }
+    publication.sortOrders = sortOrders;
+  }
+  for (const tag of STYLE_PUBLICATION_TAGS) {
+    const members = next.filter((publication) => Array.isArray(publication.tags) && publication.tags.includes(tag));
+    const ranked = members
+      .filter((publication) => getStylePublicationSort(publication, tag) !== null)
+      .sort((a, b) => getStylePublicationSort(a, tag) - getStylePublicationSort(b, tag));
+    const unranked = members
+      .filter((publication) => getStylePublicationSort(publication, tag) === null)
+      .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+    const seen = new Set();
+    let position = 1;
+    for (const publication of ranked) {
+      if (seen.has(publication.publicationId)) continue;
+      seen.add(publication.publicationId);
+      publication.sortOrders[tag] = position++;
+    }
+    for (const publication of unranked) {
+      if (seen.has(publication.publicationId)) continue;
+      seen.add(publication.publicationId);
+      publication.sortOrders[tag] = position++;
+    }
+  }
+  return next;
+}
+
+// 把某条发布移到指定标签的第 position 位；大于当前总数视为移到最后，区间内的其他图顺延/前移补位。
+function setStylePublicationSort(publications, publicationId, tagName, rawPosition) {
+  if (!STYLE_PUBLICATION_TAGS.includes(tagName)) {
+    throw createHttpError(400, "排序标签无效。" );
+  }
+  const target = Number(rawPosition);
+  if (!Number.isFinite(target) || target < 1) {
+    throw createHttpError(400, "排序号必须是不小于 1 的整数。" );
+  }
+  const index = publications.findIndex((item) => item.publicationId === publicationId);
+  if (index === -1) return normalizeStylePublicationSortOrders(publications);
+  const publication = publications[index];
+  if (!Array.isArray(publication.tags) || !publication.tags.includes(tagName)) {
+    throw createHttpError(400, "该风格发布不属于此标签，无法设置排序。" );
+  }
+  const members = publications
+    .map((item, i) => ({ item, i }))
+    .filter(({ item }) => Array.isArray(item.tags) && item.tags.includes(tagName));
+  const maxRank = members.length;
+  const currentRank = getStylePublicationSort(publication, tagName) ?? maxRank;
+  const nextRank = Math.min(Math.max(Math.round(target), 1), maxRank);
+  if (currentRank === nextRank) return normalizeStylePublicationSortOrders(publications);
+  const rest = members
+    .filter(({ item }) => item.publicationId !== publicationId)
+    .sort((a, b) => (getStylePublicationSort(a.item, tagName) ?? Number.MAX_SAFE_INTEGER) - (getStylePublicationSort(b.item, tagName) ?? Number.MAX_SAFE_INTEGER));
+  const ordered = [];
+  let rank = 1;
+  for (const { item } of rest) {
+    if (rank === nextRank) ordered.push({ item: publication, rank: rank++ });
+    ordered.push({ item, rank: rank++ });
+  }
+  if (ordered.length === rest.length) ordered.push({ item: publication, rank: rank++ });
+  for (const entry of ordered) {
+    if (!entry.item.sortOrders || typeof entry.item.sortOrders !== "object") entry.item.sortOrders = {};
+    entry.item.sortOrders[tagName] = entry.rank;
+  }
+  return normalizeStylePublicationSortOrders(publications);
+}
+
 function getStylePublicationId(effectImageUrl) {
   return createHash("sha256").update(String(effectImageUrl || "").trim()).digest("hex").slice(0, 32);
 }
@@ -14195,7 +14286,8 @@ function toAdminStylePublication(publication) {
     jobId: String(publication.jobId || ""),
     prompt: String(publication.prompt || ""),
     sourceEffectImageUrl: String(publication.sourceEffectImageUrl || ""),
-    sourceReferenceImageUrl: String(publication.sourceReferenceImageUrl || "")
+    sourceReferenceImageUrl: String(publication.sourceReferenceImageUrl || ""),
+    sortOrders: publication.sortOrders && typeof publication.sortOrders === "object" ? { ...publication.sortOrders } : {}
   };
 }
 
@@ -14285,12 +14377,16 @@ async function createStylePublicationFromJob(job, tags, style) {
   const existingIndex = publications.findIndex((item) => item.publicationId === publicationId);
   if (existingIndex >= 0) {
     publication.createdAt = publications[existingIndex].createdAt || now;
+    publication.sortOrders = { ...(publications[existingIndex].sortOrders || {}) };
     publications[existingIndex] = publication;
   } else {
+    publication.sortOrders = {};
     publications.push(publication);
   }
-  await saveStylePublications(publications);
-  return publication;
+  // 归一化排序：保留已有标签的排序，新标签默认排到末尾（当前最大排序 +1），移除的标签删除排序并补位。
+  const normalized = normalizeStylePublicationSortOrders(publications);
+  await saveStylePublications(normalized);
+  return normalized.find((item) => item.publicationId === publicationId) || publication;
 }
 
 async function readImageJob(jobId) {

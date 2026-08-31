@@ -7850,47 +7850,71 @@ async function prepareReferenceForUpload(reference) {
 function AdminStylePublicationsPage() {
   const [items, setItems] = useState([]);
   const [tags, setTags] = useState(STYLE_PUBLICATION_TAGS);
-  const [draftTags, setDraftTags] = useState({});
+  const [selectedTag, setSelectedTag] = useState("");
+  const [rankDrafts, setRankDrafts] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  async function loadPublications() {
-    setIsLoading(true);
+  function getStyleRank(item, tag) {
+    if (!tag) return "";
+    const value = Number(item?.sortOrders?.[tag]);
+    return Number.isFinite(value) && value > 0 ? value : "";
+  }
+
+  async function loadPublications(options = {}) {
+    const quiet = Boolean(options.quiet);
+    if (!quiet) setIsLoading(true);
     try {
       const payload = await refreshAdminStylePublications();
       const nextItems = Array.isArray(payload.items) ? payload.items : [];
       setItems(nextItems);
       setTags(Array.isArray(payload.tags) && payload.tags.length ? payload.tags : STYLE_PUBLICATION_TAGS);
-      setDraftTags(Object.fromEntries(nextItems.map((item) => [item.publicationId, Array.isArray(item.tags) ? item.tags : []])));
       setError("");
     } catch (nextError) {
       setError(nextError.message || "读取风格发布失败。");
     } finally {
-      setIsLoading(false);
+      if (!quiet) setIsLoading(false);
     }
   }
 
   useEffect(() => { void loadPublications(); }, []);
 
-  function toggleTag(publicationId, tag) {
-    setDraftTags((current) => {
-      const selected = current[publicationId] || [];
-      return { ...current, [publicationId]: selected.includes(tag) ? selected.filter((item) => item !== tag) : [...selected, tag] };
-    });
-  }
+  // 切换标签筛选或数据刷新时，重新初始化排序草稿。
+  useEffect(() => {
+    setRankDrafts(Object.fromEntries(items.map((item) => [item.publicationId, getStyleRank(item, selectedTag)])));
+  }, [selectedTag, items]);
 
-  async function saveTags(item) {
-    const nextTags = draftTags[item.publicationId] || [];
+  async function toggleTag(item, tag) {
+    const current = Array.isArray(item.tags) ? item.tags : [];
+    const nextTags = current.includes(tag) ? current.filter((entry) => entry !== tag) : [...current, tag];
     if (!nextTags.length) { setError("每条风格发布至少保留一个标签。"); return; }
     setBusyId(item.publicationId);
     try {
       const updated = await updateAdminStylePublication(item.publicationId, nextTags);
-      setItems((current) => current.map((entry) => entry.publicationId === item.publicationId ? { ...entry, ...updated } : entry));
+      setItems((currentItems) => currentItems.map((entry) => entry.publicationId === item.publicationId ? { ...entry, ...updated } : entry));
       setNotice("标签已更新。");
       setError("");
     } catch (nextError) { setError(nextError.message || "更新标签失败。"); }
+    finally { setBusyId(""); }
+  }
+
+  async function saveRank(item, raw) {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 1 || !Number.isInteger(value)) {
+      setRankDrafts((current) => ({ ...current, [item.publicationId]: getStyleRank(item, selectedTag) }));
+      setError("排序号必须是不小于 1 的整数。");
+      return;
+    }
+    if (Number(value) === Number(getStyleRank(item, selectedTag) || 0)) return;
+    setBusyId(item.publicationId);
+    try {
+      await updateAdminStylePublicationSort(item.publicationId, selectedTag, value);
+      setNotice("排序已更新。");
+      setError("");
+      await loadPublications({ quiet: true });
+    } catch (nextError) { setError(nextError.message || "更新排序失败。"); }
     finally { setBusyId(""); }
   }
 
@@ -7899,24 +7923,34 @@ function AdminStylePublicationsPage() {
     setBusyId(item.publicationId);
     try {
       await deleteAdminStylePublication(item.publicationId);
-      setItems((current) => current.filter((entry) => entry.publicationId !== item.publicationId));
       setNotice("发布记录已删除。");
       setError("");
+      await loadPublications({ quiet: true });
     } catch (nextError) { setError(nextError.message || "删除风格发布失败。"); }
     finally { setBusyId(""); }
   }
 
+  const visibleItems = selectedTag
+    ? items
+        .filter((item) => Array.isArray(item.tags) && item.tags.includes(selectedTag))
+        .sort((a, b) => Number(getStyleRank(a, selectedTag) || 0) - Number(getStyleRank(b, selectedTag) || 0))
+    : items;
+
   return <section className="admin-style-publications-page">
     <div className="task-toolbar">
-      <div><p className="eyebrow">Style publications</p><h2>风格发布</h2><p className="storage-note">管理公开风格效果、原图、提示词和发布标签。</p></div>
+      <div><p className="eyebrow">Style publications</p><h2>风格发布</h2><p className="storage-note">勾选标签即时保存；选中标签后可修改该标签页内的排序。</p></div>
       <button className="secondary-button" onClick={() => void loadPublications()} type="button"><RefreshCw size={18} /><span>{isLoading ? "刷新中" : "刷新"}</span></button>
+    </div>
+    <div className="admin-style-publication-filter" role="tablist" aria-label="标签筛选">
+      <button aria-selected={!selectedTag} className={`style-publication-tag ${!selectedTag ? "is-selected" : ""}`} onClick={() => setSelectedTag("")} type="button"><span>全部</span></button>
+      {tags.map((tag) => <button aria-selected={selectedTag === tag} className={`style-publication-tag ${selectedTag === tag ? "is-selected" : ""}`} key={tag} onClick={() => setSelectedTag(tag)} type="button"><span>{tag}</span></button>)}
     </div>
     {error ? <p className="error-note">{error}</p> : null}
     {notice ? <p className="success-note">{notice}</p> : null}
-    {!isLoading && !items.length ? <p className="empty-note">还没有风格发布记录。</p> : null}
+    {!isLoading && !visibleItems.length ? <p className="empty-note">{selectedTag ? `“${selectedTag}”标签下还没有发布记录。` : "还没有风格发布记录。"}</p> : null}
     <div className="admin-style-publication-list">
-      {items.map((item) => {
-        const selectedTags = draftTags[item.publicationId] || [];
+      {visibleItems.map((item) => {
+        const selectedTags = Array.isArray(item.tags) ? item.tags : [];
         const effectUrl = item.effectImageUrl || item.sourceEffectImageUrl;
         const referenceUrl = item.referenceImageUrl || item.sourceReferenceImageUrl;
         return <article className="admin-style-publication-card" key={item.publicationId}>
@@ -7927,8 +7961,11 @@ function AdminStylePublicationsPage() {
           <div className="admin-style-publication-info">
             <div className="task-meta-row"><strong>{item.styleName || "未命名风格"}</strong><span>风格 ID：{item.styleId || "未记录"}</span><span>任务：{item.jobId || "未记录"}</span></div>
             <p className="task-prompt">{item.prompt || "未记录提示词"}</p>
-            <div className="admin-style-publication-tags">{tags.map((tag) => <button aria-pressed={selectedTags.includes(tag)} className={`style-publication-tag ${selectedTags.includes(tag) ? "is-selected" : ""}`} key={tag} onClick={() => toggleTag(item.publicationId, tag)} type="button">{selectedTags.includes(tag) ? <Check size={14} /> : null}<span>{tag}</span></button>)}</div>
-            <div className="admin-style-publication-actions"><button className="copy-button" disabled={busyId === item.publicationId} onClick={() => void saveTags(item)} type="button"><Pencil size={17} /><span>{busyId === item.publicationId ? "保存中" : "保存标签"}</span></button><button className="danger-button" disabled={busyId === item.publicationId} onClick={() => void removePublication(item)} type="button"><Trash2 size={17} /><span>删除</span></button></div>
+            <div className="admin-style-publication-tags">{tags.map((tag) => <button aria-pressed={selectedTags.includes(tag)} className={`style-publication-tag ${selectedTags.includes(tag) ? "is-selected" : ""}`} disabled={busyId === item.publicationId} key={tag} onClick={() => void toggleTag(item, tag)} type="button">{selectedTags.includes(tag) ? <Check size={14} /> : null}<span>{tag}</span></button>)}</div>
+            <div className="admin-style-publication-actions">
+              {selectedTag ? <label className="style-publication-rank"><span>排序</span><input className="style-publication-rank-input" disabled={busyId === item.publicationId} min="1" onBlur={(event) => void saveRank(item, event.target.value)} onChange={(event) => setRankDrafts((current) => ({ ...current, [item.publicationId]: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} type="number" value={rankDrafts[item.publicationId] ?? getStyleRank(item, selectedTag)} /></label> : null}
+              <button className="danger-button" disabled={busyId === item.publicationId} onClick={() => void removePublication(item)} type="button"><Trash2 size={17} /><span>删除</span></button>
+            </div>
           </div>
         </article>;
       })}
@@ -9019,6 +9056,17 @@ async function updateAdminStylePublication(publicationId, tags) {
   });
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "更新风格发布标签失败。");
+  return payload.publication;
+}
+
+async function updateAdminStylePublicationSort(publicationId, tag, position) {
+  const response = await fetch(`/api/admin/style-publications/${encodeURIComponent(publicationId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sort: { tag, position } })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "更新风格发布排序失败。");
   return payload.publication;
 }
 
