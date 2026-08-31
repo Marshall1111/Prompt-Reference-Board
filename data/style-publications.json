@@ -21,7 +21,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 16,
-      "儿童": 9,
+      "儿童": 8,
       "日常": 8
     }
   },
@@ -47,7 +47,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 15,
-      "儿童": 8,
+      "儿童": 7,
       "日常": 7
     }
   },
@@ -120,7 +120,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 12,
-      "儿童": 7
+      "儿童": 6
     }
   },
   {
@@ -819,7 +819,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 19,
-      "儿童": 10,
+      "儿童": 9,
       "旅行": 9
     }
   },
@@ -921,7 +921,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 7,
-      "儿童": 3,
+      "儿童": 2,
       "旅行": 5
     }
   },
@@ -947,7 +947,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 8,
-      "儿童": 4,
+      "儿童": 3,
       "旅行": 6
     }
   },
@@ -998,7 +998,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 10,
-      "儿童": 5
+      "儿童": 4
     }
   },
   {
@@ -1045,7 +1045,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 6,
+      "儿童": 5,
       "日常": 4
     }
   },
@@ -1298,7 +1298,7 @@
     "updatedAt": "2026-08-31T10:57:49.900Z",
     "sortOrders": {
       "推荐": 34,
-      "儿童": 2
+      "儿童": 10
     }
   }
 ]
