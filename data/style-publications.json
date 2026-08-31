@@ -21,7 +21,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 16,
-      "儿童": 8,
+      "儿童": 9,
       "日常": 8
     }
   },
@@ -47,7 +47,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 15,
-      "儿童": 7,
+      "儿童": 8,
       "日常": 7
     }
   },
@@ -120,7 +120,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 12,
-      "儿童": 6
+      "儿童": 7
     }
   },
   {
@@ -196,7 +196,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 33,
-      "儿童": 22,
+      "儿童": 23,
       "旅行": 18,
       "幽默": 11
     }
@@ -250,7 +250,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 31,
-      "儿童": 21,
+      "儿童": 22,
       "旅行": 16,
       "幽默": 10
     }
@@ -278,7 +278,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 30,
-      "儿童": 20,
+      "儿童": 21,
       "旅行": 15,
       "幽默": 9
     }
@@ -303,7 +303,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 19,
+      "儿童": 20,
       "幽默": 8
     }
   },
@@ -327,7 +327,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 18,
+      "儿童": 19,
       "旅行": 14
     }
   },
@@ -428,7 +428,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 17,
+      "儿童": 18,
       "日常": 16,
       "幽默": 6
     }
@@ -455,7 +455,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 26,
-      "儿童": 16,
+      "儿童": 17,
       "旅行": 12
     }
   },
@@ -595,7 +595,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 15,
+      "儿童": 16,
       "旅行": 10
     }
   },
@@ -619,7 +619,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 14,
+      "儿童": 15,
       "日常": 14
     }
   },
@@ -693,7 +693,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 13,
+      "儿童": 14,
       "日常": 11
     }
   },
@@ -718,7 +718,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 22,
-      "儿童": 12
+      "儿童": 13
     }
   },
   {
@@ -743,7 +743,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 21,
-      "儿童": 11,
+      "儿童": 12,
       "日常": 10
     }
   },
@@ -794,7 +794,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 20,
-      "儿童": 10
+      "儿童": 11
     }
   },
   {
@@ -819,7 +819,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 19,
-      "儿童": 9,
+      "儿童": 10,
       "旅行": 9
     }
   },
@@ -921,7 +921,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 7,
-      "儿童": 2,
+      "儿童": 3,
       "旅行": 5
     }
   },
@@ -947,7 +947,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 8,
-      "儿童": 3,
+      "儿童": 4,
       "旅行": 6
     }
   },
@@ -998,7 +998,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 10,
-      "儿童": 4
+      "儿童": 5
     }
   },
   {
@@ -1045,7 +1045,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 5,
+      "儿童": 6,
       "日常": 4
     }
   },
@@ -1275,6 +1275,30 @@
     "updatedAt": "2026-08-31T07:10:13.783Z",
     "sortOrders": {
       "旅行": 21
+    }
+  },
+  {
+    "publicationId": "bd0b1ebe62ecbb81602ab9dc01b95bf1",
+    "jobId": "be166144-edb6-4651-a3a3-47ace46b99f6",
+    "styleId": "style_1788173847558",
+    "styleName": "幽默手绘角色",
+    "prompt": "请将我上传的每一张照片分别制作成一张独立的高级设计海报。\r\n先重新理解照片，而不是直接重画。提取其中最具识别性的**主体、轮廓、姿态与叙事关系**，只保留一个最值得记住的视觉核心，并主动删除大部分背景与无关细节。进一步寻找照片里最有趣的性格、动作、反差或潜在隐喻，将它加工成一个**故意画丑、但一眼能认出的幽默视觉角色**。可以夸张某个比例、动作、表情或结构，让原本普通的对象产生一点荒诞、呆滞、尴尬或意外的喜剧感；不要只是把照片变成线稿。\r\n\t\r\n画风采用 **Ugly-cute naïve doodle / wonky hand-drawn illustration**：使用松散、发抖、不均匀的手绘轮廓，比例可以故意失准，透视可以适度放弃，形体可以笨拙、歪斜、略显“不太会画”，但这种不准确必须经过控制。核心原则是：**画得太正确就是失败，画得有点丑、有点笨、有点好笑才成立。**\r\n\t\r\n构图重新设计，不复制原照片布局。画面尽量只保留**一个主体 + 至多一两个真正必要的环境暗示**，通过放大、缩小、偏心、悬置、裁切或大面积留白强化主体性格。不要把照片里的物件逐个画出来，不做“生活物品清单”；让一个动作、一个轮廓或一个荒诞关系承担整张图的叙事，使页面更简单、更有记忆点。\r\n\t\r\n上色使用蜡笔、彩铅、干刷或略显粗糙的平涂感，颜色从上方照片中挑选最有辨识度、最有精神的少数色彩重新简化。允许填色不完全、轻微越线、局部漏白和摩擦颗粒，使画面像私人小志或随手画册，而不是商业精修插画。背景保持干净、浅淡和大面积留白。",
+    "tags": [
+      "儿童",
+      "推荐"
+    ],
+    "effectImageUrl": "/style-publications/bd0b1ebe62ecbb81602ab9dc01b95bf1/effect.webp",
+    "effectGridImageUrl": "/style-publications/bd0b1ebe62ecbb81602ab9dc01b95bf1/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/bd0b1ebe62ecbb81602ab9dc01b95bf1/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/be166144-edb6-4651-a3a3-47ace46b99f6.png",
+    "sourceReferenceImageUrl": "/job-references/be166144-edb6-4651-a3a3-47ace46b99f6/1-1788168529170.jpg",
+    "createdAt": "2026-08-31T10:57:49.900Z",
+    "updatedAt": "2026-08-31T10:57:49.900Z",
+    "sortOrders": {
+      "推荐": 34,
+      "儿童": 2
     }
   }
 ]
