@@ -2512,7 +2512,9 @@ body {
 
 .draw-card-shell.theme-draw-card .draw-card-hero .draw-card-utility-bar-draw {
   position: static;
-  width: 100%;
+  /* auto：hero 独占工具栏时由 grid 拉伸铺满；嵌入 style-picker-actions 行时
+     收缩为内容宽度，避免把左侧导航按钮挤压变形（与移动端 7892 行一致）。 */
+  width: auto;
   margin: 0;
   transform: none;
 }
@@ -4115,6 +4117,7 @@ button:disabled {
 .draw-card-utility-link {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 30px;
   padding: 0 12px;
   border: 1px solid rgba(239, 225, 198, 0.12);
@@ -4245,7 +4248,9 @@ button:disabled {
 }
 
 button.draw-card-utility-link {
-  font: inherit;
+  /* 只继承字体族，不能覆盖 .draw-card-utility-link 定义的 0.74rem 字号，
+     否则文字过大会在胶囊按钮内溢出，视觉上右贴边、不居中。 */
+  font-family: inherit;
   cursor: pointer;
 }
 
