@@ -1,0 +1,12 @@
+ERROR: TimeoutError: page.goto: Timeout 15000ms exceeded.
+Call log:
+[2m  - navigating to "http://localhost:3000/clip", waiting until "domcontentloaded"[22m
+
+card=true
+ERROR: TimeoutError: elementHandle.click: Timeout 5000ms exceeded.
+Call log:
+[2m  - attempting click action[22m
+[2m    - waiting for element to be visible, enabled and stable[22m
+
+DONE
+DONE

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCallback } from "react";
 import { Activity, AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, Clipboard, Cpu, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, MemoryStick, Pencil, Plus, QrCode, RefreshCw, Save, Search, Server, Settings, Share2, Sparkles, Store, Trash2, Wifi, X, XCircle } from "lucide-react";
 import { createRoot } from "react-dom/client";
@@ -5345,6 +5345,11 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
 
   async function openLatestSession() {
     if (isOpeningLatestSession) return;
+    // 抽卡体验的“最近生成”直接进入最近任务页，不再展示独立结果页。
+    if (isDrawCardExperience) {
+      window.location.assign("/tasks");
+      return;
+    }
 
     setIsOpeningLatestSession(true);
     setError("");
@@ -5433,6 +5438,13 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
     ? Number(session.estimatedWaitSeconds)
     : 120;
 
+  // 最近任务页 pending 卡片沿用结果页的进度条与等待文案。
+  const recentPendingItem = recentTaskDisplayItems.find((item) => item.status === "queued" || item.status === "running");
+  const hasPendingRecentTaskItems = Boolean(recentPendingItem);
+  const recentEstimatedWaitSeconds = Number(recentPendingItem?.estimatedWaitSeconds) > 0
+    ? Number(recentPendingItem.estimatedWaitSeconds)
+    : estimatedWaitSeconds;
+
   // 每张 pending 卡片记录首次出现时间，用于计算已等待秒数与伪进度。
   useEffect(() => {
     const nowMs = Date.now();
@@ -5447,10 +5459,10 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
 
   // 有任务在等待时，每秒驱动一次重渲染，让秒数与进度条动起来。
   useEffect(() => {
-    if (!hasPendingItems) return undefined;
+    if (!hasPendingItems && !hasPendingRecentTaskItems) return undefined;
     const timer = window.setInterval(() => setElapsedTick((tick) => tick + 1), 1000);
     return () => window.clearInterval(timer);
-  }, [hasPendingItems]);
+  }, [hasPendingItems, hasPendingRecentTaskItems]);
 
   // 检测刚完成的卡片，给入场动画 class，2.6 秒后移除。
   useEffect(() => {
@@ -5915,6 +5927,13 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
   function openSameStyle(styleId) {
     const safeStyleId = String(styleId || "").trim();
     if (!safeStyleId || isGenerationInProgress || isSubmitting) return;
+    // 任务/卡夹页不渲染做同款页面容器，跳回主页并通过 sameStyleId 参数进入做同款模式。
+    // 注意：这里不能先关闭弹窗。ModalRouteHistory 会在弹窗关闭时执行 history.go(-1)，
+    // 该操作会取消刚刚发起、尚未提交的跨文档导航，导致点击后停留原页面。
+    if (recentTasks || standaloneClip) {
+      window.location.assign(`/?sameStyleId=${encodeURIComponent(safeStyleId)}`);
+      return;
+    }
     closeActivePreview();
     void openStylePicker({ sameStyleId: safeStyleId });
   }
@@ -5987,6 +6006,11 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
       if (!response.ok) throw new Error(payload.message || createErrorMessage);
 
       setReferenceSessionId(String(payload?.sessionId || ""));
+      // 抽卡体验不再有独立结果页，提交后直接进入最近任务页查看进度与成果。
+      if (isDrawCardExperience) {
+        window.location.assign("/tasks");
+        return;
+      }
       applySession(payload);
       refreshVisitorStateSilently();
     } catch (nextError) {
@@ -6588,6 +6612,12 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
                   const isSucceeded = item.status === "succeeded" && result;
                   const isRunning = item.status === "running" || item.status === "queued";
                   const isFailed = item.status === "failed" || item.status === "cancelled";
+                  const taskCreatedAtMs = Date.parse(item.createdAt || "") || 0;
+                  const taskElapsedSeconds = taskCreatedAtMs ? Math.max(0, Math.floor((Date.now() - taskCreatedAtMs) / 1000)) : 0;
+                  const taskRemainingEstimate = Math.max(5, recentEstimatedWaitSeconds - taskElapsedSeconds);
+                  const taskWaitingText = (recentEstimatedWaitSeconds > 0 && waitingLineIndex === 0)
+                    ? `预计还需约 ${taskRemainingEstimate} 秒`
+                    : waitingLines[waitingLineIndex] || "结果会在完成后自动出现。";
                   return (
                     <article
                       className={`draw-card-result-card ${result?.isLiked ? "is-in-clip" : ""} ${isRunning ? "is-pending" : ""} ${isFailed ? "is-failed" : ""}`}
@@ -6601,7 +6631,8 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
                         <div className={`draw-card-result-placeholder ${isFailed ? "is-failed" : "is-pending"}`}>
                           {isFailed ? <AlertTriangle size={22} /> : <LoaderCircle className="spin" size={22} />}
                           <strong>{isFailed ? "生成失败" : "正在生成"}</strong>
-                          <span>{isFailed ? (item.errorMessage || "该风格本轮未能成功生成。") : "结果会在完成后自动出现。"}</span>
+                          {isRunning ? <WaitProgress elapsedSeconds={taskElapsedSeconds} estimatedSeconds={recentEstimatedWaitSeconds} /> : null}
+                          <span>{isFailed ? (item.errorMessage || "该风格本轮未能成功生成。") : taskWaitingText}</span>
                         </div>
                       )}
                       <div className="draw-card-result-meta">
@@ -6660,9 +6691,19 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
                   <h1 className="draw-card-title">{title}</h1>
                 )}
                 {subtitle ? <p className="draw-card-subtitle">{subtitle}</p> : null}
-                {isDrawCardExperience ? renderDrawCardUtilityBar() : null}
+                {isDrawCardExperience ? (
+                  sameStyleId ? (
+                    <div className="draw-card-style-picker-actions">
+                      {renderDrawCardPrimaryNav()}
+                      {renderDrawCardUtilityBar()}
+                    </div>
+                  ) : renderDrawCardUtilityBar()
+                ) : null}
               </div>
 
+              {isDrawCardExperience && sameStyleId && lockedSameStyle ? (
+                <p className="draw-card-same-style-name">风格：{lockedSameStyle.name || lockedSameStyle.title}</p>
+              ) : null}
               <section className={`draw-card-upload-panel ${referenceFile ? "has-image" : ""}`}>
                 <label className="draw-card-upload" htmlFor={`${experienceType}-input`}>
                   {referencePreviewUrl ? (
@@ -6690,7 +6731,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
                     sameStyleId ? (
                       <button className="draw-card-primary" disabled={!canStartSameStyleDraw} onClick={() => startDrawCard({ selectedStyleIds })} type="button">
                         {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
-                        <span>{isSubmitting ? "生成中" : "上传照片做同款"}</span>
+                        <span>{isSubmitting ? "生成中" : "开始生成"}</span>
                       </button>
                     ) : (
                       <>
@@ -6782,7 +6823,6 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
                   <div className="draw-card-lightbox-meta"><strong>{activePublishedStyle.styleName}</strong><span>{getPublishedStylePrompt(activePublishedStyle)}</span></div>
                   <div className="draw-card-lightbox-actions">
                     <button className="draw-card-primary" onClick={() => openSameStyle(activePublishedStyle.styleId)} type="button"><Sparkles size={16} /><span>做同款</span></button>
-                    <button className="draw-card-secondary" onClick={async () => { try { await copyText(getPublishedStylePrompt(activePublishedStyle)); setStylePickerError("提示词已复制。"); } catch (nextError) { setStylePickerError(nextError.message || "复制提示词失败。"); } }} type="button"><Clipboard size={16} /><span>复制提示词</span></button>
                   </div>
                 </section>
               </div> : null}
@@ -6791,7 +6831,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
         </section>
       ) : null}
 
-      {phase === "results" && !recentTasks && !standaloneClip && (
+      {phase === "results" && !isDrawCardExperience && !recentTasks && !standaloneClip && (
         <section className="draw-card-stage draw-card-stage-results">
           <div className="draw-card-results-head">
             <div>
@@ -9849,15 +9889,18 @@ async function fetchPublicClipItems(experienceType = "") {
 }
 
 async function fetchPublicClipOriginalPreview(jobId) {
-  const cacheKey = Date.now().toString(36);
-  const response = await fetch(`/api/public/clip-items/${encodeURIComponent(jobId)}/download-original?preview=${cacheKey}`, {
+  const safeJobId = encodeURIComponent(jobId);
+  // 先发一次无 preview 参数的请求完成下载资格校验与扣次数，
+  // 预览本身用 preview=1 的真实 HTTP URL 展示——微信长按保存不支持 blob: 图片。
+  const response = await fetch(`/api/public/clip-items/${safeJobId}/download-original`, {
     credentials: "same-origin"
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
     throw new Error(payload.message || "下载原图失败，请稍后再试。");
   }
-  return URL.createObjectURL(await response.blob());
+  try { await response.body?.cancel(); } catch {}
+  return `/api/public/clip-items/${safeJobId}/download-original?preview=1`;
 }
 
 function AcrylicMagnetCorners() {

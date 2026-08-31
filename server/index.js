@@ -1,4 +1,4 @@
-﻿import express from "express";
+import express from "express";
 import multer from "multer";
 import path from "node:path";
 import { createReadStream, existsSync, readFileSync } from "node:fs";
@@ -3339,7 +3339,11 @@ app.get("/api/public/clip-items/:jobId/download-original", requireWebAccount, as
     if (!authorization.allowed) {
       throw createHttpError(403, "免分享下载次数已用完。请分享给一位新访客并由对方打开链接，或累计实付满 20 元后再下载小画原图。", "免分享下载次数已用完。请分享给一位新访客并由对方打开链接，或累计实付满 20 元后再下载小画原图。");
     }
-    commerceStore.redeemOriginalImage({ accountId: req.webAccount.id, jobId: job.jobId });
+    // preview=1 仅用于长按保存的原图预览展示：扣次数发生在无 preview 参数的校验请求上，
+    // 避免 <img> 加载同一资源时重复扣次数。
+    if (String(req.query?.preview || "") !== "1") {
+      commerceStore.redeemOriginalImage({ accountId: req.webAccount.id, jobId: job.jobId });
+    }
     await sendPublicClipOriginalImage(res, job, file);
   } catch (error) {
     console.error(error);
@@ -4994,11 +4998,14 @@ app.use((req, res) => {
     return res.redirect(302, "/");
   }
   if (pathname === "/" || pathname === "/tasks" || pathname === "/clip" || pathname === "/book" || pathname === "/book/" || pathname === "/book/cart" || pathname === "/book/orders" || pathname === "/book/orders/" || pathname.startsWith("/book/orders/") || pathname === "/fridge/orders" || pathname === "/fridge/orders/" || pathname.startsWith("/fridge/orders/") || pathname === "/gallery" || pathname.startsWith("/admin/") || pathname === "/admin") {
+    // index.html 引用带 hash 的构建产物，必须禁缓存，否则浏览器会运行旧版本前端。
+    res.setHeader("Cache-Control", "no-store");
     return res.sendFile(path.join(rootDir, "dist", "index.html"));
   }
   if (pathname === "/luck" || pathname === "/manage" || pathname === "/batch") {
     return res.redirect(pathname === "/luck" ? "/" : "/admin/login");
   }
+  res.setHeader("Cache-Control", "no-store");
   res.sendFile(path.join(rootDir, "dist", "index.html"));
 });
 
@@ -11114,6 +11121,7 @@ async function listRecentDrawCardTasks(account, { hours = 24 } = {}) {
       String(session.createdAt || "") >= cutoffAt
   );
   const tasks = [];
+  const recentEstimatedWaitSeconds = estimateImageWaitSeconds("draw-card");
   for (const rawSession of owned) {
     const session = await synchronizeDrawCardSession(rawSession);
     for (const item of session?.items || []) {
@@ -11127,7 +11135,8 @@ async function listRecentDrawCardTasks(account, { hours = 24 } = {}) {
         errorMessage: item.errorMessage || "",
         result: item.result ? toPublicPreviewResult(item.result) : null,
         createdAt: session.createdAt || "",
-        updatedAt: session.updatedAt || session.completedAt || session.createdAt || ""
+        updatedAt: session.updatedAt || session.completedAt || session.createdAt || "",
+        estimatedWaitSeconds: recentEstimatedWaitSeconds
       });
     }
   }

@@ -1,0 +1,15 @@
+==== goto /tasks
+url=http://localhost:3000/tasks
+scripts=["/assets/index-Cpq_bZ1Y.js"]
+card=true
+clicked card
+target found=true
+CDP-NAV: {"frameId":"D84EFFB57D09F2C1305458683FF01C1A","reason":"scriptInitiated","url":"http://localhost:3000/?sameStyleId=style_1787363189673","disposition":"currentTab"}
+clicked 做同款
+url after=http://localhost:3000/?sameStyleId=style_1787363189673
+navigated=false
+UNCAUGHT-EXCEPTION: page.screenshot: Timeout 30000ms exceeded.
+Call log:
+[2m  - taking page screenshot[22m
+
+    at D:\Prompt-Reference-Board\Prompt-Reference-Board\tools\verify-click-flow.mjs:55:14
