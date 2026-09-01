@@ -3128,7 +3128,8 @@ body {
 }
 
 .draw-card-clip-remove,
-.draw-card-clip-download {
+.draw-card-clip-download,
+.draw-card-clip-customize {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3152,6 +3153,13 @@ body {
 .draw-card-clip-download:disabled {
   cursor: progress;
   opacity: 0.68;
+}
+
+/* 预览弹窗「去定制」按钮：尺寸与「移出卡夹」一致，金色渐变高亮 */
+.draw-card-clip-customize {
+  border-color: transparent;
+  background: linear-gradient(135deg, #f1dfc3, #b98f58);
+  color: #111214;
 }
 
 .draw-card-original-preview-panel .draw-card-lightbox-meta {

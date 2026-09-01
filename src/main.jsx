@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCallback } from "react";
-import { Activity, AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, Clipboard, Cpu, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, MemoryStick, Pencil, Plus, QrCode, RefreshCw, Save, Search, Server, Settings, Share2, Sparkles, Store, Trash2, Wifi, X, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, Clipboard, Cpu, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, MemoryStick, Pencil, Plus, QrCode, RefreshCw, Save, Search, Server, Settings, Share2, ShoppingBag, Sparkles, Store, Trash2, Wifi, X, XCircle } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import HTMLFlipBook from "react-pageflip";
 import { createLabeledQrPngDataUrl, createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
@@ -4024,7 +4024,11 @@ function DrawCardCheckoutPage() {
         const items = Array.isArray(clipPayload?.items) ? clipPayload.items : [];
         setClipItems(items);
         if (!hasInitializedDefaultSelectionRef.current) {
-          setSelectedJobIds(items[0]?.jobId ? [items[0].jobId] : []);
+          // 支持预览弹窗「去定制」带来的 ?jobId= 参数：命中卡夹内图片则默认只选中该图，
+          // 否则回落为选中第一张（商户风格码来源会自动进入现场制作模式，选图仅在邮寄模式展示）。
+          const requestedJobId = new URLSearchParams(window.location.search).get("jobId") || "";
+          const requestedItem = items.find((item) => String(item.jobId) === String(requestedJobId));
+          setSelectedJobIds(requestedItem?.jobId ? [requestedItem.jobId] : items[0]?.jobId ? [items[0].jobId] : []);
           hasInitializedDefaultSelectionRef.current = true;
         }
         setOrderConfig(config || null);
@@ -6951,6 +6955,14 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
                       {originalPreviewLoadingJobId === activeResult.jobId ? "加载中" : "下载原图"}
                     </button>
                     <button className="draw-card-secondary" disabled={!activeResult.styleId || isGenerationInProgress || isSubmitting} onClick={() => openSameStyle(activeResult.styleId)} type="button"><Sparkles size={16} /><span>做同款</span></button>
+                    <button
+                      className="draw-card-clip-customize"
+                      onClick={() => window.location.assign(`/draw/order?jobId=${encodeURIComponent(activeResult.jobId)}`)}
+                      type="button"
+                    >
+                      <ShoppingBag size={16} />
+                      <span>去定制</span>
+                    </button>
                     <button className="draw-card-secondary" onClick={() => { void openDrawShare(activeResult); }} type="button"><Share2 size={16} /><span>分享</span></button>
                     <button className="draw-card-secondary" disabled={styleQrBusy} onClick={() => { void openStyleQr(activeResult); }} type="button"><QrCode size={16} /><span>{styleQrBusy ? "生成中" : "风格码"}</span></button>
                   </div>
