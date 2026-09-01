@@ -2911,6 +2911,13 @@ function BodyBookPage() {
   }
 
   async function toggleContentSelection(contentKey, checked) {
+    if (checked) {
+      const selectedInnerCount = pickerKeys.filter((key) => key !== "cover").length;
+      if (selectedInnerCount >= selectionTargetCount - 1) {
+        window.alert(`一本认知书最多选择 ${selectionTargetCount - 1} 张内页，如需更换内容请先取消已勾选的页面。`);
+        return;
+      }
+    }
     const nextKeys = checked
       ? [...new Set([...pickerKeys, contentKey])]
       : pickerKeys.filter((key) => key !== contentKey);
