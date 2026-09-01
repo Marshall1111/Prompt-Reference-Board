@@ -4888,6 +4888,18 @@ app.put("/api/styles/:id", requireAdmin, async (req, res) => {
   style.prompt = String(req.body.prompt || "").trim();
   style.useStyleImageAsReference = Boolean(req.body.useStyleImageAsReference);
   await saveStyles(styles);
+  // 级联更新发布记录的风格名，保持发布页与图库风格名一致。
+  const nextStyleName = formatStyleName(style);
+  const publications = await readStylePublications();
+  let publicationsChanged = false;
+  for (const publication of publications) {
+    if (publication.styleId === style.id && publication.styleName !== nextStyleName) {
+      publication.styleName = nextStyleName;
+      publication.updatedAt = new Date().toISOString();
+      publicationsChanged = true;
+    }
+  }
+  if (publicationsChanged) await saveStylePublications(publications);
   res.json(style);
 });
 

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>桌面立牌海报 A4 · 复古旅行日志</title>
+<!-- ============================================================
+  使用说明：
+  1. 修改下方 QR_URL 为你的真实风格码链接
+     （sameStyleId 已按"复古旅行日志"填好，invite 换成你的 referralToken）
+  2. 修改海报中两处留白占位：门店名 / 价格（搜索 "＿＿" 快速定位）
+  3. 打印：浏览器打开本页 → Ctrl+P → 纸张 A4 → 边距"无" →
+     勾选"背景图形" → 纵向 100%
+============================================================ -->
+<script>
+  const QR_URL = "https://你的域名/?sameStyleId=style_1788046827108&invite=替换成你的referralToken";
+</script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+  /* ---------- 页面基础 ---------- */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #8a8578; }
+  .page {
+    width: 210mm; height: 297mm;
+    margin: 10mm auto;
+    background: #f4eddc;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4mm 12mm rgba(0,0,0,.35);
+    color: #35322c;                        /* 炭黑 */
+    font-family: "KaiTi", "楷体", "STKaiti", serif;
+  }
+  /* 纸张纤维纹理层 */
+  .page::after {
+    content: ""; position: absolute; inset: 0; z-index: 5;
+    pointer-events: none; opacity: .5; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.62 0 0 0 0 0.58 0 0 0 0 0.48 0 0 0 0.10 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  /* 四周暖色晕染 */
+  .page::before {
+    content: ""; position: absolute; inset: 0; z-index: 4; pointer-events: none;
+    background:
+      radial-gradient(ellipse 140% 90% at 50% 40%, transparent 60%, rgba(146,116,72,.14) 100%),
+      radial-gradient(ellipse 60% 30% at 88% 2%, rgba(146,116,72,.12), transparent 70%),
+      radial-gradient(ellipse 50% 24% at 4% 98%, rgba(146,116,72,.12), transparent 70%);
+  }
+  .inner {
+    position: absolute; inset: 9mm; z-index: 10;
+    border: .6mm solid #35322c; border-radius: 1mm;
+    outline: .2mm dashed #35322c; outline-offset: -2.2mm;
+    padding: 8mm 9mm;
+    display: flex; flex-direction: column;
+  }
+
+  /* ---------- 顶部：档案编号 + 邮戳 ---------- */
+  .head { display: flex; justify-content: space-between; align-items: flex-start; }
+  .head .type {
+    font-family: "Courier New", monospace; font-size: 8.5pt;
+    letter-spacing: .18em; color: #5b5648;
+  }
+  .head .type b { color: #35322c; }
+  .postmark { width: 24mm; height: 24mm; flex: 0 0 auto; margin-top: -1mm; }
+
+  /* ---------- 主标语 ---------- */
+  .slogan { margin-top: 7mm; line-height: 1.16; }
+  .slogan h1 {
+    font-size: 46pt; font-weight: bold; letter-spacing: .06em; color: #35322c;
+  }
+  .slogan h1 .ink { color: #b05c33; position: relative; white-space: nowrap; } /* 赤陶橙 */
+  .slogan h1 .ink svg { position: absolute; left: 0; bottom: -3.4mm; width: 100%; height: 4mm; }
+  .slogan .sub {
+    margin-top: 5.5mm; font-size: 13pt; color: #57503f; letter-spacing: .05em;
+  }
+  .slogan .sub em { font-style: normal; color: #6d6b3d; } /* 橄榄绿 */
+
+  /* ---------- 实物样品粘贴区 ---------- */
+  .stage {
+    margin-top: 8mm; flex: 1 1 auto; min-height: 0;
+    border: .45mm dashed #8a7a58; border-radius: 1.2mm;
+    background: rgba(255,251,240,.55);
+    position: relative;
+  }
+  .stage .corner { position: absolute; width: 5mm; height: 5mm; }
+  .stage .corner svg { width: 100%; height: 100%; }
+  .stage .tl { top: 2.5mm; left: 2.5mm; }
+  .stage .tr { top: 2.5mm; right: 2.5mm; transform: scaleX(-1); }
+  .stage .bl { bottom: 2.5mm; left: 2.5mm; transform: scaleY(-1); }
+  .stage .br { bottom: 2.5mm; right: 2.5mm; transform: scale(-1); }
+  .stage .wm {
+    position: absolute; right: 8mm; top: 7mm;
+    font-family: "Courier New", monospace; font-size: 26pt;
+    letter-spacing: .3em; color: rgba(109,107,61,.13);
+    transform: rotate(8deg);
+  }
+  .stage .tag {
+    position: absolute; bottom: 4mm; left: 50%; transform: translateX(-50%);
+    font-family: "Courier New", monospace; font-size: 8.5pt;
+    color: #8a7a58; letter-spacing: .25em; white-space: nowrap;
+  }
+  .stage .tag b { color: #5b5648; }
+
+  /* ---------- 底部：二维码 + 小样 + 价格 ---------- */
+  .foot { margin-top: 7mm; display: flex; gap: 8mm; align-items: stretch; }
+  .qr-card {
+    flex: 0 0 auto; background: #fdfaf1; padding: 3.5mm;
+    border: .5mm solid #35322c; border-radius: 1mm; position: relative;
+    box-shadow: .8mm .8mm 0 rgba(53,50,44,.18);
+  }
+  .qr-card .tape {
+    position: absolute; top: -3.2mm; left: 50%; transform: translateX(-50%) rotate(-2deg);
+    width: 22mm; height: 6.4mm; background: rgba(200,134,42,.4); /* 赭石金胶带 */
+    border-left: .2mm dashed rgba(122,100,50,.5);
+    border-right: .2mm dashed rgba(122,100,50,.5);
+  }
+  .qr-card canvas, .qr-card .qr-fallback { display: block; width: 33mm; height: 33mm; }
+  .qr-fallback {
+    font-family: "Courier New", monospace; font-size: 6pt; color: #8a7a58;
+    word-break: break-all; overflow: hidden;
+  }
+  .qr-label { margin-top: 3mm; text-align: center; }
+  .qr-label .big { font-size: 13.5pt; font-weight: bold; letter-spacing: .14em; color: #35322c; }
+  .qr-label .small { margin-top: 1.2mm; font-size: 8.5pt; color: #8a7a58; letter-spacing: .06em; }
+
+  .foot-right { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-between; padding: 1mm 0; }
+  .archive {
+    font-family: "Courier New", monospace; font-size: 8.5pt;
+    line-height: 1.85; color: #5b5648; letter-spacing: .12em;
+    border-left: .5mm solid #b05c33; padding-left: 4mm;
+  }
+  .archive .cn { font-family: "KaiTi", "楷体", serif; letter-spacing: .3em; }
+  .price { font-size: 14.5pt; color: #35322c; letter-spacing: .04em; }
+  .price .blank {
+    display: inline-block; min-width: 12mm;
+    border-bottom: .4mm solid #35322c; text-align: center;
+  }
+  .price-note { margin-top: 1.5mm; font-size: 9pt; color: #8a7a58; letter-spacing: .1em; }
+  .brand {
+    display: flex; align-items: center; gap: 3mm;
+    font-family: "Courier New", monospace; font-size: 8.5pt; color: #5b5648;
+    letter-spacing: .2em;
+  }
+  .brand::after { content: ""; flex: 1; border-top: .3mm dashed #8a7a58; }
+  .brand .zh { font-family: "KaiTi", "楷体", serif; font-size: 11pt; font-weight: bold; color: #35322c; letter-spacing: .28em; }
+
+  /* ---------- 打印 ---------- */
+  @page { size: A4 portrait; margin: 0; }
+  @media print {
+    html, body { background: #fff; }
+    .page { margin: 0; box-shadow: none; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="inner">
+
+    <!-- 顶部 -->
+    <div class="head">
+      <div class="type">
+        PHOTO <b>&#8594;</b> FRIDGE MAGNET<br>
+        YOUR PHOTO, HAND-PRINTED &amp; TRAVELLED.
+      </div>
+      <!-- 邮戳 -->
+      <svg class="postmark" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="46" fill="none" stroke="#35322c" stroke-width="2.5" stroke-dasharray="6 3.5"/>
+        <circle cx="50" cy="50" r="33" fill="none" stroke="#35322c" stroke-width="1.6"/>
+        <text x="50" y="45" text-anchor="middle" font-family="KaiTi,楷体" font-size="19" font-weight="bold" fill="#35322c">做同款</text>
+        <text x="50" y="63" text-anchor="middle" font-family="Courier New" font-size="9" letter-spacing="2" fill="#5b5648">NO.021</text>
+        <path d="M20 84 L80 84" stroke="#b05c33" stroke-width="2" stroke-dasharray="4 3"/>
+        <text x="50" y="80" text-anchor="middle" font-family="Courier New" font-size="8" letter-spacing="1" fill="#5b5648">2026</text>
+      </svg>
+    </div>
+
+    <!-- 主标语 -->
+    <div class="slogan">
+      <h1>让有意义的<br>照片更<span class="ink">精美<svg viewBox="0 0 120 12" preserveAspectRatio="none"><path d="M3 8 Q 30 3 60 7 T 117 6" fill="none" stroke="#c8862a" stroke-width="4.5" stroke-linecap="round" opacity=".85"/></svg></span></h1>
+      <p class="sub">你的照片，画成一页<em>复古旅行日志</em>，做成可以带回家的冰箱贴</p>
+    </div>
+
+    <!-- 实物样品粘贴区 -->
+    <div class="stage">
+      <div class="corner tl"><svg viewBox="0 0 20 20"><path d="M2 18 L2 6 Q2 2 6 2 L18 2" fill="none" stroke="#35322c" stroke-width="2.4"/></svg></div>
+      <div class="corner tr"><svg viewBox="0 0 20 20"><path d="M2 18 L2 6 Q2 2 6 2 L18 2" fill="none" stroke="#35322c" stroke-width="2.4"/></svg></div>
+      <div class="corner bl"><svg viewBox="0 0 20 20"><path d="M2 18 L2 6 Q2 2 6 2 L18 2" fill="none" stroke="#35322c" stroke-width="2.4"/></svg></div>
+      <div class="corner br"><svg viewBox="0 0 20 20"><path d="M2 18 L2 6 Q2 2 6 2 L18 2" fill="none" stroke="#35322c" stroke-width="2.4"/></svg></div>
+      <div class="wm">SAMPLES</div>
+      <div class="tag">STICK YOUR MAGNETS HERE &#9650; <b>桌上实物 · 直接感受手绘质感</b></div>
+    </div>
+
+    <!-- 底部 -->
+    <div class="foot">
+      <div class="qr-card">
+        <div class="tape"></div>
+        <canvas id="qr"></canvas>
+        <div class="qr-label">
+          <div class="big">扫码做同款</div>
+          <div class="small">复古旅行日志 · 上传照片即可生成</div>
+        </div>
+      </div>
+      <div class="foot-right">
+        <div class="archive">
+          <span class="cn">门店：＿＿＿＿＿＿＿＿</span><br>
+          TABLE No. ___<br>
+          PHOTO / JOURNAL / MAGNET<br>
+          2026
+        </div>
+        <div>
+          <div class="price">现场制作 · <span class="blank">＿＿</span> 元起</div>
+          <div class="price-note">当场取件 · 支持寄送 · 多款风格可选</div>
+        </div>
+        <div class="brand"><span class="zh">冰箱贴定制</span> PHOTO-TO-MAGNET STUDIO</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // 生成二维码；CDN 不可用时退化为文字链接
+  (function () {
+    var canvas = document.getElementById("qr");
+    if (window.QRCode && window.QRCode.toCanvas) {
+      QRCode.toCanvas(canvas, QR_URL, { width: 330, margin: 0, color: { dark: "#35322c", light: "#fdfaf1" } }, function (err) {
+        if (err) fallback();
+      });
+    } else {
+      fallback();
+    }
+    function fallback() {
+      var box = document.createElement("div");
+      box.className = "qr-fallback";
+      box.textContent = "二维码生成失败（需联网），请检查网络后刷新。\n" + QR_URL;
+      canvas.replaceWith(box);
+    }
+  })();
+</script>
+</body>
+</html>
