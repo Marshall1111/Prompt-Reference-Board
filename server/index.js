@@ -11121,7 +11121,7 @@ async function listRecentDrawCardTasks(account, { hours = 24 } = {}) {
       String(session.createdAt || "") >= cutoffAt
   );
   const tasks = [];
-  const recentEstimatedWaitSeconds = estimateImageWaitSeconds("draw-card");
+  const recentEstimatedWaitSeconds = (await estimateDrawCardWaitSecondsFromRecentJobs()) ?? 120;
   for (const rawSession of owned) {
     const session = await synchronizeDrawCardSession(rawSession);
     for (const item of session?.items || []) {
@@ -11134,13 +11134,14 @@ async function listRecentDrawCardTasks(account, { hours = 24 } = {}) {
         status: item.status,
         errorMessage: item.errorMessage || "",
         result: item.result ? toPublicPreviewResult(item.result) : null,
-        createdAt: session.createdAt || "",
+        createdAt: item.createdAt || session.createdAt || "",
         updatedAt: session.updatedAt || session.completedAt || session.createdAt || "",
         estimatedWaitSeconds: recentEstimatedWaitSeconds
       });
     }
   }
-  return tasks.sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)));
+  // 按任务发起时间倒序，最新的排在最前面。
+  return tasks.sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)));
 }
 
 async function saveDrawCardSession(session) {
@@ -11185,6 +11186,7 @@ async function synchronizeDrawCardSession(session) {
       return {
         ...item,
         status,
+        createdAt: String(job?.createdAt || item?.createdAt || ""),
         result: status === "succeeded"
           ? {
               imageUrl,
@@ -11402,6 +11404,7 @@ function normalizeDrawCardSession(session) {
             styleId: String(item?.styleId || ""),
             styleName: String(item?.styleName || ""),
             status: String(item?.status || (itemResult ? "succeeded" : "queued")),
+            createdAt: String(item?.createdAt || ""),
             result: itemResult
               ? {
                   imageUrl: String(itemResult.imageUrl || itemResult.previewUrl || ""),
@@ -13715,6 +13718,48 @@ function estimateImageWaitSeconds(experienceType) {
   const sorted = [...samples].sort((left, right) => left - right);
   const median = sorted[Math.floor(sorted.length / 2)];
   return Math.min(180, Math.max(10, Math.round(median / 1000)));
+}
+
+// 基于持久化的最近 10 个已完成抽卡任务的实际耗时预估等待时间（中位数），
+// 结果缓存 60 秒，避免每次轮询都扫描全部任务文件。
+const recentJobsWaitEstimateState = { value: null, expiresAt: 0, pending: null };
+
+async function estimateDrawCardWaitSecondsFromRecentJobs() {
+  const now = Date.now();
+  if (recentJobsWaitEstimateState.expiresAt > now) {
+    return recentJobsWaitEstimateState.value;
+  }
+  if (!recentJobsWaitEstimateState.pending) {
+    recentJobsWaitEstimateState.pending = listImageJobs()
+      .then((jobs) => {
+        const durations = jobs
+          .filter((job) =>
+            job?.status === "succeeded" &&
+            normalizePublicExperienceType(job.experienceType) === "draw-card" &&
+            Number(job.durationSeconds) > 0
+          )
+          .sort((left, right) =>
+            String(right.completedAt || right.updatedAt || "").localeCompare(String(left.completedAt || left.updatedAt || ""))
+          )
+          .slice(0, 10)
+          .map((job) => Math.round(Number(job.durationSeconds)))
+          .sort((left, right) => left - right);
+        const value = durations.length
+          ? Math.min(600, Math.max(10, durations[Math.floor(durations.length / 2)]))
+          : null;
+        recentJobsWaitEstimateState.value = value;
+        recentJobsWaitEstimateState.expiresAt = Date.now() + 60 * 1000;
+        return value;
+      })
+      .catch((error) => {
+        console.error("Failed to estimate draw-card wait seconds from recent jobs:", error);
+        return null;
+      })
+      .finally(() => {
+        recentJobsWaitEstimateState.pending = null;
+      });
+  }
+  return recentJobsWaitEstimateState.pending;
 }
 
 async function takeNextQueuedImageJob() {

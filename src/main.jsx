@@ -5429,7 +5429,9 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
       styleName: String(item?.styleName || ""),
       status: String(item?.status || (fallbackResult ? "succeeded" : "queued")),
       result: fallbackResult,
-      errorMessage: String(item?.errorMessage || "")
+      errorMessage: String(item?.errorMessage || ""),
+      createdAt: String(item?.createdAt || ""),
+      estimatedWaitSeconds: Number(item?.estimatedWaitSeconds) > 0 ? Number(item.estimatedWaitSeconds) : 0
     };
   }), [recentTaskItems]);
 
@@ -6615,9 +6617,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
                   const taskCreatedAtMs = Date.parse(item.createdAt || "") || 0;
                   const taskElapsedSeconds = taskCreatedAtMs ? Math.max(0, Math.floor((Date.now() - taskCreatedAtMs) / 1000)) : 0;
                   const taskRemainingEstimate = Math.max(5, recentEstimatedWaitSeconds - taskElapsedSeconds);
-                  const taskWaitingText = (recentEstimatedWaitSeconds > 0 && waitingLineIndex === 0)
-                    ? `预计还需约 ${taskRemainingEstimate} 秒`
-                    : waitingLines[waitingLineIndex] || "结果会在完成后自动出现。";
+                  const taskWaitingText = `预计还需约 ${taskRemainingEstimate} 秒`;
                   return (
                     <article
                       className={`draw-card-result-card ${result?.isLiked ? "is-in-clip" : ""} ${isRunning ? "is-pending" : ""} ${isFailed ? "is-failed" : ""}`}
