@@ -844,7 +844,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "儿童": 5,
-      "旅行": 15
+      "旅行": 16
     }
   },
   {
@@ -892,7 +892,7 @@
     "sortOrders": {
       "推荐": 1,
       "日常": 2,
-      "旅行": 11
+      "旅行": 12
     }
   },
   {
@@ -983,28 +983,6 @@
     "sortOrders": {
       "日常": 1,
       "推荐": 11
-    }
-  },
-  {
-    "publicationId": "ce4d4de03ecb27de92042254cf556a88",
-    "jobId": "6c2bed35-d8d0-4304-9fbb-6dfde659c168",
-    "styleId": "style_1788139429617",
-    "styleName": "怀旧社论书页",
-    "prompt": "基于参考图像，创作一页怀旧日的社论风格照片转素描艺术书页面。保留原始照片中的相同主体、姿势、面部表情、服装、构图和情感氛围。将完全相同的场景和人物转化为温暖的米白色纹理纸上的松散黑白手绘墨水插图，带有富有表现力的不完美线条、粗糙的交叉阴影、最小化的阴影处理，以及手工素描本的美学。围绕插图添加优雅的社论排版，包括一个小编号标题、简短的诗意手写风格说明文字，营造高端当代摄影杂志或日式视觉日记的感觉，文字中不要出现日期和地点。保留大量的奶油色留白空间、细微的纸张纹理、略显不完美的墨水印刷、低调的复古布局、精致的极简平面设计、情感温暖且电影感十足、照片与绘图之间连贯的过渡、高细节、自然比例、真实的人体解剖结构、无水印、无标志。",
-    "tags": [
-      "旅行"
-    ],
-    "effectImageUrl": "/style-publications/ce4d4de03ecb27de92042254cf556a88/effect.webp",
-    "referenceImageUrl": "/style-publications/ce4d4de03ecb27de92042254cf556a88/reference.webp",
-    "sourceEffectImageUrl": "/generated-images/6c2bed35-d8d0-4304-9fbb-6dfde659c168.png",
-    "sourceReferenceImageUrl": "/job-references/6c2bed35-d8d0-4304-9fbb-6dfde659c168/1-1788141983978.jpg",
-    "createdAt": "2026-08-31T02:07:53.945Z",
-    "updatedAt": "2026-08-31T02:07:53.945Z",
-    "effectGridImageUrl": "/style-publications/ce4d4de03ecb27de92042254cf556a88/effect-small.webp",
-    "effectGridWidth": 512,
-    "effectGridHeight": 640,
-    "sortOrders": {
-      "旅行": 16
     }
   },
   {
@@ -1142,7 +1120,7 @@
     "createdAt": "2026-08-31T11:27:38.247Z",
     "updatedAt": "2026-08-31T11:27:38.247Z",
     "sortOrders": {
-      "旅行": 10
+      "旅行": 11
     }
   },
   {
@@ -1164,7 +1142,7 @@
     "createdAt": "2026-08-31T11:27:52.216Z",
     "updatedAt": "2026-08-31T11:27:52.216Z",
     "sortOrders": {
-      "旅行": 13
+      "旅行": 14
     }
   },
   {
@@ -1186,7 +1164,7 @@
     "createdAt": "2026-08-31T11:30:23.746Z",
     "updatedAt": "2026-08-31T11:30:23.746Z",
     "sortOrders": {
-      "旅行": 14
+      "旅行": 15
     }
   },
   {
@@ -1233,28 +1211,6 @@
     "sortOrders": {
       "推荐": 13,
       "旅行": 3
-    }
-  },
-  {
-    "publicationId": "e512cf2e9740c1981c17d9fd528e177b",
-    "jobId": "df9c3489-b009-4170-935a-2d88640aa7a3",
-    "styleId": "style_1787704435062",
-    "styleName": "包豪斯式构成插画",
-    "prompt": "请将上传的任意照片转化为包豪斯式几何构成插画：保留有辨识度的轮廓、比例、方向和主体关系，将人物、建筑、植物、物品或空间场景简化为矩形、圆形、三角形、线段、色块与几何剪影。保留原图最关键的结构特征与主色，但控制在3-5种高对比颜色以内，以米白、灰黑等中性色作为大面积背景，搭配红、黄、蓝、绿等强调色。画面强调非对称平衡、网格秩序、比例关系、轴线与视觉动势，可加入少量细线、辅助线、圆点或结构标记强化设计感。整体细节极少，边缘利落，平涂无写实光影，带轻微纸张或丝网印刷颗粒。主体缩小置于版面中央或偏一侧，四周保持大量留白，下方或侧边搭配一行克制的衬线英文标题和极小副标题，形成现代建筑画册、展览海报般的高级极简排版。",
-    "tags": [
-      "旅行"
-    ],
-    "effectImageUrl": "/style-publications/e512cf2e9740c1981c17d9fd528e177b/effect.webp",
-    "effectGridImageUrl": "/style-publications/e512cf2e9740c1981c17d9fd528e177b/effect-small.webp",
-    "effectGridWidth": 427,
-    "effectGridHeight": 640,
-    "referenceImageUrl": "/style-publications/e512cf2e9740c1981c17d9fd528e177b/reference.webp",
-    "sourceEffectImageUrl": "/generated-images/df9c3489-b009-4170-935a-2d88640aa7a3.png",
-    "sourceReferenceImageUrl": "/job-references/df9c3489-b009-4170-935a-2d88640aa7a3/1-1788185545239.jpg",
-    "createdAt": "2026-08-31T14:14:12.261Z",
-    "updatedAt": "2026-08-31T14:14:12.261Z",
-    "sortOrders": {
-      "旅行": 17
     }
   },
   {
@@ -1610,7 +1566,7 @@
     "createdAt": "2026-08-31T22:11:09.517Z",
     "updatedAt": "2026-08-31T22:11:09.517Z",
     "sortOrders": {
-      "旅行": 9
+      "旅行": 10
     }
   },
   {
@@ -1682,28 +1638,6 @@
     }
   },
   {
-    "publicationId": "07f5013e5505ef79cd171ef6326efbde",
-    "jobId": "a5012878-7473-472c-aa13-fb88ad115bcf",
-    "styleId": "style_1788159987359",
-    "styleName": "扁平矢量插画",
-    "prompt": "提取照片中最具识别性的主体、轮廓、姿态与叙事关系，重构为一张 premium minimalist flat-vector travel poster 风格的场景化插画。不要机械描摹照片，而是根据原图的视觉个性，提炼一个最具代表性的主视觉焦点，并围绕它补充 2–4 个最能说明环境气质、日常方式、地方感或生活状态的辅助元素。\r\n\t\r\n构图应根据主体本身的气质重新组织，利用一个明确焦点、清晰前后层次、适度留白和安静有序的视觉节奏建立画面；可根据原图自然转化为街道、广场、岸边、庭院、通道、平台、植物场景、室内角落或带有生活线索的环境片段。\r\n\t\r\n主体始终是第一视觉中心，其余元素仅用于强化“这是这个地方 / 这个对象 / 这种情境”的独特性，避免拼贴式地标堆积、明信片式罗列和过度叙事。若画面需要人物，仅保留 3–6 个小尺度人物，并让其自然融入环境，不设单一主角。\r\n\t\r\n整体风格采用高级极简扁平矢量插画：日系文具感、精品贴纸插画、现代 editorial travel branding 气质，使用简洁几何形、柔和轮廓、统一线重、平涂色块和克制细节，画面清新、安静、精致、当代。避免写实、厚重阴影、水彩肌理、纸张纹理、复杂笔触、渐变、拥挤背景和过多细节。\r\n\t\r\n配色以柔和、通透、略微去饱和的高级色系为基础，可从原图中提炼综合色温进行调整，但整体保持轻盈统一。以浅粉蓝、雾蓝、天空蓝、空气感冷调蓝营造主氛围，再以象牙白、奶油白、浅米色、柔和灰绿、建筑中性色保持平衡；仅允许少量 dusty rose 或 muted blush 作为微小点缀，用于花、服饰、小标识、遮阳篷或局部装饰，使画面既有呼吸感又不失精致层次。\r\n\t\r\n从原图的地点、对象名称、主题词、状态或氛围中提炼一个简短标题，置于留白充足的位置，并搭配一句简短、克制、具有气质的 tagline。文字应保持 understated、editorial、spacious、premium 的排版气质，不压过画面；必要时可加入少量小字信息、坐标式注释或微型说明，使文字像高级旅行品牌或精品明信片中的视觉标识，自然融入构图，而不是后期贴上的标题栏。",
-    "tags": [
-      "旅行"
-    ],
-    "effectImageUrl": "/style-publications/07f5013e5505ef79cd171ef6326efbde/effect.webp",
-    "effectGridImageUrl": "/style-publications/07f5013e5505ef79cd171ef6326efbde/effect-small.webp",
-    "effectGridWidth": 427,
-    "effectGridHeight": 640,
-    "referenceImageUrl": "/style-publications/07f5013e5505ef79cd171ef6326efbde/reference.webp",
-    "sourceEffectImageUrl": "/generated-images/a5012878-7473-472c-aa13-fb88ad115bcf.png",
-    "sourceReferenceImageUrl": "/job-references/a5012878-7473-472c-aa13-fb88ad115bcf/1-1788215186288.jpg",
-    "createdAt": "2026-08-31T22:27:38.941Z",
-    "updatedAt": "2026-08-31T22:27:38.941Z",
-    "sortOrders": {
-      "旅行": 12
-    }
-  },
-  {
     "publicationId": "cfb176e8bec1dc04677e7c361e57267d",
     "jobId": "74a2caa9-ee95-46fb-86ec-e32bba8414a9",
     "styleId": "style_1779179958695",
@@ -1722,7 +1656,7 @@
     "createdAt": "2026-08-31T22:43:06.344Z",
     "updatedAt": "2026-08-31T22:43:06.344Z",
     "sortOrders": {
-      "旅行": 18
+      "旅行": 17
     }
   },
   {
@@ -1791,6 +1725,74 @@
     "sortOrders": {
       "旅行": 1,
       "推荐": 3
+    }
+  },
+  {
+    "publicationId": "b159558162dbe9b1ff885d06e0c46126",
+    "jobId": "fd35b8fb-ade1-4734-ba4e-2b42dda87c13",
+    "styleId": "style_1787363189673",
+    "styleName": "幽默平涂漫画",
+    "prompt": "以上传的照片为大致参考，参考其中的头发、肤色和主要特征，制作一张插画。围绕参照图来构图，让她毫无疑问成为主角。只包含上传照片中可见的人。采用极简、简单的纯平涂色另类漫画插画风格，搭配简洁统一的手绘线条。人物简化为基础形状，面部特征尽量少（点眼、简单的鼻子、小嘴），比例略显笨拙。少量使用纯色块来形成对比。居中构图，留出大量空白，不要背景细节。整体风格要一本正经、情绪中性，带一点安静的荒诞感。幽默应来自隐含的古怪逻辑、别扭的视觉关系，或对琐碎小事的过于严肃处理。加入基于姿态或情境的细微幽默，更像观察所得，而不是夸张打闹。\r\n \r\n加上小而简单的文字，随意摆放，传达一种冷淡、就事论事式的荒诞感。不要阴影，不要纹理，不要细致刻画。避免关于角色身份的常见文化陈词滥调或刻板印象；幽默不要依赖典型的“nsfw”套路。",
+    "tags": [
+      "旅行"
+    ],
+    "effectImageUrl": "/style-publications/b159558162dbe9b1ff885d06e0c46126/effect.webp",
+    "effectGridImageUrl": "/style-publications/b159558162dbe9b1ff885d06e0c46126/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/b159558162dbe9b1ff885d06e0c46126/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/fd35b8fb-ade1-4734-ba4e-2b42dda87c13.png",
+    "sourceReferenceImageUrl": "/job-references/fd35b8fb-ade1-4734-ba4e-2b42dda87c13/1-1788246713111.jpg",
+    "createdAt": "2026-09-01T07:14:00.682Z",
+    "updatedAt": "2026-09-01T07:14:00.682Z",
+    "sortOrders": {
+      "旅行": 9
+    }
+  },
+  {
+    "publicationId": "05192f5091b66b5c64200f21a1df5134",
+    "jobId": "5d78cc26-ac5d-416a-9fe8-5299bdb9ac3b",
+    "styleId": "style_1787983435342",
+    "styleName": "极简手绘插画",
+    "prompt": "请将我上传的每一张照片分别制作成一张独立的高级设计海报。\r\n提取照片中最具识别性的主体、轮廓、姿态与叙事关系，重构为极简纸感手绘封面插画。高度提炼并删减复杂细节，只保留最关键的视觉特征，以纤细、略带不稳定感的手绘线条和少量明确的丙烯平涂色块重新表达，让人一眼识别原始主题。主体保持小而集中，约占下半部分10%-20%，四周大面积留白，背景以粗糙白纸或浅色纸张为主，仅用极少量线条或色面暗示环境。\r\n \r\n配色从上方照片提取并压缩为不超过4种主要颜色，色块鲜明、完整、克制，保留纸张颗粒、手工涂抹和轻微不规则边缘。线条负责提示结构，色块负责建立主体。避免彩铅、蜡笔、水彩晕染、纯线稿、复杂写实、厚重油画、光滑数字插画和3D质感。\r\n \r\n可加入少量简洁文字，根据照片内容灵活使用标题、主题词、对象名称、地点、年份、编号或短句，文字排版疏朗克制，与留白和插画自然融合，具有艺术书封、独立出版物和儿童绘本式设计感。整体呈现小主体、大留白、强提炼、高识别度、安静、童趣、轻松、诗意而高级的视觉气质，避免商业卡通感、电商感和模板感。",
+    "tags": [
+      "旅行"
+    ],
+    "effectImageUrl": "/style-publications/05192f5091b66b5c64200f21a1df5134/effect.webp",
+    "effectGridImageUrl": "/style-publications/05192f5091b66b5c64200f21a1df5134/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/05192f5091b66b5c64200f21a1df5134/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/5d78cc26-ac5d-416a-9fe8-5299bdb9ac3b.png",
+    "sourceReferenceImageUrl": "/job-references/5d78cc26-ac5d-416a-9fe8-5299bdb9ac3b/1-1788246790900.jpg",
+    "createdAt": "2026-09-01T07:15:10.413Z",
+    "updatedAt": "2026-09-01T07:15:10.413Z",
+    "sortOrders": {
+      "旅行": 18
+    }
+  },
+  {
+    "publicationId": "b9f7ee58aab1e51780bd655fd36543c4",
+    "jobId": "112c3f75-0197-45ae-921d-0d00cc9f7bb2",
+    "styleId": "style_1788159987359",
+    "styleName": "扁平矢量插画",
+    "prompt": "提取照片中最具识别性的主体、轮廓、姿态与叙事关系，重构为一张 premium minimalist flat-vector travel poster 风格的场景化插画。不要机械描摹照片，而是根据原图的视觉个性，提炼一个最具代表性的主视觉焦点，并围绕它补充 2–4 个最能说明环境气质、日常方式、地方感或生活状态的辅助元素。\r\n\t\r\n构图应根据主体本身的气质重新组织，利用一个明确焦点、清晰前后层次、适度留白和安静有序的视觉节奏建立画面；可根据原图自然转化为街道、广场、岸边、庭院、通道、平台、植物场景、室内角落或带有生活线索的环境片段。\r\n\t\r\n主体始终是第一视觉中心，其余元素仅用于强化“这是这个地方 / 这个对象 / 这种情境”的独特性，避免拼贴式地标堆积、明信片式罗列和过度叙事。若画面需要人物，仅保留 3–6 个小尺度人物，并让其自然融入环境，不设单一主角。\r\n\t\r\n整体风格采用高级极简扁平矢量插画：日系文具感、精品贴纸插画、现代 editorial travel branding 气质，使用简洁几何形、柔和轮廓、统一线重、平涂色块和克制细节，画面清新、安静、精致、当代。避免写实、厚重阴影、水彩肌理、纸张纹理、复杂笔触、渐变、拥挤背景和过多细节。\r\n\t\r\n配色以柔和、通透、略微去饱和的高级色系为基础，可从原图中提炼综合色温进行调整，但整体保持轻盈统一。以浅粉蓝、雾蓝、天空蓝、空气感冷调蓝营造主氛围，再以象牙白、奶油白、浅米色、柔和灰绿、建筑中性色保持平衡；仅允许少量 dusty rose 或 muted blush 作为微小点缀，用于花、服饰、小标识、遮阳篷或局部装饰，使画面既有呼吸感又不失精致层次。\r\n\t\r\n从原图的地点、对象名称、主题词、状态或氛围中提炼一个简短标题，置于留白充足的位置，并搭配一句简短、克制、具有气质的 tagline。文字应保持 understated、editorial、spacious、premium 的排版气质，不压过画面；必要时可加入少量小字信息、坐标式注释或微型说明，使文字像高级旅行品牌或精品明信片中的视觉标识，自然融入构图，而不是后期贴上的标题栏。",
+    "tags": [
+      "推荐",
+      "旅行"
+    ],
+    "effectImageUrl": "/style-publications/b9f7ee58aab1e51780bd655fd36543c4/effect.webp",
+    "effectGridImageUrl": "/style-publications/b9f7ee58aab1e51780bd655fd36543c4/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/b9f7ee58aab1e51780bd655fd36543c4/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/112c3f75-0197-45ae-921d-0d00cc9f7bb2.png",
+    "sourceReferenceImageUrl": "/job-references/112c3f75-0197-45ae-921d-0d00cc9f7bb2/1-1788247015493.jpg",
+    "createdAt": "2026-09-01T07:18:48.918Z",
+    "updatedAt": "2026-09-01T07:20:37.542Z",
+    "sortOrders": {
+      "推荐": 31,
+      "旅行": 13
     }
   }
 ]
