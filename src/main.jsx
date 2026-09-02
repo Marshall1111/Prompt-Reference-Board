@@ -687,6 +687,42 @@ class AppErrorBoundary extends React.Component {
   }
 }
 
+let appDialogListener = null;
+
+// 自定义提示/确认弹窗：替代 window.alert / window.confirm，
+// 避免微信内置浏览器原生弹窗自带的“关闭网页”按钮。
+function showAppDialog(options) {
+  return new Promise((resolve) => {
+    if (appDialogListener) appDialogListener({ ...options, resolve });
+    else resolve(false);
+  });
+}
+
+function AppDialogHost() {
+  const [dialog, setDialog] = useState(null);
+  useEffect(() => {
+    appDialogListener = setDialog;
+    return () => { appDialogListener = null; };
+  }, []);
+  if (!dialog) return null;
+  const finish = (result) => {
+    setDialog(null);
+    dialog.resolve(result);
+  };
+  const isConfirm = dialog.mode === "confirm";
+  return (
+    <div className="modal-backdrop app-dialog-backdrop" role="presentation">
+      <section className="app-dialog-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="提示">
+        <p className="app-dialog-message">{dialog.message}</p>
+        <div className={`app-dialog-actions${isConfirm ? " is-confirm" : ""}`}>
+          {isConfirm ? <button className="app-dialog-button" onClick={() => finish(false)} type="button">{dialog.cancelLabel || "取消"}</button> : null}
+          <button className="app-dialog-button is-primary" onClick={() => finish(true)} type="button">{dialog.confirmLabel || "确定"}</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function AuthModal({ onAuthenticated, onClose, reloadOnLogin = true, description = "" }) {
   const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
@@ -1691,7 +1727,7 @@ function LegacyBodyBookPage() {
 
   async function deleteSavedBook(book) {
     if (!book?.sessionId || deletingBookId) return;
-    if (!window.confirm(`确定删除《${book.title}》吗？删除后无法恢复。`)) return;
+    if (!(await showAppDialog({ message: `确定删除《${book.title}》吗？删除后无法恢复。`, mode: "confirm" }))) return;
     setDeletingBookId(book.sessionId);
     setError("");
     try {
@@ -2176,7 +2212,7 @@ function BodyBookPage() {
   const selectedKeys = (project?.pages?.map((page) => page.key) || draftKeys).filter((key) => selectableContents.some((content) => content.key === key));
   const draftPages = useMemo(() => selectableContents
     .filter((content) => draftKeys.includes(content.key))
-    .map((content) => ({ ...content, status: "not_started", result: null, errorMessage: "", referenceUrls: draftPageReferencePreviews[content.key] || draftReferencePreviews })), [selectableContents, draftKeys, draftReferencePreviews, draftPageReferencePreviews]);
+    .map((content) => ({ ...content, status: "not_started", result: null, errorMessage: "", referenceUrls: content.key in draftPageReferencePreviews ? (draftPageReferencePreviews[content.key] || []) : draftReferencePreviews })), [selectableContents, draftKeys, draftReferencePreviews, draftPageReferencePreviews]);
   const pages = (project?.pages || draftPages).filter((page) => !page.isBuiltIn && page.pageType !== "back-cover");
   const topReferenceUrls = project?.referenceUrls?.length ? project.referenceUrls : draftReferencePreviews;
   const topReferenceThumbnailUrls = project?.referenceThumbnailUrls?.length ? project.referenceThumbnailUrls : topReferenceUrls;
@@ -2185,7 +2221,7 @@ function BodyBookPage() {
     ? (activePageReferencePage.referenceUrls || topReferenceUrls)
     : [];
   const activePageReferenceThumbnailUrls = activePageReferencePage
-    ? (activePageReferencePage.referenceThumbnailUrls || topReferenceThumbnailUrls)
+    ? (activePageReferencePage.referenceThumbnailUrls || activePageReferencePage.referenceUrls || [])
     : [];
   const pendingCount = pages.filter((page) => ["queued", "running"].includes(page.status)).length;
   const incompleteKeys = pages.filter((page) => !["succeeded", "queued", "running"].includes(page.status)).map((page) => page.key);
@@ -2378,8 +2414,9 @@ function BodyBookPage() {
   }, [draftReferences]);
 
   useEffect(() => {
-    const entries = Object.entries(draftPageReferences).filter(([, files]) => Array.isArray(files) && files.length);
-    const previews = Object.fromEntries(entries.map(([key, files]) => [key, files.map((file) => URL.createObjectURL(file))]));
+    // Keep cleared pages (empty arrays) as explicit entries so the UI does not
+    // fall back to showing the global references again after deletion.
+    const previews = Object.fromEntries(Object.entries(draftPageReferences).map(([key, files]) => [key, (Array.isArray(files) ? files : []).map((file) => URL.createObjectURL(file))]));
     setDraftPageReferencePreviews(previews);
     return () => Object.values(previews).flat().forEach((url) => URL.revokeObjectURL(url));
   }, [draftPageReferences]);
@@ -2640,7 +2677,7 @@ function BodyBookPage() {
 
   function toggleCurrentBookCart() {
     if (!project?.sessionId || !currentBookCartEligibility.eligible) {
-      window.alert(`暂时无法加入购物车，当前还差${currentBookCartEligibility.missingCount}张页面，请补齐后再加入购物车`);
+      void showAppDialog({ message: `暂时无法加入购物车，当前还差${currentBookCartEligibility.missingCount}张页面，请补齐后再加入购物车` });
       return;
     }
     if (!visitorState?.account?.isRegistered) {
@@ -2648,19 +2685,21 @@ function BodyBookPage() {
       return;
     }
     if (currentBookCartQuantity > 0) {
-      if (!window.confirm("本书已经在购物车，是否要移出？")) return;
-      setBodyBookCart((current) => {
-        const next = { ...current };
-        delete next[project.sessionId];
-        saveBodyBookCart(visitorState.account, next);
-        return next;
+      void showAppDialog({ message: "本书已经在购物车，是否要移出？", mode: "confirm" }).then((confirmed) => {
+        if (!confirmed) return;
+        setBodyBookCart((current) => {
+          const next = { ...current };
+          delete next[project.sessionId];
+          saveBodyBookCart(visitorState.account, next);
+          return next;
+        });
       });
       return;
     }
     setBodyBookCart((current) => {
       const total = Object.values(current).reduce((sum, quantity) => sum + Math.max(0, Number(quantity || 0)), 0);
       if (total >= MAX_BODY_BOOK_CART_QUANTITY) {
-        window.alert("购物车最多可加入 20 本认知书。");
+        void showAppDialog({ message: "购物车最多可加入 20 本认知书。" });
         return current;
       }
       const next = { ...current, [project.sessionId]: 1 };
@@ -2803,6 +2842,13 @@ function BodyBookPage() {
     }
   }
 
+  async function addTopReferenceFiles(fileList) {
+    const files = Array.from(fileList || []).filter(Boolean);
+    for (const file of files) {
+      await updateTopReference(file);
+    }
+  }
+
   async function removeTopReference(referenceIndex) {
     if (!Number.isInteger(referenceIndex) || referenceIndex < 0) return;
     if (!project) {
@@ -2850,9 +2896,32 @@ function BodyBookPage() {
       if (referenceIndex !== null) data.append("referenceIndex", String(referenceIndex));
       applyProject(await replaceBodyBookProjectPageReference(project.sessionId, page.key, data));
     } catch (nextError) {
-      setError(nextError.message || "替换页面参考图失败，请稍后再试。");
+      const message = nextError.message || "";
+      if (/序号无效|找不到/.test(message)) {
+        await refreshStaleProjectReferences("参考图状态已更新，请重试。");
+      } else {
+        setError(message || "替换页面参考图失败，请稍后再试。");
+      }
     } finally {
       setBusyPageKey("");
+    }
+  }
+
+  async function addPageReferenceFiles(page, fileList) {
+    const files = Array.from(fileList || []).filter(Boolean);
+    for (const file of files) {
+      await updatePageReference(page, file);
+    }
+  }
+
+  // 参考图被其他端/其他入口修改后，本地列表可能与服务端不一致（序号越界）。
+  // 此时静默拉取最新工程数据刷新弹窗，避免把"参考图序号无效。"这类错误暴露给用户。
+  async function refreshStaleProjectReferences(fallbackMessage) {
+    try {
+      applyProject(await fetchBodyBookProject(project.sessionId));
+      setError("");
+    } catch (refreshError) {
+      setError(refreshError.message || fallbackMessage);
     }
   }
 
@@ -2867,7 +2936,12 @@ function BodyBookPage() {
     try {
       applyProject(await deleteBodyBookProjectPageReference(project.sessionId, page.key, referenceIndex));
     } catch (nextError) {
-      setError(nextError.message || "删除页面参考图失败，请稍后再试。");
+      const message = nextError.message || "";
+      if (/序号无效|找不到/.test(message)) {
+        await refreshStaleProjectReferences("参考图状态已更新，请重试。");
+      } else {
+        setError(message || "删除页面参考图失败，请稍后再试。");
+      }
     } finally {
       setBusyPageKey("");
     }
@@ -2914,7 +2988,7 @@ function BodyBookPage() {
     if (checked) {
       const selectedInnerCount = pickerKeys.filter((key) => key !== "cover").length;
       if (selectedInnerCount >= selectionTargetCount - 1) {
-        window.alert(`一本认知书最多选择 ${selectionTargetCount - 1} 张内页，如需更换内容请先取消已勾选的页面。`);
+        await showAppDialog({ message: `一本认知书最多选择 ${selectionTargetCount - 1} 张内页，如需更换内容请先取消已勾选的页面。` });
         return;
       }
     }
@@ -2931,16 +3005,23 @@ function BodyBookPage() {
       setError("没有可提交的页面。");
       return;
     }
+    const hasGlobalReference = project ? (project.referenceUrls || []).length > 0 : draftReferences.length > 0;
+    if (!hasGlobalReference) {
+      await showAppDialog({ message: "请先上传全局参考图" });
+      return;
+    }
     const hasMissingReference = keys.some((key) => {
       const page = pages.find((item) => item.key === key);
       if (!page || page.isBuiltIn) return false;
       const references = project
         ? page.referenceUrls || []
-        : draftPageReferences[key] ?? draftReferences;
-      return !references.length;
+        : (draftPageReferences[key]?.length ? draftPageReferences[key] : draftReferences);
+      if (references.length) return false;
+      // 项目态下页面清空专属参考图后回退使用全局参考图。
+      return !(project && hasGlobalReference);
     });
     if (hasMissingReference) {
-      window.alert("存在尚未上传参考图的任务");
+      await showAppDialog({ message: "存在尚未上传参考图的任务" });
       return;
     }
     if (!(await ensureBookAccount())) return;
@@ -2984,7 +3065,7 @@ function BodyBookPage() {
 
   async function deleteProject(book) {
     if (!book?.sessionId || deletingProjectId) return;
-    if (!window.confirm(`确定删除《${book.title}》吗？删除后无法恢复。`)) return;
+    if (!(await showAppDialog({ message: `确定删除《${book.title}》吗？删除后无法恢复。`, mode: "confirm" }))) return;
     setDeletingProjectId(book.sessionId);
     setError("");
     try {
@@ -3076,7 +3157,7 @@ function BodyBookPage() {
         <div className="body-book-status-row"><div><span className="body-book-step">02</span><h2>{project?.message || "配置你的认知书页面"}</h2></div></div>
         {error ? <p className="error-note">{error}</p> : null}
         {isKindergartenBook ? <section className="body-book-kindergarten-profile"><div><span className="body-book-step">STORY HERO</span><h3>孩子昵称</h3><p>会出现在封面上，例如“乐乐去幼儿园啦”。</p></div>{project ? <strong>{draftChildName || "小朋友"}</strong> : <label><span>昵称（必填）</span><input disabled={busy} maxLength={12} onChange={(event) => setDraftChildName(event.target.value)} placeholder="例如：乐乐" value={draftChildName} /></label>}</section> : null}
-        <section className="body-book-project-reference"><div><span className="body-book-step">REFERENCE</span><h3>{isKindergartenBook ? "孩子参考图" : "全局参考图"}</h3><p>{referenceUploadHint}</p></div><div className={`body-book-reference-list${topReferenceUrls.length ? " has-references" : " is-empty"}`}>{topReferenceUrls.length ? <div className="body-book-reference-previews">{topReferenceUrls.map((url, index) => <div className="body-book-reference-preview" key={`${url}-${index}`}><button aria-label={`查看${isKindergartenBook ? "孩子" : "宝宝"}参考图 ${index + 1} 大图`} className="body-book-reference-preview-open" onClick={() => setActiveReferencePreview({ url, index })} type="button"><img alt={`${isKindergartenBook ? "孩子" : "宝宝"}参考图 ${index + 1}`} decoding="async" src={topReferenceThumbnailUrls[index] || url} /><span className="body-book-reference-index">{index + 1}</span></button><button aria-label={`删除第 ${index + 1} 张${isKindergartenBook ? "孩子" : "宝宝"}参考图`} className="body-book-reference-delete icon-button" disabled={busy} onClick={() => removeTopReference(index)} title="删除参考图" type="button"><X size={15} /></button></div>)}{topReferenceUrls.length < referenceUploadLimit ? <label aria-label={`继续上传${isKindergartenBook ? "孩子" : "宝宝"}照片`} className="body-book-upload body-book-project-upload body-book-reference-add is-compact" title={`继续上传${isKindergartenBook ? "孩子" : "宝宝"}照片`}><Plus aria-hidden="true" size={24} /><input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label> : null}</div> : <label aria-label={`上传${isKindergartenBook ? "孩子" : "宝宝"}照片`} className="body-book-upload body-book-project-upload body-book-reference-add is-initial" title={`上传${isKindergartenBook ? "孩子" : "宝宝"}照片`}><Plus aria-hidden="true" size={32} /><strong>上传{isKindergartenBook ? "孩子" : "宝宝"}照片</strong><input accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { updateTopReference(event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label>}</div></section>
+        <section className="body-book-project-reference"><div><span className="body-book-step">REFERENCE</span><h3>{isKindergartenBook ? "孩子参考图" : "全局参考图"}</h3><p>{referenceUploadHint}</p></div><div className={`body-book-reference-list${topReferenceUrls.length ? " has-references" : " is-empty"}`}>{topReferenceUrls.length ? <div className="body-book-reference-previews">{topReferenceUrls.map((url, index) => <div className="body-book-reference-preview" key={`${url}-${index}`}><button aria-label={`查看${isKindergartenBook ? "孩子" : "宝宝"}参考图 ${index + 1} 大图`} className="body-book-reference-preview-open" onClick={() => setActiveReferencePreview({ url, index })} type="button"><img alt={`${isKindergartenBook ? "孩子" : "宝宝"}参考图 ${index + 1}`} decoding="async" src={topReferenceThumbnailUrls[index] || url} /><span className="body-book-reference-index">{index + 1}</span></button><button aria-label={`删除第 ${index + 1} 张${isKindergartenBook ? "孩子" : "宝宝"}参考图`} className="body-book-reference-delete icon-button" disabled={busy} onClick={() => removeTopReference(index)} title="删除参考图" type="button"><X size={15} /></button></div>)}{topReferenceUrls.length < referenceUploadLimit ? <label aria-label={`继续上传${isKindergartenBook ? "孩子" : "宝宝"}照片`} className="body-book-upload body-book-project-upload body-book-reference-add is-compact" title={`继续上传${isKindergartenBook ? "孩子" : "宝宝"}照片`}><Plus aria-hidden="true" size={24} /><input accept="image/png,image/jpeg,image/webp" disabled={busy} multiple onChange={(event) => { void addTopReferenceFiles(event.target.files); event.target.value = ""; }} type="file" /></label> : null}</div> : <label aria-label={`上传${isKindergartenBook ? "孩子" : "宝宝"}照片`} className="body-book-upload body-book-project-upload body-book-reference-add is-initial" title={`上传${isKindergartenBook ? "孩子" : "宝宝"}照片`}><Plus aria-hidden="true" size={32} /><strong>上传{isKindergartenBook ? "孩子" : "宝宝"}照片</strong><input accept="image/png,image/jpeg,image/webp" disabled={busy} multiple onChange={(event) => { void addTopReferenceFiles(event.target.files); event.target.value = ""; }} type="file" /></label>}</div></section>
         <section className="body-book-content-panel">
           <div className="body-book-project-pages-head"><div><span className="body-book-step">03</span><h3>内容选择</h3><p>{usesPairedPresetLayout ? "制作时仅选择封面和各主题专属认知页；对应内置认知页会在下单预览中自动加入。" : "每张卡片可单独替换参考图并生成。"}</p><p className="body-book-selection-progress">{selectionProgressText}</p></div></div>
           <div className="body-book-grid body-book-project-grid">{pages.map((page) => <BodyBookProjectItem busy={busy} busyPageKey={busyPageKey} key={`${page.key}-${page.jobId || "new"}`} onDelete={() => savePageSelection(selectedKeys.filter((key) => key !== page.key))} onDownload={() => { void downloadBookOriginal(page); }} onEditReferences={() => setActivePageReferenceKey(page.key)} onGenerate={() => submitGeneration([page.key], page.key)} onOpen={openActiveItem} page={page} />)}<button className="body-book-add-page-card" disabled={busy} onClick={openContentPicker} type="button" aria-label="添加或编辑内容"><Plus size={36} /><span>添加内容</span></button>{!pages.length ? <p className="body-book-library-empty">点击“添加内容”选择要制作的页面。</p> : null}</div>
@@ -3087,7 +3168,7 @@ function BodyBookPage() {
       {activeItem?.result?.imageUrl ? <div className="modal-backdrop body-book-lightbox" onClick={closeActiveItem} role="presentation"><section className="body-book-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="icon-button" onClick={closeActiveItem} type="button" aria-label="关闭预览"><X size={18} /></button><img alt={activeItem.title} src={getBodyBookThumbnail(activeItem)} /><div className="body-book-lightbox-meta"><strong>{activeItem.title}</strong><button className="draw-card-primary" onClick={() => { void downloadBookOriginal(activeItem); }} type="button"><Download size={17} /><span>下载原图</span></button></div></section></div> : null}
       {originalPreview ? <div className="modal-backdrop body-book-lightbox" onClick={() => setOriginalPreview(null)} role="presentation"><section className="body-book-lightbox-panel body-book-original-preview-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`${originalPreview.title}原图`} aria-modal="true"><button className="icon-button" onClick={() => setOriginalPreview(null)} type="button" aria-label="关闭原图"><X size={18} /></button><img alt={originalPreview.title} onError={() => { setOriginalPreview(null); setError("加载认知书原图失败，请稍后再试。"); }} src={originalPreview.url} /><div className="body-book-lightbox-meta"><strong>{originalPreview.title}原图</strong><p className="body-book-lightbox-save-tip">请长按图片，选择“保存图片”到手机。</p></div></section></div> : null}
       {activeReferencePreview ? <div className="modal-backdrop body-book-lightbox" onClick={() => setActiveReferencePreview(null)} role="presentation"><section className="body-book-lightbox-panel body-book-reference-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`宝宝参考图 ${activeReferencePreview.index + 1} 大图预览`} aria-modal="true"><button className="icon-button" onClick={() => setActiveReferencePreview(null)} type="button" aria-label="关闭预览"><X size={18} /></button><img alt={`宝宝参考图 ${activeReferencePreview.index + 1} 大图`} src={activeReferencePreview.url} /><div className="body-book-lightbox-meta"><strong>宝宝参考图 {activeReferencePreview.index + 1}</strong></div></section></div> : null}
-      {activePageReferencePage ? <div className="modal-backdrop body-book-page-reference-modal" onClick={() => setActivePageReferenceKey("")} role="presentation"><section className="body-book-project-modal body-book-page-reference-modal-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`修改${activePageReferencePage.title}`} aria-modal="true"><button className="icon-button" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onClick={() => setActivePageReferenceKey("")} type="button" aria-label="关闭修改"><X size={18} /></button><p className="body-book-kicker">Edit page</p><h2>修改页面</h2><p>可分别修改本页参考图和提示词；提示词会在下次单张或批量生成本页时生效。</p><div className="body-book-page-reference-editor-list">{activePageReferenceUrls.map((referenceUrl, index) => <div className="body-book-page-reference-editor-item" key={`${referenceUrl}-${index}`}><img alt={`${activePageReferencePage.title} 参考图 ${index + 1}`} decoding="async" src={activePageReferenceThumbnailUrls[index] || referenceUrl} /><div><strong>参考图 {index + 1}</strong><label className="draw-card-secondary"><RefreshCw size={15} /><span>替换参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onChange={(event) => { updatePageReference(activePageReferencePage, event.target.files?.[0] || null, index); event.target.value = ""; }} type="file" /></label></div><button aria-label={`删除第 ${index + 1} 张参考图`} className="body-book-page-reference-editor-remove icon-button" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onClick={() => removePageReference(activePageReferencePage, index)} title="删除参考图" type="button"><X size={16} /></button></div>)}{activePageReferenceUrls.length < referenceUploadLimit ? <label aria-label="增加参考图" className="body-book-page-reference-editor-add" title="增加参考图"><Plus size={24} /><span>增加参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onChange={(event) => { updatePageReference(activePageReferencePage, event.target.files?.[0] || null); event.target.value = ""; }} type="file" /></label> : null}</div><label className="body-book-page-prompt-editor"><span>本页提示词</span><textarea disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} maxLength={6000} onChange={(event) => updatePagePrompt(activePageReferencePage.key, event.target.value)} value={pagePrompts[activePageReferencePage.key] ?? activePageReferencePage.prompt ?? ""} /></label></section></div> : null}
+      {activePageReferencePage ? <div className="modal-backdrop body-book-page-reference-modal" onClick={() => setActivePageReferenceKey("")} role="presentation"><section className="body-book-project-modal body-book-page-reference-modal-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`修改${activePageReferencePage.title}`} aria-modal="true"><button className="icon-button" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onClick={() => setActivePageReferenceKey("")} type="button" aria-label="关闭修改"><X size={18} /></button><p className="body-book-kicker">Edit page</p><h2>修改页面</h2><p>可分别修改本页参考图和提示词；提示词会在下次单张或批量生成本页时生效。</p><div className="body-book-page-reference-editor-list">{activePageReferenceUrls.map((referenceUrl, index) => <div className="body-book-page-reference-editor-item" key={`${referenceUrl}-${index}`}><img alt={`${activePageReferencePage.title} 参考图 ${index + 1}`} decoding="async" src={activePageReferenceThumbnailUrls[index] || referenceUrl} /><div><strong>参考图 {index + 1}</strong><label className="draw-card-secondary"><RefreshCw size={15} /><span>替换参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onChange={(event) => { updatePageReference(activePageReferencePage, event.target.files?.[0] || null, index); event.target.value = ""; }} type="file" /></label></div><button aria-label={`删除第 ${index + 1} 张参考图`} className="body-book-page-reference-editor-remove icon-button" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onClick={() => removePageReference(activePageReferencePage, index)} title="删除参考图" type="button"><X size={16} /></button></div>)}{activePageReferenceUrls.length < referenceUploadLimit ? <label aria-label="增加参考图" className="body-book-page-reference-editor-add" title="增加参考图"><Plus size={24} /><span>增加参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} multiple onChange={(event) => { void addPageReferenceFiles(activePageReferencePage, event.target.files); event.target.value = ""; }} type="file" /></label> : null}</div><label className="body-book-page-prompt-editor"><span>本页提示词</span><textarea disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} maxLength={6000} onChange={(event) => updatePagePrompt(activePageReferencePage.key, event.target.value)} value={pagePrompts[activePageReferencePage.key] ?? activePageReferencePage.prompt ?? ""} /></label></section></div> : null}
 
       {showContentPicker ? <div className="modal-backdrop" onClick={() => !busy && setShowContentPicker(false)} role="presentation"><section className="body-book-project-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择认知书内容"><button className="icon-button" disabled={busy} onClick={() => setShowContentPicker(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Contents</p><h2>选择认知书内容</h2><p>封面为固定页；勾选或取消后会立即生效。</p><p className="body-book-selection-progress">{pickerSelectionProgressText}</p><div className="body-book-content-options">{selectableContents.map((content) => <label key={content.key}><input checked={pickerKeys.includes(content.key)} disabled={content.isRequired || busy} onChange={(event) => { void toggleContentSelection(content.key, event.target.checked); }} type="checkbox" /><span>{content.chinese} <small>{content.english}</small></span></label>)}</div><div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={busy} onClick={() => setShowContentPicker(false)} type="button">完成</button></div></section></div> : null}
 
@@ -3101,7 +3182,7 @@ function BodyBookPage() {
       {showBeanInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowBeanInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的豆豆"><button className="icon-button" onClick={() => setShowBeanInfo(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">My beans</p><h2>我的豆豆</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong> 豆</p><p className="body-book-bean-cost-note">{billingEnabled ? "每张成功生成的图片消耗 1 个豆豆。" : "内测阶段，认知书暂不消耗豆豆。"}</p><ul className="body-book-bean-benefits"><li>购买单价：{formatCurrencyCents(orderConfig?.beanPurchaseUnitPriceCents || 100)} / 豆。</li><li>邀请新用户注册可获得 5 豆；好友每笔实付订单返 20% 推荐金。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openBeanPurchase} type="button">购买豆豆</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); openReferral(); }} type="button">邀请好友</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); setShowContactModal(true); }} type="button">联系客服</button></div><label className="body-book-wallet-field"><span>兑换码</span><input disabled={busy} onChange={(event) => setInviteCode(event.target.value)} placeholder="输入兑换码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={busy || !inviteCode.trim()} onClick={redeemBookInvite} type="button">兑换</button></div></section></div> : null}
       {showBeanPurchase ? <BeanPurchaseModal beanCount={beanPurchaseCount} busy={beanPurchaseBusy} error={beanPurchaseError} onClose={() => !beanPurchaseBusy && setShowBeanPurchase(false)} onCountChange={setBeanPurchaseCount} onRestart={restartBeanPurchase} onRetry={() => prepareBeanPurchase(beanPurchase?.id)} onSubmit={submitBeanPurchase} payment={beanPurchasePayment} purchase={beanPurchase} unitPriceCents={orderConfig?.beanPurchaseUnitPriceCents} /> : null}
       {showBookPreview ? <div className="modal-backdrop body-book-flip-preview-backdrop" onClick={() => setShowBookPreview(false)} role="presentation"><section className="body-book-project-modal body-book-flip-preview-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="认知书效果预览"><button className="icon-button" onClick={() => setShowBookPreview(false)} type="button" aria-label="关闭预览"><X size={18} /></button><p className="body-book-kicker">Book preview</p><h2>认知书效果预览</h2><p>仅展示当前已完成的页面；对应的内置预设页会自动插入。</p><BodyBookFlipBook ariaLabel="当前认知书翻页预览" pages={completedBookPreviewPages.map((page, index) => ({ id: page.key || String(index), isPreset: page.isBuiltIn === true, src: getBodyBookThumbnail(page), title: page.title || `第 ${index + 1} 页` }))} /><div className="draw-card-confirm-actions"><button className="draw-card-secondary" onClick={() => setShowBookPreview(false)} type="button">关闭</button><button className="draw-card-primary" disabled={bookShareBusy} onClick={() => { setShowBookPreview(false); void openBookShare(); }} type="button"><Share2 size={17} /><span>分享给好友</span></button></div></section></div> : null}
-      {showBookShareModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => !bookShareBusy && setShowBookShareModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享认知书"><button className="icon-button" disabled={bookShareBusy} onClick={() => setShowBookShareModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Share your book</p><h2>分享给好友</h2><p>好友可免登录查看压缩预览，不能修改或下载原图。首位新访客打开链接后，本工程即可下载全部原图。</p>{bookShareUrl ? <label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={bookShareUrl} /></label> : null}{bookShareUrl ? <div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={bookShareBusy} onClick={async () => { try { await copyText(formatShareCopy(bookShareUrl, "book")); setBookShareNotice("链接已复制，可发送给好友。"); } catch (nextError) { setBookShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制链接</span></button><button className="draw-card-secondary" disabled={bookShareBusy} onClick={() => { if (window.confirm("停止分享后，已复制的链接将立即失效。确定停止分享吗？")) void closeBookShare(); }} type="button">停止分享</button></div> : null}{bookShareNotice ? <p className="success-note">{bookShareNotice}</p> : null}{bookShareError ? <p className="error-note">{bookShareError}</p> : null}</section></div> : null}
+      {showBookShareModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => !bookShareBusy && setShowBookShareModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享认知书"><button className="icon-button" disabled={bookShareBusy} onClick={() => setShowBookShareModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Share your book</p><h2>分享给好友</h2><p>好友可免登录查看压缩预览，不能修改或下载原图。首位新访客打开链接后，本工程即可下载全部原图。</p>{bookShareUrl ? <label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={bookShareUrl} /></label> : null}{bookShareUrl ? <div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={bookShareBusy} onClick={async () => { try { await copyText(formatShareCopy(bookShareUrl, "book")); setBookShareNotice("链接已复制，可发送给好友。"); } catch (nextError) { setBookShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制链接</span></button><button className="draw-card-secondary" disabled={bookShareBusy} onClick={() => { void showAppDialog({ message: "停止分享后，已复制的链接将立即失效。确定停止分享吗？", mode: "confirm" }).then((confirmed) => { if (confirmed) void closeBookShare(); }); }} type="button">停止分享</button></div> : null}{bookShareNotice ? <p className="success-note">{bookShareNotice}</p> : null}{bookShareError ? <p className="error-note">{bookShareError}</p> : null}</section></div> : null}
       {showBookOriginalUnlockPrompt ? <div className="modal-backdrop draw-card-confirm" onClick={() => !bookShareBusy && setShowBookOriginalUnlockPrompt(false)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal body-book-original-unlock-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享获得下载权限"><button className="icon-button" disabled={bookShareBusy} onClick={() => setShowBookOriginalUnlockPrompt(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><p className="draw-card-kicker">Original images</p><h2>分享获得下载权限</h2><ul className="body-book-bean-benefits body-book-original-unlock-rules"><li>分享给新用户，且新用户点击查看后，可获得本工程全部原图下载权限。</li><li>每购买 1 个币或豆豆，获得 1 次免分享下载权益；实体订单每实付满 1 元获得 1 次。</li><li>本站累计消费 20 元，获得永久下载权益。</li></ul>{bookShareBusy ? <p className="storage-note">正在生成分享链接…</p> : null}{bookShareUrl ? <><label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={bookShareUrl} /></label><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={async () => { try { await copyText(formatShareCopy(bookShareUrl, "book")); setBookShareNotice("分享链接已复制，可发送给好友。"); setBookShareError(""); } catch (nextError) { setBookShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制分享链接</span></button></div></> : null}{bookShareNotice ? <p className="success-note">{bookShareNotice}</p> : null}{bookShareError ? <p className="error-note">{bookShareError}</p> : null}</section></div> : null}
       {showBookCheckout ? <div className="modal-backdrop" onClick={() => !bookOrderBusy && setShowBookCheckout(false)} role="presentation"><section className="body-book-project-modal body-book-checkout-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="下单认知书实体书"><button className="icon-button" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Print your book</p><h2>{bookOrderBlockReason ? "暂时无法下单" : "下单认知书实体书"}</h2>{bookOrderBlockReason ? <><div className="body-book-checkout-blocked"><AlertTriangle size={24} /><p>{bookOrderBlockReason}</p></div><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={() => setShowBookCheckout(false)} type="button">知道了</button></div></> : <><p>以下为将要印刷的全部页面，共 {bookPreviewPages.length} 页；成书时会自动插入对应的内置认知页，不含固定封底。</p><div className="body-book-checkout-preview" aria-label="成书预览">{bookPreviewPages.map((page, index) => <figure className="body-book-checkout-preview-item" key={`${page.key}-${index}`}><img alt={`${page.title} 成书预览`} decoding="async" loading="lazy" src={getBodyBookThumbnail(page)} /><figcaption><span>第 {index + 1} 页</span><strong>{page.title}</strong></figcaption></figure>)}</div><div className="draw-card-order-summary"><p>实体书 {formatCurrencyCents(bodyBookPricing.priceCents)}</p><p>邮费 {Number(bodyBookPricing.shippingFeeCents || 0) > 0 ? formatCurrencyCents(bodyBookPricing.shippingFeeCents) : "包邮"}</p><strong>实付 {formatCurrencyCents(bookOrderPayablePreviewCents)}</strong></div><div className="draw-card-order-form"><label className="field-label">收件人<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={bookOrderForm.receiverName} /></label><label className="field-label">手机号<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverPhone: event.target.value }))} type="tel" value={bookOrderForm.receiverPhone} /></label><label className="field-label">收货地址<input onChange={(event) => setBookOrderForm((current) => ({ ...current, address: event.target.value, addressDetail: event.target.value }))} type="text" value={bookOrderForm.address || bookOrderForm.addressDetail || ""} /></label><label className="field-label">备注<textarea onChange={(event) => setBookOrderForm((current) => ({ ...current, remark: event.target.value }))} rows="2" value={bookOrderForm.remark} /></label></div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button">取消</button><button className="draw-card-primary" disabled={bookOrderBusy} onClick={submitBookOrder} type="button">{bookOrderBusy ? "创建订单中" : formatPaymentButtonLabel(bookOrderPayablePreviewCents)}</button></div></>}</section></div> : null}
       {showAuthModal ? <AuthModal description={pendingBookOriginalDownloadRef.current ? "下载认知书原图前，请先注册并登录。" : pendingBookShareRef.current ? "分享认知书前，请先注册并登录。" : ""} onAuthenticated={async () => { setShowAuthModal(false); const nextVisitorState = await fetchVisitorState(); setVisitorState(nextVisitorState); setBookOrderForm((current) => fillOrderAddressFromSaved(current, nextVisitorState?.account)); await loadSavedBooks(); if (pendingReferralRef.current) { pendingReferralRef.current = false; await showReferralDialog(); } if (pendingBookCheckoutRef.current) { pendingBookCheckoutRef.current = false; setShowBookCheckout(true); } if (pendingBeanPurchaseRef.current) { pendingBeanPurchaseRef.current = false; openBeanPurchase(); } if (pendingBookShareRef.current) { pendingBookShareRef.current = false; await createAndShareBookProject(); } const pendingDownload = pendingBookOriginalDownloadRef.current; pendingBookOriginalDownloadRef.current = null; if (pendingDownload) await downloadBookOriginal(pendingDownload.page, pendingDownload.projectId); }} onClose={() => { pendingReferralRef.current = false; pendingBookCheckoutRef.current = false; pendingBeanPurchaseRef.current = false; pendingBookShareRef.current = false; pendingBookOriginalDownloadRef.current = null; setShowAuthModal(false); }} reloadOnLogin={false} /> : null}
@@ -3116,8 +3197,13 @@ function BodyBookProjectItem({ page, onOpen, onDownload, onEditReferences, onGen
   const succeeded = page.status === "succeeded" && page.result?.imageUrl;
   const working = busyPageKey === page.key;
   const handleGenerate = () => {
-    if (succeeded && !window.confirm("重新生成将消耗 1 豆豆，是否继续？")) return;
-    onGenerate();
+    if (!succeeded) {
+      onGenerate();
+      return;
+    }
+    void showAppDialog({ message: "重新生成将消耗 1 豆豆，是否继续？", mode: "confirm" }).then((confirmed) => {
+      if (confirmed) onGenerate();
+    });
   };
   return <article className={`body-book-item body-book-project-item ${pending ? "is-pending" : ""} ${page.status === "failed" ? "is-failed" : ""}`}>
     {!page.isBuiltIn && !page.isRequired ? <button className="body-book-project-delete icon-button" disabled={busy || pending} onClick={onDelete} title="删除页面" type="button"><X size={17} /></button> : null}
@@ -3591,7 +3677,7 @@ function FridgeMagnetOrdersPage() {
     const confirmation = canRemove
       ? `确定删除订单 ${order.orderNo} 吗？删除后将不再显示在“我的订单”中。`
       : `确定取消订单 ${order.orderNo} 吗？取消后订单状态会显示为“已取消”。`;
-    if (!window.confirm(confirmation)) return;
+    if (!(await showAppDialog({ message: confirmation, mode: "confirm" }))) return;
     setDeletingOrderId(order.id);
     setError("");
     try {
@@ -3931,7 +4017,7 @@ function BodyBookCartPage() {
     const currentQuantity = Math.max(0, Number(cart[projectId] || 0));
     const otherQuantity = Object.entries(cart).reduce((sum, [id, quantity]) => id === projectId ? sum : sum + Math.max(0, Number(quantity || 0)), 0);
     if (requestedQuantity + otherQuantity > MAX_BODY_BOOK_CART_QUANTITY) {
-      window.alert("购物车最多可加入 20 本认知书。");
+      void showAppDialog({ message: "购物车最多可加入 20 本认知书。" });
       return;
     }
     const nextCart = { ...cart };
@@ -4034,7 +4120,7 @@ function BodyBookWorksPage() {
 
   async function deleteBook(book) {
     if (!book?.sessionId || deletingProjectId) return;
-    if (!window.confirm(`确定删除《${book.title}》吗？删除后无法恢复。`)) return;
+    if (!(await showAppDialog({ message: `确定删除《${book.title}》吗？删除后无法恢复。`, mode: "confirm" }))) return;
     setDeletingProjectId(book.sessionId);
     setError("");
     try {
@@ -5411,7 +5497,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
     const needsCurrentSessionReference = Boolean(sessionId && referenceSessionId !== sessionId);
     if (!isSameStyleMode && needsCurrentSessionReference) {
       if (experienceType !== "draw-card" || !sessionId) {
-        window.alert("请先上传参考图");
+        await showAppDialog({ message: "请先上传参考图" });
         return;
       }
       setIsRestoringSessionReference(true);
@@ -5426,7 +5512,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
         setIsRestoringSessionReference(false);
       }
     } else if (!isSameStyleMode && !referenceFile && experienceType !== "draw-card") {
-      window.alert("请先上传参考图");
+      await showAppDialog({ message: "请先上传参考图" });
       return;
     }
     setPhase(isSameStyleMode ? "ready" : "style-picker");
@@ -7343,7 +7429,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
         </div>
       ) : null}
 
-      {drawShareTarget ? <div className="modal-backdrop draw-card-confirm" onClick={() => !drawShareBusy && setDrawShareTarget(null)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享小画"><button className="icon-button" disabled={drawShareBusy} onClick={() => setDrawShareTarget(null)} type="button"><X size={18} /></button><p className="draw-card-kicker">Share your artwork</p><h2>分享给好友</h2><p>好友可查看压缩预览。每位新访客首次打开你的任意小画分享链接后，你获得 1 次原图下载权益（每位新用户只计 1 次），可用于任意小画原图。</p>{drawShareUrl ? <label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={drawShareUrl} /></label> : null}{drawShareUrl ? <div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={drawShareBusy} onClick={async () => { try { await copyText(formatShareCopy(drawShareUrl, "draw")); setDrawShareCopied(true); setDrawShareNotice("链接已复制，可发送给好友。"); setDrawShareError(""); if (drawShareCopiedTimeoutRef.current) window.clearTimeout(drawShareCopiedTimeoutRef.current); drawShareCopiedTimeoutRef.current = window.setTimeout(() => setDrawShareCopied(false), 2000); } catch (nextError) { setDrawShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>{drawShareCopied ? "已复制" : "复制链接"}</span></button><button className="draw-card-secondary" disabled={drawShareBusy} onClick={() => { if (window.confirm("停止分享后，已复制的链接将立即失效。确定停止分享吗？")) void closeDrawShare(); }} type="button">停止分享</button></div> : null}{drawShareNotice ? <p className="success-note">{drawShareNotice}</p> : null}{drawShareError ? <p className="error-note">{drawShareError}</p> : null}</section></div> : null}
+      {drawShareTarget ? <div className="modal-backdrop draw-card-confirm" onClick={() => !drawShareBusy && setDrawShareTarget(null)} role="presentation"><section className="draw-card-confirm-panel body-book-share-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="分享小画"><button className="icon-button" disabled={drawShareBusy} onClick={() => setDrawShareTarget(null)} type="button"><X size={18} /></button><p className="draw-card-kicker">Share your artwork</p><h2>分享给好友</h2><p>好友可查看压缩预览。每位新访客首次打开你的任意小画分享链接后，你获得 1 次原图下载权益（每位新用户只计 1 次），可用于任意小画原图。</p>{drawShareUrl ? <label className="body-book-wallet-field"><span>分享链接</span><input readOnly value={drawShareUrl} /></label> : null}{drawShareUrl ? <div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={drawShareBusy} onClick={async () => { try { await copyText(formatShareCopy(drawShareUrl, "draw")); setDrawShareCopied(true); setDrawShareNotice("链接已复制，可发送给好友。"); setDrawShareError(""); if (drawShareCopiedTimeoutRef.current) window.clearTimeout(drawShareCopiedTimeoutRef.current); drawShareCopiedTimeoutRef.current = window.setTimeout(() => setDrawShareCopied(false), 2000); } catch (nextError) { setDrawShareError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>{drawShareCopied ? "已复制" : "复制链接"}</span></button><button className="draw-card-secondary" disabled={drawShareBusy} onClick={() => { void showAppDialog({ message: "停止分享后，已复制的链接将立即失效。确定停止分享吗？", mode: "confirm" }).then((confirmed) => { if (confirmed) void closeDrawShare(); }); }} type="button">停止分享</button></div> : null}{drawShareNotice ? <p className="success-note">{drawShareNotice}</p> : null}{drawShareError ? <p className="error-note">{drawShareError}</p> : null}</section></div> : null}
 
       {showPhotoChangeConfirm ? (
         <div className="modal-backdrop draw-card-confirm" onClick={() => setShowPhotoChangeConfirm(false)} role="presentation">
@@ -14309,4 +14395,4 @@ function cacheBust(path, version = "") {
   return safeVersion ? `${normalizedPath}${separator}v=${encodeURIComponent(safeVersion)}` : normalizedPath;
 }
 
-createRoot(document.getElementById("root")).render(<AppErrorBoundary><ModalRouteHistory /><App /></AppErrorBoundary>);
+createRoot(document.getElementById("root")).render(<AppErrorBoundary><ModalRouteHistory /><App /><AppDialogHost /></AppErrorBoundary>);

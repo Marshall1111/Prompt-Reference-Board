@@ -2550,7 +2550,7 @@ app.post("/api/body-book/projects", requireWebAccount, upload.any(), async (req,
     if (!theme) throw createHttpError(400, "请选择认知书主题。");
     const referenceLimit = getBodyBookReferenceLimit(theme);
     const uploadedReferenceFiles = files.filter((file) => file.fieldname === "images" || file.fieldname === "image");
-    if (!uploadedReferenceFiles.length) throw createHttpError(400, "请先上传至少一张宝宝照片。");
+    if (!uploadedReferenceFiles.length) throw createHttpError(400, "请先上传全局参考图。");
     if (uploadedReferenceFiles.length > referenceLimit) throw createHttpError(400, `该主题最多上传 ${referenceLimit} 张宝宝照片。`);
     const referenceFiles = uploadedReferenceFiles.slice(0, referenceLimit);
     if (files.some((file) => file.mimetype === "image/svg+xml")) throw createHttpError(400, "请上传 JPG、PNG 或 WebP 图片。");
@@ -2760,7 +2760,8 @@ app.post("/api/body-book/projects/:sessionId/generate", requireWebAccount, async
       .filter((page) => requestedKeys.includes(page.key) && !page.isBuiltIn && !["queued", "running"].includes(page.status));
     const eligibleKeys = eligiblePages.map((page) => page.key);
     if (!eligibleKeys.length) throw createHttpError(409, "所选页面正在生成，暂时不能重复提交。");
-    if (eligiblePages.some((page) => !normalizeBodyBookReferences(page.references, page.reference, getBodyBookReferenceLimit(current)).length)) {
+    const projectGlobalReferences = normalizeBodyBookReferences(current.references, current.reference, getBodyBookReferenceLimit(current));
+    if (eligiblePages.some((page) => !getBodyBookPageGenerationReferences(page, projectGlobalReferences, getBodyBookReferenceLimit(current)).length)) {
       throw createHttpError(409, "存在尚未上传参考图的任务");
     }
     const currentAccount = commerceStore.readAccount(req.webAccount.id) || req.webAccount;
@@ -12558,8 +12559,12 @@ function createBodyBookPage(definition, theme, references, current = {}, persona
     };
   }
   const referenceLimit = getBodyBookReferenceLimit(theme);
+  // referencesCleared marks pages whose per-page references were explicitly
+  // removed by the user; they must fall back to the project references at
+  // generation time instead of being silently refilled here.
+  const referencesCleared = Boolean(current?.referencesCleared);
   const currentReferences = normalizeBodyBookReferences(current?.references, current?.reference, referenceLimit);
-  const pageReferences = currentReferences.length ? currentReferences : normalizeBodyBookReferences(references, null, referenceLimit);
+  const pageReferences = referencesCleared ? [] : currentReferences.length ? currentReferences : normalizeBodyBookReferences(references, null, referenceLimit);
   const concept = getBodyBookLearningConcept(definition);
   return {
     ...definition,
@@ -12580,6 +12585,7 @@ function createBodyBookPage(definition, theme, references, current = {}, persona
     hasCustomPrompt: Boolean(current?.hasCustomPrompt),
     references: pageReferences,
     reference: pageReferences[0] || null,
+    referencesCleared,
     result: current?.result ? normalizeJobResult(current.result) : null,
     errorMessage: String(current?.errorMessage || ""),
     historyJobIds: Array.isArray(current?.historyJobIds) ? current.historyJobIds.map(String).filter(Boolean) : []
@@ -12792,7 +12798,7 @@ async function replaceBodyBookPageReference(session, pageKey, file, referenceInd
   const reference = references[0];
   return saveBodyBookSession({
     ...current,
-    pages: current.pages.map((item) => item.key === page.key ? { ...item, reference, references } : item),
+    pages: current.pages.map((item) => item.key === page.key ? { ...item, reference, references, referencesCleared: false } : item),
     updatedAt: new Date().toISOString(),
     lastContentUpdatedAt: new Date().toISOString(),
     message: `已更新${page.chinese || page.title}的参考图。`
@@ -12809,11 +12815,18 @@ async function deleteBodyBookPageReference(session, pageKey, referenceIndex) {
   references.splice(index, 1);
   return saveBodyBookSession({
     ...current,
-    pages: current.pages.map((item) => item.key === page.key ? { ...item, reference: references[0], references } : item),
+    pages: current.pages.map((item) => item.key === page.key ? { ...item, reference: references[0], references, referencesCleared: !references.length } : item),
     updatedAt: new Date().toISOString(),
     lastContentUpdatedAt: new Date().toISOString(),
     message: `已更新${page.chinese || page.title}的参考图。`
   });
+}
+
+// Pages with cleared references fall back to the project references when
+// generating; otherwise their own references (with project fill-in) are used.
+function getBodyBookPageGenerationReferences(page, globalReferences, referenceLimit) {
+  const pageReferences = page?.referencesCleared ? [] : normalizeBodyBookReferences(page?.references, page?.reference, referenceLimit);
+  return pageReferences.length ? pageReferences : globalReferences;
 }
 
 async function generateBodyBookPages(session, pageKeys, pagePrompts = {}) {
@@ -12822,7 +12835,8 @@ async function generateBodyBookPages(session, pageKeys, pagePrompts = {}) {
   const requested = new Set(parseBodyBookPageKeys(pageKeys, theme, current.layoutVersion));
   const pages = current.pages.filter((page) => requested.has(page.key) && !page.isBuiltIn && !["queued", "running"].includes(page.status));
   if (!pages.length) return current;
-  if (pages.some((page) => !normalizeBodyBookReferences(page.references, page.reference, getBodyBookReferenceLimit(theme)).length)) {
+  const globalReferences = normalizeBodyBookReferences(current.references, current.reference, getBodyBookReferenceLimit(theme));
+  if (pages.some((page) => !getBodyBookPageGenerationReferences(page, globalReferences, getBodyBookReferenceLimit(theme)).length)) {
     throw createHttpError(409, "存在尚未上传参考图的任务");
   }
   const { provider, providers } = await getBodyBookGenerationConfig();
@@ -12848,7 +12862,7 @@ async function generateBodyBookPages(session, pageKeys, pagePrompts = {}) {
       bookTitle: theme.englishName,
       bookSubtitle: page.key === "cover" ? theme.title : theme.name
     };
-    const entry = await createBodyBookImageJob(current, slot, provider, providers, page.references || current.references);
+    const entry = await createBodyBookImageJob(current, slot, provider, providers, getBodyBookPageGenerationReferences(page, globalReferences, getBodyBookReferenceLimit(theme)));
     return { key: page.key, version, prompt, hasCustomPrompt: hasRequestedPrompt || page.hasCustomPrompt, jobId: entry.job.jobId, run: entry.run };
   }));
   const byKey = new Map(queued.map((entry) => [entry.key, entry]));
