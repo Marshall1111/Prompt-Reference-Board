@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCallback } from "react";
-import { Activity, AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, Clipboard, Cpu, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, MemoryStick, Pencil, Plus, QrCode, RefreshCw, Save, Search, Server, Settings, Share2, ShoppingBag, Sparkles, Store, Trash2, Wifi, X, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, Clipboard, Cpu, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, MemoryStick, Pencil, Plus, QrCode, RefreshCw, Save, Search, Server, Settings, Share2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Wifi, X, XCircle } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import HTMLFlipBook from "react-pageflip";
 import { createLabeledQrPngDataUrl, createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
@@ -3060,11 +3060,11 @@ function BodyBookPage() {
           <p>{activeTheme ? `正在制作：${activeTheme.name}` : "让孩子成为书中的主角"}</p>
         </div>
         <div className="body-book-header-actions">
-          <button className="draw-card-secondary body-book-header-orders" onClick={() => window.location.assign("/book/orders")} type="button"><ListTodo size={16} /><span>我的订单</span></button>
-          <button className="draw-card-secondary body-book-header-cart" onClick={() => window.location.assign("/book/cart")} type="button"><Plus size={16} /><span>购物车</span></button>
+          <button className="draw-card-secondary body-book-header-home" onClick={() => window.location.assign("/book")} type="button"><Home size={16} /><span>主页</span></button>
+          <button className="draw-card-secondary body-book-header-cart" onClick={() => window.location.assign("/book/cart")} type="button"><ShoppingCart size={16} /><span>购物车</span></button>
           <button className="draw-card-secondary body-book-header-works" onClick={() => window.location.assign("/book/works")} type="button"><Layers3 size={16} /><span>我的作品</span></button>
           <button className="draw-card-secondary body-book-header-balance" onClick={() => setShowBeanInfo(true)} type="button"><span>余额</span><strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong><span>豆</span></button>
-          <div className="body-book-user-area" ref={userMenuRef}><button aria-label={isBookAccountRegistered ? `账户：${bookAccountName}` : "登录或注册"} className={`draw-card-secondary body-book-account-button${isBookAccountRegistered ? " is-signed-in" : " is-guest"}`} onClick={() => isBookAccountRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)} title={isBookAccountRegistered ? bookAccountName : "登录 / 注册"} type="button">{isBookAccountRegistered && bookWechatAvatarUrl ? <img alt="" src={bookWechatAvatarUrl} /> : <span>{isBookAccountRegistered ? bookAccountName.slice(0, 1) : "登录"}</span>}</button>{showUserMenu && isBookAccountRegistered ? <div className="body-book-user-menu"><span className="body-book-user-menu-name">{bookAccountName}</span><button onClick={() => window.location.assign("/book/referrals?source=book")} type="button">我的邀请</button><button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}</div>
+          <div className="body-book-user-area" ref={userMenuRef}><button aria-label={isBookAccountRegistered ? `账户：${bookAccountName}` : "登录或注册"} className={`draw-card-secondary body-book-account-button${isBookAccountRegistered ? " is-signed-in" : " is-guest"}`} onClick={() => isBookAccountRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)} title={isBookAccountRegistered ? bookAccountName : "登录 / 注册"} type="button">{isBookAccountRegistered && bookWechatAvatarUrl ? <img alt="" src={bookWechatAvatarUrl} /> : <span>{isBookAccountRegistered ? bookAccountName.slice(0, 1) : "登录"}</span>}</button>{showUserMenu && isBookAccountRegistered ? <div className="body-book-user-menu"><span className="body-book-user-menu-name">{bookAccountName}</span><button onClick={() => window.location.assign("/book/orders")} type="button">我的订单</button><button className="body-book-user-menu-invite" onClick={() => window.location.assign("/book/referrals?source=book")} type="button">我的邀请</button><button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}</div>
         </div>
       </header>
 
@@ -3683,6 +3683,182 @@ function FridgeMagnetOrdersPage() {
   );
 }
 
+function BodyBookHeaderActions() {
+  const [visitorState, setVisitorState] = useState(null);
+  const [orderConfig, setOrderConfig] = useState(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showBeanInfo, setShowBeanInfo] = useState(false);
+  const [showBeanPurchase, setShowBeanPurchase] = useState(false);
+  const [beanPurchaseCount, setBeanPurchaseCount] = useState(40);
+  const [beanPurchase, setBeanPurchase] = useState(null);
+  const [beanPurchasePayment, setBeanPurchasePayment] = useState(null);
+  const [beanPurchaseBusy, setBeanPurchaseBusy] = useState(false);
+  const [beanPurchaseError, setBeanPurchaseError] = useState("");
+  const [showReferralModal, setShowReferralModal] = useState(false);
+  const [referralUrl, setReferralUrl] = useState("");
+  const [referralNotice, setReferralNotice] = useState("");
+  const [referralError, setReferralError] = useState("");
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactCopied, setContactCopied] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
+
+  useEffect(() => {
+    fetchVisitorState().then(setVisitorState).catch(() => {});
+    fetchOrderConfig().then(setOrderConfig).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!showUserMenu) return undefined;
+    const closeMenuOnOutsidePointer = (event) => {
+      if (!userMenuRef.current?.contains(event.target)) setShowUserMenu(false);
+    };
+    document.addEventListener("pointerdown", closeMenuOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeMenuOnOutsidePointer);
+  }, [showUserMenu]);
+
+  const isRegistered = Boolean(visitorState?.account?.isRegistered);
+  const accountName = visitorState?.account?.username || "我的账户";
+  const wechatAvatarUrl = String(visitorState?.account?.wechatAvatarUrl || "").trim();
+
+  async function showReferralDialog() {
+    setReferralError("");
+    setReferralNotice("");
+    try {
+      const payload = await createReferralLink();
+      const nextUrl = String(payload?.inviteUrl || "");
+      setReferralUrl(nextUrl);
+      setShowReferralModal(true);
+      try {
+        await copyText(nextUrl);
+        setReferralNotice("邀请链接已复制，快去分享给新朋友吧。");
+      } catch {
+        setReferralNotice("链接已生成，请点击下方按钮复制。");
+      }
+    } catch (nextError) {
+      setReferralError(nextError.message || "创建邀请链接失败，请稍后重试。");
+      setShowReferralModal(true);
+    }
+  }
+
+  function openReferral() {
+    if (!isRegistered) {
+      setShowAuthModal(true);
+      return;
+    }
+    void showReferralDialog();
+  }
+
+  function openBeanPurchase() {
+    if (!isRegistered) {
+      setShowAuthModal(true);
+      return;
+    }
+    setBeanPurchase(null);
+    setBeanPurchasePayment(null);
+    setBeanPurchaseError("");
+    setShowBeanInfo(false);
+    setShowBeanPurchase(true);
+  }
+
+  function restartBeanPurchase() {
+    setBeanPurchase(null);
+    setBeanPurchasePayment(null);
+    setBeanPurchaseError("");
+  }
+
+  async function applyBeanPurchasePayment(payload) {
+    const nextPurchase = payload?.purchase || null;
+    const nextPayment = payload?.payment || null;
+    if (nextPurchase) setBeanPurchase(nextPurchase);
+    setBeanPurchasePayment(nextPayment);
+    if (nextPayment?.status === "requires_authorization" && nextPayment.authorizationUrl) {
+      window.location.assign(nextPayment.authorizationUrl);
+      return;
+    }
+    if (nextPayment?.channel === "wechat_jsapi" && nextPayment.jsapi) {
+      await invokeWechatJsapiPayment(nextPayment.jsapi);
+      const refreshed = await fetchBeanPurchase(nextPurchase?.id || beanPurchase?.id);
+      setBeanPurchase(refreshed.purchase);
+      setVisitorState(await fetchVisitorState());
+    }
+  }
+
+  async function prepareBeanPurchase(purchaseId, code = "") {
+    if (!purchaseId) return;
+    setBeanPurchaseBusy(true);
+    setBeanPurchaseError("");
+    try {
+      await applyBeanPurchasePayment(await payBeanPurchase(purchaseId, code ? { code } : {}));
+    } catch (nextError) {
+      setBeanPurchaseError(nextError.message || "发起豆豆购买支付失败，请稍后重试。");
+    } finally {
+      setBeanPurchaseBusy(false);
+    }
+  }
+
+  async function submitBeanPurchase() {
+    const count = Math.trunc(Number(beanPurchaseCount || 0));
+    if (beanPurchaseBusy) return;
+    if (!Number.isFinite(count) || count < 1 || count > MAX_BEAN_PURCHASE_COUNT) {
+      setBeanPurchaseError(`请输入 1 到 ${MAX_BEAN_PURCHASE_COUNT} 之间的整数。`);
+      return;
+    }
+    setBeanPurchaseBusy(true);
+    setBeanPurchaseError("");
+    try {
+      const created = await createBeanPurchase({ beanCount: count });
+      setBeanPurchase(created.purchase);
+      setBeanPurchasePayment(created.payment || null);
+      if (created.payment?.channel !== "manual_collection") {
+        await applyBeanPurchasePayment(await payBeanPurchase(created.purchase.id, {}));
+      }
+    } catch (nextError) {
+      setBeanPurchaseError(nextError.message || "创建豆豆购买单失败，请稍后重试。");
+    } finally {
+      setBeanPurchaseBusy(false);
+    }
+  }
+
+  async function redeemWalletInvite() {
+    if (!inviteCode.trim()) return;
+    setBeanPurchaseBusy(true);
+    try {
+      setVisitorState(await redeemInviteCode(inviteCode.trim()));
+      setInviteCode("");
+    } catch (nextError) {
+      setBeanPurchaseError(nextError.message || "兑换码兑换失败，请稍后再试。");
+    } finally {
+      setBeanPurchaseBusy(false);
+    }
+  }
+
+  async function copyContactWechat() {
+    try {
+      await copyText(getContactWechatId(orderConfig));
+      setContactCopied(true);
+    } catch {
+      setContactCopied(false);
+    }
+  }
+
+  return <>
+    <div className="body-book-header-actions">
+      <button className="draw-card-secondary body-book-header-home" onClick={() => window.location.assign("/book")} type="button"><Home size={16} /><span>主页</span></button>
+      <button className="draw-card-secondary body-book-header-cart" onClick={() => window.location.assign("/book/cart")} type="button"><ShoppingCart size={16} /><span>购物车</span></button>
+      <button className="draw-card-secondary body-book-header-works" onClick={() => window.location.assign("/book/works")} type="button"><Layers3 size={16} /><span>我的作品</span></button>
+      <button className="draw-card-secondary body-book-header-balance" onClick={() => setShowBeanInfo(true)} type="button"><span>余额</span><strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong><span>豆</span></button>
+      <div className="body-book-user-area" ref={userMenuRef}><button aria-label={isRegistered ? `账户：${accountName}` : "登录或注册"} className={`draw-card-secondary body-book-account-button${isRegistered ? " is-signed-in" : " is-guest"}`} onClick={() => isRegistered ? setShowUserMenu((value) => !value) : setShowAuthModal(true)} title={isRegistered ? accountName : "登录 / 注册"} type="button">{isRegistered && wechatAvatarUrl ? <img alt="" src={wechatAvatarUrl} /> : <span>{isRegistered ? accountName.slice(0, 1) : "登录"}</span>}</button>{showUserMenu && isRegistered ? <div className="body-book-user-menu"><span className="body-book-user-menu-name">{accountName}</span><button onClick={() => window.location.assign("/book/orders")} type="button">我的订单</button><button className="body-book-user-menu-invite" onClick={() => window.location.assign("/book/referrals?source=book")} type="button">我的邀请</button><button onClick={async () => { await logoutCurrentAccount(); setShowUserMenu(false); setVisitorState(await fetchVisitorState()); }} type="button">退出登录</button></div> : null}</div>
+    </div>
+    {showBeanInfo ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowBeanInfo(false)} role="presentation"><section className="draw-card-confirm-panel body-book-bean-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="我的豆豆"><button className="icon-button" onClick={() => setShowBeanInfo(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">My beans</p><h2>我的豆豆</h2><p className="body-book-bean-balance">当前剩余 <strong>{visitorState ? visitorState.account?.beanBalance || 0 : "--"}</strong> 豆</p><p className="body-book-bean-cost-note">每张成功生成的图片消耗 1 个豆豆。</p><ul className="body-book-bean-benefits"><li>购买单价：{formatCurrencyCents(orderConfig?.beanPurchaseUnitPriceCents || 100)} / 豆。</li><li>邀请新用户注册可获得 5 豆；好友每笔实付订单返 20% 推荐金。</li></ul><div className="body-book-wallet-actions"><button className="draw-card-primary" onClick={openBeanPurchase} type="button">购买豆豆</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); openReferral(); }} type="button">邀请好友</button><button className="draw-card-secondary" onClick={() => { setShowBeanInfo(false); setShowContactModal(true); }} type="button">联系客服</button></div><label className="body-book-wallet-field"><span>兑换码</span><input onChange={(event) => setInviteCode(event.target.value)} placeholder="输入兑换码" value={inviteCode} /></label><div className="body-book-wallet-actions"><button className="draw-card-primary" disabled={beanPurchaseBusy || !inviteCode.trim()} onClick={redeemWalletInvite} type="button">兑换</button></div></section></div> : null}
+    {showBeanPurchase ? <BeanPurchaseModal beanCount={beanPurchaseCount} busy={beanPurchaseBusy} error={beanPurchaseError} onClose={() => !beanPurchaseBusy && setShowBeanPurchase(false)} onCountChange={setBeanPurchaseCount} onRestart={restartBeanPurchase} onRetry={() => prepareBeanPurchase(beanPurchase?.id)} onSubmit={submitBeanPurchase} payment={beanPurchasePayment} purchase={beanPurchase} unitPriceCents={orderConfig?.beanPurchaseUnitPriceCents} /> : null}
+    {showReferralModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowReferralModal(false)} role="presentation"><section className="draw-card-confirm-panel body-book-referral-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="邀请好友"><button className="icon-button" onClick={() => setShowReferralModal(false)} type="button"><X size={18} /></button><p className="draw-card-kicker">Invite friends</p><h2>邀请好友</h2><p>邀请新用户注册，即得 <strong>5 豆</strong>；好友每笔实付订单还可返你 <strong>20% 推荐金</strong>。</p>{referralUrl ? <><label className="body-book-wallet-field"><span>专属邀请链接</span><input readOnly value={referralUrl} /></label><button className="draw-card-primary" onClick={async () => { try { await copyText(referralUrl); setReferralNotice("邀请链接已复制，快去分享给新朋友吧。"); setReferralError(""); } catch (nextError) { setReferralError(nextError.message || "复制失败，请手动复制链接。"); } }} type="button"><Clipboard size={17} /><span>复制邀请链接</span></button></> : null}{referralNotice ? <p className="success-note">{referralNotice}</p> : null}{referralError ? <p className="error-note">{referralError}</p> : null}</section></div> : null}
+    {showContactModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowContactModal(false)} role="presentation"><section className="draw-card-confirm-panel draw-card-contact-panel body-book-contact-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="联系客服"><button className="icon-button" onClick={() => setShowContactModal(false)} type="button"><X size={18} /></button><div className="draw-card-contact-copy"><h3>联系客服</h3><p>复制客服微信，返回微信添加</p><div className="draw-card-contact-id"><span>{getContactWechatId(orderConfig)}</span></div></div><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={copyContactWechat} type="button"><Clipboard size={16} /><span>{contactCopied ? "已复制" : "复制微信号"}</span></button></div></section></div> : null}
+    {showAuthModal ? <AuthModal description="" onAuthenticated={async () => { setShowAuthModal(false); setVisitorState(await fetchVisitorState()); }} onClose={() => setShowAuthModal(false)} reloadOnLogin={false} /> : null}
+  </>;
+}
+
 function BodyBookCartPage() {
   const [books, setBooks] = useState([]);
   const [account, setAccount] = useState(null);
@@ -3798,6 +3974,7 @@ function BodyBookCartPage() {
     <section className="body-book-cart-page">
       <div className="body-book-order-list-head">
         <div><p className="body-book-kicker">Shopping cart</p><h1>选书加购</h1><p>选择要印刷的认知书，统一结算与发货。</p></div>
+        <BodyBookHeaderActions />
       </div>
       {isLoading ? <p className="body-book-library-empty">正在读取你的认知书…</p> : null}
       {error ? <p className="error-note">{error}</p> : null}
@@ -3874,6 +4051,7 @@ function BodyBookWorksPage() {
     <section className="body-book-order-list-page body-book-works-page">
       <div className="body-book-order-list-head">
         <div><p className="body-book-kicker">My works</p><h1>我的作品</h1><p>继续编辑、生成或删除已创建的认知书。</p></div>
+        <BodyBookHeaderActions />
       </div>
       {isLoading ? <p className="body-book-library-empty">正在读取我的作品…</p> : null}
       {error ? <p className="error-note">{error}</p> : null}

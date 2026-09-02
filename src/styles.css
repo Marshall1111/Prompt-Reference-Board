@@ -563,6 +563,7 @@ body {
 
 .body-book-order-list-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
@@ -10052,11 +10053,11 @@ textarea {
   cursor: wait;
 }
 
-.body-book-page .body-book-header-orders {
+.body-book-page .body-book-header-home {
   color: var(--body-book-apple-blue);
 }
 
-.body-book-page .body-book-header-orders span {
+.body-book-page .body-book-header-home span {
   color: var(--body-book-apple-blue);
 }
 
@@ -10130,6 +10131,15 @@ textarea {
 }
 
 .body-book-page .body-book-user-menu button:first-of-type:hover {
+  background: #f0f7ff;
+  color: var(--body-book-apple-blue);
+}
+
+.body-book-page .body-book-user-menu button.body-book-user-menu-invite {
+  color: var(--body-book-apple-blue);
+}
+
+.body-book-page .body-book-user-menu button.body-book-user-menu-invite:hover {
   background: #f0f7ff;
   color: var(--body-book-apple-blue);
 }
