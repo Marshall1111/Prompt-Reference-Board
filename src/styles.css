@@ -11014,6 +11014,37 @@ textarea {
   display: none;
 }
 
+.body-book-page-reference-global-fallback {
+  min-width: 0;
+  padding: 12px;
+  border: 1px dashed var(--body-book-apple-border);
+  border-radius: 14px;
+  background: #f5f6f8;
+}
+
+.body-book-page-reference-global-fallback p {
+  margin: 0 0 8px;
+  color: var(--body-book-apple-muted, #6e6e73);
+  font-size: 12px;
+}
+
+.body-book-page-reference-global-fallback-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.body-book-page-reference-global-fallback-list img {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.body-book-page-reference-global-fallback-tip {
+  margin: 8px 0 0 !important;
+}
+
 .body-book-page .body-book-page-reference-editor-remove.icon-button {
   display: inline-flex;
   width: 34px;

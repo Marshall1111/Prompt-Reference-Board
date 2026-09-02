@@ -2132,7 +2132,16 @@ function BodyBookPage() {
   const [draftPageReferences, setDraftPageReferences] = useState({});
   const [draftPageReferencePreviews, setDraftPageReferencePreviews] = useState({});
   const [pagePrompts, setPagePrompts] = useState({});
-  const [dirtyPromptKeys, setDirtyPromptKeys] = useState([]);
+  const pagePromptsRef = useRef({});
+  // 草稿态下用户改过提示词的页面 key（创建工程时随请求提交）。只参与提交逻辑，不驱动渲染。
+  const dirtyPromptKeysRef = useRef([]);
+  // 提示词保存请求仍在串行队列中执行的页面 key；期间 applyProject 需保留本地值。
+  const pendingPromptSaveKeysRef = useRef(new Set());
+  // 认知书工程态的单页参考图/提示词写操作在此队列中串行执行，
+  // 避免提示词 blur 保存与参考图操作并发导致读改写互相覆盖。
+  const bodyBookMutationQueueRef = useRef(Promise.resolve());
+  // 已选中但尚未上传完成的本页参考图本地预览（对象 URL），上传完成后移除。
+  const [pendingPageReferencePreviews, setPendingPageReferencePreviews] = useState({});
   const [error, setError] = useState("");
   const [activeItem, setActiveItem] = useState(null);
   const [originalPreview, setOriginalPreview] = useState(null);
@@ -2217,12 +2226,28 @@ function BodyBookPage() {
   const topReferenceUrls = project?.referenceUrls?.length ? project.referenceUrls : draftReferencePreviews;
   const topReferenceThumbnailUrls = project?.referenceThumbnailUrls?.length ? project.referenceThumbnailUrls : topReferenceUrls;
   const activePageReferencePage = pages.find((page) => page.key === activePageReferenceKey) || null;
-  const activePageReferenceUrls = activePageReferencePage
-    ? (activePageReferencePage.referenceUrls || topReferenceUrls)
-    : [];
-  const activePageReferenceThumbnailUrls = activePageReferencePage
-    ? (activePageReferencePage.referenceThumbnailUrls || activePageReferencePage.referenceUrls || [])
-    : [];
+  // 弹窗预览 = 服务端参考图 + 已选中未上传完成的本地预览（按槽位覆盖或追加）。
+  const activePagePendingPreviews = activePageReferenceKey ? (pendingPageReferencePreviews[activePageReferenceKey] || []) : [];
+  const activePageBaseUrls = activePageReferencePage ? (activePageReferencePage.referenceUrls || topReferenceUrls) : [];
+  const activePageBaseThumbnailUrls = activePageReferencePage ? (activePageReferencePage.referenceThumbnailUrls || activePageReferencePage.referenceUrls || []) : [];
+  const activePageReferenceUrls = useMemo(() => {
+    const urls = [...activePageBaseUrls];
+    for (const item of activePagePendingPreviews) {
+      if (item.slot === null || item.slot >= urls.length) urls.push(item.url);
+      else urls[item.slot] = item.url;
+    }
+    return urls;
+  }, [activePageBaseUrls, activePagePendingPreviews]);
+  const activePageReferenceThumbnailUrls = useMemo(() => {
+    const urls = [...(activePageBaseThumbnailUrls.length ? activePageBaseThumbnailUrls : activePageBaseUrls)];
+    for (const item of activePagePendingPreviews) {
+      if (item.slot === null || item.slot >= urls.length) urls.push(item.url);
+      else urls[item.slot] = item.url;
+    }
+    return urls;
+  }, [activePageBaseThumbnailUrls, activePageBaseUrls, activePagePendingPreviews]);
+  // 上传中的预览项在弹窗里不可删除/替换：服务端还没有这张图，操作会因序号无效而失败。
+  const activePageHasPendingUploads = activePagePendingPreviews.length > 0;
   const pendingCount = pages.filter((page) => ["queued", "running"].includes(page.status)).length;
   const incompleteKeys = pages.filter((page) => !["succeeded", "queued", "running"].includes(page.status)).map((page) => page.key);
   const allAvailableKeys = pages.filter((page) => !page.isBuiltIn && !["queued", "running"].includes(page.status)).map((page) => page.key);
@@ -2274,8 +2299,15 @@ function BodyBookPage() {
     setDraftKeys(nextProject.pages?.map((page) => page.key) || []);
     setDraftChildName(nextProject.personalization?.childName || "");
     setDraftPageReferences({});
-    setPagePrompts(Object.fromEntries((nextProject.pages || []).map((page) => [page.key, page.prompt || ""])));
-    setDirtyPromptKeys([]);
+    // 工程态的页面提示词已通过失焦保存即时持久化到服务端，这里以服务端返回为准；
+    // 草稿态的暂存提示词随创建工程请求提交，创建成功后同样以服务端为准。
+    // 但用户正在编辑（dirty）或保存请求仍在队列中执行的页面必须保留本地值，
+    // 否则替换/删除参考图等操作的响应会把尚未保存的编辑回填成服务端旧值。
+    const preservedPromptKeys = new Set([...dirtyPromptKeysRef.current, ...pendingPromptSaveKeysRef.current]);
+    setPagePrompts((current) => Object.fromEntries((nextProject.pages || []).map((page) => [
+      page.key,
+      preservedPromptKeys.has(page.key) && typeof current[page.key] === "string" ? current[page.key] : page.prompt || ""
+    ])));
     setError("");
   }
 
@@ -2456,8 +2488,10 @@ function BodyBookPage() {
     setDraftReferences([]);
     setDraftChildName("");
     setDraftPageReferences({});
+    pagePromptsRef.current = {};
     setPagePrompts({});
-    setDirtyPromptKeys([]);
+    dirtyPromptKeysRef.current = [];
+    pendingPromptSaveKeysRef.current.clear();
     setHistoryTheme(null);
     setHistoryProjects([]);
     setError("");
@@ -2539,8 +2573,10 @@ function BodyBookPage() {
     setDraftChildName("");
     setDraftPageReferences({});
     setDraftKeys([]);
+    pagePromptsRef.current = {};
     setPagePrompts({});
-    setDirtyPromptKeys([]);
+    dirtyPromptKeysRef.current = [];
+    pendingPromptSaveKeysRef.current.clear();
     setError("");
     loadSavedBooks().catch(() => {});
   }
@@ -2868,10 +2904,22 @@ function BodyBookPage() {
     }
   }
 
+  // 把认知书工程态写操作放入串行队列：前一个失败不影响后续执行。
+  function queueBodyBookMutation(run) {
+    const next = bodyBookMutationQueueRef.current.then(run, run);
+    bodyBookMutationQueueRef.current = next.catch(() => {});
+    return next;
+  }
+
   async function updatePageReference(page, file, referenceIndex = null) {
     if (!file) return;
     if (!isValidBodyBookReference(file)) {
       setError("请上传 JPG、PNG 或 WebP 图片。");
+      return;
+    }
+    // 该槽位已有预览在上传中时，服务端还没有旧图，替换会因序号无效而失败。
+    if (referenceIndex !== null && (pendingPageReferencePreviews[page.key] || []).some((item) => item.slot === referenceIndex)) {
+      setError("该参考图正在上传中，请等待上传完成后再替换。");
       return;
     }
     if (!project) {
@@ -2889,22 +2937,38 @@ function BodyBookPage() {
     }
     setBusyPageKey(page.key);
     setError("");
-    try {
-      const prepared = await prepareReferenceForUpload({ id: `body-book-page-${page.key}`, file });
-      const data = new FormData();
-      data.append("image", prepared.file);
-      if (referenceIndex !== null) data.append("referenceIndex", String(referenceIndex));
-      applyProject(await replaceBodyBookProjectPageReference(project.sessionId, page.key, data));
-    } catch (nextError) {
-      const message = nextError.message || "";
-      if (/序号无效|找不到/.test(message)) {
-        await refreshStaleProjectReferences("参考图状态已更新，请重试。");
-      } else {
-        setError(message || "替换页面参考图失败，请稍后再试。");
+    // 选中文件后立即用本地预览占住目标槽位，上传完成后再切换为服务端缩略图。
+    // 追加的预览槽位用 null（合并时按顺序排在末尾），避免连续追加时槽位冲突。
+    const previewUrl = URL.createObjectURL(file);
+    setPendingPageReferencePreviews((current) => {
+      const list = current[page.key] || [];
+      return { ...current, [page.key]: [...list, { url: previewUrl, slot: referenceIndex }] };
+    });
+    return queueBodyBookMutation(async () => {
+      try {
+        const prepared = await prepareReferenceForUpload({ id: `body-book-page-${page.key}`, file });
+        const data = new FormData();
+        data.append("image", prepared.file);
+        if (referenceIndex !== null) data.append("referenceIndex", String(referenceIndex));
+        applyProject(await replaceBodyBookProjectPageReference(project.sessionId, page.key, data));
+      } catch (nextError) {
+        const message = nextError.message || "";
+        if (/序号无效|找不到/.test(message)) {
+          await refreshStaleProjectReferences("参考图状态已更新，请重试。");
+        } else {
+          setError(message || "替换页面参考图失败，请稍后再试。");
+        }
+      } finally {
+        URL.revokeObjectURL(previewUrl);
+        setPendingPageReferencePreviews((current) => {
+          const list = (current[page.key] || []).filter((item) => item.url !== previewUrl);
+          const next = { ...current };
+          if (list.length) next[page.key] = list; else delete next[page.key];
+          return next;
+        });
+        setBusyPageKey("");
       }
-    } finally {
-      setBusyPageKey("");
-    }
+    });
   }
 
   async function addPageReferenceFiles(page, fileList) {
@@ -2927,31 +2991,70 @@ function BodyBookPage() {
 
   async function removePageReference(page, referenceIndex) {
     const references = project ? (page.referenceUrls || []) : (draftPageReferences[page.key] || draftReferences);
+    // 该槽位的预览还在上传中，服务端还没有这张图，删除会因序号无效而失败。
+    if (project && (pendingPageReferencePreviews[page.key] || []).some((item) => item.slot === referenceIndex)) {
+      setError("该参考图正在上传中，请等待上传完成后再删除。");
+      return;
+    }
     if (!project) {
       setDraftPageReferences((current) => ({ ...current, [page.key]: (current[page.key] || draftReferences).filter((_, index) => index !== referenceIndex) }));
       return;
     }
     setBusyPageKey(page.key);
     setError("");
-    try {
-      applyProject(await deleteBodyBookProjectPageReference(project.sessionId, page.key, referenceIndex));
-    } catch (nextError) {
-      const message = nextError.message || "";
-      if (/序号无效|找不到/.test(message)) {
-        await refreshStaleProjectReferences("参考图状态已更新，请重试。");
-      } else {
-        setError(message || "删除页面参考图失败，请稍后再试。");
+    return queueBodyBookMutation(async () => {
+      try {
+        applyProject(await deleteBodyBookProjectPageReference(project.sessionId, page.key, referenceIndex));
+      } catch (nextError) {
+        const message = nextError.message || "";
+        if (/序号无效|找不到/.test(message)) {
+          await refreshStaleProjectReferences("参考图状态已更新，请重试。");
+        } else {
+          setError(message || "删除页面参考图失败，请稍后再试。");
+        }
+      } finally {
+        setBusyPageKey("");
       }
-    } finally {
-      setBusyPageKey("");
-    }
+    });
   }
 
   function updatePagePrompt(pageKey, value) {
     const key = String(pageKey || "");
     if (!key) return;
+    pagePromptsRef.current = { ...pagePromptsRef.current, [key]: value };
     setPagePrompts((current) => ({ ...current, [key]: value }));
-    setDirtyPromptKeys((current) => current.includes(key) ? current : [...current, key]);
+    if (!dirtyPromptKeysRef.current.includes(key)) dirtyPromptKeysRef.current = [...dirtyPromptKeysRef.current, key];
+  }
+
+  // 项目态：提示词失焦即持久化到服务端；草稿态暂存前端，随创建工程请求提交。
+  async function savePagePrompt(page, value) {
+    if (!project) return;
+    const requestedPrompt = String(value ?? "");
+    if (requestedPrompt === String(page.prompt || "")) {
+      dirtyPromptKeysRef.current = dirtyPromptKeysRef.current.filter((key) => key !== page.key);
+      return;
+    }
+    setBusyPageKey(page.key);
+    pendingPromptSaveKeysRef.current.add(page.key);
+    let saved = false;
+    try {
+      await queueBodyBookMutation(async () => {
+        try {
+          applyProject(await updateBodyBookProjectPagePrompt(project.sessionId, page.key, requestedPrompt));
+          saved = true;
+        } catch (nextError) {
+          setError(nextError.message || "保存页面提示词失败，请稍后再试。");
+        } finally {
+          setBusyPageKey("");
+        }
+      });
+    } finally {
+      pendingPromptSaveKeysRef.current.delete(page.key);
+      // 保存排队期间用户可能又改了内容；只有保存成功且值未再变化时才清除脏标记。
+      if (saved && pagePromptsRef.current[page.key] === requestedPrompt) {
+        dirtyPromptKeysRef.current = dirtyPromptKeysRef.current.filter((key) => key !== page.key);
+      }
+    }
   }
 
   async function savePageSelection(nextKeys) {
@@ -2963,7 +3066,7 @@ function BodyBookPage() {
       setDraftKeys(normalized);
       setDraftPageReferences((current) => Object.fromEntries(Object.entries(current).filter(([key]) => normalized.includes(key))));
       setPagePrompts((current) => Object.fromEntries(Object.entries(current).filter(([key]) => normalized.includes(key))));
-      setDirtyPromptKeys((current) => current.filter((key) => normalized.includes(key)));
+      dirtyPromptKeysRef.current = dirtyPromptKeysRef.current.filter((key) => normalized.includes(key));
       return true;
     }
     setBusy(true);
@@ -3001,6 +3104,10 @@ function BodyBookPage() {
   }
 
   async function submitGeneration(keys, busyKey = "") {
+    if (Object.keys(pendingPageReferencePreviews).length) {
+      await showAppDialog({ message: "参考图正在上传，请等上传完成后再生成。" });
+      return;
+    }
     if (!keys.length) {
       setError("没有可提交的页面。");
       return;
@@ -3035,7 +3142,7 @@ function BodyBookPage() {
     try {
       let next;
       if (project) {
-        next = await generateBodyBookProjectPages(project.sessionId, keys, selectBodyBookPagePrompts(pagePrompts, keys, dirtyPromptKeys));
+        next = await generateBodyBookProjectPages(project.sessionId, keys);
       } else {
         const data = new FormData();
         const preparedReferences = await Promise.all(draftReferences.map((file, index) => prepareReferenceForUpload({ id: `body-book-project-reference-${index}`, file })));
@@ -3044,7 +3151,7 @@ function BodyBookPage() {
         if (isKindergartenBook) data.append("childName", draftChildName.trim());
         data.append("contentKeys", JSON.stringify(draftKeys));
         data.append("generationKeys", JSON.stringify(keys));
-        data.append("pagePrompts", JSON.stringify(selectBodyBookPagePrompts(pagePrompts, draftKeys, dirtyPromptKeys)));
+        data.append("pagePrompts", JSON.stringify(selectBodyBookPagePrompts(pagePrompts, draftKeys, dirtyPromptKeysRef.current)));
         Object.entries(draftPageReferences).forEach(([key, files]) => {
           if (draftKeys.includes(key)) files.forEach((file) => data.append(`pageReference-${key}`, file));
         });
@@ -3168,11 +3275,11 @@ function BodyBookPage() {
       {activeItem?.result?.imageUrl ? <div className="modal-backdrop body-book-lightbox" onClick={closeActiveItem} role="presentation"><section className="body-book-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="icon-button" onClick={closeActiveItem} type="button" aria-label="关闭预览"><X size={18} /></button><img alt={activeItem.title} src={getBodyBookThumbnail(activeItem)} /><div className="body-book-lightbox-meta"><strong>{activeItem.title}</strong><button className="draw-card-primary" onClick={() => { void downloadBookOriginal(activeItem); }} type="button"><Download size={17} /><span>下载原图</span></button></div></section></div> : null}
       {originalPreview ? <div className="modal-backdrop body-book-lightbox" onClick={() => setOriginalPreview(null)} role="presentation"><section className="body-book-lightbox-panel body-book-original-preview-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`${originalPreview.title}原图`} aria-modal="true"><button className="icon-button" onClick={() => setOriginalPreview(null)} type="button" aria-label="关闭原图"><X size={18} /></button><img alt={originalPreview.title} onError={() => { setOriginalPreview(null); setError("加载认知书原图失败，请稍后再试。"); }} src={originalPreview.url} /><div className="body-book-lightbox-meta"><strong>{originalPreview.title}原图</strong><p className="body-book-lightbox-save-tip">请长按图片，选择“保存图片”到手机。</p></div></section></div> : null}
       {activeReferencePreview ? <div className="modal-backdrop body-book-lightbox" onClick={() => setActiveReferencePreview(null)} role="presentation"><section className="body-book-lightbox-panel body-book-reference-lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`宝宝参考图 ${activeReferencePreview.index + 1} 大图预览`} aria-modal="true"><button className="icon-button" onClick={() => setActiveReferencePreview(null)} type="button" aria-label="关闭预览"><X size={18} /></button><img alt={`宝宝参考图 ${activeReferencePreview.index + 1} 大图`} src={activeReferencePreview.url} /><div className="body-book-lightbox-meta"><strong>宝宝参考图 {activeReferencePreview.index + 1}</strong></div></section></div> : null}
-      {activePageReferencePage ? <div className="modal-backdrop body-book-page-reference-modal" onClick={() => setActivePageReferenceKey("")} role="presentation"><section className="body-book-project-modal body-book-page-reference-modal-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`修改${activePageReferencePage.title}`} aria-modal="true"><button className="icon-button" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onClick={() => setActivePageReferenceKey("")} type="button" aria-label="关闭修改"><X size={18} /></button><p className="body-book-kicker">Edit page</p><h2>修改页面</h2><p>可分别修改本页参考图和提示词；提示词会在下次单张或批量生成本页时生效。</p><div className="body-book-page-reference-editor-list">{activePageReferenceUrls.map((referenceUrl, index) => <div className="body-book-page-reference-editor-item" key={`${referenceUrl}-${index}`}><img alt={`${activePageReferencePage.title} 参考图 ${index + 1}`} decoding="async" src={activePageReferenceThumbnailUrls[index] || referenceUrl} /><div><strong>参考图 {index + 1}</strong><label className="draw-card-secondary"><RefreshCw size={15} /><span>替换参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onChange={(event) => { updatePageReference(activePageReferencePage, event.target.files?.[0] || null, index); event.target.value = ""; }} type="file" /></label></div><button aria-label={`删除第 ${index + 1} 张参考图`} className="body-book-page-reference-editor-remove icon-button" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onClick={() => removePageReference(activePageReferencePage, index)} title="删除参考图" type="button"><X size={16} /></button></div>)}{activePageReferenceUrls.length < referenceUploadLimit ? <label aria-label="增加参考图" className="body-book-page-reference-editor-add" title="增加参考图"><Plus size={24} /><span>增加参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} multiple onChange={(event) => { void addPageReferenceFiles(activePageReferencePage, event.target.files); event.target.value = ""; }} type="file" /></label> : null}</div><label className="body-book-page-prompt-editor"><span>本页提示词</span><textarea disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} maxLength={6000} onChange={(event) => updatePagePrompt(activePageReferencePage.key, event.target.value)} value={pagePrompts[activePageReferencePage.key] ?? activePageReferencePage.prompt ?? ""} /></label></section></div> : null}
+      {activePageReferencePage ? <div className="modal-backdrop body-book-page-reference-modal" onClick={() => setActivePageReferenceKey("")} role="presentation"><section className="body-book-project-modal body-book-page-reference-modal-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-label={`修改${activePageReferencePage.title}`} aria-modal="true"><button className="icon-button" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} onClick={() => setActivePageReferenceKey("")} type="button" aria-label="关闭修改"><X size={18} /></button><p className="body-book-kicker">Edit page</p><h2>修改页面</h2><p>可分别修改本页参考图和提示词；提示词会在下次单张或批量生成本页时生效。</p><div className="body-book-page-reference-editor-list">{activePageReferenceUrls.map((referenceUrl, index) => <div className="body-book-page-reference-editor-item" key={`${referenceUrl}-${index}`}><img alt={`${activePageReferencePage.title} 参考图 ${index + 1}`} decoding="async" src={activePageReferenceThumbnailUrls[index] || referenceUrl} /><div><strong>参考图 {index + 1}{(index >= activePageBaseUrls.length || activePagePendingPreviews.some((item) => item.slot === index)) ? "（上传中…）" : ""}</strong><label className="draw-card-secondary"><RefreshCw size={15} /><span>替换参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || activePageHasPendingUploads || ["queued", "running"].includes(activePageReferencePage.status)} onChange={(event) => { updatePageReference(activePageReferencePage, event.target.files?.[0] || null, index); event.target.value = ""; }} type="file" /></label></div><button aria-label={`删除第 ${index + 1} 张参考图`} className="body-book-page-reference-editor-remove icon-button" disabled={busy || activePageHasPendingUploads || ["queued", "running"].includes(activePageReferencePage.status)} onClick={() => removePageReference(activePageReferencePage, index)} title="删除参考图" type="button"><X size={16} /></button></div>)}{activePageReferenceUrls.length < referenceUploadLimit ? <label aria-label="增加参考图" className="body-book-page-reference-editor-add" title="增加参考图"><Plus size={24} /><span>增加参考图</span><input accept="image/png,image/jpeg,image/webp" disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} multiple onChange={(event) => { void addPageReferenceFiles(activePageReferencePage, event.target.files); event.target.value = ""; }} type="file" /></label> : null}{activePageReferencePage.referencesCleared && topReferenceUrls.length ? <div className="body-book-page-reference-global-fallback"><p>本页参考图已清空，当前生成将使用全局参考图：</p><div className="body-book-page-reference-global-fallback-list">{topReferenceThumbnailUrls.map((url, index) => <img key={`${url}-${index}`} alt={`全局参考图 ${index + 1}`} decoding="async" src={url} />)}</div><p className="body-book-page-reference-global-fallback-tip">全局参考图请在页面顶部的参考图管理区修改。</p></div> : null}</div><label className="body-book-page-prompt-editor"><span>本页提示词</span><textarea disabled={busy || ["queued", "running"].includes(activePageReferencePage.status)} maxLength={6000} onBlur={(event) => { void savePagePrompt(activePageReferencePage, event.target.value); }} onChange={(event) => updatePagePrompt(activePageReferencePage.key, event.target.value)} value={pagePrompts[activePageReferencePage.key] ?? activePageReferencePage.prompt ?? ""} /></label></section></div> : null}
 
       {showContentPicker ? <div className="modal-backdrop" onClick={() => !busy && setShowContentPicker(false)} role="presentation"><section className="body-book-project-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择认知书内容"><button className="icon-button" disabled={busy} onClick={() => setShowContentPicker(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Contents</p><h2>选择认知书内容</h2><p>封面为固定页；勾选或取消后会立即生效。</p><p className="body-book-selection-progress">{pickerSelectionProgressText}</p><div className="body-book-content-options">{selectableContents.map((content) => <label key={content.key}><input checked={pickerKeys.includes(content.key)} disabled={content.isRequired || busy} onChange={(event) => { void toggleContentSelection(content.key, event.target.checked); }} type="checkbox" /><span>{content.chinese} <small>{content.english}</small></span></label>)}</div><div className="draw-card-confirm-actions"><button className="draw-card-primary" disabled={busy} onClick={() => setShowContentPicker(false)} type="button">完成</button></div></section></div> : null}
 
-      {showBatchDialog ? <div className="modal-backdrop" onClick={() => !busy && setShowBatchDialog(false)} role="presentation"><section className="body-book-project-modal body-book-batch-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择批量生成方式"><button className="icon-button" disabled={busy} onClick={() => setShowBatchDialog(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Batch generate</p><h2>选择生成方式</h2><p>{pendingCount ? `${pendingCount} 张正在生成，将自动跳过。` : "选择本次要提交的页面。"}</p><button className="body-book-batch-choice" disabled={busy || !incompleteKeys.length} onClick={() => submitGeneration(incompleteKeys)} type="button"><strong>仅生成未完成页</strong><span>提交 {incompleteKeys.length} 张未生成或失败页面，成功图片不变。</span></button><button className="body-book-batch-choice" disabled={busy || !allAvailableKeys.length} onClick={() => submitGeneration(allAvailableKeys)} type="button"><strong>全部重新生成</strong><span>提交 {allAvailableKeys.length} 张非生成中页面，成功图片会被覆盖。</span></button></section></div> : null}
+      {showBatchDialog ? <div className="modal-backdrop" onClick={() => !busy && setShowBatchDialog(false)} role="presentation"><section className="body-book-project-modal body-book-batch-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="选择批量生成方式"><button className="icon-button" disabled={busy} onClick={() => setShowBatchDialog(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Batch generate</p><h2>选择生成方式</h2><p>{pendingCount ? `${pendingCount} 张正在生成，将自动跳过。` : "选择本次要提交的页面。"}</p><button className="body-book-batch-choice" disabled={busy || Object.keys(pendingPageReferencePreviews).length > 0 || !incompleteKeys.length} onClick={() => submitGeneration(incompleteKeys)} type="button"><strong>仅生成未完成页</strong><span>提交 {incompleteKeys.length} 张未生成或失败页面，成功图片不变。</span></button><button className="body-book-batch-choice" disabled={busy || Object.keys(pendingPageReferencePreviews).length > 0 || !allAvailableKeys.length} onClick={() => submitGeneration(allAvailableKeys)} type="button"><strong>全部重新生成</strong><span>提交 {allAvailableKeys.length} 张非生成中页面，成功图片会被覆盖。</span></button></section></div> : null}
 
       {balanceAlert ? <BalanceInsufficientModal message={balanceAlert} onClose={() => setBalanceAlert("")} useBodyBookTheme /> : null}
 
@@ -13651,6 +13758,17 @@ async function deleteBodyBookProjectPageReference(projectId, pageKey, referenceI
   const response = await fetch(`/api/body-book/projects/${encodeURIComponent(projectId)}/pages/${encodeURIComponent(pageKey)}/reference/${encodeURIComponent(referenceIndex)}`, { method: "DELETE" });
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message || "删除页面参考图失败，请稍后再试。");
+  return payload;
+}
+
+async function updateBodyBookProjectPagePrompt(projectId, pageKey, promptOverride) {
+  const response = await fetch(`/api/body-book/projects/${encodeURIComponent(projectId)}/pages/${encodeURIComponent(pageKey)}/prompt`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ promptOverride: String(promptOverride || "") })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "保存页面提示词失败，请稍后再试。");
   return payload;
 }
 

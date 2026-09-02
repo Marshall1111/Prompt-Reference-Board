@@ -2749,6 +2749,19 @@ app.delete("/api/body-book/projects/:sessionId/pages/:pageKey/reference/:referen
   }
 });
 
+app.put("/api/body-book/projects/:sessionId/pages/:pageKey/prompt", requireWebAccount, async (req, res) => {
+  try {
+    const session = await readBodyBookSession(req.params.sessionId);
+    if (!session) throw createHttpError(404, "这本认知书工程不存在或已删除。");
+    assertWebAccountOwnsBodyBookSession(req, session);
+    const next = await updateBodyBookPagePrompt(session, req.params.pageKey, req.body?.promptOverride);
+    res.json(toPublicBodyBookSession(next, req.webAccount.id));
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "保存页面提示词失败，请稍后再试。" });
+  }
+});
+
 app.post("/api/body-book/projects/:sessionId/generate", requireWebAccount, async (req, res) => {
   try {
     const session = await readBodyBookSession(req.params.sessionId);
@@ -5001,7 +5014,14 @@ app.get("/generated-images/:filename", async (req, res, next) => {
 app.use("/order-assets", express.static(orderAssetPublicRoot));
 app.use(express.static(path.join(rootDir, "public")));
 app.use("/images-small", express.static(miniImageRoot));
-app.use(express.static(path.join(rootDir, "dist")));
+// index.html 引用带 hash 的构建产物，必须禁缓存，否则浏览器会运行旧版本前端。
+app.use(express.static(path.join(rootDir, "dist"), {
+  setHeaders(res, filepath) {
+    if (String(filepath).toLowerCase().endsWith(".html")) {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    }
+  }
+}));
 
 app.use((error, _req, res, next) => {
   if (!error) return next();
@@ -12184,7 +12204,8 @@ async function hydrateBodyBookItem(item) {
   return {
     ...item,
     status,
-    prompt: String(job?.prompt || item?.prompt || ""),
+    // 用户保存过自定义提示词的页面以页面数据为准，不能用生成任务里的旧模板提示词覆盖。
+    prompt: item?.hasCustomPrompt ? String(item?.prompt || "") : String(job?.prompt || item?.prompt || ""),
     result: status === "succeeded" ? normalizeJobResult(job?.result) : null,
     errorMessage: ["failed", "cancelled"].includes(status) ? String(job?.message || "生成失败，请重试。") : ""
   };
@@ -12827,6 +12848,33 @@ async function deleteBodyBookPageReference(session, pageKey, referenceIndex) {
 function getBodyBookPageGenerationReferences(page, globalReferences, referenceLimit) {
   const pageReferences = page?.referencesCleared ? [] : normalizeBodyBookReferences(page?.references, page?.reference, referenceLimit);
   return pageReferences.length ? pageReferences : globalReferences;
+}
+
+// 单页提示词的默认值（封面与普通内页构造方式不同；内置预置页不可编辑，无需处理）。
+function buildBodyBookPageDefaultPrompt(page, theme, personalization) {
+  return page.key === "cover"
+    ? buildBodyBookCoverPrompt(theme, personalization)
+    : buildBodyBookPartPrompt(page, page.order, theme, personalization);
+}
+
+// 持久化单页提示词：非空值视为用户自定义（hasCustomPrompt=true，模板升级不再覆盖）；
+// 空值表示恢复该页默认模板提示词。
+async function updateBodyBookPagePrompt(session, pageKey, promptOverride) {
+  const current = normalizeBodyBookSession(session);
+  const page = current.pages.find((item) => item.key === String(pageKey || "").toLowerCase());
+  if (!page || page.isBuiltIn) throw createHttpError(404, "找不到可编辑的认知书页面。");
+  if (["queued", "running"].includes(page.status)) throw createHttpError(409, "该页面正在生成，请生成完成后再修改提示词。");
+  const requestedPrompt = String(promptOverride || "").trim();
+  if (requestedPrompt.length > 6000) throw createHttpError(400, "提示词最多 6000 字。");
+  const theme = getBookTheme(current.themeId) || getBookTheme("body");
+  const defaultPrompt = buildBodyBookPageDefaultPrompt(page, theme, current.personalization);
+  return saveBodyBookSession({
+    ...current,
+    pages: current.pages.map((item) => item.key === page.key ? { ...item, prompt: requestedPrompt || defaultPrompt, hasCustomPrompt: Boolean(requestedPrompt) } : item),
+    updatedAt: new Date().toISOString(),
+    lastContentUpdatedAt: new Date().toISOString(),
+    message: `已保存${page.chinese || page.title}的提示词。`
+  });
 }
 
 async function generateBodyBookPages(session, pageKeys, pagePrompts = {}) {
