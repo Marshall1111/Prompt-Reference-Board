@@ -806,7 +806,7 @@
       "冰箱贴"
     ],
     "subjectType": "person",
-    "drawCardEnabled": false,
+    "drawCardEnabled": true,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1786945817977/cover.png",
     "imageUpdatedAt": "2026-08-17T06:07:48.869Z",
@@ -826,7 +826,7 @@
       "冰箱贴"
     ],
     "subjectType": "person",
-    "drawCardEnabled": false,
+    "drawCardEnabled": true,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1786945773680/cover.png",
     "imageUpdatedAt": "2026-08-17T06:07:36.438Z",
@@ -846,7 +846,7 @@
       "冰箱贴"
     ],
     "subjectType": "person",
-    "drawCardEnabled": false,
+    "drawCardEnabled": true,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1786945061992/cover.png",
     "imageUpdatedAt": "2026-08-17T05:44:27.368Z",
@@ -1146,7 +1146,7 @@
       "混搭插画风"
     ],
     "subjectType": "both",
-    "drawCardEnabled": false,
+    "drawCardEnabled": true,
     "drawCardWeight": 5,
     "image": "/style-previews/style_1782538556729/cover.png",
     "imageUpdatedAt": "2026-06-27T05:40:52.115Z",
@@ -1830,7 +1830,7 @@
       "异形，不带背景"
     ],
     "subjectType": "both",
-    "drawCardEnabled": false,
+    "drawCardEnabled": true,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1780636884368/cover.png",
     "imageUpdatedAt": "2026-06-05T12:55:41.113Z",
@@ -1850,7 +1850,7 @@
       "异形，带背景"
     ],
     "subjectType": "both",
-    "drawCardEnabled": false,
+    "drawCardEnabled": true,
     "drawCardWeight": 100,
     "image": "/style-previews/style_1780636102242/cover.png",
     "imageUpdatedAt": "2026-06-05T12:55:08.673Z",
