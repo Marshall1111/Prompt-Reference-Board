@@ -2198,7 +2198,7 @@ function BodyBookPage() {
   const bookOrderPayablePreviewCents = hasBodyBookPrintRedemption ? 0 : bookOrderGrossCents;
   const usesPairedPresetLayout = activeTheme?.id === "color"
     || project?.layoutVersion === "paired-preset-v2"
-    || (!project && ["body", "transport", "animal"].includes(activeTheme?.id));
+    || (!project && ["color", "body", "transport", "animal"].includes(getBodyBookBaseThemeId(activeTheme)));
   const selectionTargetCount = usesPairedPresetLayout ? 9 : 17;
   const selectionRemaining = selectionTargetCount - selectedKeys.length;
   const selectionActionText = selectionRemaining >= 0 ? `还需要选择 ${selectionRemaining} 张` : `需要去除 ${Math.abs(selectionRemaining)} 张`;

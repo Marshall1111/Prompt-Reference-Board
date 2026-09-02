@@ -194,8 +194,11 @@ const PAIRED_PRESET_BOOK_PARTS = {
   ],
   transport: [
     ["car", "汽车", "Car"], ["bus", "公交车", "Bus"], ["train", "火车", "Train"], ["airplane", "飞机", "Airplane"],
-    ["boat", "小船", "Boat"], ["bicycle", "自行车", "Bicycle"], ["truck", "卡车", "Truck"], ["ambulance", "救护车", "Ambulance"]
-  ].map(([key, chinese, english]) => [key, chinese, english, `This is a ${english}. 这是一辆${chinese}。`]),
+    ["boat", "小船", "Boat"], ["bicycle", "自行车", "Bicycle"], ["truck", "卡车", "Truck"], ["ambulance", "救护车", "Ambulance"],
+    ["excavator", "挖掘机", "Excavator", "This is an excavator. 这是一辆挖掘机。"],
+    ["police-car", "警车", "Police Car", "This is a police car. 这是一辆警车。"],
+    ["fire-truck", "消防车", "Fire Truck", "This is a fire truck. 这是一辆消防车。"]
+  ].map(([key, chinese, english, copy]) => [key, chinese, english, copy ?? `This is a ${english}. 这是一辆${chinese}。`]),
   animal: [
     ["cat", "小猫", "Cat"], ["dog", "小狗", "Dog"], ["rabbit", "兔子", "Rabbit"], ["horse", "马", "Horse"],
     ["cow", "奶牛", "Cow"], ["duck", "小鸭", "Duck"], ["elephant", "大象", "Elephant"], ["lion", "狮子", "Lion"]
@@ -210,7 +213,7 @@ const BASE_BOOK_THEME_DEFINITIONS = [
     ["veterinarian", "兽医", "Veterinarian"], ["baker", "面包师", "Baker"], ["nurse", "护士", "Nurse"], ["dancer", "舞蹈家", "Dancer"], ["hairdresser", "理发师", "Hairdresser"], ["farmer", "农夫", "Farmer"], ["bus-driver", "公交车司机", "Bus Driver"], ["courier", "快递员", "Courier"]
   ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `I can be a ${english}. 我可以成为${chinese}。` })) },
   { id: "color", name: "颜色认知书", englishName: "My First Colors", title: "我的第一本颜色认知书", parts: [
-    ["red", "红色", "Red"], ["orange", "橙色", "Orange"], ["yellow", "黄色", "Yellow"], ["green", "绿色", "Green"], ["blue", "蓝色", "Blue"], ["purple", "紫色", "Purple"], ["pink", "粉色", "Pink"], ["black", "黑色", "Black"]
+    ["red", "红色", "Red"], ["orange", "橙色", "Orange"], ["yellow", "黄色", "Yellow"], ["green", "绿色", "Green"], ["blue", "蓝色", "Blue"], ["purple", "紫色", "Purple"], ["pink", "粉色", "Pink"], ["black", "黑色", "Black"], ["white", "白色", "White"], ["brown", "棕色", "Brown"], ["gray", "灰色", "Gray"]
   ].map(([key, chinese, english]) => ({ key, chinese, english, copy: `This is ${english}. 这是${chinese}。` })) },
   { id: "emotion", name: "情绪认知书", englishName: "My First Feelings", title: "我的第一本情绪认知书", parts: [
     ["happy", "开心", "Happy"], ["sad", "难过", "Sad"], ["angry", "生气", "Angry"], ["surprised", "惊讶", "Surprised"], ["scared", "害怕", "Scared"], ["shy", "害羞", "Shy"], ["excited", "兴奋", "Excited"], ["calm", "平静", "Calm"], ["proud", "自豪", "Proud"], ["sleepy", "困倦", "Sleepy"], ["curious", "好奇", "Curious"], ["upset", "委屈", "Upset"], ["expectant", "期待", "Expectant"], ["bored", "无聊", "Bored"], ["confused", "困惑", "Confused"], ["loving", "友爱", "Loving"]
@@ -333,7 +336,18 @@ const BODY_BOOK_PRESET_PAGE_ART_DIRECTIONS = {
   mouth: "a hand-drawn close-up of only a child's mouth and the smallest surrounding skin area; do not show a full face or head",
   hands: "a hand-drawn close-up of two small child hands only, without arms, face, head, or body",
   feet: "a hand-drawn close-up of two small child feet only, without legs, face, head, or body",
-  tummy: "a hand-drawn close-up of only a child's round tummy, cropped tightly so that no face, head, limbs, or whole child appears"
+  tummy: "a hand-drawn close-up of only a child's round tummy, cropped tightly so that no face, head, limbs, or whole child appears",
+  "transport:car": "a clean studio photo cutout of one red family sedan car, shown complete in three-quarter side view on a pure white background",
+  "transport:bus": "a clean studio photo cutout of one yellow city bus, shown complete in side view on a pure white background",
+  "transport:train": "a clean studio photo cutout of one blue passenger train locomotive, shown complete in side view on a pure white background",
+  "transport:airplane": "a clean studio photo cutout of one white passenger airplane, shown complete in side view on a pure white background",
+  "transport:boat": "a clean studio photo cutout of one small sailboat, shown complete in side view on a pure white background",
+  "transport:bicycle": "a clean studio photo cutout of one children's bicycle, shown complete in side view on a pure white background",
+  "transport:truck": "a clean studio photo cutout of one orange dump truck, shown complete in side view on a pure white background",
+  "transport:ambulance": "a clean studio photo cutout of one white ambulance with red markings, shown complete in side view on a pure white background",
+  "transport:excavator": "a clean studio photo cutout of one yellow hydraulic excavator with caterpillar tracks, a long digging arm, and a bucket, shown complete in side view on a pure white background",
+  "transport:police-car": "a clean studio photo cutout of one black-and-white police car with a red-and-blue light bar on the roof, shown complete in three-quarter side view on a pure white background",
+  "transport:fire-truck": "a clean studio photo cutout of one red fire truck with a ladder on the roof and fire-service equipment, shown complete in side view on a pure white background"
 };
 const DEFAULT_DRAW_CARD_WEIGHT = 100;
 const SUBJECT_PERSON = "person";
@@ -11727,10 +11741,12 @@ function getBodyBookPartVisualDirection(themeId, partKey) {
       metro: "Dress the baby in a bright blue travel jacket and a soft cap; show the baby safely seated beside a real metro train window, with the full-size metro carriage, doors, and wheels clearly visible. Never generate a toy or illustrated metro.",
       ship: "Dress the baby in a navy sailor romper and a soft sailor hat; show the baby safely seated with a life jacket on a real full-size passenger ship deck, with the real hull and cabin clearly visible. Never generate a toy ship.",
       helicopter: "Dress the baby in a sky-blue pilot-inspired romper and a soft aviator cap; show the baby safely seated in an airport stroller near a real full-size helicopter, with real rotor blades, cockpit, and landing skids clearly visible. Never generate a toy or cartoon helicopter.",
-      "fire-truck": "Dress the baby in a red helper jacket and a soft firefighter hat; show the baby safely seated in a child safety seat beside a real full-size red fire truck, with the cab, ladder, and wheels clearly visible. Never generate a toy fire truck.",
+      "fire-truck": "Dress the baby in a red helper jacket and a soft firefighter hat; show a floor-seated pose gently playing with one red toy fire truck and a small toy ladder. Never show a real fire truck, fire station, or ride-on vehicle.",
       "school-bus": "Dress the baby in a yellow travel jacket and a small backpack; show the baby safely seated in a real full-size school bus child seat by a window, with the real yellow bus body clearly visible. Never generate a toy or cartoon school bus.",
       tractor: "Dress the baby in soft green overalls and a sun hat; show the baby safely seated in a child stroller beside a real full-size tractor, with the large rear wheel and front loader clearly visible. Never generate a toy tractor.",
-      "cable-car": "Dress the baby in a warm red travel jacket and a soft knit beanie; show the baby safely secured in a stroller inside a real full-size cable-car cabin, with the real cabin windows, suspension arm, and cable clearly visible. Never generate a toy, miniature, or cartoon cable car."
+      "cable-car": "Dress the baby in a warm red travel jacket and a soft knit beanie; show the baby safely secured in a stroller inside a real full-size cable-car cabin, with the real cabin windows, suspension arm, and cable clearly visible. Never generate a toy, miniature, or cartoon cable car.",
+      excavator: "Dress the baby in a bright-yellow utility vest over a cream romper and a soft safety helmet; show a floor-seated pose scooping two soft blocks with one yellow toy excavator. Never show any real full-size excavator, construction site, or ride-on vehicle.",
+      "police-car": "Dress the baby in a navy-and-white helper romper and a small soft police cap; show a floor-seated pose gently pushing one black-and-white toy police car. Never show a real police car, emergency scene, or ride-on vehicle."
     },
     animal: {
       cat: "Dress the baby in a soft gray-and-white kitten romper with plush cat ears and a tiny tail; show a playful seated pawing pose beside a calm, real domestic shorthaired cat photographed in full detail. The cat must have natural fur, eyes, paws, and whiskers; never use a plush, toy, cartoon, illustrated, or CGI cat.",
@@ -11808,7 +11824,7 @@ Style: warm, high-saturation but gentle early-learning picture-book cover-style 
 
 function buildColorObjectPagePrompt(part) {
   const details = getColorBookVisualDetails(part?.colorKey || part?.key);
-  return `Create one square 1:1 static bilingual object-recognition page for a 0-3-year-old color book. Theme: ${part.chinese} / ${part.english}. Use a ${details.colorName} paper-texture outer background and a warm-cream rounded rectangle card with a hand-stitched ${details.colorName} dashed border. At the top render exactly: "这是${part.chinese}！" and "${part.english}!" in large rounded, highly legible ${details.colorName} lettering. Show six simple, separated, easy-to-recognize ${details.colorName} objects in a tidy 3 by 2 grid: ${details.objects}. Each object must have a white sticker outline and a Chinese-and-English name label beneath it. Bright, soft, handmade cut-paper learning-card style; low contrast shadows; no baby, no people, no page number, no watermark, no border outside the card, and no unrelated colors as focal points.`;
+  return `Create one square 1:1 static bilingual object-recognition page for a 0-3-year-old color book. Theme: ${part.chinese} / ${part.english}. Use a ${details.colorName} paper-texture outer background and a warm-cream rounded rectangle card with a hand-stitched ${details.colorName} dashed border. At the top render exactly: "${part.chinese}！" and "${part.english}!" in large rounded, highly legible ${details.colorName} lettering. Show six simple, separated, easy-to-recognize ${details.colorName} objects in a tidy 3 by 2 grid: ${details.objects}. Each object must have a white sticker outline and a Chinese-and-English name label beneath it. Bright, soft, handmade cut-paper learning-card style; low contrast shadows; no baby, no people, no page number, no watermark, no border outside the card, and no unrelated colors as focal points.`;
 }
 
 function getColorBookVisualDetails(colorKey) {
@@ -12600,10 +12616,16 @@ function getBuiltInPresetBookPageResult(definition, theme) {
 function buildBuiltInPresetBookPagePrompt(definition, theme) {
   if (getBaseBookThemeId(theme) === "color") return buildColorObjectPagePrompt(definition);
   const conceptKey = String(definition?.conceptKey || definition?.key || "").replace(/-objects$/i, "").toLowerCase();
-  const artDirection = BODY_BOOK_PRESET_PAGE_ART_DIRECTIONS[conceptKey]
-    || "a hand-drawn close-up of only the requested body part; do not show a whole child";
+  const baseThemeId = getBaseBookThemeId(theme);
+  const subjectNoun = baseThemeId === "transport" ? "vehicle" : baseThemeId === "animal" ? "animal" : "body part";
+  const defaultArtDirection = baseThemeId === "transport"
+    ? `a clean studio photo cutout of only the requested ${subjectNoun}, shown complete in side view`
+    : "a hand-drawn close-up of only the requested body part; do not show a whole child";
+  const artDirection = BODY_BOOK_PRESET_PAGE_ART_DIRECTIONS[`${baseThemeId}:${conceptKey}`]
+    || BODY_BOOK_PRESET_PAGE_ART_DIRECTIONS[conceptKey]
+    || defaultArtDirection;
   const englishLabel = String(definition?.english || "").toLowerCase();
-  return `Create one square 1:1 static preschool body-part recognition page. Subject: ${artDirection}. Use a warm, gentle hand-drawn colored-pencil and crayon illustration with subtle paper texture, clean outlines, soft warm skin tones, and a simple white or warm-cream background. Print layout requirement: the background must extend continuously to all four edges as a full-bleed image. Keep the entire illustrated body part and both text labels inside the central safe area, with at least 10% of the canvas width as empty background on every side; nothing important may touch or approach an outer edge. The body part must be large, centered, immediately recognizable, and the only illustrated subject. Render exactly two text labels and no other text: the Chinese label "${definition?.chinese || ""}" and the English label "${englishLabel}". Use large, clear, rounded hand-drawn type, with the Chinese label above the English label. Do not include a sentence, page number, arrow, icon, prop, sound symbol, border, watermark, decorative lettering, or additional labels. Do not show a full child, portrait, full head, face, torso, limbs, clothing, or any unrelated body part beyond the minimum skin needed for this close-up.`;
+  return `Create one square 1:1 static preschool ${subjectNoun} recognition page. Subject: ${artDirection}. Use a warm, gentle hand-drawn colored-pencil and crayon illustration with subtle paper texture, clean outlines, soft warm tones, and a simple white or warm-cream background. Print layout requirement: the background must extend continuously to all four edges as a full-bleed image. Keep the entire illustrated ${subjectNoun} and both text labels inside the central safe area, with at least 10% of the canvas width as empty background on every side; nothing important may touch or approach an outer edge. The ${subjectNoun} must be large, centered, immediately recognizable, and the only illustrated subject. Render exactly two text labels and no other text: the Chinese label "${definition?.chinese || ""}" and the English label "${englishLabel}". Use large, clear, rounded hand-drawn type, with the Chinese label above the English label. Do not include a sentence, page number, arrow, icon, prop, sound symbol, border, watermark, decorative lettering, or additional labels. Do not show a full child, portrait, full head, face, torso, limbs, clothing, or any unrelated subject beyond the minimum detail needed for this page.`;
 }
 
 // Editable project pages deliberately exclude paired preset artwork. The
