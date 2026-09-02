@@ -159,8 +159,8 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 29,
-      "幽默": 8,
-      "日常": 14
+      "幽默": 9,
+      "日常": 11
     }
   },
   {
@@ -209,29 +209,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 27,
-      "幽默": 7,
-      "日常": 10
-    }
-  },
-  {
-    "publicationId": "8f98a6e4b98acf4117b6749a72ed52d5",
-    "jobId": "80a2c1c1-2b94-4359-bddc-49313e280a8d",
-    "styleId": "style_1787363044547",
-    "styleName": "极简线条手绘",
-    "prompt": "Transform this photo into a minimal hand-drawn illustration on cream textured paper background. Keep only the main subject's pose and silhouette, remove all background.主体居中，周围大量留白. Use thin black sketchy contour lines with a loose, imperfect hand-drawn feel. Fill with a few flat color blocks extracted from the original photo，色块不完全填满线条边界，要有手绘平涂的随意感。色块不超过5种颜色，减少阴影细节。low saturation, slightly irregular edges like marker.人物简化为基础形状，面部特征尽量少（点眼、简单的鼻子、小嘴），比例略显笨拙。如果有眼睛就保留眼镜 。A few minimal environment lines at the bottom. Large empty space around the subject. Add elegant English title text at the bottom in serif font. Nostalgic sketchbook aesthetic, no shading, no gradients, no realistic details.\r\n\r\nNegative: photorealistic, detailed background, facial features, eyes, nose, mouth, complex shading, 3D, vector art, clean perfect lines, digital painting, gradients, realistic texture, crowded, blurry, watermark",
-    "tags": [
-      "日常"
-    ],
-    "effectImageUrl": "/style-publications/8f98a6e4b98acf4117b6749a72ed52d5/effect.webp",
-    "referenceImageUrl": "/style-publications/8f98a6e4b98acf4117b6749a72ed52d5/reference.webp",
-    "sourceEffectImageUrl": "/generated-images/80a2c1c1-2b94-4359-bddc-49313e280a8d.png",
-    "sourceReferenceImageUrl": "/job-references/80a2c1c1-2b94-4359-bddc-49313e280a8d/1-1787353837212.jpg",
-    "createdAt": "2026-08-29T07:40:35.110Z",
-    "updatedAt": "2026-08-31T13:00:55.919Z",
-    "effectGridImageUrl": "/style-publications/8f98a6e4b98acf4117b6749a72ed52d5/effect-small.webp",
-    "effectGridWidth": 427,
-    "effectGridHeight": 640,
-    "sortOrders": {
+      "幽默": 8,
       "日常": 9
     }
   },
@@ -256,7 +234,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "儿童": 15,
-      "幽默": 6
+      "幽默": 7
     }
   },
   {
@@ -280,7 +258,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "宠物": 3,
-      "幽默": 5
+      "幽默": 6
     }
   },
   {
@@ -733,22 +711,20 @@
     "prompt": "Transform this photo into a minimal hand-drawn illustration on cream textured paper background. Keep only the main subject's pose and silhouette, remove all background.主体居中，周围大量留白. Use thin black sketchy contour lines with a loose, imperfect hand-drawn feel. Fill with a few flat color blocks extracted from the original photo，色块不完全填满线条边界，要有手绘平涂的随意感。色块不超过5种颜色，减少阴影细节。low saturation, slightly irregular edges like marker.人物简化为基础形状，面部特征尽量少（点眼、简单的鼻子、小嘴），比例略显笨拙。如果有眼睛就保留眼镜 。A few minimal environment lines at the bottom. Large empty space around the subject. Add elegant English title text at the bottom in serif font. Nostalgic sketchbook aesthetic, no shading, no gradients, no realistic details.\n\nNegative: photorealistic, detailed background, facial features, eyes, nose, mouth, complex shading, 3D, vector art, clean perfect lines, digital painting, gradients, realistic texture, crowded, blurry, watermark",
     "tags": [
       "儿童",
-      "推荐",
-      "日常"
+      "推荐"
     ],
     "effectImageUrl": "/style-publications/056434649e64b551043a749ed8c91179/effect.webp",
     "referenceImageUrl": "/style-publications/056434649e64b551043a749ed8c91179/reference.webp",
     "sourceEffectImageUrl": "/generated-images/3a84a0f9-bb87-4205-b7ce-3ad016a98f5e.png",
     "sourceReferenceImageUrl": "/job-references/3a84a0f9-bb87-4205-b7ce-3ad016a98f5e/1-1787364426731.jpg",
     "createdAt": "2026-08-29T10:12:55.910Z",
-    "updatedAt": "2026-08-31T13:00:20.588Z",
+    "updatedAt": "2026-09-01T22:12:46.618Z",
     "effectGridImageUrl": "/style-publications/056434649e64b551043a749ed8c91179/effect-small.webp",
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 4,
-      "儿童": 3,
-      "日常": 13
+      "儿童": 3
     }
   },
   {
@@ -936,29 +912,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "日常": 12
-    }
-  },
-  {
-    "publicationId": "381f9f4d5e8adeb99533f8686fbb20ee",
-    "jobId": "dd01ffb9-ae39-4f80-9fcb-c83eff6352e5",
-    "styleId": "style_1787983435342",
-    "styleName": "极简手绘插画",
-    "prompt": "请将我上传的每一张照片分别制作成一张独立的高级设计海报。\r\n提取照片中最具识别性的主体、轮廓、姿态与叙事关系，重构为极简纸感手绘封面插画。高度提炼并删减复杂细节，只保留最关键的视觉特征，以纤细、略带不稳定感的手绘线条和少量明确的丙烯平涂色块重新表达，让人一眼识别原始主题。主体保持小而集中，约占下半部分10%-20%，四周大面积留白，背景以粗糙白纸或浅色纸张为主，仅用极少量线条或色面暗示环境。\r\n \r\n配色从上方照片提取并压缩为不超过4种主要颜色，色块鲜明、完整、克制，保留纸张颗粒、手工涂抹和轻微不规则边缘。线条负责提示结构，色块负责建立主体。避免彩铅、蜡笔、水彩晕染、纯线稿、复杂写实、厚重油画、光滑数字插画和3D质感。\r\n \r\n可加入少量简洁文字，根据照片内容灵活使用标题、主题词、对象名称、地点、年份、编号或短句，文字排版疏朗克制，与留白和插画自然融合，具有艺术书封、独立出版物和儿童绘本式设计感。整体呈现小主体、大留白、强提炼、高识别度、安静、童趣、轻松、诗意而高级的视觉气质，避免商业卡通感、电商感和模板感。",
-    "tags": [
-      "日常"
-    ],
-    "effectImageUrl": "/style-publications/381f9f4d5e8adeb99533f8686fbb20ee/effect.webp",
-    "referenceImageUrl": "/style-publications/381f9f4d5e8adeb99533f8686fbb20ee/reference.webp",
-    "sourceEffectImageUrl": "/generated-images/dd01ffb9-ae39-4f80-9fcb-c83eff6352e5.png",
-    "sourceReferenceImageUrl": "/job-references/dd01ffb9-ae39-4f80-9fcb-c83eff6352e5/1-1788138466569.jpg",
-    "createdAt": "2026-08-31T01:12:29.272Z",
-    "updatedAt": "2026-08-31T22:31:33.264Z",
-    "effectGridImageUrl": "/style-publications/381f9f4d5e8adeb99533f8686fbb20ee/effect-small.webp",
-    "effectGridWidth": 427,
-    "effectGridHeight": 640,
-    "sortOrders": {
-      "日常": 11
+      "日常": 16
     }
   },
   {
@@ -1214,28 +1168,6 @@
     }
   },
   {
-    "publicationId": "24d5fc7f484465764f9c227b584cc0ac",
-    "jobId": "ee71f490-0550-4d70-994e-aaeb1a7553a5",
-    "styleId": "style_1779179722094",
-    "styleName": "新天真丑萌卡通",
-    "prompt": "转绘成独立卡通插画，新天真流行艺术风格，丑萌趣味人物，超细黑色轮廓线，高饱和度明快平涂色彩，手绘随性不规则线条，低保真涂鸦质感，怪诞无厘头趣味，夸张面部神态，微猎奇却软萌可爱，极简背景，现代街头艺术氛围，摒弃精致流水线画风。",
-    "tags": [
-      "幽默"
-    ],
-    "effectImageUrl": "/style-publications/24d5fc7f484465764f9c227b584cc0ac/effect.webp",
-    "effectGridImageUrl": "/style-publications/24d5fc7f484465764f9c227b584cc0ac/effect-small.webp",
-    "effectGridWidth": 427,
-    "effectGridHeight": 640,
-    "referenceImageUrl": "/style-publications/24d5fc7f484465764f9c227b584cc0ac/reference.webp",
-    "sourceEffectImageUrl": "/generated-images/ee71f490-0550-4d70-994e-aaeb1a7553a5.png",
-    "sourceReferenceImageUrl": "/job-references/ee71f490-0550-4d70-994e-aaeb1a7553a5/1-1781534438308.jpg",
-    "createdAt": "2026-08-31T21:38:40.251Z",
-    "updatedAt": "2026-08-31T21:38:40.251Z",
-    "sortOrders": {
-      "幽默": 9
-    }
-  },
-  {
     "publicationId": "b013ab7a0d70b69f1384ae95689e3819",
     "jobId": "d2825c85-6daa-44e8-a9da-0f96bc9b1adb",
     "styleId": "style_1785810130926",
@@ -1390,7 +1322,7 @@
     "createdAt": "2026-08-31T21:50:02.223Z",
     "updatedAt": "2026-08-31T21:50:02.223Z",
     "sortOrders": {
-      "日常": 15
+      "日常": 12
     }
   },
   {
@@ -1544,7 +1476,7 @@
     "createdAt": "2026-08-31T22:10:59.572Z",
     "updatedAt": "2026-08-31T22:11:22.673Z",
     "sortOrders": {
-      "日常": 16
+      "日常": 10
     }
   },
   {
@@ -1638,28 +1570,6 @@
     }
   },
   {
-    "publicationId": "cfb176e8bec1dc04677e7c361e57267d",
-    "jobId": "74a2caa9-ee95-46fb-86ec-e32bba8414a9",
-    "styleId": "style_1779179958695",
-    "styleName": "装饰民间插画",
-    "prompt": "请将整个图像转化为单一的装饰性民间平面插图，带有涂鸦元素。使用大胆而俏皮的色彩调色板，与原图像完全不同。\n将所有细节简化为干净、平面的形状，带有手工制作的、略显不完美感，仿佛绘制在一张白纸上。整体风格应显得可爱、童趣十足且异想天开。",
-    "tags": [
-      "旅行"
-    ],
-    "effectImageUrl": "/style-publications/cfb176e8bec1dc04677e7c361e57267d/effect.webp",
-    "effectGridImageUrl": "/style-publications/cfb176e8bec1dc04677e7c361e57267d/effect-small.webp",
-    "effectGridWidth": 640,
-    "effectGridHeight": 640,
-    "referenceImageUrl": "/style-publications/cfb176e8bec1dc04677e7c361e57267d/reference.webp",
-    "sourceEffectImageUrl": "/generated-images/74a2caa9-ee95-46fb-86ec-e32bba8414a9.png",
-    "sourceReferenceImageUrl": "/job-references/74a2caa9-ee95-46fb-86ec-e32bba8414a9/1-1780697123191.jpg",
-    "createdAt": "2026-08-31T22:43:06.344Z",
-    "updatedAt": "2026-08-31T22:43:06.344Z",
-    "sortOrders": {
-      "旅行": 17
-    }
-  },
-  {
     "publicationId": "284ba20128a10517fb2578cf4c2d473e",
     "jobId": "baeb2b01-f31c-4509-99fa-4dd8531c2d66",
     "styleId": "style_1779179958695",
@@ -1678,7 +1588,7 @@
     "createdAt": "2026-08-31T22:43:26.379Z",
     "updatedAt": "2026-08-31T22:43:26.379Z",
     "sortOrders": {
-      "日常": 17
+      "日常": 13
     }
   },
   {
@@ -1768,7 +1678,7 @@
     "createdAt": "2026-09-01T07:15:10.413Z",
     "updatedAt": "2026-09-01T07:15:10.413Z",
     "sortOrders": {
-      "旅行": 18
+      "旅行": 17
     }
   },
   {
@@ -1793,6 +1703,274 @@
     "sortOrders": {
       "推荐": 31,
       "旅行": 13
+    }
+  },
+  {
+    "publicationId": "b48b61316d02c3862bfca84d26703cd7",
+    "jobId": "e3e4f520-25c9-449a-93e8-a614dbde49a0",
+    "styleId": "style_1788297952205",
+    "styleName": "笨拙蜡笔肖像",
+    "prompt": "将上传的真实照片重绘为粗蜡笔时尚编辑插画。低黄度象牙白纸面、笨拙形体、亮色跳点与不稳定手写字共同构成松弛时髦的作者感。\r\n\t\r\n照片是唯一内容源，保留人物、朝向、姿态动作、服装大轮廓与穿搭。道具仅保留身上穿戴或手中握持的一个关键物件。依原照景别裁切，半身照不为填满方形补画腿脚。人物组最大宽高不超过画幅 62%，偏离中心放置，保留至少 35% 连续象牙白纸面（F2F0E8）。原照中桌椅、建筑、植物和地面等环境全部清空退出，保持干净纸底。\r\n\t\r\n形体压成 4–7 个不对称大色块，大片区域平涂或整块留纸，形成画得很重与几乎没画的密度反差，避免全身均匀颗粒。脸部彻底符号化为单色小纸片，脸上固定只有 3–5 个图形（黑短块为眼、一笔为鼻、一笔为嘴），无眼白虹膜、鼻翼唇形和皮肤明暗，绝不生成写实肖像。手掌概括为团块，小标图案省略。\r\n\t\r\n线条来自磨秃近黑蜡笔（171922），全图保留 3–5 处越线与粗粝意外。提炼 2–3 个服装低饱和色，加入一处电光蓝（0B93F9）或柠檬黄（F2EE50）作为唯一高饱和跳色（占 5%–10%）。\r\n\t\r\n从姿态穿搭提取 3 个大写英文单词，粗钝手写。组成一大两小的主副编辑文字组，贴近人物侧边留白，不出现三角散点排布或单词卡版式。无任何环境、品牌、logo 与水印。",
+    "tags": [
+      "推荐",
+      "日常"
+    ],
+    "effectImageUrl": "/style-publications/b48b61316d02c3862bfca84d26703cd7/effect.webp",
+    "effectGridImageUrl": "/style-publications/b48b61316d02c3862bfca84d26703cd7/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/b48b61316d02c3862bfca84d26703cd7/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/e3e4f520-25c9-449a-93e8-a614dbde49a0.png",
+    "sourceReferenceImageUrl": "/job-references/e3e4f520-25c9-449a-93e8-a614dbde49a0/1-1788297698359.jpg",
+    "createdAt": "2026-09-01T21:26:22.623Z",
+    "updatedAt": "2026-09-01T21:26:22.623Z",
+    "sortOrders": {
+      "推荐": 32,
+      "日常": 14
+    }
+  },
+  {
+    "publicationId": "e8183862444bc344f85d02133b4d7344",
+    "jobId": "22e57b3b-72a2-4f66-a5ff-c1ae70f2d22a",
+    "styleId": "style_1788297952205",
+    "styleName": "笨拙蜡笔肖像",
+    "prompt": "将上传的真实照片重绘为粗蜡笔时尚编辑插画。低黄度象牙白纸面、笨拙形体、亮色跳点与不稳定手写字共同构成松弛时髦的作者感。\r\n\t\r\n照片是唯一内容源，保留人物、朝向、姿态动作、服装大轮廓与穿搭。道具仅保留身上穿戴或手中握持的一个关键物件。依原照景别裁切，半身照不为填满方形补画腿脚。人物组最大宽高不超过画幅 62%，偏离中心放置，保留至少 35% 连续象牙白纸面（F2F0E8）。原照中桌椅、建筑、植物和地面等环境全部清空退出，保持干净纸底。\r\n\t\r\n形体压成 4–7 个不对称大色块，大片区域平涂或整块留纸，形成画得很重与几乎没画的密度反差，避免全身均匀颗粒。脸部彻底符号化为单色小纸片，脸上固定只有 3–5 个图形（黑短块为眼、一笔为鼻、一笔为嘴），无眼白虹膜、鼻翼唇形和皮肤明暗，绝不生成写实肖像。手掌概括为团块，小标图案省略。\r\n\t\r\n线条来自磨秃近黑蜡笔（171922），全图保留 3–5 处越线与粗粝意外。提炼 2–3 个服装低饱和色，加入一处电光蓝（0B93F9）或柠檬黄（F2EE50）作为唯一高饱和跳色（占 5%–10%）。\r\n\t\r\n从姿态穿搭提取 3 个大写英文单词，粗钝手写。组成一大两小的主副编辑文字组，贴近人物侧边留白，不出现三角散点排布或单词卡版式。无任何环境、品牌、logo 与水印。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/e8183862444bc344f85d02133b4d7344/effect.webp",
+    "effectGridImageUrl": "/style-publications/e8183862444bc344f85d02133b4d7344/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/e8183862444bc344f85d02133b4d7344/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/22e57b3b-72a2-4f66-a5ff-c1ae70f2d22a.png",
+    "sourceReferenceImageUrl": "/job-references/22e57b3b-72a2-4f66-a5ff-c1ae70f2d22a/1-1788297778518.jpg",
+    "createdAt": "2026-09-01T21:26:38.044Z",
+    "updatedAt": "2026-09-01T21:26:38.044Z",
+    "sortOrders": {
+      "宠物": 24
+    }
+  },
+  {
+    "publicationId": "8db83879d6208639e91ea018a0d9a630",
+    "jobId": "c49c2574-22f7-4255-886f-7a42c14cd5c0",
+    "styleId": "style_1788297952205",
+    "styleName": "笨拙蜡笔肖像",
+    "prompt": "将上传的真实照片重绘为粗蜡笔时尚编辑插画。低黄度象牙白纸面、笨拙形体、亮色跳点与不稳定手写字共同构成松弛时髦的作者感。\r\n\t\r\n照片是唯一内容源，保留人物、朝向、姿态动作、服装大轮廓与穿搭。道具仅保留身上穿戴或手中握持的一个关键物件。依原照景别裁切，半身照不为填满方形补画腿脚。人物组最大宽高不超过画幅 62%，偏离中心放置，保留至少 35% 连续象牙白纸面（F2F0E8）。原照中桌椅、建筑、植物和地面等环境全部清空退出，保持干净纸底。\r\n\t\r\n形体压成 4–7 个不对称大色块，大片区域平涂或整块留纸，形成画得很重与几乎没画的密度反差，避免全身均匀颗粒。脸部彻底符号化为单色小纸片，脸上固定只有 3–5 个图形（黑短块为眼、一笔为鼻、一笔为嘴），无眼白虹膜、鼻翼唇形和皮肤明暗，绝不生成写实肖像。手掌概括为团块，小标图案省略。\r\n\t\r\n线条来自磨秃近黑蜡笔（171922），全图保留 3–5 处越线与粗粝意外。提炼 2–3 个服装低饱和色，加入一处电光蓝（0B93F9）或柠檬黄（F2EE50）作为唯一高饱和跳色（占 5%–10%）。\r\n\t\r\n从姿态穿搭提取 3 个大写英文单词，粗钝手写。组成一大两小的主副编辑文字组，贴近人物侧边留白，不出现三角散点排布或单词卡版式。无任何环境、品牌、logo 与水印。",
+    "tags": [
+      "儿童"
+    ],
+    "effectImageUrl": "/style-publications/8db83879d6208639e91ea018a0d9a630/effect.webp",
+    "effectGridImageUrl": "/style-publications/8db83879d6208639e91ea018a0d9a630/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/8db83879d6208639e91ea018a0d9a630/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/c49c2574-22f7-4255-886f-7a42c14cd5c0.png",
+    "sourceReferenceImageUrl": "/job-references/c49c2574-22f7-4255-886f-7a42c14cd5c0/1-1788298173287.jpg",
+    "createdAt": "2026-09-01T21:30:42.514Z",
+    "updatedAt": "2026-09-01T21:30:42.514Z",
+    "sortOrders": {
+      "儿童": 19
+    }
+  },
+  {
+    "publicationId": "f73846ede3c636370e4388401c31881b",
+    "jobId": "b8d49ea7-88e7-458f-af29-f16092596187",
+    "styleId": "style_1788300545761",
+    "styleName": "Q版人物旅行",
+    "prompt": "仅将上传每一张照片中的人物转化为可爱的手绘涂鸦角色，同时保持原始摄影背景不变。\r\n核心规则：背景 = 原始真实照片。人物 = 可爱的手绘涂鸦角色。保留背景：尽可能保持原始照片中的天空、景观、建筑、水体、家具、地面、植物、栏杆、物体、光线、颜色、透视、相机角度、构图和纹理不变。不要重绘、简化、插图化，或对背景或环境物体应用涂鸦/蜡笔/铅笔效果。仅转换人物： 将每个人替换为迷人、天真的涂鸦版本，同时保留：\r\n \r\n- 人物的确切数量\r\n- 原始位置和相对比例\r\n- 正面/背面/侧面/四分之三视角的朝向\r\n- 头部和身体方向\r\n- 姿势和手势\r\n- 手臂和腿部位置\r\n- 与人物或物体的互动\r\n- 发型、服装颜色和主要配饰\r\n重要： 如果有人背对镜头，保持背对。 如果侧身，保持侧身。 如果正面朝向，保持正面。 切勿将人物旋转向观众，或虚构不可见的脸部。\r\n可爱涂鸦风格： 自由地将真实解剖结构重新诠释为可爱、不完美的角色：\r\n- 超大的圆形头部\r\n- 娇小紧凑的身体\r\n- 短小的简化手臂和腿部\r\n- 小巧的手脚\r\n- 可爱的笨拙比例\r\n- 松散的涂鸦头发\r\n- 小点眼睛和简单的面部特征（当可见时）\r\n- 适当的玫瑰色涂鸦脸颊\r\n保持原始姿势可辨识，但简化并略微夸张以增加可爱感。\r\n绘画风格： 松散、天真的手绘涂鸦，像快速的儿童草图。 使用细抖动的黑色轮廓、不完美的形状、重叠的草图线条、涂鸦的彩色铅笔或蜡笔填充、不均匀的着色、白色间隙，以及略微凌乱的边缘。 角色应看起来有意粗糙绘制，但极其可爱。\r\n物体： 人物周围的物体、家具、风景和物品应尽可能保持摄影风格。涂鸦角色可以自然地触碰或握住真实的摄影物体。\r\n整合： 保持正确的比例、地面接触、深度和遮挡，使涂鸦角色自然占据原始人物的相同位置。\r\n最终效果： 应该感觉像是从原始照片中移除了真实人物，并替换为他们可爱的小手绘涂鸦版本，而现实世界的背景保持未变。\r\n优先级：\r\n \r\n1. 原始摄影背景\r\n2. 人物位置和比例\r\n3. 确切的身体朝向\r\n4. 姿势和手势\r\n5. 可爱夸张的涂鸦角色设计\r\n避免全图插图、背景涂鸦、真实解剖结构、动漫、漫画、3D卡通、精致的数字艺术、矢量线条、改变的姿势、改变的朝向、添加人物，或虚构的脸部。",
+    "tags": [
+      "旅行",
+      "推荐"
+    ],
+    "effectImageUrl": "/style-publications/f73846ede3c636370e4388401c31881b/effect.webp",
+    "effectGridImageUrl": "/style-publications/f73846ede3c636370e4388401c31881b/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/f73846ede3c636370e4388401c31881b/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/b8d49ea7-88e7-458f-af29-f16092596187.png",
+    "sourceReferenceImageUrl": "/job-references/b8d49ea7-88e7-458f-af29-f16092596187/1-1788300338240.jpg",
+    "createdAt": "2026-09-01T22:09:16.136Z",
+    "updatedAt": "2026-09-01T22:09:16.136Z",
+    "sortOrders": {
+      "推荐": 33,
+      "旅行": 18
+    }
+  },
+  {
+    "publicationId": "bb472f4e5b37d2c15af19f4a45dbb5b6",
+    "jobId": "1ded6e48-66de-47e0-852b-946592553332",
+    "styleId": "style_1788300635752",
+    "styleName": "极简美食日志",
+    "prompt": "以输入的日常餐桌照片为唯一内容，生成一张2:3竖版“简约插画”纪念卡片。保留照片中的食物、饮品、餐具、玩偶和装饰物，确保主体数量、摆放位置、外形特征及相互关系不变，不增加无关元素。\r\n \r\n【构图】\r\n使用温暖的象牙白手工纸背景，将照片中的餐桌场景重新绘制为居中的横向插画。插画主体约占宽度的60%，四周保留大量留白。\r\n \r\n【造型】\r\n删除桌面纹理、杂乱背景、真实光影和次要细节，只保留最有辨识度的食物轮廓、器皿形状和玩偶神态。使用简洁、略显笨拙的几何色块与纤细手绘线条表现主体，轮廓允许轻微歪斜、断续和错位，不追求准确透视与精细结构。\r\n \r\n【色彩】\r\n从原照片提取4—6种代表色，转换为柔和、低饱和的奶油白、灰蓝、砖红、焦糖棕、橄榄绿和淡黄色。使用扁平平涂，不做复杂渐变、立体塑形或强烈阴影。\r\n \r\n【质感】\r\n融合蜡笔、粉彩、丝网印刷与旧书插图质感。保留纸张透白、细密颗粒、颜色不均、边缘磨损和轻微套色偏移，使画面像印在旧纸上的独立杂志插画，温暖、安静、朴素且有收藏感。\r\n \r\n【文字】\r\n插画下方可加入两行简短、轻松的英文文案，使用小号复古衬线字体并左对齐；无法准确生成时保留留白，不生成乱码。\r\n \r\n不要改变或遗漏主要物品；删除手机界面、视频通话窗口、字幕和截图元素；避免写实绘画、精致水彩、动漫、矢量、油画、厚涂、3D、Logo、水印和黑边。",
+    "tags": [
+      "日常"
+    ],
+    "effectImageUrl": "/style-publications/bb472f4e5b37d2c15af19f4a45dbb5b6/effect.webp",
+    "effectGridImageUrl": "/style-publications/bb472f4e5b37d2c15af19f4a45dbb5b6/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/bb472f4e5b37d2c15af19f4a45dbb5b6/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/1ded6e48-66de-47e0-852b-946592553332.png",
+    "sourceReferenceImageUrl": "/job-references/1ded6e48-66de-47e0-852b-946592553332/1-1788300420828.jpg",
+    "createdAt": "2026-09-01T22:10:47.854Z",
+    "updatedAt": "2026-09-01T22:10:47.854Z",
+    "sortOrders": {
+      "日常": 15
+    }
+  },
+  {
+    "publicationId": "493da6a321e82d67c152faeaccdf7ac3",
+    "jobId": "39c75544-1744-421e-ba62-b573209e3b12",
+    "styleId": "style_1779179958695",
+    "styleName": "装饰民间插画",
+    "prompt": "请将整个图像转化为单一的装饰性民间平面插图，带有涂鸦元素。使用大胆而俏皮的色彩调色板，与原图像完全不同。\n将所有细节简化为干净、平面的形状，带有手工制作的、略显不完美感，仿佛绘制在一张白纸上。整体风格应显得可爱、童趣十足且异想天开。",
+    "tags": [
+      "旅行"
+    ],
+    "effectImageUrl": "/style-publications/493da6a321e82d67c152faeaccdf7ac3/effect.webp",
+    "effectGridImageUrl": "/style-publications/493da6a321e82d67c152faeaccdf7ac3/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/493da6a321e82d67c152faeaccdf7ac3/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/39c75544-1744-421e-ba62-b573209e3b12.png",
+    "sourceReferenceImageUrl": "/job-references/39c75544-1744-421e-ba62-b573209e3b12/1-1788300972842.jpg",
+    "createdAt": "2026-09-01T22:17:39.346Z",
+    "updatedAt": "2026-09-01T22:17:39.346Z",
+    "sortOrders": {
+      "旅行": 19
+    }
+  },
+  {
+    "publicationId": "5c2bb14c17703e8bb8b55d65d8fa3379",
+    "jobId": "64749b9a-4770-4fb3-b053-ff062f654b6d",
+    "styleId": "style_1784795803139",
+    "styleName": "毕加索极简肖像",
+    "prompt": "把图1创建一幅可爱的“新表现主义立体主义极简矢量肖像插画”，风格融合毕加索与 kawaii 极简主义，灵感来自风格化时尚编辑大片与俏皮现代艺术。 人物面部特征需高度简化并夸张处理： oversized 的抽象眼睛、扁平卡通眼型，可使用极简黑点或单条弧线表现；不要真实虹膜细节，不要睫毛，整体面部细节极度精简。鼻子为极小的抽象造型，仅用一条短小的折线勾勒。嘴唇使用单笔线条表现，小巧柔和的几何嘴型，少量表情标记，不要真实嘴部结构。面颊圆润，神情梦幻、天真，比例俏皮且不对称，搭配修长优雅的脖颈、简化的几何面部结构、风格化的棱角发型块面，以及带有童趣艺术变形感的轻微漫画化处理。 画面语言采用干净、可缩放的矢量图形，平涂色块，大胆原始的轮廓线，锐利的贝塞尔曲线，抽象多边形构图，极简线条，保留天真手绘感与富有表现力的留白，呈现图标化的人脸抽象效果；不要真实渲染，而是使用二维原始面部符号。 加入轻微的油画棒颗粒叠加效果、粗糙手工刷痕、随性涂写般的手写线条、可见的颜料肌理，以及丝网印刷海报般的质感。整体使用鲜明但克制的有限配色，并置于深哑光黑色背景之上。 构图参考奢华编辑感画廊海报，呈现当代时尚插画、艺术感现代立体主义海报风格，整体既时髦又可爱，适合作为高级感、可直接印刷的矢量艺术作品。",
+    "tags": [
+      "幽默"
+    ],
+    "effectImageUrl": "/style-publications/5c2bb14c17703e8bb8b55d65d8fa3379/effect.webp",
+    "effectGridImageUrl": "/style-publications/5c2bb14c17703e8bb8b55d65d8fa3379/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/5c2bb14c17703e8bb8b55d65d8fa3379/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/64749b9a-4770-4fb3-b053-ff062f654b6d.png",
+    "sourceReferenceImageUrl": "/job-references/64749b9a-4770-4fb3-b053-ff062f654b6d/1-1788301417838.jpg",
+    "createdAt": "2026-09-01T22:26:46.168Z",
+    "updatedAt": "2026-09-01T22:26:46.168Z",
+    "sortOrders": {
+      "幽默": 5
+    }
+  },
+  {
+    "publicationId": "69d09e1563036900b5bfe6c7adca89a4",
+    "jobId": "7b8b771a-fa77-4850-ae56-b8e594f1852f",
+    "styleId": "style_1786945061992",
+    "styleName": "周岁冰箱贴(异形邮寄)",
+    "prompt": "以我上传的照片为人物参考，提取人物的整体识别特征：发型轮廓、脸型、肤色、年龄感、服装颜色或代表性配饰、自然姿态与气质；不要精确还原真实五官，不要追求真人肖像感。\r\n\r\n将人物转绘成一枚可用于制作冰箱贴的可爱宝宝成长纪念手绘贴纸。画面只生成一枚独立的异形冰箱贴，竖版构图，人物完整全身、居中，姿势自然可爱，例如坐姿或扶着小玩具站立。\r\n\r\n人物使用高度简化、抽象可爱的 Q 版五官：圆润脸型，小而简单的弧线眉毛，两个小黑点或短弧线眼睛，小圆点鼻子，极简小弧线嘴巴；可保留淡淡圆形腮红。不要真实眼球、睫毛、双眼皮、鼻梁、唇纹、牙齿、毛孔、皮肤纹理或复杂阴影。五官应像儿童绘本或手账贴纸里的简笔小人物，表情温柔、开心、有亲和力。\r\n\r\n整体为温暖治愈的儿童手账插画风格：圆润 Q 版比例，头部略大、身体小巧，细而略带不规则的深色手绘线稿，轻柔彩铅与蜡笔质感，奶油黄、浅杏色、淡粉色、暖棕色等低饱和暖色配色，画面清新、柔软、有手作温度。\r\n\r\n人物外轮廓必须有一圈厚实、不规则、干净的暖白色模切边，像真实可裁切的贴纸或亚克力冰箱贴；白边外侧带非常轻微、柔和的浅灰投影。\r\n\r\n在人物右上方或右侧，清晰准确地写出英文：\r\n“1 YEAR OLD”\r\n使用圆润可爱的手绘黑色字母，可搭配少量小星星、爱心、短线光芒、小皇冠、数字“1”和小生日蛋糕点缀。文字必须完整清晰、拼写正确，不能遮挡人物。\r\n\r\n背景必须是纯白色或极浅暖奶油白，干净留白。不要真实背景、不要相框、不要卡片边框、不要商品页面、不要手机界面、不要手持展示、不要多个贴纸、不要复杂场景、不要其他文字、不要日期、不要名字、不要 Logo、不要水印、不要乱码。高清、边缘清楚，适合印刷和异形模切。\r\n\r\n负面提示词：photorealistic portrait, realistic facial features, detailed eyes, eyelashes, eyelids, iris, nose bridge, lips, teeth, skin pores, skin texture, realistic shading, 3D render, anime, detailed facial rendering, watermark, extra text, misspelled text, multiple stickers, busy background",
+    "tags": [
+      "儿童"
+    ],
+    "effectImageUrl": "/style-publications/69d09e1563036900b5bfe6c7adca89a4/effect.webp",
+    "effectGridImageUrl": "/style-publications/69d09e1563036900b5bfe6c7adca89a4/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/69d09e1563036900b5bfe6c7adca89a4/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/7b8b771a-fa77-4850-ae56-b8e594f1852f.png",
+    "sourceReferenceImageUrl": "/job-references/7b8b771a-fa77-4850-ae56-b8e594f1852f/1-1786944763645.jpg",
+    "createdAt": "2026-09-01T22:43:51.536Z",
+    "updatedAt": "2026-09-01T22:53:20.101Z",
+    "sortOrders": {
+      "儿童": 20
+    }
+  },
+  {
+    "publicationId": "8c679a55758f17fd704aa938e852105a",
+    "jobId": "3c1f298a-5a78-4188-9560-2f877f20b958",
+    "styleId": "style_1786945773680",
+    "styleName": "满月冰箱贴(异形邮寄)",
+    "prompt": "以我上传的照片为人物参考，提取宝宝的整体识别特征：发型轮廓、脸型、肤色、年龄感、襁褓或服装颜色、自然神态；不要精确还原真实五官，不追求真人肖像感。\r\n\r\n将宝宝转绘成一枚可用于制作冰箱贴的可爱满月纪念手绘贴纸。画面只生成一枚独立的异形冰箱贴，竖版构图，宝宝完整全身、居中。姿势必须符合约满月新生儿：安全自然的仰躺姿、襁褓包裹姿，或趴卧轻轻抬头姿；不要站立、坐立、扶站、奔跑或成人化动作。\r\n\r\n宝宝使用高度简化、抽象可爱的Q版五官：圆润脸型，小而简单的弧线眉毛，两个小黑点或短弧线眼睛，小圆点鼻子，极简小弧线嘴巴，可有淡淡圆形腮红。不要真实眼球、睫毛、双眼皮、鼻梁、唇纹、牙齿、毛孔、皮肤纹理或复杂阴影。五官应像儿童绘本或手账贴纸里的简笔小人物，表情温柔、安心、可爱。\r\n\r\n整体为温暖治愈的儿童手账插画风格：圆润Q版比例，头部略大、身体小巧，细而略带不规则的深色手绘线稿，轻柔彩铅和蜡笔质感，奶油黄、浅杏色、淡粉色、暖棕色、浅鹅黄等低饱和暖色配色，画面清新、柔软、有手作温度。\r\n\r\n人物外轮廓必须有一圈厚实、不规则、干净的暖白色模切边，像真实可裁切的贴纸或亚克力冰箱贴；白边外侧带非常轻微、柔和的浅灰投影。\r\n\r\n在宝宝右上方或右侧，清晰、准确地写出英文：\r\n“1 MONTH OLD”\r\n使用圆润、可爱的手绘黑色字母。可搭配少量月亮、小星星、小云朵、爱心、奶瓶、小熊或襁褓相关的小元素点缀。文字必须完整、清晰、拼写正确，不能遮挡宝宝。\r\n\r\n背景必须是纯白色或极浅暖奶油白，干净留白。不要真实背景、不要相框、不要卡片边框、不要商品页面、不要手机界面、不要手持展示、不要多个贴纸、不要复杂场景、不要其他文字、不要日期、不要名字、不要Logo、不要水印、不要乱码。高清、边缘清楚，适合印刷和异形模切。\r\n\r\n负面提示词：photorealistic portrait, realistic facial features, detailed eyes, eyelashes, eyelids, iris, nose bridge, lips, teeth, skin pores, skin texture, realistic shading, adult pose, standing baby, sitting unsupported, 3D render, anime, detailed facial rendering, watermark, extra text, misspelled text, multiple stickers, busy background",
+    "tags": [
+      "儿童"
+    ],
+    "effectImageUrl": "/style-publications/8c679a55758f17fd704aa938e852105a/effect.webp",
+    "effectGridImageUrl": "/style-publications/8c679a55758f17fd704aa938e852105a/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/8c679a55758f17fd704aa938e852105a/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/3c1f298a-5a78-4188-9560-2f877f20b958.png",
+    "sourceReferenceImageUrl": "/job-references/3c1f298a-5a78-4188-9560-2f877f20b958/1-1788302963156.jpg",
+    "createdAt": "2026-09-01T22:50:45.622Z",
+    "updatedAt": "2026-09-01T22:56:17.367Z",
+    "sortOrders": {
+      "儿童": 21
+    }
+  },
+  {
+    "publicationId": "b9fb2610545ebd7db6a5dc78e48b46ec",
+    "jobId": "e77c1007-08e4-4ada-93fe-ec08a93f24fb",
+    "styleId": "style_1786945817977",
+    "styleName": "百日冰箱贴(异形邮寄)",
+    "prompt": "以我上传的照片为人物参考，提取宝宝的整体识别特征：发型轮廓、脸型、肤色、年龄感、服装颜色或代表性配饰、自然姿态与神态；不要精确还原真实五官，不追求真人肖像感。\r\n\r\n将宝宝转绘成一枚可用于制作冰箱贴的可爱百日纪念手绘贴纸。画面只生成一枚独立的异形冰箱贴，竖版构图，宝宝完整全身、居中。姿势符合约百日宝宝的自然状态：可以趴卧轻轻抬头、半躺、被柔软靠垫支撑坐着，或开心挥动小手；不要站立、扶站、奔跑或成人化动作。\r\n\r\n宝宝使用高度简化、抽象可爱的Q版五官：圆润脸型，小而简单的弧线眉毛，两个小黑点或短弧线眼睛，小圆点鼻子，极简小弧线嘴巴，可保留淡淡圆形腮红。不要真实眼球、睫毛、双眼皮、鼻梁、唇纹、牙齿、毛孔、皮肤纹理或复杂阴影。五官应像儿童绘本或手账贴纸里的简笔小人物，表情温柔、开心、有亲和力。\r\n\r\n整体为温暖治愈的儿童手账插画风格：圆润Q版比例，头部略大、身体小巧，细而略带不规则的深色手绘线稿，轻柔彩铅和蜡笔质感，奶油黄、浅杏色、淡粉色、浅蓝色、暖棕色等低饱和暖色配色，画面清新、柔软、有手作温度。\r\n\r\n人物外轮廓必须有一圈厚实、不规则、干净的暖白色模切边，像真实可裁切的贴纸或亚克力冰箱贴；白边外侧带非常轻微、柔和的浅灰投影。\r\n\r\n在宝宝右上方或右侧，清晰、准确地写出英文：\r\n“100 DAYS”\r\n使用圆润、可爱的手绘黑色字母。可搭配少量小皇冠、星星、爱心、数字“100”、小蛋糕、小鸭子、小熊或玩具积木点缀。文字必须完整、清晰、拼写正确，不能遮挡宝宝。\r\n\r\n背景必须是纯白色或极浅暖奶油白，干净留白。不要真实背景、不要相框、不要卡片边框、不要商品页面、不要手机界面、不要手持展示、不要多个贴纸、不要复杂场景、不要其他文字、不要日期、不要名字、不要Logo、不要水印、不要乱码。高清、边缘清楚，适合印刷和异形模切。\r\n\r\n负面提示词：photorealistic portrait, realistic facial features, detailed eyes, eyelashes, eyelids, iris, nose bridge, lips, teeth, skin pores, skin texture, realistic shading, adult pose, standing baby, walking baby, 3D render, anime, detailed facial rendering, watermark, extra text, misspelled text, multiple stickers, busy background",
+    "tags": [
+      "儿童"
+    ],
+    "effectImageUrl": "/style-publications/b9fb2610545ebd7db6a5dc78e48b46ec/effect.webp",
+    "effectGridImageUrl": "/style-publications/b9fb2610545ebd7db6a5dc78e48b46ec/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/b9fb2610545ebd7db6a5dc78e48b46ec/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/e77c1007-08e4-4ada-93fe-ec08a93f24fb.png",
+    "sourceReferenceImageUrl": "/job-references/e77c1007-08e4-4ada-93fe-ec08a93f24fb/1-1788303015891.jpg",
+    "createdAt": "2026-09-01T22:51:23.561Z",
+    "updatedAt": "2026-09-01T22:57:16.558Z",
+    "sortOrders": {
+      "儿童": 22
+    }
+  },
+  {
+    "publicationId": "7b9aa500d3d498113003d0cdb05d76a3",
+    "jobId": "ca37066a-90c3-469c-852a-c515c7821ca6",
+    "styleId": "style_1780636884368",
+    "styleName": "简洁卡通(异形邮寄)",
+    "prompt": "真实照片中提取最有识别度的主体元素。将主体元素转化为一个简约的冰箱贴式图标。\r\n1、保留人物的核心轮廓和标志性特征；\r\n2、造型简洁，干净，像旅行纪念品冰箱贴；\r\n3、有轻微立体感和投影；\r\n4、边缘清晰，白色或浅色描边；\r\n5、细节适度简化，不要画得太复杂；\r\n6、图标位于上半部分居中偏上位置；\r\n7、图标尺寸较小且精致，周围保留大量留白。\r\n8、主体简化为卡通扁平风格\r\n【背景颜色】纯白色背景\r\n【整体气质】风格清爽，干净，明亮，有城市漫游感。强调识别度，色彩记忆点和小红书旅行打卡氛围。\r\n【避免】\r\n不要做成普通拼贴。\r\n不要把上半部分画得复杂。\r\n不要添加多余装饰元素。\r\n\r\n请确保主体完整，背景为纯白色，整体适合做冰箱贴展示。",
+    "tags": [
+      "日常"
+    ],
+    "effectImageUrl": "/style-publications/7b9aa500d3d498113003d0cdb05d76a3/effect.webp",
+    "effectGridImageUrl": "/style-publications/7b9aa500d3d498113003d0cdb05d76a3/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/7b9aa500d3d498113003d0cdb05d76a3/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/ca37066a-90c3-469c-852a-c515c7821ca6.png",
+    "sourceReferenceImageUrl": "/job-references/ca37066a-90c3-469c-852a-c515c7821ca6/1-1787097388234.jpg",
+    "createdAt": "2026-09-01T22:58:47.113Z",
+    "updatedAt": "2026-09-01T23:01:39.852Z",
+    "sortOrders": {
+      "日常": 17
+    }
+  },
+  {
+    "publicationId": "3996a20f9e82b497ca615034e0fe83d8",
+    "jobId": "171e5b2d-3f16-42ed-96b4-4609c564241f",
+    "styleId": "style_1780636102242",
+    "styleName": "旅行卡通(异形邮寄)",
+    "prompt": "真实照片中提取最有识别度的主体元素。以及背景中明显的地标元素。将主体和背景标志性元素转化为一个简约的冰箱贴式图标。\r\n1、保留人物的核心轮廓和标志性特征；\r\n2、造型简洁，干净，像旅行纪念品冰箱贴；\r\n3、有轻微立体感和投影；\r\n4、边缘清晰，白色或浅色描边；\r\n5、细节适度简化，不要画得太复杂；\r\n6、图标位于上半部分居中偏上位置；\r\n7、图标尺寸较小且精致，周围保留大量留白。\r\n8、主体简化为卡通扁平风格\r\n9、最重要：人物五官合理、身体结构正常，无残缺、无崩坏。\r\n10、如果全身构图会导致脸太小、五官失真，请优先保证脸部识别度，可改为半身或大半身构图，不必强求完整全身。\r\n11、主体元素和背景标志性元素的大小可以调整到合适、美观的比例。\r\n【背景颜色】纯白色背景\r\n【整体气质】风格清爽，干净，明亮，有城市漫游感。强调识别度，色彩记忆点和小红书旅行打卡氛围。\r\n【避免】\r\n不要做成普通拼贴。\r\n不要把上半部分画得复杂。\r\n不要添加多余装饰元素。\r\n不要脸部崩坏。\r\n\r\n请确保主体完整，背景为纯白色，整体适合做冰箱贴展示。\r\n\r\n负面限制：\r\n- 不要脸部崩坏\r\n- 不要复杂背景\r\n- 不要灰背景，不要渐变背景，背景必须纯白\r\n- 不要普通拼贴海报感\r\n\r\n最终效果：\r\n一个简约、清爽、纯白背景、人物高度可识别、适合做冰箱贴展示的旅行纪念品图标。",
+    "tags": [
+      "旅行"
+    ],
+    "effectImageUrl": "/style-publications/3996a20f9e82b497ca615034e0fe83d8/effect.webp",
+    "effectGridImageUrl": "/style-publications/3996a20f9e82b497ca615034e0fe83d8/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/3996a20f9e82b497ca615034e0fe83d8/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/171e5b2d-3f16-42ed-96b4-4609c564241f.png",
+    "sourceReferenceImageUrl": "/job-references/171e5b2d-3f16-42ed-96b4-4609c564241f/1-1788303868362.jpg",
+    "createdAt": "2026-09-01T23:05:32.693Z",
+    "updatedAt": "2026-09-01T23:05:32.693Z",
+    "sortOrders": {
+      "旅行": 20
     }
   }
 ]
