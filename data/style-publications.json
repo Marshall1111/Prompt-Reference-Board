@@ -19,8 +19,8 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 17,
-      "儿童": 8
+      "推荐": 18,
+      "儿童": 9
     }
   },
   {
@@ -86,7 +86,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 7
+      "儿童": 8
     }
   },
   {
@@ -109,7 +109,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 16,
+      "推荐": 17,
       "幽默": 1
     }
   },
@@ -133,7 +133,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 15,
+      "推荐": 16,
       "日常": 7
     }
   },
@@ -158,7 +158,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 29,
+      "推荐": 30,
       "幽默": 9,
       "日常": 11
     }
@@ -183,7 +183,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 28,
+      "推荐": 29,
       "宠物": 16
     }
   },
@@ -208,7 +208,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 27,
+      "推荐": 28,
       "幽默": 8,
       "日常": 9
     }
@@ -233,7 +233,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 15,
+      "儿童": 16,
       "幽默": 7
     }
   },
@@ -303,7 +303,7 @@
     "effectGridWidth": 480,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 26,
+      "推荐": 27,
       "宠物": 14
     }
   },
@@ -349,7 +349,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 25,
+      "推荐": 26,
       "宠物": 13
     }
   },
@@ -461,7 +461,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 24,
+      "推荐": 25,
       "日常": 6
     }
   },
@@ -485,7 +485,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 23,
+      "推荐": 24,
       "宠物": 6
     }
   },
@@ -533,8 +533,8 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 22,
-      "儿童": 13
+      "推荐": 23,
+      "儿童": 14
     }
   },
   {
@@ -581,8 +581,8 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 21,
-      "儿童": 12
+      "推荐": 22,
+      "儿童": 13
     }
   },
   {
@@ -605,8 +605,8 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 20,
-      "儿童": 9
+      "推荐": 21,
+      "儿童": 10
     }
   },
   {
@@ -629,7 +629,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 19,
+      "推荐": 20,
       "宠物": 4
     }
   },
@@ -653,7 +653,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 18,
+      "推荐": 19,
       "宠物": 12
     }
   },
@@ -676,7 +676,7 @@
     "effectGridWidth": 480,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 14
+      "儿童": 15
     }
   },
   {
@@ -772,7 +772,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 8,
-      "儿童": 4
+      "儿童": 5
     }
   },
   {
@@ -819,8 +819,8 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 5,
-      "旅行": 16
+      "儿童": 6,
+      "旅行": 17
     }
   },
   {
@@ -868,7 +868,7 @@
     "sortOrders": {
       "推荐": 1,
       "日常": 2,
-      "旅行": 12
+      "旅行": 14
     }
   },
   {
@@ -890,7 +890,7 @@
     "createdAt": "2026-08-30T22:51:22.707Z",
     "updatedAt": "2026-08-31T07:10:58.417Z",
     "sortOrders": {
-      "旅行": 6
+      "旅行": 7
     }
   },
   {
@@ -912,7 +912,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "日常": 16
+      "日常": 17
     }
   },
   {
@@ -958,7 +958,7 @@
     "createdAt": "2026-08-31T07:09:57.804Z",
     "updatedAt": "2026-08-31T07:09:57.804Z",
     "sortOrders": {
-      "旅行": 4
+      "旅行": 3
     }
   },
   {
@@ -1002,7 +1002,7 @@
     "createdAt": "2026-08-31T07:10:13.783Z",
     "updatedAt": "2026-08-31T07:10:13.783Z",
     "sortOrders": {
-      "旅行": 2
+      "旅行": 13
     }
   },
   {
@@ -1027,7 +1027,7 @@
     "updatedAt": "2026-08-31T22:32:26.822Z",
     "sortOrders": {
       "推荐": 10,
-      "儿童": 10,
+      "儿童": 11,
       "幽默": 11
     }
   },
@@ -1074,7 +1074,7 @@
     "createdAt": "2026-08-31T11:27:38.247Z",
     "updatedAt": "2026-08-31T11:27:38.247Z",
     "sortOrders": {
-      "旅行": 11
+      "旅行": 12
     }
   },
   {
@@ -1096,7 +1096,7 @@
     "createdAt": "2026-08-31T11:27:52.216Z",
     "updatedAt": "2026-08-31T11:27:52.216Z",
     "sortOrders": {
-      "旅行": 14
+      "旅行": 15
     }
   },
   {
@@ -1118,7 +1118,7 @@
     "createdAt": "2026-08-31T11:30:23.746Z",
     "updatedAt": "2026-08-31T11:30:23.746Z",
     "sortOrders": {
-      "旅行": 15
+      "旅行": 16
     }
   },
   {
@@ -1140,7 +1140,7 @@
     "createdAt": "2026-08-31T11:31:05.614Z",
     "updatedAt": "2026-08-31T11:31:05.614Z",
     "sortOrders": {
-      "儿童": 16
+      "儿童": 17
     }
   },
   {
@@ -1163,8 +1163,8 @@
     "createdAt": "2026-08-31T13:29:31.860Z",
     "updatedAt": "2026-08-31T13:29:31.860Z",
     "sortOrders": {
-      "推荐": 13,
-      "旅行": 3
+      "推荐": 14,
+      "旅行": 2
     }
   },
   {
@@ -1231,8 +1231,8 @@
     "createdAt": "2026-08-31T21:43:40.525Z",
     "updatedAt": "2026-08-31T21:43:40.525Z",
     "sortOrders": {
-      "推荐": 30,
-      "旅行": 7
+      "推荐": 31,
+      "旅行": 8
     }
   },
   {
@@ -1256,7 +1256,7 @@
     "updatedAt": "2026-08-31T21:45:14.779Z",
     "sortOrders": {
       "推荐": 5,
-      "儿童": 6
+      "儿童": 7
     }
   },
   {
@@ -1278,7 +1278,7 @@
     "createdAt": "2026-08-31T21:49:20.423Z",
     "updatedAt": "2026-08-31T21:49:20.423Z",
     "sortOrders": {
-      "儿童": 17
+      "儿童": 18
     }
   },
   {
@@ -1366,7 +1366,7 @@
     "createdAt": "2026-08-31T21:55:26.341Z",
     "updatedAt": "2026-08-31T21:55:26.341Z",
     "sortOrders": {
-      "旅行": 8
+      "旅行": 9
     }
   },
   {
@@ -1388,7 +1388,7 @@
     "createdAt": "2026-08-31T21:55:58.265Z",
     "updatedAt": "2026-08-31T21:55:58.265Z",
     "sortOrders": {
-      "儿童": 18
+      "儿童": 19
     }
   },
   {
@@ -1498,7 +1498,7 @@
     "createdAt": "2026-08-31T22:11:09.517Z",
     "updatedAt": "2026-08-31T22:11:09.517Z",
     "sortOrders": {
-      "旅行": 10
+      "旅行": 11
     }
   },
   {
@@ -1565,7 +1565,7 @@
     "createdAt": "2026-08-31T22:21:32.725Z",
     "updatedAt": "2026-08-31T22:21:32.725Z",
     "sortOrders": {
-      "推荐": 14,
+      "推荐": 15,
       "宠物": 2
     }
   },
@@ -1610,7 +1610,7 @@
     "createdAt": "2026-08-31T22:54:24.058Z",
     "updatedAt": "2026-08-31T22:54:24.058Z",
     "sortOrders": {
-      "儿童": 11
+      "儿童": 12
     }
   },
   {
@@ -1656,7 +1656,7 @@
     "createdAt": "2026-09-01T07:14:00.682Z",
     "updatedAt": "2026-09-01T07:14:00.682Z",
     "sortOrders": {
-      "旅行": 9
+      "旅行": 10
     }
   },
   {
@@ -1678,7 +1678,7 @@
     "createdAt": "2026-09-01T07:15:10.413Z",
     "updatedAt": "2026-09-01T07:15:10.413Z",
     "sortOrders": {
-      "旅行": 17
+      "旅行": 18
     }
   },
   {
@@ -1701,8 +1701,8 @@
     "createdAt": "2026-09-01T07:18:48.918Z",
     "updatedAt": "2026-09-01T07:20:37.542Z",
     "sortOrders": {
-      "推荐": 31,
-      "旅行": 13
+      "推荐": 32,
+      "旅行": 4
     }
   },
   {
@@ -1725,7 +1725,7 @@
     "createdAt": "2026-09-01T21:26:22.623Z",
     "updatedAt": "2026-09-01T21:26:22.623Z",
     "sortOrders": {
-      "推荐": 32,
+      "推荐": 33,
       "日常": 14
     }
   },
@@ -1770,7 +1770,7 @@
     "createdAt": "2026-09-01T21:30:42.514Z",
     "updatedAt": "2026-09-01T21:30:42.514Z",
     "sortOrders": {
-      "儿童": 19
+      "儿童": 20
     }
   },
   {
@@ -1793,8 +1793,8 @@
     "createdAt": "2026-09-01T22:09:16.136Z",
     "updatedAt": "2026-09-01T22:09:16.136Z",
     "sortOrders": {
-      "推荐": 33,
-      "旅行": 18
+      "推荐": 13,
+      "旅行": 6
     }
   },
   {
@@ -1882,7 +1882,7 @@
     "createdAt": "2026-09-01T22:43:51.536Z",
     "updatedAt": "2026-09-01T22:53:20.101Z",
     "sortOrders": {
-      "儿童": 20
+      "儿童": 21
     }
   },
   {
@@ -1904,7 +1904,7 @@
     "createdAt": "2026-09-01T22:50:45.622Z",
     "updatedAt": "2026-09-01T22:56:17.367Z",
     "sortOrders": {
-      "儿童": 21
+      "儿童": 22
     }
   },
   {
@@ -1926,7 +1926,7 @@
     "createdAt": "2026-09-01T22:51:23.561Z",
     "updatedAt": "2026-09-01T22:57:16.558Z",
     "sortOrders": {
-      "儿童": 22
+      "儿童": 23
     }
   },
   {
@@ -1948,7 +1948,7 @@
     "createdAt": "2026-09-01T22:58:47.113Z",
     "updatedAt": "2026-09-01T23:01:39.852Z",
     "sortOrders": {
-      "日常": 17
+      "日常": 18
     }
   },
   {
@@ -1971,6 +1971,50 @@
     "updatedAt": "2026-09-01T23:05:32.693Z",
     "sortOrders": {
       "旅行": 20
+    }
+  },
+  {
+    "publicationId": "7abf6a4b0b20cc8e947a74b902707b6c",
+    "jobId": "277993de-9f67-49f6-9343-9ae9dbeb21da",
+    "styleId": "style_1788428205127",
+    "styleName": "温暖家居杂志",
+    "prompt": "以输入的室内照片为唯一内容，生成一张2:3竖版“简约插画”纪念卡片。保留房间的空间结构、家具数量、主要陈设、门窗位置和相互关系，不改变原有布局，不增加无关物品。\r\n【构图】\r\n使用温暖的象牙白手工纸背景，将同一室内场景重新绘制成居中的插画。\r\n【造型】\r\n保留墙面、门窗、橱柜、沙发、桌椅、灯具和大型装饰物的核心轮廓，维持原照片的视角、空间层次和主要比例。删除细碎杂物、材质纹理、真实反光和复杂阴影，将空间简化为清晰、略显笨拙的几何色块与纤细手绘线条。轮廓允许轻微歪斜、断续和错位，但房间结构仍应容易辨认。\r\n【色彩】\r\n从原照片提取4—6种代表色，转换为柔和、低饱和的奶油白、灰绿、焦糖棕、砖红、灰蓝和淡黄色。使用扁平平涂，仅保留少量色块区分墙面、地面、家具和装饰，不做复杂渐变或立体塑形。\r\n【质感】\r\n融合蜡笔、粉彩、丝网印刷与旧书插图质感，保留纸张透白、细密颗粒、颜色不均、边缘磨损和轻微套色偏移。整体像印在旧纸上的家居杂志插画，温暖、安静、朴素且有收藏感。\r\n【文字】\r\n插画下方可加入两行与空间氛围相关的简短英文文案，使用小号复古衬线字体并左对齐；无法准确生成时保留留白，不生成乱码。\r\n不要改变房间格局，不要增减主要家具；删除人物、手机界面、字幕和截图元素；避免写实绘画、建筑效果图、精致水彩、动漫、矢量、油画、厚涂、3D、Logo、水印和黑边。",
+    "tags": [
+      "日常"
+    ],
+    "effectImageUrl": "/style-publications/7abf6a4b0b20cc8e947a74b902707b6c/effect.webp",
+    "effectGridImageUrl": "/style-publications/7abf6a4b0b20cc8e947a74b902707b6c/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/7abf6a4b0b20cc8e947a74b902707b6c/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/277993de-9f67-49f6-9343-9ae9dbeb21da.png",
+    "sourceReferenceImageUrl": "/job-references/277993de-9f67-49f6-9343-9ae9dbeb21da/1-1788428064649.jpg",
+    "createdAt": "2026-09-03T09:41:47.686Z",
+    "updatedAt": "2026-09-03T09:41:47.686Z",
+    "sortOrders": {
+      "日常": 16
+    }
+  },
+  {
+    "publicationId": "f7739ea93a42cb5f810737209c8b156a",
+    "jobId": "aacdab8e-41d9-4c83-bfd9-a6a8fb2e1aa4",
+    "styleId": "style_1788297952205",
+    "styleName": "笨拙蜡笔肖像",
+    "prompt": "将上传的真实照片重绘为粗蜡笔时尚编辑插画。低黄度象牙白纸面、笨拙形体、亮色跳点与不稳定手写字共同构成松弛时髦的作者感。\r\n\t\r\n照片是唯一内容源，保留人物、朝向、姿态动作、服装大轮廓与穿搭。道具仅保留身上穿戴或手中握持的一个关键物件。依原照景别裁切，半身照不为填满方形补画腿脚。人物组最大宽高不超过画幅 62%，偏离中心放置，保留至少 35% 连续象牙白纸面（F2F0E8）。原照中桌椅、建筑、植物和地面等环境全部清空退出，保持干净纸底。\r\n\t\r\n形体压成 4–7 个不对称大色块，大片区域平涂或整块留纸，形成画得很重与几乎没画的密度反差，避免全身均匀颗粒。脸部彻底符号化为单色小纸片，脸上固定只有 3–5 个图形（黑短块为眼、一笔为鼻、一笔为嘴），无眼白虹膜、鼻翼唇形和皮肤明暗，绝不生成写实肖像。手掌概括为团块，小标图案省略。\r\n\t\r\n线条来自磨秃近黑蜡笔（171922），全图保留 3–5 处越线与粗粝意外。提炼 2–3 个服装低饱和色，加入一处电光蓝（0B93F9）或柠檬黄（F2EE50）作为唯一高饱和跳色（占 5%–10%）。\r\n\t\r\n从姿态穿搭提取 3 个大写英文单词，粗钝手写。组成一大两小的主副编辑文字组，贴近人物侧边留白，不出现三角散点排布或单词卡版式。无任何环境、品牌、logo 与水印。",
+    "tags": [
+      "儿童"
+    ],
+    "effectImageUrl": "/style-publications/f7739ea93a42cb5f810737209c8b156a/effect.webp",
+    "effectGridImageUrl": "/style-publications/f7739ea93a42cb5f810737209c8b156a/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/f7739ea93a42cb5f810737209c8b156a/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/aacdab8e-41d9-4c83-bfd9-a6a8fb2e1aa4.png",
+    "sourceReferenceImageUrl": "/job-references/aacdab8e-41d9-4c83-bfd9-a6a8fb2e1aa4/1-1788428385495.jpg",
+    "createdAt": "2026-09-03T09:42:13.636Z",
+    "updatedAt": "2026-09-03T09:42:13.636Z",
+    "sortOrders": {
+      "儿童": 4
     }
   }
 ]
