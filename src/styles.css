@@ -8661,6 +8661,17 @@ textarea {
   font-size: 24px;
 }
 
+.body-book-entitlement-note {
+  margin: 4px 0 0;
+  color: #536660;
+  font-size: 14px;
+}
+
+.body-book-entitlement-note strong {
+  color: #1d6849;
+  font-size: 18px;
+}
+
 .body-book-share-page {
   min-height: 100vh;
 }
