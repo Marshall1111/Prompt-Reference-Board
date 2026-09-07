@@ -11101,6 +11101,29 @@ textarea {
   font-weight: 700;
 }
 
+.body-book-page-prompt-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.body-book-page-prompt-reset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: none;
+  color: var(--body-book-apple-blue);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.body-book-page-prompt-reset:disabled {
+  color: rgba(0, 0, 0, 0.3);
+  cursor: not-allowed;
+}
+
 .body-book-page-prompt-editor textarea {
   width: 100%;
   min-height: 176px;
