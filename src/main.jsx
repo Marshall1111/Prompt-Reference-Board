@@ -3231,10 +3231,11 @@ function BodyBookPage() {
       setShowAuthModal(true);
       return;
     }
+    let latestPage = null;
     try {
       const latestProject = await fetchBodyBookProject(projectId);
       applyProject(latestProject);
-      const latestPage = latestProject?.pages?.find((item) => item.key === page.key);
+      latestPage = latestProject?.pages?.find((item) => item.key === page.key) || null;
       if (!latestPage?.originalDownloadAvailable) {
         setError("");
         await openBookOriginalUnlockPrompt();
@@ -3244,7 +3245,8 @@ function BodyBookPage() {
       setError(nextError.message || "读取原图下载权限失败，请稍后再试。");
       return;
     }
-    setOriginalPreview({ url: getBodyBookProjectPageOriginalUrl(projectId, page), title: page.title || "认知书原图" });
+    // 用最新页面数据构建 URL；version 每次重新生成都会递增，作为缓存因子避免手机端 WebView 命中旧图缓存。
+    setOriginalPreview({ url: getBodyBookProjectPageOriginalUrl(projectId, latestPage || page), title: (latestPage || page).title || "认知书原图" });
   }
 
   const isOpeningProject = Boolean(openingProjectId && !activeTheme);
@@ -13737,7 +13739,9 @@ async function closeBodyBookProjectShare(projectId) {
 }
 
 function getBodyBookProjectPageOriginalUrl(projectId, page) {
-  return `/api/body-book/projects/${encodeURIComponent(projectId)}/pages/${encodeURIComponent(page.key)}/download-original?inline=1`;
+  // version 随每次重新生成递增；加入 URL 确保重新生成后不再命中旧原图缓存。
+  const version = Number(page?.version || 0);
+  return `/api/body-book/projects/${encodeURIComponent(projectId)}/pages/${encodeURIComponent(page.key)}/download-original?inline=1${version ? `&v=${version}` : ""}`;
 }
 
 async function createBodyBookProject(formData) {
