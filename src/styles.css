@@ -12645,6 +12645,9 @@ textarea {
 .body-book-cart-checkout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 28px; padding: 20px; border: 1px solid var(--body-book-apple-border); border-radius: 20px; background: var(--body-book-apple-surface); }
 .body-book-cart-checkout .draw-card-order-summary, .body-book-cart-checkout .draw-card-order-form { margin: 0; }
 .body-book-cart-checkout .draw-card-order-summary { gap: 9px; padding: 18px; }
+.draw-card-order-summary p.draw-card-order-summary-warning { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: #e02020; }
+.body-book-checkout-modal .draw-card-order-summary p.draw-card-order-summary-warning,
+.body-book-cart-checkout .draw-card-order-summary p.draw-card-order-summary-warning { color: #e02020; }
 .body-book-cart-checkout h2 { margin: 0 0 12px; font-size: 18px; }
 .body-book-cart-checkout .draw-card-confirm-actions { grid-column: auto; margin: 0; }
 .body-book-works-cart-action { display: flex; justify-content: center; margin: 24px 0 4px; }
