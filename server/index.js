@@ -197,7 +197,9 @@ const PAIRED_PRESET_BOOK_PARTS = {
     ["boat", "小船", "Boat"], ["bicycle", "自行车", "Bicycle"], ["truck", "卡车", "Truck"], ["ambulance", "救护车", "Ambulance"],
     ["excavator", "挖掘机", "Excavator", "This is an excavator. 这是一辆挖掘机。"],
     ["police-car", "警车", "Police Car", "This is a police car. 这是一辆警车。"],
-    ["fire-truck", "消防车", "Fire Truck", "This is a fire truck. 这是一辆消防车。"]
+    ["fire-truck", "消防车", "Fire Truck", "This is a fire truck. 这是一辆消防车。"],
+    ["metro", "地铁", "Metro", "This is a metro. 这是一辆地铁。"],
+    ["motorcycle", "摩托车", "Motorcycle", "This is a motorcycle. 这是一辆摩托车。"]
   ].map(([key, chinese, english, copy]) => [key, chinese, english, copy ?? `This is a ${english}. 这是一辆${chinese}。`]),
   animal: [
     ["cat", "小猫", "Cat"], ["dog", "小狗", "Dog"], ["rabbit", "兔子", "Rabbit"], ["horse", "马", "Horse"],
@@ -306,7 +308,7 @@ const BODY_BOOK_PROMPT_PROFILES = {
   transport: {
     coverScene: "the baby with six clearly separated photographs of real, full-size vehicles floating as clean cutouts on a white page; never use toy, miniature, ride-on, cartoon, illustrated, or CGI vehicles; no road scene or cluttered environment",
     cardScene: "the baby safely playing with one clearly recognizable child-safe toy version of the requested vehicle; never show the baby inside, riding, sitting in, or near any real full-size vehicle",
-    accents: "soft primary colors, pale blue, and warm cream",
+    accents: "soft primary colors and pale blue; keep the page background pure solid white with generous white space, never cream, beige, or ivory",
     icons: "small transport symbols and movement marks"
   },
   animal: {
@@ -347,7 +349,9 @@ const BODY_BOOK_PRESET_PAGE_ART_DIRECTIONS = {
   "transport:ambulance": "a clean studio photo cutout of one white ambulance with red markings, shown complete in side view on a pure white background",
   "transport:excavator": "a clean studio photo cutout of one yellow hydraulic excavator with caterpillar tracks, a long digging arm, and a bucket, shown complete in side view on a pure white background",
   "transport:police-car": "a clean studio photo cutout of one black-and-white police car with a red-and-blue light bar on the roof, shown complete in three-quarter side view on a pure white background",
-  "transport:fire-truck": "a clean studio photo cutout of one red fire truck with a ladder on the roof and fire-service equipment, shown complete in side view on a pure white background"
+  "transport:fire-truck": "a clean studio photo cutout of one red fire truck with a ladder on the roof and fire-service equipment, shown complete in side view on a pure white background",
+  "transport:metro": "a clean studio photo cutout of one silver metro train with a blue stripe, shown complete in three-quarter side view on a pure white background",
+  "transport:motorcycle": "a clean studio photo cutout of one red motorcycle with two wheels and a headlight, shown complete in side view on a pure white background"
 };
 const DEFAULT_DRAW_CARD_WEIGHT = 100;
 const SUBJECT_PERSON = "person";
@@ -11759,7 +11763,8 @@ function getBodyBookPartVisualDirection(themeId, partKey) {
       truck: "Dress the baby in an orange utility vest over a cream romper and a soft cap; show a floor-seated pose loading two soft blocks into one toy dump truck. Never show any real full-size truck, construction site, or ride-on vehicle.",
       taxi: "Dress the baby in a bright-yellow city-travel jacket and a small matching cap; show the baby safely buckled into a rear child seat inside a real full-size yellow taxi, with the taxi body clearly visible. Never generate a toy or ride-on taxi.",
       ambulance: "Dress the baby in a white-and-red helper romper with a tiny heart badge; show a floor-seated pose gently playing with one toy ambulance and a small toy bandage kit. Never show a real ambulance, hospital scene, or ride-on vehicle.",
-      metro: "Dress the baby in a bright blue travel jacket and a soft cap; show the baby safely seated beside a real metro train window, with the full-size metro carriage, doors, and wheels clearly visible. Never generate a toy or illustrated metro.",
+      metro: "Dress the baby in a bright-blue travel jacket and a soft cap; show a floor-seated pose pushing one silver toy metro train with a blue stripe. Never show any real metro, railway station, or ride-on train.",
+      motorcycle: "Dress the baby in a red riding jacket and a small soft safety helmet; show a floor-seated pose pushing one red toy motorcycle. Never show any real motorcycle, ride-on vehicle, or helmet straps.",
       ship: "Dress the baby in a navy sailor romper and a soft sailor hat; show the baby safely seated with a life jacket on a real full-size passenger ship deck, with the real hull and cabin clearly visible. Never generate a toy ship.",
       helicopter: "Dress the baby in a sky-blue pilot-inspired romper and a soft aviator cap; show the baby safely seated in an airport stroller near a real full-size helicopter, with real rotor blades, cockpit, and landing skids clearly visible. Never generate a toy or cartoon helicopter.",
       "fire-truck": "Dress the baby in a red helper jacket and a soft firefighter hat; show a floor-seated pose gently playing with one red toy fire truck and a small toy ladder. Never show a real fire truck, fire station, or ride-on vehicle.",

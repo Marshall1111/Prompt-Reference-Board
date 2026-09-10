@@ -42,7 +42,16 @@ const colorParts = [
 const transportParts = [
   { key: "excavator", chinese: "挖掘机", english: "excavator", subject: "yellow hydraulic excavator with caterpillar tracks, a long digging arm, and a front bucket, shown in side view", sentence: "This is an excavator.", thumbnailSize: 640 },
   { key: "police-car", chinese: "警车", english: "police car", subject: "black-and-white police sedan with a red-and-blue light bar on the roof, shown in three-quarter side view", sentence: "This is a police car.", thumbnailSize: 640 },
-  { key: "fire-truck", chinese: "消防车", english: "fire truck", subject: "red fire truck with a roof-mounted ladder and fire-service equipment, shown in side view", sentence: "This is a fire truck.", thumbnailSize: 640 }
+  { key: "fire-truck", chinese: "消防车", english: "fire truck", subject: "red fire truck with a roof-mounted ladder and fire-service equipment, shown in side view", sentence: "This is a fire truck.", thumbnailSize: 640 },
+  {
+    key: "metro",
+    chinese: "地铁",
+    english: "metro",
+    thumbnailSize: 640,
+    // 地铁与火车棚拍图过于相似，改用地铁站台视角场景以便区分。
+    prompt: `为0-3岁幼儿交通认知书创作一幅正方形1:1的双语图画，主题：地铁 / Metro。场景必须是现代地铁站站台内部：一列银色车身带蓝色色带的地铁列车停靠在站台旁，车门完全敞开，车门正对带黄色安全标线的半高玻璃站台隔离门（屏蔽门）；几名身材比例自然的乘客背对或侧对镜头——一位拎包的上班族、一位牵着小孩的家长——正在排队依次踏上敞开的车门上车。画面必须清晰呈现车站环境：站台地砖、天花板照明灯、站内指示牌、立柱，背景是隧道深处的轨道。明亮干净的写实摄影风格，柔和的车站灯光。画面上方只渲染两行文字，不得有其他文字：红色大号圆体字“这是地铁！”，其下方为暖棕色圆体字“This is a metro.”。场景四周留出充足空白边距，任何重要元素都不得触碰画布边缘。不要司机特写，不要页码、水印、边框、多余文字，不要畸形的手或脸，不要出现地铁以外的车辆，不要纯白影棚背景——这是有站台风环境的实拍场景。`
+  },
+  { key: "motorcycle", chinese: "摩托车", english: "motorcycle", subject: "a red motorcycle with two wheels, handlebars, a headlight, and a seat, shown in side view", sentence: "This is a motorcycle.", thumbnailSize: 640 }
 ].filter((part) => !requestedKeys.size || requestedKeys.has(part.key));
 
 function parseEnv(source) {
@@ -107,7 +116,7 @@ const tasks = [
   })),
   ...transportParts.map((part) => ({
     name: `transport ${part.key}`,
-    prompt: buildTransportVehiclePagePrompt(part),
+    prompt: part.prompt || buildTransportVehiclePagePrompt(part),
     output: path.join(rootDir, "public", "body-book-preset-pages", `transport-${part.key}.png`),
     thumbnail: path.join(rootDir, "public", "body-book-preset-pages", "thumbnails", `transport-${part.key}.webp`),
     thumbnailSize: part.thumbnailSize
