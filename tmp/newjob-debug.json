@@ -1,0 +1,89 @@
+{
+  "jobId": "095205d6-7298-489c-a7a3-9c64a2cdc4bc",
+  "experienceType": "draw-card",
+  "status": "failed",
+  "message": "快跑2.5 参考图编辑接口调用失败：<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\r\n<html>\r\n<head><title>504 Gateway Time-out</title></head>\r\n<body>\r\n<h1>504 Gateway Time-out</h1>\r\n<p>The gateway did not receive a timely response from the upstream server or application.<hr/>Powered by Tengine</body>\r\n</html>",
+  "result": null,
+  "createdAt": "2026-09-11T05:37:20.011Z",
+  "updatedAt": "2026-09-11T05:39:45.554Z",
+  "completedAt": "2026-09-11T05:39:45.554Z",
+  "prompt": "Turn this photo into a funny doodle drawing. Make it look like: a quick sketch using a cheap marker or crayon messy, rough, childlike style bad perspective and awkward proportions slightly exaggerated facial features Add: simple cartoon background (like buildings, trees, street) random sketchy lines and details uneven coloring and visible strokes Style: looks like a lazy drawing, not polished humorous and a bit stupid-looking meme-like, casual, internet style.人物脸部可以适当夸张，但不要丑化\r\n Do NOT: make it realistic。",
+  "size": "1024x1536",
+  "referenceCount": 1,
+  "originalReferences": [
+    {
+      "name": "IMG_20260906_100605-compressed.jpg",
+      "mimeType": "image/jpeg",
+      "order": 0,
+      "url": "/job-references/095205d6-7298-489c-a7a3-9c64a2cdc4bc/1-1789105039951.jpg",
+      "thumbnailUrl": "/job-reference-thumbnails/095205d6-7298-489c-a7a3-9c64a2cdc4bc/1-1789105039951.webp",
+      "thumbnailWidth": 180,
+      "thumbnailHeight": 240
+    }
+  ],
+  "styleId": "",
+  "styleName": "",
+  "styleGroupId": "",
+  "styleGroupName": "",
+  "bodyBookProjectId": "",
+  "durationSeconds": 146,
+  "totalTokens": 0,
+  "provider": {
+    "id": "kuaipao",
+    "name": "快跑2.5",
+    "model": "gpt-image-2.5-1k"
+  },
+  "mode": "edit",
+  "isLiked": false,
+  "likedAt": null,
+  "share": {
+    "token": "",
+    "enabled": false,
+    "createdAt": null,
+    "referralToken": ""
+  },
+  "ownerAccountId": "",
+  "ownerVisitorId": "",
+  "ownerAdmin": false,
+  "visibility": "admin",
+  "showcase": null,
+  "telemetry": {
+    "traceId": "",
+    "sessionId": "",
+    "styleId": "",
+    "styleName": "",
+    "order": 0,
+    "requestedProviderIdRaw": "kuaipao",
+    "requestedProvider": {
+      "id": "kuaipao",
+      "name": "快跑2.5",
+      "model": "gpt-image-2.5-1k"
+    },
+    "providerChain": [
+      {
+        "id": "kuaipao",
+        "name": "快跑2.5",
+        "model": "gpt-image-2.5-1k"
+      }
+    ],
+    "attempts": [
+      {
+        "provider": {
+          "id": "kuaipao",
+          "name": "快跑2.5",
+          "model": "gpt-image-2.5-1k"
+        },
+        "endpoint": "/images/edits",
+        "status": "failed",
+        "durationMs": 145536,
+        "statusCode": 504,
+        "message": "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\"> <html> <head><title>504 Gateway Time-out</title></head> <body> <h1>504 Gateway Time-out</h1> <p>The gateway did not receive a ti…"
+      }
+    ],
+    "finalProvider": null,
+    "finalError": "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\"> <html> <head><title>504 Gateway Time-out</title></head> <body> <h1>504 Gateway Time-out</h1> <p>The gateway did not receive a ti…",
+    "providerCallMs": 0,
+    "persistResultMs": 0,
+    "totalJobMs": 145539
+  }
+}

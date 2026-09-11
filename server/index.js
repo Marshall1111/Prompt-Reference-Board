@@ -3280,6 +3280,7 @@ app.post("/api/image-jobs/batch", requireAdmin, async (req, res) => {
       await deleteJobReferences(item.job);
       await rm(getImageJobPath(item.job.jobId), { force: true });
     }));
+    invalidateImageJobsCache();
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "Failed to submit batch jobs." });
   } finally {
@@ -14604,12 +14605,32 @@ async function readImageJob(jobId) {
 // 任务记录页轮询频繁，全量读盘几千个 JSON 太慢，用内存缓存兜住，
 // 只在 saveImageJob / 删除任务时失效。
 let imageJobsCache = null;
+let imageJobsCacheEpoch = 0;
 
 function invalidateImageJobsCache() {
   imageJobsCache = null;
+  imageJobsCacheEpoch += 1;
+}
+
+// listAdminAccounts 对约 5 万账户跑 4 个关联子查询，单次 2 秒以上，
+// 且被任务列表/统计等多个高频接口调用。用短 TTL 缓存兜底，
+// 账户相关展示最多延迟 30 秒。TTL 需明显大于任务页 5 秒轮询间隔，
+// 否则每次轮询都会恰好过期、次次命中慢查询。
+const ADMIN_ACCOUNTS_CACHE_TTL_MS = 30000;
+let adminAccountsCache = null;
+
+function listAdminAccountsCached() {
+  const now = Date.now();
+  if (adminAccountsCache && now - adminAccountsCache.cachedAt < ADMIN_ACCOUNTS_CACHE_TTL_MS) {
+    return adminAccountsCache.value;
+  }
+  const value = commerceStore.listAdminAccounts();
+  adminAccountsCache = { value, cachedAt: now };
+  return value;
 }
 
 async function listImageJobs() {
+  const epochAtStart = imageJobsCacheEpoch;
   if (imageJobsCache) return imageJobsCache;
   await mkdir(imageJobRoot, { recursive: true });
   const entries = await readdir(imageJobRoot, { withFileTypes: true });
@@ -14618,8 +14639,13 @@ async function listImageJobs() {
       .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
       .map((entry) => readImageJob(entry.name.replace(/\.json$/, "")))
   );
-  imageJobsCache = jobs.filter(Boolean);
-  return imageJobsCache;
+  const filteredJobs = jobs.filter(Boolean);
+  // 读盘耗时数秒，期间若有任务写入/删除（缓存被失效过），
+  // 本次 readdir 快照很可能已错过新文件，绝不能入缓存，否则新任务会"消失"。
+  if (imageJobsCacheEpoch === epochAtStart && !imageJobsCache) {
+    imageJobsCache = filteredJobs;
+  }
+  return filteredJobs;
 }
 
 // A registration upgrades the current browser-guest row in place, so its
@@ -14724,7 +14750,7 @@ async function queryImageJobs(options = {}) {
   const [jobs, styles, accounts, visitors] = await Promise.all([
     listImageJobs(),
     readStyles(),
-    Promise.resolve(commerceStore.listAdminAccounts()),
+    Promise.resolve(listAdminAccountsCached()),
     listVisitorStates()
   ]);
   const ownerContext = buildImageJobOwnerContext(accounts, visitors);
@@ -14886,6 +14912,7 @@ async function saveImageJob(job) {
   await mkdir(imageJobRoot, { recursive: true });
   const safeJob = toPublicImageJob(job);
   await writeFile(getImageJobPath(safeJob.jobId), `${JSON.stringify(safeJob, null, 2)}\n`);
+  invalidateImageJobsCache();
   return safeJob;
 }
 
