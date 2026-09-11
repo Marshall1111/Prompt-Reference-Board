@@ -1,0 +1,38 @@
+src/main.jsx
+  s_8e1ac77bcfcfe7::t_494ee34095a7b6 8837-8838,8844,8851,8854-8857
+  s_8e1ac77bcfcfe7::t_6e000e340ad049 8822-8823
+  s_8e1ac77bcfcfe7::t_3371f1842c0103 8972-8974,8981,8988,8991-8994,8999
+server/index.js
+  s_8e1ac77bcfcfe7::t_527640e005ff51 14604-14611,14613,14621-14622
+  s_8e1ac77bcfcfe7::t_fb796dbe75c5ae 11106
+  s_8e1ac77bcfcfe7::t_9061b8da4b88a0 14860
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.2",
+  "base_commit_sha": "b9877555c342f890bee6e1541f6549ef30922a6b",
+  "prompts": {},
+  "sessions": {
+    "s_8e1ac77bcfcfe7": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6aa358feae5e75fbbfff02b4",
+        "model": "glm-5.3-flash__dev"
+      },
+      "human_author": "BLSH-BK-0503 <gnsfb@baolong.local>",
+      "custom_attributes": {
+        "external_session_id": "6aa358feae5e75fbbfff02b4",
+        "tool_id": "Edit",
+        "runtime_client": "trae-tob-git-ai",
+        "operation_id": "6aa35c44ae5e75fbbfff0388",
+        "tool_type": "agent",
+        "edit_kind": "file_edit",
+        "client_type": "ide",
+        "dedupe_key": "6aa358feae5e75fbbfff02b4:6aa35c44ae5e75fbbfff0388:afterEdit:655fd8bf",
+        "tool_use_id": "6aa35c44ae5e75fbbfff0388",
+        "session_id": "6aa358feae5e75fbbfff02b4",
+        "source_scene": "unknown"
+      }
+    }
+  }
+}
