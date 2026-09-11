@@ -8819,6 +8819,8 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
   const [newStyleName, setNewStyleName] = useState("");
   const [creatingStyleBusy, setCreatingStyleBusy] = useState(false);
   const queryRef = useRef(DEFAULT_IMAGE_JOB_QUERY);
+  const jobRequestSeqRef = useRef(0);
+  const jobRequestInFlightRef = useRef(false);
 
   function syncQueryState(requestQuery, payload) {
     const nextQuery = {
@@ -8832,20 +8834,27 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
 
   async function loadDashboard(nextQuery = queryRef.current, options = {}) {
     const showLoading = options.showLoading !== false;
+    const requestSeq = ++jobRequestSeqRef.current;
+    jobRequestInFlightRef.current = true;
     if (showLoading) {
       setIsLoading(true);
     }
     try {
       const jobPayload = await refreshImageJobs(nextQuery);
+      if (requestSeq !== jobRequestSeqRef.current) return;
       syncQueryState(nextQuery, jobPayload);
       setJobs(jobPayload.jobs || []);
       setJobTotal(Number(jobPayload.total || 0));
       setOwnerOptions(jobPayload.ownerOptions || []);
       setError("");
     } catch (nextError) {
+      if (requestSeq !== jobRequestSeqRef.current) return;
       setError(nextError.message);
     } finally {
-      setIsLoading(false);
+      if (requestSeq === jobRequestSeqRef.current) {
+        jobRequestInFlightRef.current = false;
+        setIsLoading(false);
+      }
     }
   }
 
@@ -8960,28 +8969,34 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
   useEffect(() => {
     let isActive = true;
     async function loadActiveJobs(showLoading = false) {
+      if (jobRequestInFlightRef.current) return;
+      const requestSeq = ++jobRequestSeqRef.current;
+      jobRequestInFlightRef.current = true;
       if (showLoading) {
         setIsLoading(true);
       }
       try {
         const currentQuery = queryRef.current;
         const jobPayload = await refreshImageJobs(currentQuery);
-        if (!isActive) return;
+        if (!isActive || requestSeq !== jobRequestSeqRef.current) return;
         syncQueryState(currentQuery, jobPayload);
         setJobs(jobPayload.jobs || []);
         setJobTotal(Number(jobPayload.total || 0));
         setOwnerOptions(jobPayload.ownerOptions || []);
         setError("");
       } catch (nextError) {
-        if (!isActive) return;
+        if (!isActive || requestSeq !== jobRequestSeqRef.current) return;
         setError(nextError.message);
       } finally {
-        if (isActive) setIsLoading(false);
+        if (requestSeq === jobRequestSeqRef.current) {
+          jobRequestInFlightRef.current = false;
+          if (isActive) setIsLoading(false);
+        }
       }
     }
 
     loadActiveJobs(true);
-    const timer = window.setInterval(() => loadActiveJobs(false), 2000);
+    const timer = window.setInterval(() => loadActiveJobs(false), 5000);
     return () => {
       isActive = false;
       window.clearInterval(timer);

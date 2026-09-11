@@ -11103,6 +11103,7 @@ async function createDrawCardSession(file, visitor, options = {}) {
         await rm(getImageJobPath(item.job.jobId), { force: true });
       })
     );
+    invalidateImageJobsCache();
     await rm(getDrawCardSessionPath(sessionId), { force: true });
     logDrawCardTelemetry("session_create_failed", {
       traceId,
@@ -14600,7 +14601,16 @@ async function readImageJob(jobId) {
   }
 }
 
+// 任务记录页轮询频繁，全量读盘几千个 JSON 太慢，用内存缓存兜住，
+// 只在 saveImageJob / 删除任务时失效。
+let imageJobsCache = null;
+
+function invalidateImageJobsCache() {
+  imageJobsCache = null;
+}
+
 async function listImageJobs() {
+  if (imageJobsCache) return imageJobsCache;
   await mkdir(imageJobRoot, { recursive: true });
   const entries = await readdir(imageJobRoot, { withFileTypes: true });
   const jobs = await Promise.all(
@@ -14608,7 +14618,8 @@ async function listImageJobs() {
       .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
       .map((entry) => readImageJob(entry.name.replace(/\.json$/, "")))
   );
-  return jobs.filter(Boolean);
+  imageJobsCache = jobs.filter(Boolean);
+  return imageJobsCache;
 }
 
 // A registration upgrades the current browser-guest row in place, so its
@@ -14846,6 +14857,7 @@ async function deleteImageJob(job) {
   await deleteGeneratedImage(job);
   await deleteJobReferences(job);
   await rm(getImageJobPath(job.jobId), { force: true });
+  invalidateImageJobsCache();
 }
 
 async function deleteGeneratedImage(job) {
