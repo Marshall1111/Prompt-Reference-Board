@@ -20,7 +20,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 3,
-      "儿童": 9
+      "儿童": 10
     }
   },
   {
@@ -211,7 +211,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 16,
+      "儿童": 17,
       "幽默": 7
     }
   },
@@ -512,7 +512,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 23,
-      "儿童": 14
+      "儿童": 15
     }
   },
   {
@@ -560,7 +560,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 22,
-      "儿童": 13
+      "儿童": 14
     }
   },
   {
@@ -584,7 +584,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 21,
-      "儿童": 10
+      "儿童": 11
     }
   },
   {
@@ -654,7 +654,7 @@
     "effectGridWidth": 480,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 15
+      "儿童": 16
     }
   },
   {
@@ -702,7 +702,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 14,
-      "儿童": 4
+      "儿童": 5
     }
   },
   {
@@ -750,7 +750,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 7,
-      "儿童": 6
+      "儿童": 7
     }
   },
   {
@@ -797,7 +797,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "儿童": 7,
+      "儿童": 8,
       "旅行": 17
     }
   },
@@ -1005,7 +1005,7 @@
     "updatedAt": "2026-08-31T22:32:26.822Z",
     "sortOrders": {
       "推荐": 9,
-      "儿童": 11,
+      "儿童": 12,
       "幽默": 11
     }
   },
@@ -1118,7 +1118,7 @@
     "createdAt": "2026-08-31T11:31:05.614Z",
     "updatedAt": "2026-08-31T11:31:05.614Z",
     "sortOrders": {
-      "儿童": 17
+      "儿童": 18
     }
   },
   {
@@ -1234,7 +1234,7 @@
     "updatedAt": "2026-08-31T21:45:14.779Z",
     "sortOrders": {
       "推荐": 4,
-      "儿童": 8
+      "儿童": 9
     }
   },
   {
@@ -1256,7 +1256,7 @@
     "createdAt": "2026-08-31T21:49:20.423Z",
     "updatedAt": "2026-08-31T21:49:20.423Z",
     "sortOrders": {
-      "儿童": 18
+      "儿童": 19
     }
   },
   {
@@ -1366,7 +1366,7 @@
     "createdAt": "2026-08-31T21:55:58.265Z",
     "updatedAt": "2026-08-31T21:55:58.265Z",
     "sortOrders": {
-      "儿童": 19
+      "儿童": 20
     }
   },
   {
@@ -1588,7 +1588,7 @@
     "createdAt": "2026-08-31T22:54:24.058Z",
     "updatedAt": "2026-08-31T22:54:24.058Z",
     "sortOrders": {
-      "儿童": 12
+      "儿童": 13
     }
   },
   {
@@ -1748,7 +1748,7 @@
     "createdAt": "2026-09-01T21:30:42.514Z",
     "updatedAt": "2026-09-01T21:30:42.514Z",
     "sortOrders": {
-      "儿童": 20
+      "儿童": 21
     }
   },
   {
@@ -1860,7 +1860,7 @@
     "createdAt": "2026-09-01T22:43:51.536Z",
     "updatedAt": "2026-09-01T22:53:20.101Z",
     "sortOrders": {
-      "儿童": 21
+      "儿童": 22
     }
   },
   {
@@ -1882,7 +1882,7 @@
     "createdAt": "2026-09-01T22:50:45.622Z",
     "updatedAt": "2026-09-01T22:56:17.367Z",
     "sortOrders": {
-      "儿童": 22
+      "儿童": 23
     }
   },
   {
@@ -1904,7 +1904,7 @@
     "createdAt": "2026-09-01T22:51:23.561Z",
     "updatedAt": "2026-09-01T22:57:16.558Z",
     "sortOrders": {
-      "儿童": 23
+      "儿童": 24
     }
   },
   {
@@ -1992,7 +1992,7 @@
     "createdAt": "2026-09-03T09:42:13.636Z",
     "updatedAt": "2026-09-03T09:42:13.636Z",
     "sortOrders": {
-      "儿童": 5
+      "儿童": 6
     }
   },
   {
@@ -2059,6 +2059,50 @@
     "updatedAt": "2026-09-10T02:51:40.713Z",
     "sortOrders": {
       "儿童": 3
+    }
+  },
+  {
+    "publicationId": "16d0ad29aad7016f2a361f13ee542664",
+    "jobId": "a76538b4-3dba-4727-9915-3168928be7fb",
+    "styleId": "style_1787704435058",
+    "styleName": "平涂绘本插画",
+    "prompt": "请将上传的任意照片转化为平涂绘本插画：保留原图核心主体、姿态与代表性环境元素，大幅删减细节，将物体概括成简洁、柔和、略带稚拙感的轮廓与大色块；弱化写实光影、材质与立体感，根据原图提取主色并适当提高纯度和冷暖对比，使主体突出、色彩鲜明；加入少量纸张颗粒、蜡笔或印刷肌理，呈现现代绘本与艺术设计海报感。排版做成规整的矩形插画框，不要把背景完整铺满，让主体块和环境元素以自由、松散、不规则的留白和笔触自然组合，边缘参差；局部保留纤细植物、建筑、景物等向两侧自然展开，但所有重要元素完整可见。整体插画要舒适、有留白、元素完整，上方留出适当空白，下方加入简短英文或中文写意。整体要求：极简、平涂、抽象感、重点突出、鲜明、高对比、松弛、有趣。",
+    "tags": [
+      "旅行"
+    ],
+    "effectImageUrl": "/style-publications/16d0ad29aad7016f2a361f13ee542664/effect.webp",
+    "effectGridImageUrl": "/style-publications/16d0ad29aad7016f2a361f13ee542664/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/16d0ad29aad7016f2a361f13ee542664/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/a76538b4-3dba-4727-9915-3168928be7fb.png",
+    "sourceReferenceImageUrl": "/job-references/a76538b4-3dba-4727-9915-3168928be7fb/1-1789082728437.jpg",
+    "createdAt": "2026-09-10T23:30:52.763Z",
+    "updatedAt": "2026-09-10T23:30:52.763Z",
+    "sortOrders": {
+      "旅行": 23
+    }
+  },
+  {
+    "publicationId": "91e19dd0393341ae85ea3dd2cc72ffe2",
+    "jobId": "d41a19d8-42db-4395-858b-4e74878dfd66",
+    "styleId": "style_1789087348320",
+    "styleName": "综合媒材绘本",
+    "prompt": "只提取照片中最具识别性的主体、轮廓、结构、姿态与叙事关系，重构为稚拙手绘综合媒材绘本插画 / Naïve Mixed-media Picture-book Illustration。不要完整复制照片，不要逐物转绘，不要保留全部对象和背景；删去无关细节，只保留最能代表原物与原始主题的视觉记忆点，通过简化造型、手工痕迹、色块重组与留白重新表达，使人一眼识别它与上方照片的对应关系。\r\n\t\r\n整体画风采用稚拙感手绘线描 + 综合媒材色块：线条松散、断续、略带抖动和不规则感，允许轻微不完美；色彩以平涂、水粉般宽笔触、半透明叠色、蜡笔 / 粉彩颗粒和少量拼贴感材质共同构成，形成自然、轻松、童真、温柔的绘本气质。不要严谨写实，不强调精确透视和复杂体积，不要把每个对象画实。\r\n\t\r\n构图采用负空间 + 小尺度叙事主体，周围保留有意识的留白，让空白本身参与呼吸感、空间感与停顿感的构成。\r\n\t\r\n下半部分必须重新做美术判断。哪怕原图构图差、背景乱、主体小，也要主动通过删减、重组、裁切、尺度变化和留白把它救成一张成立的作品，真正赋予模型重新导演画面的权力。主体整体必须安静、松弛、成立。\r\n\t\r\n配色从上方照片中提取 2–4 种最具辨识度、最有情绪价值的颜色，转化为更统一、更柔和的绘本色组。整体可适度柔化、降饱和与提亮，色块概括但不灰闷；允许局部保留更鲜活的小面积点睛色，使画面温柔、自然、有生活感与治愈感。避免脏灰、过度写实光影、廉价高饱和和杂乱配色。",
+    "tags": [
+      "儿童"
+    ],
+    "effectImageUrl": "/style-publications/91e19dd0393341ae85ea3dd2cc72ffe2/effect.webp",
+    "effectGridImageUrl": "/style-publications/91e19dd0393341ae85ea3dd2cc72ffe2/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/91e19dd0393341ae85ea3dd2cc72ffe2/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/d41a19d8-42db-4395-858b-4e74878dfd66.png",
+    "sourceReferenceImageUrl": "/job-references/d41a19d8-42db-4395-858b-4e74878dfd66/1-1789081458263.jpg",
+    "createdAt": "2026-09-11T01:08:20.787Z",
+    "updatedAt": "2026-09-11T01:08:20.787Z",
+    "sortOrders": {
+      "儿童": 4
     }
   }
 ]
