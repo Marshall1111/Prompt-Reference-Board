@@ -2104,5 +2104,27 @@
     "sortOrders": {
       "儿童": 4
     }
+  },
+  {
+    "publicationId": "2bac12d3c1f41698cb8cc4b256229d11",
+    "jobId": "6a054a3e-5711-46ce-93b7-6dd887c67e4f",
+    "styleId": "style_1779179490072",
+    "styleName": "便签涂鸦小画",
+    "prompt": "Turn this photo into a funny doodle drawing. Make it look like: a quick sketch using a cheap marker or crayon messy, rough, childlike style bad perspective and awkward proportions slightly exaggerated facial features Add: simple cartoon background (like buildings, trees, street) random sketchy lines and details uneven coloring and visible strokes Style: looks like a lazy drawing, not polished humorous and a bit stupid-looking meme-like, casual, internet style.人物脸部可以适当夸张，但不要丑化\r\n Do NOT: make it realistic。",
+    "tags": [
+      "幽默"
+    ],
+    "effectImageUrl": "/style-publications/2bac12d3c1f41698cb8cc4b256229d11/effect.webp",
+    "effectGridImageUrl": "/style-publications/2bac12d3c1f41698cb8cc4b256229d11/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/2bac12d3c1f41698cb8cc4b256229d11/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/6a054a3e-5711-46ce-93b7-6dd887c67e4f.png",
+    "sourceReferenceImageUrl": "/job-references/6a054a3e-5711-46ce-93b7-6dd887c67e4f/1-1789107406799.jpg",
+    "createdAt": "2026-09-11T07:27:03.389Z",
+    "updatedAt": "2026-09-11T07:27:03.389Z",
+    "sortOrders": {
+      "幽默": 12
+    }
   }
 ]
