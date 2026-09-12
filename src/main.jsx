@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCallback } from "react";
-import { Activity, AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, Clipboard, Cpu, Download, Eye, GripVertical, HardDrive, Home, ImageUp, Layers3, ListTodo, LoaderCircle, MemoryStick, Pencil, Plus, QrCode, RefreshCw, Save, Search, Server, Settings, Share2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Wifi, X, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, Clipboard, Cpu, Download, Eye, GripVertical, HardDrive, Home, Image as ImageIcon, ImageUp, Layers3, ListTodo, LoaderCircle, MemoryStick, Pencil, Plus, QrCode, RefreshCw, Save, Search, Server, Settings, Share2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Wifi, X, XCircle } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import HTMLFlipBook from "react-pageflip";
 import { createLabeledQrPngDataUrl, createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
@@ -316,6 +316,7 @@ function readRoute() {
   if (pathname === "/admin/login") return "admin-login";
   if (pathname === "/admin/orders") return "admin-orders";
   if (/^\/admin\/users\/[^/]+\/clip\/?$/.test(pathname)) return "admin-user-clip";
+  if (/^\/admin\/styles\/[^/]+\/images\/?$/.test(pathname)) return "admin-style-images";
   if (pathname === "/admin/users") return "admin-users";
   if (pathname === "/admin/visits") return "admin-visits";
   if (pathname === "/admin/merchants") return "admin-referrals";
@@ -945,6 +946,12 @@ function AdminApp({ navigate, route }) {
     window.dispatchEvent(new PopStateEvent("popstate"));
   }
 
+  function openStyleImages(styleId) {
+    const path = `/admin/styles/${encodeURIComponent(styleId)}/images`;
+    window.history.pushState({}, "", path);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }
+
   useEffect(() => {
     let isActive = true;
 
@@ -1222,6 +1229,7 @@ function AdminApp({ navigate, route }) {
             onStyleChange={updateStyle}
             onUploadImage={uploadStyleImage}
             onViewPrompt={setActivePrompt}
+            onViewImages={openStyleImages}
             searchQuery={query}
             onSearchChange={setQuery}
             styles={filteredStyles}
@@ -1258,6 +1266,8 @@ function AdminApp({ navigate, route }) {
           <VisitRecordsAdminPage />
         ) : route === "admin-user-clip" ? (
           <UserClipAdminPage onBack={() => navigate("admin-users")} userId={getAdminUserClipId()} />
+        ) : route === "admin-style-images" ? (
+          <StyleImagesAdminPage onBack={() => navigate("admin-gallery")} styleId={getAdminStyleImagesId()} styles={styles} />
         ) : route === "admin-batch" ? (
           <BatchGeneratePage
             groups={styleGroups}
@@ -1292,6 +1302,7 @@ function AdminApp({ navigate, route }) {
             onStyleChange={updateStyle}
             onUploadImage={uploadStyleImage}
             onViewPrompt={setActivePrompt}
+            onViewImages={openStyleImages}
             searchQuery={query}
             onSearchChange={setQuery}
             styles={filteredStyles}
@@ -7772,7 +7783,7 @@ async function createStyleQrPreview(style) {
   };
 }
 
-function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles, onReorderStyles, onStyleChange, onUploadImage, onViewPrompt, searchQuery, onSearchChange, styles }) {
+function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles, onReorderStyles, onStyleChange, onUploadImage, onViewPrompt, onViewImages, searchQuery, onSearchChange, styles }) {
   const [drafts, setDrafts] = useState({});
   const [savingId, setSavingId] = useState("");
   const [draggingId, setDraggingId] = useState("");
@@ -7954,6 +7965,10 @@ function GalleryPage({ onCreateStyle, onDeleteStyle, onGenerate, onRefreshStyles
                   <button aria-label="AI 生图" className="generate-button" onClick={() => onGenerate(style)} type="button">
                     <Sparkles size={18} />
                     <span>AI 生图</span>
+                  </button>
+                  <button aria-label="查看风格图片" className="secondary-button" onClick={() => onViewImages(style.id)} type="button">
+                    <ImageIcon size={18} />
+                    <span>图片</span>
                   </button>
                   {style.drawCardEnabled !== false ? <button aria-label="下载风格码" className="secondary-button" onClick={() => handleDownloadStyleQr(style)} type="button">
                     <QrCode size={18} />
@@ -11953,6 +11968,176 @@ function UserClipAdminPage({ onBack, userId }) {
   );
 }
 
+const STYLE_IMAGES_PAGE_SIZE = 24;
+const STYLE_IMAGE_PACKAGE_MAX_JOBS = 500;
+
+function StyleImagesAdminPage({ onBack, styleId, styles }) {
+  const [jobs, setJobs] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState("");
+  const [preview, setPreview] = useState(null);
+
+  const style = useMemo(() => (Array.isArray(styles) ? styles.find((item) => item.id === styleId) || null : null), [styles, styleId]);
+  const styleName = style ? getStyleDisplayName(style) : "";
+  const totalPages = Math.max(1, Math.ceil(total / STYLE_IMAGES_PAGE_SIZE));
+  const numberWidth = Math.max(3, String(total).length);
+  const packageStartNumber = Math.max(1, total - STYLE_IMAGE_PACKAGE_MAX_JOBS + 1);
+
+  function formatSeq(number) {
+    return String(Math.max(1, number)).padStart(numberWidth, "0");
+  }
+
+  function formatSeqForIndex(globalIndex) {
+    // 列表按生成时间倒序，序号与打包 zip 一致：最早的一组为 001。
+    return formatSeq(total - globalIndex);
+  }
+
+  async function loadFirstPage() {
+    if (!styleId) {
+      setError("风格地址无效。");
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams({ styleId, status: "succeeded", page: "1", limit: String(STYLE_IMAGES_PAGE_SIZE) });
+      const response = await fetch(`/api/image-jobs?${params.toString()}`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.message || "读取风格图片失败。");
+      setJobs(payload.jobs || []);
+      setTotal(Number(payload.total || 0));
+      setPage(1);
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "读取风格图片失败。");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function loadMore() {
+    if (isLoadingMore || page >= totalPages) return;
+    setIsLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const params = new URLSearchParams({ styleId, status: "succeeded", page: String(nextPage), limit: String(STYLE_IMAGES_PAGE_SIZE) });
+      const response = await fetch(`/api/image-jobs?${params.toString()}`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.message || "读取风格图片失败。");
+      setJobs((current) => [...current, ...(payload.jobs || [])]);
+      setTotal(Number(payload.total || 0));
+      setPage(nextPage);
+      setError("");
+    } catch (nextError) {
+      setError(nextError.message || "读取风格图片失败。");
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }
+
+  useEffect(() => {
+    setJobs([]);
+    setTotal(0);
+    setPage(1);
+    void loadFirstPage();
+  }, [styleId]);
+
+  function referenceSrc(job, reference, index) {
+    return reference?.thumbnailUrl || `/api/admin/image-jobs/${encodeURIComponent(job.jobId)}/references/${index}`;
+  }
+
+  function resultSrc(job) {
+    return job?.result?.thumbnailUrl || job?.result?.previewUrl || `/api/admin/image-jobs/${encodeURIComponent(job.jobId)}/result`;
+  }
+
+  return (
+    <section className="task-page style-images-admin-page" aria-label="风格生成图片">
+      <div className="task-toolbar">
+        <div>
+          <p className="eyebrow">Style images</p>
+          <h2>{styleName ? `${styleName} 的生成图片` : "风格生成图片"}</h2>
+          <p className="storage-note">{total ? `共 ${total} 组，每组包含成品图与使用的参考图，序号与打包文件名一致。` : "展示使用此风格生成的图片及其参考图。"}</p>
+        </div>
+        <div className="task-actions style-images-admin-actions">
+          <button className="secondary-button" onClick={onBack} type="button"><ArrowLeft size={18} /><span>返回图库</span></button>
+          <button className="secondary-button" disabled={isLoading} onClick={() => void loadFirstPage()} type="button"><RefreshCw size={18} /><span>刷新</span></button>
+          <a
+            aria-disabled={total === 0}
+            className={`secondary-button style-images-admin-download ${total === 0 ? "is-disabled" : ""}`}
+            href={total > 0 ? `/api/admin/image-jobs/style/${encodeURIComponent(styleId)}/package` : undefined}
+            onClick={total === 0 ? (event) => event.preventDefault() : undefined}
+          >
+            <Download size={18} />
+            <span>批量下载{total > STYLE_IMAGE_PACKAGE_MAX_JOBS ? `（最近 ${STYLE_IMAGE_PACKAGE_MAX_JOBS} 组）` : ""}</span>
+          </a>
+        </div>
+      </div>
+      {total > STYLE_IMAGE_PACKAGE_MAX_JOBS ? <p className="storage-note style-images-admin-note">图片超过 {STYLE_IMAGE_PACKAGE_MAX_JOBS} 组，打包包含最近 {STYLE_IMAGE_PACKAGE_MAX_JOBS} 组（序号 {formatSeq(packageStartNumber)} – {formatSeq(total)}）。</p> : null}
+      {error ? <p className="error-note">{error}</p> : null}
+      {isLoading ? <p className="storage-note">正在读取风格图片...</p> : null}
+      {!isLoading && !error && !total ? <p className="storage-note">该风格暂无生成成功的图片。</p> : null}
+      {!isLoading && jobs.length ? (
+        <div className="style-images-admin-grid">
+          {jobs.map((job, index) => {
+            const references = Array.isArray(job.originalReferences) ? job.originalReferences : [];
+            // jobs 为跨页累积数组，按生成时间倒序，下标即全局位置。
+            const seq = formatSeqForIndex(index);
+            return (
+              <article className="style-images-admin-card" key={job.jobId}>
+                <div className="style-images-admin-card-head">
+                  <span className="style-images-admin-seq">#{seq}</span>
+                  <span className="style-images-admin-date">{formatDateTime(job.completedAt || job.createdAt)}</span>
+                </div>
+                <img
+                  alt={`${seq} 成品图`}
+                  className="style-images-admin-image"
+                  loading="lazy"
+                  onClick={() => setPreview({ src: `/api/admin/image-jobs/${encodeURIComponent(job.jobId)}/result`, title: `${seq} 成品图` })}
+                  src={resultSrc(job)}
+                />
+                {references.length ? (
+                  <div className="style-images-admin-references">
+                    <span className="style-images-admin-references-label">参考图</span>
+                    <div className="style-images-admin-reference-row">
+                      {references.map((reference, referenceIndex) => (
+                        <img
+                          alt={`${seq} 参考图 ${referenceIndex + 1}`}
+                          className="style-images-admin-reference"
+                          key={`${job.jobId}-ref-${referenceIndex}`}
+                          loading="lazy"
+                          onClick={() => setPreview({ src: `/api/admin/image-jobs/${encodeURIComponent(job.jobId)}/references/${referenceIndex}`, title: `${seq} 参考图 ${referenceIndex + 1}` })}
+                          src={referenceSrc(job, reference, referenceIndex)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : <p className="storage-note style-images-admin-no-reference">未使用参考图</p>}
+              </article>
+            );
+          })}
+        </div>
+      ) : null}
+      {!isLoading && page < totalPages ? (
+        <button className="progressive-loader style-images-admin-load-more" disabled={isLoadingMore} onClick={() => void loadMore()} type="button">
+          {isLoadingMore ? "正在加载..." : `加载更多（已显示 ${jobs.length} / ${total} 组）`}
+        </button>
+      ) : null}
+      {preview ? (
+        <div className="modal-backdrop style-images-preview-backdrop" onClick={() => setPreview(null)} role="presentation">
+          <section aria-label={preview.title} aria-modal="true" className="style-images-preview-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+            <button aria-label="关闭预览" className="icon-button" onClick={() => setPreview(null)} type="button"><X size={18} /></button>
+            <h2>{preview.title}</h2>
+            <img alt={preview.title} onError={() => setPreview(null)} src={preview.src} />
+          </section>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function OrderAdminPage({ initialOrders, initialOrdersMeta, onRefreshOrders, onRefreshSettings, settings }) {
   const [orders, setOrders] = useState(initialOrders || []);
   const [orderQuery, setOrderQuery] = useState(DEFAULT_ADMIN_ORDER_QUERY);
@@ -14225,6 +14410,16 @@ function saveOrderAddress(account, orderForm) {
 
 function getAdminUserClipId() {
   const match = window.location.pathname.match(/^\/admin\/users\/([^/]+)\/clip\/?$/);
+  if (!match) return "";
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return "";
+  }
+}
+
+function getAdminStyleImagesId() {
+  const match = window.location.pathname.match(/^\/admin\/styles\/([^/]+)\/images\/?$/);
   if (!match) return "";
   try {
     return decodeURIComponent(match[1]);

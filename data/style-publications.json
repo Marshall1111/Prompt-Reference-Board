@@ -2126,5 +2126,49 @@
     "sortOrders": {
       "幽默": 12
     }
+  },
+  {
+    "publicationId": "bf1c6afe1671da48c2a117e3738366ab",
+    "jobId": "7b628953-4163-40c2-8f44-61bf32bd33ff",
+    "styleId": "style_1789161325221",
+    "styleName": "大色块拼接",
+    "prompt": "提取照片中最具识别性的**主体、轮廓、姿态、叙事关系与氛围线索**，重构为一种**大色块抽象拼合**的艺术画面。不要写实描摹，也不要保留完整场景，只保留最值得记忆的主题、情绪与视觉隐喻；将复杂信息压缩为少量明确而有力量的块面、轮廓与关系，让人仍能一眼感知原物或原场景的精神核心。\r\n\t\r\n整体以**粗糙、即兴、手工感强的块面拼合逻辑**组织画面。使用不规则大色块、剪贴般的边缘、粗细不一的手绘线条、局部覆盖与留白，形成自由但经过设计控制的重构构图。块面之间可以错位、叠压、裁切、打断或留出缝隙，保留偶然感与未完成感，但整体布局必须专业、平衡，重视**视觉重心、形状比例、主次层级、正负形、疏密节奏与留白艺术**，使画面看似随性，实则克制而高级。\r\n\t\r\n配色从上方照片中提取**最明亮、最鲜活、最有生命力的颜色重新调制**，而不是平均取色。整体提高明度与色彩纯净度，形成更清澈、更温暖、更轻快的综合色关系；可由原图自然推导出天空蓝、湖水青、嫩绿、暖黄、珊瑚橙、桃粉等明快色相，通过干净的冷暖对比建立治愈感。以大面积暖白或极浅底色作为呼吸空间，主色鲜明但不刺眼，局部可用少量亮色点醒情绪。避免灰脏、发旧、低沉莫兰迪化、暗褐滤镜、荧光色和廉价糖果感。",
+    "tags": [
+      "旅行"
+    ],
+    "effectImageUrl": "/style-publications/bf1c6afe1671da48c2a117e3738366ab/effect.webp",
+    "effectGridImageUrl": "/style-publications/bf1c6afe1671da48c2a117e3738366ab/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/bf1c6afe1671da48c2a117e3738366ab/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/7b628953-4163-40c2-8f44-61bf32bd33ff.png",
+    "sourceReferenceImageUrl": "/job-references/7b628953-4163-40c2-8f44-61bf32bd33ff/1-1789161524054.jpg",
+    "createdAt": "2026-09-11T21:19:39.044Z",
+    "updatedAt": "2026-09-11T21:19:39.044Z",
+    "sortOrders": {
+      "旅行": 24
+    }
+  },
+  {
+    "publicationId": "159bb90d84906688247a07e945081bbc",
+    "jobId": "124c339f-1272-4af2-be8b-f783167842d7",
+    "styleId": "style_1779179665778",
+    "styleName": "灵魂画手速写",
+    "prompt": "只提取照片中最具识别性的主体、轮廓、结构、姿态与叙事关系，转绘成速写。像灵魂画手在休息时间随便用中性笔勾勒几笔一样，线条简单利索，乍一看很随便甚至像用左手乱涂一样线条一抖一抖的，眼睛可以是豆豆眼也可以是一个横线条，反正不能展示一点画功，但该有的精髓都在，画面要带有莫名喜感和自信，有种越荒谬越搞笑越好，颜色要黑色线条，画面中只显示纸张和画就可以。",
+    "tags": [
+      "幽默"
+    ],
+    "effectImageUrl": "/style-publications/159bb90d84906688247a07e945081bbc/effect.webp",
+    "effectGridImageUrl": "/style-publications/159bb90d84906688247a07e945081bbc/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/159bb90d84906688247a07e945081bbc/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/124c339f-1272-4af2-be8b-f783167842d7.png",
+    "sourceReferenceImageUrl": "/job-references/124c339f-1272-4af2-be8b-f783167842d7/1-1789170562455.jpg",
+    "createdAt": "2026-09-11T23:52:16.809Z",
+    "updatedAt": "2026-09-11T23:52:16.809Z",
+    "sortOrders": {
+      "幽默": 13
+    }
   }
 ]

@@ -4,7 +4,7 @@ import path from "node:path";
 import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createHash, createHmac, createPrivateKey, createPublicKey, createSign, createVerify, randomInt, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
-import { access, appendFile, copyFile, mkdir, readFile, readdir, rename, rm, stat, statfs, writeFile } from "node:fs/promises";
+import { access, appendFile, copyFile, mkdir, open, readFile, readdir, rename, rm, stat, statfs, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import os from "node:os";
 import { promisify } from "node:util";
@@ -60,6 +60,7 @@ const RESULT_THUMBNAIL_MAX_EDGE = 384;
 const PUBLIC_PREVIEW_MAX_EDGE = 1536;
 const STYLE_GRID_PREVIEW_MAX_EDGE = 640;
 const REFERENCE_THUMBNAIL_MAX_EDGE = 240;
+const STYLE_IMAGE_PACKAGE_MAX_JOBS = 500;
 const DRAW_CARD_GROUP_NAME = "抽卡";
 const BODY_BOOK_MAX_REFERENCE_COUNT = 3;
 const FRIDGE_MAGNET_GROUP_NAME = "冰箱贴";
@@ -4827,6 +4828,73 @@ app.get("/api/admin/image-jobs/:jobId/references/:index", requireAdmin, async (r
   }
 });
 
+app.get("/api/admin/image-jobs/style/:styleId/package", requireAdmin, async (req, res) => {
+  const zipPath = path.join(storageExportTempRoot, `style-images-${Date.now()}-${randomUUID()}.zip`);
+  try {
+    const styleId = normalizeImageJobStyleIdFilter(req.params.styleId);
+    if (!styleId) return res.status(400).json({ message: "风格参数无效。" });
+    const styles = await readStyles();
+    const jobs = (await listImageJobs())
+      .filter((job) => job.status === "succeeded" && matchesImageJobStyle(job, styleId, styles))
+      .sort((left, right) => String(left.createdAt || "").localeCompare(String(right.createdAt || "")));
+    if (!jobs.length) return res.status(404).json({ message: "该风格暂无生成成功的图片。" });
+    const packageJobs = jobs.slice(-STYLE_IMAGE_PACKAGE_MAX_JOBS);
+    const styleName = String(packageJobs.find((job) => job.styleName)?.styleName || styles.find((style) => String(style.id || "") === styleId)?.title || styleId)
+      .replace(/[\\/:*?"<>|\r\n]+/g, "-")
+      .slice(0, 40) || styleId;
+    const zipName = `风格图片-${styleName}`;
+    const asciiFallbackName = `style-images-${styleId}.zip`;
+
+    const offset = jobs.length - packageJobs.length;
+    const manifestEntries = [];
+    for (let index = 0; index < packageJobs.length; index += 1) {
+      const job = packageJobs[index];
+      const seq = String(offset + index + 1).padStart(3, "0");
+      const resultFile = await resolveJobImageFile(job);
+      if (resultFile) {
+        manifestEntries.push({ name: `${seq}-成品${path.extname(resultFile).toLowerCase() || ".png"}`, path: resultFile });
+      }
+      const references = Array.isArray(job.originalReferences)
+        ? [...job.originalReferences].sort((left, right) => Number(left?.order || 0) - Number(right?.order || 0))
+        : [];
+      for (let referenceIndex = 0; referenceIndex < references.length; referenceIndex += 1) {
+        const reference = references[referenceIndex];
+        const referenceFile = getJobReferenceFilePath(job.jobId, reference?.url);
+        if (!(await fileExists(referenceFile))) continue;
+        manifestEntries.push({ name: `${seq}-参考-${referenceIndex + 1}${path.extname(referenceFile).toLowerCase() || ".png"}`, path: referenceFile });
+      }
+    }
+    if (!manifestEntries.length) return res.status(404).json({ message: "该风格的图片文件已不存在。" });
+
+    await mkdir(storageExportTempRoot, { recursive: true });
+    await createZipFromManifest(manifestEntries, zipPath);
+    if (!(await fileExists(zipPath))) return res.status(500).json({ message: "打包风格图片失败。" });
+
+    // 与首版一致：直接 pipe，不设 Content-Length（显式 Content-Length 在本机亿赛通加密环境下会导致 ERR_INVALID_RESPONSE）。
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${asciiFallbackName}"; filename*=UTF-8''${encodeURIComponent(`${zipName}.zip`)}`);
+    res.setHeader("X-Style-Package-Total", String(jobs.length));
+    res.setHeader("Cache-Control", "no-store");
+    const stream = createReadStream(zipPath);
+    const cleanupZip = () => rm(zipPath, { force: true }).catch(() => {});
+    stream.on("close", cleanupZip);
+    stream.on("error", (streamError) => {
+      console.error(streamError);
+      if (!res.headersSent) res.status(500).json({ message: "读取风格图片包失败。" });
+      else res.destroy(streamError);
+    });
+    stream.pipe(res);
+  } catch (error) {
+    await rm(zipPath, { force: true }).catch(() => {});
+    console.error(error);
+    if (!res.headersSent) {
+      res.status(error.status || 500).json({ message: error.publicMessage || "打包风格图片失败。" });
+    } else {
+      res.destroy(error);
+    }
+  }
+});
+
 app.post("/api/style-groups", requireAdmin, async (req, res) => {
   const styles = await readStyles();
   const styleIds = new Set(styles.map((style) => style.id));
@@ -7853,6 +7921,34 @@ async function createZipFromDirectory(sourceDir, outputPath) {
     "        archive.write(file_path, file_path.relative_to(source).as_posix())"
   ].join("\n");
   await execFileAsync(pythonCommand, ["-c", script, sourceDir, outputPath]);
+}
+
+async function createZipFromManifest(manifestEntries, outputPath) {
+  // 按清单打包：manifestEntries 为 [{ name, path }]，name 是 zip 内的文件名。
+  // 与 createZipFromDirectory 一样复用 Python 标准库，避免引入额外依赖。
+  const manifestPath = path.join(storageExportTempRoot, `zip-manifest-${randomUUID()}.json`);
+  await mkdir(storageExportTempRoot, { recursive: true });
+  await writeFile(manifestPath, JSON.stringify(manifestEntries));
+  const pythonCommand = process.platform === "win32" ? "python" : "python3";
+  const script = [
+    "import json, pathlib, sys, zipfile",
+    "manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))",
+    "output = pathlib.Path(sys.argv[2])",
+    "used = set()",
+    "with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:",
+    "    for entry in manifest:",
+    "        name = str(entry.get('name') or '')",
+    "        file_path = pathlib.Path(str(entry.get('path') or ''))",
+    "        if not name or name in used or not file_path.is_file():",
+    "            continue",
+    "        used.add(name)",
+    "        archive.write(file_path, name)"
+  ].join("\n");
+  try {
+    await execFileAsync(pythonCommand, ["-c", script, manifestPath, outputPath]);
+  } finally {
+    await rm(manifestPath, { force: true });
+  }
 }
 
 async function createXlsxWorkbookFile(sheets) {
@@ -14747,6 +14843,7 @@ async function queryImageJobs(options = {}) {
   const date = normalizeImageJobQueryDate(options.date);
   const likedOnly = normalizeBooleanQuery(options.likedOnly);
   const owner = normalizeImageJobOwnerFilter(options.owner);
+  const styleId = normalizeImageJobStyleIdFilter(options.styleId);
   const [jobs, styles, accounts, visitors] = await Promise.all([
     listImageJobs(),
     readStyles(),
@@ -14768,6 +14865,7 @@ async function queryImageJobs(options = {}) {
     .map((item) => ({ key: item.key, name: item.name, type: item.type }));
   const filteredJobs = jobsWithOwners
     .filter(({ job }) => matchesImageJobStatus(job, status))
+    .filter(({ job }) => matchesImageJobStyle(job, styleId, styles))
     .filter(({ job }) => matchesImageJobLikedOnly(job, likedOnly))
     .filter(({ job }) => matchesImageJobDate(job, date))
     .filter(({ owner: item }) => !owner || item.key === owner)
@@ -14815,6 +14913,21 @@ async function queryImageJobs(options = {}) {
 function normalizeImageJobOwnerFilter(value) {
   const owner = String(value || "").trim();
   return owner.length <= 180 ? owner : "";
+}
+
+function normalizeImageJobStyleIdFilter(value) {
+  const styleId = String(value || "").trim();
+  return styleId.length <= 120 ? styleId : "";
+}
+
+function matchesImageJobStyle(job, styleId, styles) {
+  if (!styleId) return true;
+  if (String(job?.styleId || "") === styleId) return true;
+  // 历史任务可能未记录 styleId 或记录的是已删除风格的 id，回退用提示词匹配（与任务记录页 stylePreviewMatch 同一机制）。
+  const style = (Array.isArray(styles) ? styles : []).find((item) => String(item?.id || "") === styleId);
+  if (!style) return false;
+  const stylePromptKey = normalizeStylePromptMatchKey(style.prompt);
+  return Boolean(stylePromptKey) && normalizeStylePromptMatchKey(job?.prompt) === stylePromptKey;
 }
 
 function buildImageJobOwnerContext(accounts, visitors) {
