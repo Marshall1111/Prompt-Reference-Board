@@ -5314,6 +5314,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
   const [selectedStyleIds, setSelectedStyleIds] = useState([]);
   const [sameStyleId, setSameStyleId] = useState("");
   const [stylePickerError, setStylePickerError] = useState("");
+  const [sameStyleNotice, setSameStyleNotice] = useState("");
   const [isLoadingStylePicker, setIsLoadingStylePicker] = useState(false);
   const [recentTaskItems, setRecentTaskItems] = useState([]);
   const [recentTasksLoading, setRecentTasksLoading] = useState(false);
@@ -6345,8 +6346,26 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
 
   function openSameStyle(styleId) {
     const safeStyleId = String(styleId || "").trim();
-    if (!safeStyleId || isGenerationInProgress || isSubmitting) return;
+    // 之前这里是无提示的静默 return，用户感知为“点击没反应”，因此改为显示具体原因。
+    if (!safeStyleId) {
+      setSameStyleNotice("该发布缺少风格信息，无法做同款。");
+      return;
+    }
+    if (isGenerationInProgress) {
+      setSameStyleNotice("当前有任务生成中，请等待完成后再试。");
+      return;
+    }
+    if (isSubmitting) {
+      setSameStyleNotice("正在提交生成请求，请稍后再试。");
+      return;
+    }
+    if (isRestoringSessionReference) {
+      setSameStyleNotice("正在读取参考图，请稍后再试。");
+      return;
+    }
+    setSameStyleNotice("");
     // 任务/卡夹页不渲染做同款页面容器，跳回主页并通过 sameStyleId 参数进入做同款模式。
+    // “做同款”必须使用一张新照片，不能沿用原任务的参考图。
     // 注意：这里不能先关闭弹窗。ModalRouteHistory 会在弹窗关闭时执行 history.go(-1)，
     // 该操作会取消刚刚发起、尚未提交的跨文档导航，导致点击后停留原页面。
     if (recentTasks || standaloneClip) {
@@ -7217,7 +7236,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
               </div>
               <div className="draw-card-publication-grid">
                 {publicStyleItems.map((item) => (
-                  <button className="draw-card-publication-card" key={item.publicationId} onClick={() => setActivePublishedStyle(item)} type="button">
+                  <button className="draw-card-publication-card" key={item.publicationId} onClick={() => { setSameStyleNotice(""); setActivePublishedStyle(item); }} type="button">
                     <div className="draw-card-publication-effect">
                       <img
                         alt={`${item.styleName}发布效果`}
@@ -7238,6 +7257,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
                   <button className="icon-button" onClick={() => setActivePublishedStyle(null)} type="button" aria-label="关闭详情"><X size={18} /></button>
                   <img alt={`${activePublishedStyle.styleName}发布效果`} src={activePublishedStyle.effectImageUrl} />
                   <div className="draw-card-lightbox-meta"><strong>{activePublishedStyle.styleName}</strong><span>{getPublishedStylePrompt(activePublishedStyle)}</span></div>
+                  {sameStyleNotice ? <p className="error-note draw-card-inline-error">{sameStyleNotice}</p> : null}
                   <div className="draw-card-lightbox-actions">
                     <button className="draw-card-primary" onClick={() => openSameStyle(activePublishedStyle.styleId)} type="button"><Sparkles size={16} /><span>做同款</span></button>
                   </div>
