@@ -1,5 +1,85 @@
 [
   {
+    "id": "style_1789519244942",
+    "title": "丙烯颜料绘画",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1789519244942/cover.webp",
+    "imageUpdatedAt": "2026-09-16T00:40:44.942Z",
+    "personImage": "/style-previews/style_1789519244942/cover-person.png",
+    "personImageUpdatedAt": "2026-09-16T00:49:30.337Z",
+    "personThumbnailImage": "/style-previews/style_1789519244942/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1789519244942/cover.webp",
+    "petImageUpdatedAt": "2026-09-16T00:40:44.942Z",
+    "petThumbnailImage": "",
+    "prompt": "Create a separate high-end editorial poster for each uploaded photo. Do not combine photos.\r\n\t\r\nTurn the same scene into a small minimalist handmade paper illustration, centered with lots of warm-white negative space. Simple acrylic-style colors, imperfect brush lines and paper texture. Maximum 4 colors from the original photo.\r\n\t\r\nAdd minimal elegant editorial typography below the illustration: a short emotional title related to the photo, plus a tiny subtitle. Handwritten/modern art-book style.\r\n\t\r\nMood: quiet, poetic, refined, innocent, premium art-book aesthetic.\r\n\t\r\nNo cartoon, crayon, watercolor, 3D, glossy digital art or busy decoration.",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1789515189531",
+    "title": "MarkerDrawing",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1789515189531/cover.webp",
+    "imageUpdatedAt": "2026-09-15T23:33:09.531Z",
+    "personImage": "/style-previews/style_1789515189531/cover.webp",
+    "personImageUpdatedAt": "2026-09-15T23:33:09.531Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1789515189531/cover.webp",
+    "petImageUpdatedAt": "2026-09-15T23:33:09.531Z",
+    "petThumbnailImage": "",
+    "prompt": "需要重新进行视觉判断，只提炼照片里最有辨识度的主体、外形轮廓、结构关系、动作姿态以及叙事联系，再重组为 Hand-drawn Doodle Lifestyle Illustration / Naïve Illustration / Marker Drawing 风格。\r\n不必保留全部物体，也不要照搬原始场景。应主动舍弃大部分背景和无关元素，通过删减、重排、裁切以及尺度变化重新组织画面，即使原照片构图普通，也要转化成完整成立的视觉作品。\r\n造型以简化、符号化为主，保持轻松、自然并带有个性。线条可以轻微抖动、断续、不完全规整，搭配马克笔、蜡笔、油画棒般的自然涂色效果。允许少量越线、留白和手工误差，不追求真实比例、完整透视或精细描绘。\r\n必须以大量、有意识的留白作为核心。实体图形只占较小面积，其余空间主动保持空白。\r\n让留白和主体共同构成正负形、距离、停顿与呼吸感。宁愿减少绘制内容，也不要让画面被填满。\r\n图形与文字需要作为一个完整视觉系统重新排版，不能简单处理成“上面一句文字、下面一个人物”的固定结构。\r\n先建立隐性的网格、视觉轴线和阅读动线，再安排文字位置。文字可以贴近主体边缘，顺着动作走势排列，也可以与头部、肩线形成对齐，放入较大的负空间，或通过错位、穿插和不对称关系与图形呼应。\r\n避免机械居中、上下堆放以及模板化排版。图形负责表达情绪，文字负责建立节奏，两者共同完成整体构图。\r\n文字语种不限，只保留极少量真正有意义的词语或短句。字体采用轻盈、自然、略有字宽变化和笔压差异的手写风格，保留一点随手书写的感觉，但字距、行距以及整体落点仍需经过编辑设计控制。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1789467191896",
+    "title": "木刻版画",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1789467191896/cover.webp",
+    "imageUpdatedAt": "2026-09-15T10:13:11.896Z",
+    "personImage": "/style-previews/style_1789467191896/cover.webp",
+    "personImageUpdatedAt": "2026-09-15T10:13:11.896Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1789467191896/cover.webp",
+    "petImageUpdatedAt": "2026-09-15T10:13:11.896Z",
+    "petThumbnailImage": "",
+    "prompt": "结构大幅简化，\r\n保留一些粗线、错位、墨痕和手工印刷感。\r\n\t\r\n木刻版画 × 孔版印刷 × 国潮建筑扁平插画\r\n油毡版画风格，地标场景的极致视觉提炼，纯净无杂质的白底独立主体，大量留白，粗犷厚重且略带手绘颤动感的黑色墨水轮廓，有限的双色调配色，扁平不透明丙烯水粉填充，风格化简化的建筑造型，浮雕式镂空白线细节，扁平二维图形空间，无投影，无渐变，极致干净的印刷质感。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1789301912565",
+    "title": "纸艺拼贴",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1789301912565/cover.webp",
+    "imageUpdatedAt": "2026-09-13T12:18:32.565Z",
+    "personImage": "/style-previews/style_1789301912565/cover.webp",
+    "personImageUpdatedAt": "2026-09-13T12:18:32.565Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1789301912565/cover.webp",
+    "petImageUpdatedAt": "2026-09-13T12:18:32.565Z",
+    "petThumbnailImage": "",
+    "prompt": "请将每张上传照片分别制作成一张独立的高级设计海报，单张输出，不多图拼接，不沿用其他照片的内容与设计。\r\n提取照片最具识别性的主体、轮廓、结构、姿态与叙事关系，重新判断并重构为色场基座式纸艺拼贴。删除绝大多数背景及无关细节，仅保留代表原物的视觉记忆点，以剪纸轮廓、纸片层叠、几何概括和少量纹理重新组织，让人一眼识别与原照的对应关系。禁止完整复制、逐物转绘。\r\n\t\r\n【色场与构图】\r\n采用split color-field composition：上方保留大片近白负空间，底部以一整块横向贯穿画幅的纯色基座封底；边界水平，无透视、桌沿或渐变。主体落在色域分界附近，可跨越两个色场。必要时在主体后方加入局部几何背景板，形成“近白留白、局部背景板、主体、纯色基座”的平面层叠。\r\n\t\r\n允许重新导演画面，通过删减、重组、裁切、尺度变化、位置调整与留白，改善原图杂乱、背景复杂或主体过小的问题。强调主体集中、关系清晰、大面积负空间、不对称平衡、块面比例与疏密节奏，宁少勿满。\r\n\t\r\n【纸艺材质】\r\n采用cut-paper collage逻辑，将人物、建筑、动物、植物、器物或景观概括为少量完整纸片形状。边缘略带手工裁切的不规则感，保留细腻纸粒、轻微叠层与印刷质感。空间依靠色块遮挡和前后层级，不依赖写实透视、立体阴影或复杂明暗。\r\n\t\r\n【配色】\r\n从原照提取2–4种最具辨识度与生命力的颜色，整理为柔和、明亮、干净的pastel色场。基座使用稳定主色，背景板与主体以相邻色或少量对比色建立层次。整体轻盈、温和、有生活感，避免灰脏、暗沉、过度莫兰迪化、高饱和撞色及廉价糖果感。\r\n\t\r\n【文字与气质】\r\n文字极少，不限语种，不预设标题或编号；从主体、地点、动作、情绪或隐喻提炼，安静置于插画留白、色场边界或版面边角，保持克制精致的编辑式图文关系。\r\n\t\r\n整体融合剪纸拼贴、上下色域分割、全宽纯色基座、局部背景色块、大面积留白与编辑排版。避免完整场景转绘、复杂背景、写实透视、渐变、厚重阴影、填满画面、卡通感、3D感及模板化拼贴。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1789199793219",
     "title": "粗线手绘海报",
     "tags": [
@@ -16,7 +96,7 @@
     "petImage": "/style-previews/style_1789199793219/cover.webp",
     "petImageUpdatedAt": "2026-09-12T07:56:33.219Z",
     "petThumbnailImage": "",
-    "prompt": "保留原照片中最具辨识度的主体、基本构图、人物姿态与主要空间关系，将画面转译为松弛、随性、带独立刊物与复古活动海报气质的手绘插画。主体用高度概括的几何化、卡通化造型重绘，比例可轻微夸张，轮廓采用粗细不均、略抖动的手绘线条，保留笨拙、天真、不规整的笔触感。大幅删减五官、纹理和环境细节，仅保留发型、服装、动作、关键道具及能建立场景识别的元素。配色限制为少量高饱和专色与黑白或浅色纸张底，使用平涂色块，避免真实渐变与复杂明暗，只以局部重色、留白和线条密度区分层次。加入明显纸纹、油墨颗粒、蜡笔摩擦、轻微套印偏移和旧印刷噪点。背景高度简化，可抽象成少量符号、轮廓或直接留白。版式采用中央集中式插画区，主体紧凑成团，四周保留充分留白；可加入少量粗犷手写标题、小尺寸辅文、日期或信息文字，形成编辑设计感、街头文化感、俏皮而不精致的手工印刷海报效果。",
+    "prompt": "保留原照片中最具辨识度的主体、基本构图、人物姿态与主要空间关系，将画面转译为松弛、随性、带独立刊物与复古活动海报气质的手绘插画。主体用高度概括的几何化、卡通化造型重绘，比例可轻微夸张，轮廓采用粗细不均、略抖动的手绘线条，保留笨拙、天真、不规整的笔触感。大幅删减五官、纹理和环境细节，仅保留发型、服装、动作、关键道具及能建立场景识别的元素。配色限制为少量高饱和专色与黑白或浅色纸张底，使用平涂色块，避免真实渐变与复杂明暗，只以局部重色、留白和线条密度区分层次。加入明显纸纹、油墨颗粒、蜡笔摩擦、轻微套印偏移和旧印刷噪点。背景高度简化，可抽象成少量符号、轮廓或直接留白。版式采用中央集中式插画区，主体紧凑成团，四周保留充分留白；可加入少量粗犷手写标题、小尺寸辅文或信息文字，形成编辑设计感、街头文化感、俏皮而不精致的手工印刷海报效果。",
     "useStyleImageAsReference": false
   },
   {
