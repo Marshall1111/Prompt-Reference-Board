@@ -2500,5 +2500,27 @@
     "sortOrders": {
       "儿童": 30
     }
+  },
+  {
+    "publicationId": "544fcbd3898b34165678f44e6fa8a987",
+    "jobId": "992b9666-4984-4929-a8ff-e44e7651dde6",
+    "styleId": "style_1789710364334",
+    "styleName": "美式另类卡通",
+    "prompt": "Image-to-image, preserve the subject, facial features and composition of reference picture, standalone 2D illustration.\r\nStyle: clean underground indie comic, alternative American cartoon, grotesque-cute surrealism, quirky character design, contemporary indie illustration.\r\n\r\nVery bold hand-inked black outlines, sharp and slightly uneven but confident linework, clean strong silhouettes, simplified facial features, deadpan expressions, exaggerated but appealing anatomy, slightly awkward proportions, strange but charming shapes.\r\nFlat graphic cel shading, clean large color masses, minimal gradients, limited pastel palette: dusty blue, muted cyan, pale mint, dusty pink, warm cream, soft yellow, deep black.\r\n\r\nClean illustrated environment with stylized architecture, unusual props, curved shapes, simplified perspective and hand-drawn comic geometry.\r\nPrioritize clean shapes and clear visual hierarchy: large uninterrupted color areas, minimal interior lines, strong foreground/middle ground/background separation, high detail only around focal subjects, simplified secondary objects, quiet areas between major forms.\r\n\r\nOnly subtle vintage comic texture. Clean printed feeling, NOT dirty or distressed.\r\n\r\nTypography: underground comic magazine cover, add short eye-catching headline matching the scene theme, editorial collage, oversized distorted typography, text layout fits naturally into the illustration composition.\r\n\r\nNO grunge, NO dirty texture, NO noise, NO grain, NO chaotic debris,\r\nNO scratches, NO heavy paper texture, NO cross-hatching, NO stippling, NO micro-texture, NO random ink marks, NO noisy linework,\r\nNO clutter, NO muddy colors, NO excessive black.\r\nNO anime, NO manga, NO 3D, NO photorealism, NO glossy digital painting.\r\n\r\nPure illustration only. Clean, bold, graphic, surreal, handmade and controlled.",
+    "tags": [
+      "儿童"
+    ],
+    "effectImageUrl": "/style-publications/544fcbd3898b34165678f44e6fa8a987/effect.webp",
+    "effectGridImageUrl": "/style-publications/544fcbd3898b34165678f44e6fa8a987/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/544fcbd3898b34165678f44e6fa8a987/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/992b9666-4984-4929-a8ff-e44e7651dde6.png",
+    "sourceReferenceImageUrl": "/job-references/992b9666-4984-4929-a8ff-e44e7651dde6/1-1789710235659.jpg",
+    "createdAt": "2026-09-18T05:46:25.324Z",
+    "updatedAt": "2026-09-18T05:46:25.324Z",
+    "sortOrders": {
+      "儿童": 31
+    }
   }
 ]

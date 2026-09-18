@@ -1,5 +1,25 @@
 [
   {
+    "id": "style_1789710364334",
+    "title": "美式另类卡通",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1789710364334/cover.webp",
+    "imageUpdatedAt": "2026-09-18T05:46:04.334Z",
+    "personImage": "",
+    "personImageUpdatedAt": null,
+    "personThumbnailImage": "",
+    "petImage": "",
+    "petImageUpdatedAt": null,
+    "petThumbnailImage": "",
+    "prompt": "Image-to-image, preserve the subject, facial features and composition of reference picture, standalone 2D illustration.\r\nStyle: clean underground indie comic, alternative American cartoon, grotesque-cute surrealism, quirky character design, contemporary indie illustration.\r\n\r\nVery bold hand-inked black outlines, sharp and slightly uneven but confident linework, clean strong silhouettes, simplified facial features, deadpan expressions, exaggerated but appealing anatomy, slightly awkward proportions, strange but charming shapes.\r\nFlat graphic cel shading, clean large color masses, minimal gradients, limited pastel palette: dusty blue, muted cyan, pale mint, dusty pink, warm cream, soft yellow, deep black.\r\n\r\nClean illustrated environment with stylized architecture, unusual props, curved shapes, simplified perspective and hand-drawn comic geometry.\r\nPrioritize clean shapes and clear visual hierarchy: large uninterrupted color areas, minimal interior lines, strong foreground/middle ground/background separation, high detail only around focal subjects, simplified secondary objects, quiet areas between major forms.\r\n\r\nOnly subtle vintage comic texture. Clean printed feeling, NOT dirty or distressed.\r\n\r\nTypography: underground comic magazine cover, add short eye-catching headline matching the scene theme, editorial collage, oversized distorted typography, text layout fits naturally into the illustration composition.\r\n\r\nNO grunge, NO dirty texture, NO noise, NO grain, NO chaotic debris,\r\nNO scratches, NO heavy paper texture, NO cross-hatching, NO stippling, NO micro-texture, NO random ink marks, NO noisy linework,\r\nNO clutter, NO muddy colors, NO excessive black.\r\nNO anime, NO manga, NO 3D, NO photorealism, NO glossy digital painting.\r\n\r\nPure illustration only. Clean, bold, graphic, surreal, handmade and controlled.",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1789519244942",
     "title": "丙烯颜料绘画",
     "tags": [
