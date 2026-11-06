@@ -162,7 +162,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 29,
-      "宠物": 17
+      "宠物": 19
     }
   },
   {
@@ -235,7 +235,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 2,
+      "宠物": 4,
       "幽默": 6
     }
   },
@@ -258,7 +258,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 16
+      "宠物": 18
     }
   },
   {
@@ -282,7 +282,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 27,
-      "宠物": 15
+      "宠物": 17
     }
   },
   {
@@ -328,7 +328,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 26,
-      "宠物": 14
+      "宠物": 16
     }
   },
   {
@@ -350,7 +350,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 11
+      "宠物": 13
     }
   },
   {
@@ -372,7 +372,7 @@
     "effectGridWidth": 426,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 8
+      "宠物": 10
     }
   },
   {
@@ -394,7 +394,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 24
+      "宠物": 26
     }
   },
   {
@@ -416,7 +416,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 7
+      "宠物": 9
     }
   },
   {
@@ -464,7 +464,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 24,
-      "宠物": 6
+      "宠物": 8
     }
   },
   {
@@ -535,7 +535,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 5,
+      "宠物": 7,
       "幽默": 3
     }
   },
@@ -608,7 +608,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 20,
-      "宠物": 3
+      "宠物": 5
     }
   },
   {
@@ -632,7 +632,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 19,
-      "宠物": 13
+      "宠物": 15
     }
   },
   {
@@ -726,7 +726,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 6,
-      "宠物": 12
+      "宠物": 14
     }
   },
   {
@@ -1164,7 +1164,7 @@
     "createdAt": "2026-08-31T21:40:12.822Z",
     "updatedAt": "2026-08-31T21:40:12.822Z",
     "sortOrders": {
-      "宠物": 18
+      "宠物": 20
     }
   },
   {
@@ -1186,7 +1186,7 @@
     "createdAt": "2026-08-31T21:41:42.815Z",
     "updatedAt": "2026-08-31T21:41:42.815Z",
     "sortOrders": {
-      "宠物": 19
+      "宠物": 21
     }
   },
   {
@@ -1278,7 +1278,7 @@
     "createdAt": "2026-08-31T21:49:38.387Z",
     "updatedAt": "2026-08-31T21:49:38.387Z",
     "sortOrders": {
-      "宠物": 20
+      "宠物": 22
     }
   },
   {
@@ -1322,7 +1322,7 @@
     "createdAt": "2026-08-31T21:50:16.171Z",
     "updatedAt": "2026-08-31T21:50:16.171Z",
     "sortOrders": {
-      "宠物": 10
+      "宠物": 12
     }
   },
   {
@@ -1410,7 +1410,7 @@
     "createdAt": "2026-08-31T21:59:24.228Z",
     "updatedAt": "2026-08-31T21:59:24.228Z",
     "sortOrders": {
-      "宠物": 9
+      "宠物": 11
     }
   },
   {
@@ -1432,7 +1432,7 @@
     "createdAt": "2026-08-31T22:02:52.943Z",
     "updatedAt": "2026-08-31T22:02:52.943Z",
     "sortOrders": {
-      "宠物": 21
+      "宠物": 23
     }
   },
   {
@@ -1498,7 +1498,7 @@
     "createdAt": "2026-08-31T22:16:57.224Z",
     "updatedAt": "2026-08-31T22:16:57.224Z",
     "sortOrders": {
-      "宠物": 22
+      "宠物": 24
     }
   },
   {
@@ -1520,7 +1520,7 @@
     "createdAt": "2026-08-31T22:18:00.539Z",
     "updatedAt": "2026-08-31T22:18:00.539Z",
     "sortOrders": {
-      "宠物": 23
+      "宠物": 25
     }
   },
   {
@@ -1726,7 +1726,7 @@
     "createdAt": "2026-09-01T21:26:38.044Z",
     "updatedAt": "2026-09-01T21:26:38.044Z",
     "sortOrders": {
-      "宠物": 25
+      "宠物": 27
     }
   },
   {
@@ -2168,7 +2168,7 @@
     "createdAt": "2026-09-12T06:56:19.899Z",
     "updatedAt": "2026-09-12T06:56:19.899Z",
     "sortOrders": {
-      "宠物": 26
+      "宠物": 28
     }
   },
   {
@@ -2234,7 +2234,7 @@
     "createdAt": "2026-09-12T07:17:18.606Z",
     "updatedAt": "2026-09-12T07:17:18.606Z",
     "sortOrders": {
-      "宠物": 4
+      "宠物": 6
     }
   },
   {
@@ -2410,7 +2410,7 @@
     "createdAt": "2026-09-13T12:28:59.198Z",
     "updatedAt": "2026-09-13T12:28:59.198Z",
     "sortOrders": {
-      "宠物": 27
+      "宠物": 29
     }
   },
   {
@@ -2432,7 +2432,7 @@
     "createdAt": "2026-09-13T12:31:11.112Z",
     "updatedAt": "2026-09-13T12:31:11.112Z",
     "sortOrders": {
-      "宠物": 28
+      "宠物": 30
     }
   },
   {
@@ -2543,6 +2543,116 @@
     "updatedAt": "2026-09-20T03:07:03.922Z",
     "sortOrders": {
       "日常": 2
+    }
+  },
+  {
+    "publicationId": "522e9f268285a86650469bdb092596c4",
+    "jobId": "e52a8711-6119-432e-9f57-becc4c513087",
+    "styleId": "style_1790816981609",
+    "styleName": "极简手绘涂鸦",
+    "prompt": "请将需要改画的内容原图重画成一幅极简手绘涂鸦。把用户认可的涂鸦图视为风格参考，只借鉴画法；把人物、宠物或多人照片视为内容原图，按图像内容识别两者的职责，上传顺序改变时也保持一致。内容原图决定主体身份、数量、表情、动作和关键物件；不复制风格参考图中的人物、姿势或道具。保留一眼可辨的内容关系，周边细节允许省略。\r\n\t\r\n把复杂形体压成少数歪斜、夸张的大形。人物五官可以错位、不对称；鼻子缩成小钩或两点，嘴用保留表情。宠物和多人画面优先保留数量、姿势与彼此关系，不强加单人五官。头发、毛发、衣物和背景只留辨认主体所需的几笔，大片纸面空着。\r\n\t\r\n用深蓝黑色笔直接画，粗细和压力不均，线条略抖、断开、局部错位或短短复笔，保留没修整过的手感。浅暖象牙纸底 #F4EFE5，纸纹极轻；画面稀疏、松动、像随手画下来的小涂鸦。\r\n\t\r\n省略写实阴影、密集排线、发丝与毛发细描、完整顺滑的轮廓、精致动漫线稿、衣物纹理、背景装饰、文字和水印。",
+    "tags": [
+      "幽默"
+    ],
+    "effectImageUrl": "/style-publications/522e9f268285a86650469bdb092596c4/effect.webp",
+    "effectGridImageUrl": "/style-publications/522e9f268285a86650469bdb092596c4/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/522e9f268285a86650469bdb092596c4/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/e52a8711-6119-432e-9f57-becc4c513087.png",
+    "sourceReferenceImageUrl": "/job-references/e52a8711-6119-432e-9f57-becc4c513087/2-1790816886613.jpg",
+    "createdAt": "2026-10-01T01:15:04.034Z",
+    "updatedAt": "2026-10-01T01:15:04.034Z",
+    "sortOrders": {
+      "幽默": 14
+    }
+  },
+  {
+    "publicationId": "2f70e38c11b17ab41bd5ed9804ee4f65",
+    "jobId": "2d4b8c09-924a-4837-a4ad-075c0695c2cd",
+    "styleId": "style_1790655877531",
+    "styleName": "涂鸦邮票",
+    "prompt": "提示词：竖向邮票海报，扁平矢量印刷。外框纯色无纹理，随机鲜艳颜色为A。正中白底邮票，半圆齿孔均匀，内白边宽度一致。只有两横带：直角矩形画框、底栏。画框和底栏之间没有横线间隔。@1 纯2D扁平卡通，无边框，极简矢量插画，波普涂鸦风格。绝对平涂，大色块，无边框，背景为A的30%的深度颜色。无光影，无阴影，无立体感。粗黑均匀的马克笔勾线，简单的线条。极度简化的五官，卡通大眼睛，红晕色块。无衣服褶皱。鲜艳纯色背景，少量水彩斑点。幽默俏皮，不对称构图，人物相关元素。独立绘本，极简主义，留白。标题文字严格环绕人物头部出现。底栏无背景颜色。左侧是文字信息以粗标题呈现。右侧是巨大面值，[变量D]。限色，构成主义拼贴，矢量硬边。垫图只对齐版式、齿孔、线重、裁切和色彩角色，主体只认 @1。",
+    "tags": [
+      "旅行"
+    ],
+    "effectImageUrl": "/style-publications/2f70e38c11b17ab41bd5ed9804ee4f65/effect.webp",
+    "effectGridImageUrl": "/style-publications/2f70e38c11b17ab41bd5ed9804ee4f65/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/2f70e38c11b17ab41bd5ed9804ee4f65/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/2d4b8c09-924a-4837-a4ad-075c0695c2cd.png",
+    "sourceReferenceImageUrl": "/job-references/2d4b8c09-924a-4837-a4ad-075c0695c2cd/1-1790646598062.jpg",
+    "createdAt": "2026-10-01T01:18:48.568Z",
+    "updatedAt": "2026-10-01T01:18:48.568Z",
+    "sortOrders": {
+      "旅行": 26
+    }
+  },
+  {
+    "publicationId": "a44ec3063802f5a83e1e47f0bbd5cf48",
+    "jobId": "e4a5dba7-bf93-41fd-bd81-bd248428fb82",
+    "styleId": "style_1792236245515",
+    "styleName": "野笔稚像",
+    "prompt": "A naïve outsider-art portrait, frontal head-and-shoulders view, hand-drawn on paper.\r\nAwkward, highly individual facial proportions, asymmetrical eyes, unusual nose and mouth, peculiar expression, simplified shapes, imperfect anatomy, spontaneous and eccentric character.\r\nBold black felt-tip marker outlines, uneven line weight, slightly wobbly contours, blunt strokes, occasional overlapping lines. Bright saturated colors: orange, lemon yellow, vermilion red, grass green, cyan blue, magenta and black. Large, flat, opaque color blocks filled with broad felt-tip markers, subtle overlapping ink streaks and slightly uneven coverage, but clean, vivid surfaces. Simple solid-color background.\r\nRaw naïve folk-art expression, authentic outsider-art sensibility, unpolished and distinctly handmade. Strong graphic contrast, simple silhouettes, minimal but characterful details.",
+    "tags": [
+      "幽默"
+    ],
+    "effectImageUrl": "/style-publications/a44ec3063802f5a83e1e47f0bbd5cf48/effect.webp",
+    "effectGridImageUrl": "/style-publications/a44ec3063802f5a83e1e47f0bbd5cf48/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/a44ec3063802f5a83e1e47f0bbd5cf48/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/e4a5dba7-bf93-41fd-bd81-bd248428fb82.png",
+    "sourceReferenceImageUrl": "/job-references/e4a5dba7-bf93-41fd-bd81-bd248428fb82/1-1792236128763.jpg",
+    "createdAt": "2026-10-17T11:24:20.118Z",
+    "updatedAt": "2026-10-17T11:24:20.118Z",
+    "sortOrders": {
+      "幽默": 15
+    }
+  },
+  {
+    "publicationId": "fea27d2cceae7b0d4c1976364fcb5654",
+    "jobId": "a656b515-94d7-4a18-99ec-739ae4e36120",
+    "styleId": "style_1792236245515",
+    "styleName": "野笔稚像",
+    "prompt": "A naïve outsider-art portrait, frontal head-and-shoulders view, hand-drawn on paper.\r\nAwkward, highly individual facial proportions, asymmetrical eyes, unusual nose and mouth, peculiar expression, simplified shapes, imperfect anatomy, spontaneous and eccentric character.\r\nBold black felt-tip marker outlines, uneven line weight, slightly wobbly contours, blunt strokes, occasional overlapping lines. Bright saturated colors: orange, lemon yellow, vermilion red, grass green, cyan blue, magenta and black. Large, flat, opaque color blocks filled with broad felt-tip markers, subtle overlapping ink streaks and slightly uneven coverage, but clean, vivid surfaces. Simple solid-color background.\r\nRaw naïve folk-art expression, authentic outsider-art sensibility, unpolished and distinctly handmade. Strong graphic contrast, simple silhouettes, minimal but characterful details.",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/fea27d2cceae7b0d4c1976364fcb5654/effect.webp",
+    "effectGridImageUrl": "/style-publications/fea27d2cceae7b0d4c1976364fcb5654/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/fea27d2cceae7b0d4c1976364fcb5654/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/a656b515-94d7-4a18-99ec-739ae4e36120.png",
+    "sourceReferenceImageUrl": "/job-references/a656b515-94d7-4a18-99ec-739ae4e36120/1-1793891820944.jpg",
+    "createdAt": "2026-11-05T20:39:00.171Z",
+    "updatedAt": "2026-11-05T20:39:00.171Z",
+    "sortOrders": {
+      "宠物": 2
+    }
+  },
+  {
+    "publicationId": "7ac17eed14243d05566075247a7e1862",
+    "jobId": "abdddaa1-d50c-402d-aadc-81e0ad39fd40",
+    "styleId": "style_1789199793219",
+    "styleName": "粗线手绘海报",
+    "prompt": "保留原照片中最具辨识度的主体、基本构图、人物姿态与主要空间关系，将画面转译为松弛、随性、带独立刊物与复古活动海报气质的手绘插画。主体用高度概括的几何化、卡通化造型重绘，比例可轻微夸张，轮廓采用粗细不均、略抖动的手绘线条，保留笨拙、天真、不规整的笔触感。大幅删减五官、纹理和环境细节，仅保留发型、服装、动作、关键道具及能建立场景识别的元素。配色限制为少量高饱和专色与黑白或浅色纸张底，使用平涂色块，避免真实渐变与复杂明暗，只以局部重色、留白和线条密度区分层次。加入明显纸纹、油墨颗粒、蜡笔摩擦、轻微套印偏移和旧印刷噪点。背景高度简化，可抽象成少量符号、轮廓或直接留白。版式采用中央集中式插画区，主体紧凑成团，四周保留充分留白；可加入少量粗犷手写标题、小尺寸辅文或信息文字，形成编辑设计感、街头文化感、俏皮而不精致的手工印刷海报效果。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/7ac17eed14243d05566075247a7e1862/effect.webp",
+    "effectGridImageUrl": "/style-publications/7ac17eed14243d05566075247a7e1862/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/7ac17eed14243d05566075247a7e1862/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/abdddaa1-d50c-402d-aadc-81e0ad39fd40.png",
+    "sourceReferenceImageUrl": "/job-references/abdddaa1-d50c-402d-aadc-81e0ad39fd40/1-1793913068227.jpg",
+    "createdAt": "2026-11-05T21:12:22.076Z",
+    "updatedAt": "2026-11-05T21:12:22.076Z",
+    "sortOrders": {
+      "宠物": 3
     }
   }
 ]

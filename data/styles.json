@@ -1,5 +1,85 @@
 [
   {
+    "id": "style_1793196649817",
+    "title": "可爱放大器",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1793196649817/cover.webp",
+    "imageUpdatedAt": "2026-10-28T14:10:49.817Z",
+    "personImage": "",
+    "personImageUpdatedAt": null,
+    "personThumbnailImage": "",
+    "petImage": "",
+    "petImageUpdatedAt": null,
+    "petThumbnailImage": "",
+    "prompt": "请将每张上传真实照片为依据，分析主体、空间与动作；若有人物，选择与其手持、骑乘、倚靠、拥抱、坐卧或使用关系最紧密、轮廓最清晰的一件物品作为膨胀对象；无人物时选择最有辨识度且适合膨胀的非人物主体或局部。根据当前照片独立提炼艺术概念、构图、色彩、字体、留白和排版，禁止套用模板。\r\n将选定对象或其局部转化为Organic Sculptural Swelling与Solid Volume Expansion：沿原有几何结构、受力方向和功能部件进行圆润、丰满、厚实的实体体积夸张，允许明显超现实但必须保持物品用途、品牌标识、原色、关键结构与连续连接。薄结构变厚、硬边柔化、平面形成连续曲面，不把所有物体替代成圆球；人物本人保持身份、五官、骨架、比例、服装和动作，只膨胀互动物品，手指、肢体、接触、遮挡、承重、透视与接触阴影必须自然可信。\r\n膨胀是原生实体材料的变化：皮革仍是皮革、织物仍有纤维、金属保留反射、陶瓷保留釉面、植物保留脉络、水果保留表皮；呈现真实密度、厚度、重量、曲面明暗与环境反射。绝对禁止气球、充气玩具、空气囊、PVC、乳胶、橡胶薄膜、气嘴、阀门、热封边、接缝、空心感、气球高光和充气褶皱。采用与原图情绪匹配的艺术化环境、真实摄影光线与独立实验排版；自动生成相关英文标题和少量副文，可沿物体曲线动作方向或负空间进行创意排列，但不得遮挡人物五官膨胀物关键结构或互动关系。禁止漂浮穿模错误接触无关主体乱码虚构品牌Logo和水印。最终是同一场景中原物实体膨胀后的超现实艺术海报。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1792236245515",
+    "title": "野笔稚像",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1792236245515/cover.webp",
+    "imageUpdatedAt": "2026-10-17T11:24:05.515Z",
+    "personImage": "/style-previews/style_1792236245515/cover.webp",
+    "personImageUpdatedAt": "2026-10-17T11:24:05.515Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1792236245515/cover.webp",
+    "petImageUpdatedAt": "2026-10-17T11:24:05.515Z",
+    "petThumbnailImage": "",
+    "prompt": "A naïve outsider-art portrait, frontal head-and-shoulders view, hand-drawn on paper.\r\nAwkward, highly individual facial proportions, asymmetrical eyes, unusual nose and mouth, peculiar expression, simplified shapes, imperfect anatomy, spontaneous and eccentric character.\r\nBold black felt-tip marker outlines, uneven line weight, slightly wobbly contours, blunt strokes, occasional overlapping lines. Bright saturated colors: orange, lemon yellow, vermilion red, grass green, cyan blue, magenta and black. Large, flat, opaque color blocks filled with broad felt-tip markers, subtle overlapping ink streaks and slightly uneven coverage, but clean, vivid surfaces. Simple solid-color background.\r\nRaw naïve folk-art expression, authentic outsider-art sensibility, unpolished and distinctly handmade. Strong graphic contrast, simple silhouettes, minimal but characterful details.",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1790816981609",
+    "title": "极简手绘涂鸦",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1790816981609/cover.webp",
+    "imageUpdatedAt": "2026-10-01T01:09:41.609Z",
+    "personImage": "/style-previews/style_1790816981609/cover-person.jpg",
+    "personImageUpdatedAt": "2026-10-01T01:10:01.207Z",
+    "personThumbnailImage": "/style-previews/style_1790816981609/cover-person-thumbnail.webp",
+    "petImage": "/style-previews/style_1790816981609/cover.webp",
+    "petImageUpdatedAt": "2026-10-01T01:09:41.609Z",
+    "petThumbnailImage": "",
+    "prompt": "请将需要改画的内容原图重画成一幅极简手绘涂鸦。把用户认可的涂鸦图视为风格参考，只借鉴画法；把人物、宠物或多人照片视为内容原图，按图像内容识别两者的职责，上传顺序改变时也保持一致。内容原图决定主体身份、数量、表情、动作和关键物件；不复制风格参考图中的人物、姿势或道具。保留一眼可辨的内容关系，周边细节允许省略。\r\n\t\r\n把复杂形体压成少数歪斜、夸张的大形。人物五官可以错位、不对称；鼻子缩成小钩或两点，嘴用保留表情。宠物和多人画面优先保留数量、姿势与彼此关系，不强加单人五官。头发、毛发、衣物和背景只留辨认主体所需的几笔，大片纸面空着。\r\n\t\r\n用深蓝黑色笔直接画，粗细和压力不均，线条略抖、断开、局部错位或短短复笔，保留没修整过的手感。浅暖象牙纸底 #F4EFE5，纸纹极轻；画面稀疏、松动、像随手画下来的小涂鸦。\r\n\t\r\n省略写实阴影、密集排线、发丝与毛发细描、完整顺滑的轮廓、精致动漫线稿、衣物纹理、背景装饰、文字和水印。",
+    "useStyleImageAsReference": true
+  },
+  {
+    "id": "style_1790655877531",
+    "title": "涂鸦邮票",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1790655877531/cover.webp",
+    "imageUpdatedAt": "2026-09-29T04:24:37.531Z",
+    "personImage": "/style-previews/style_1790655877531/cover.webp",
+    "personImageUpdatedAt": "2026-09-29T04:24:37.531Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1790655877531/cover.webp",
+    "petImageUpdatedAt": "2026-09-29T04:24:37.531Z",
+    "petThumbnailImage": "",
+    "prompt": "提示词：竖向邮票海报，扁平矢量印刷。外框纯色无纹理，随机鲜艳颜色为A。正中白底邮票，半圆齿孔均匀，内白边宽度一致。只有两横带：直角矩形画框、底栏。画框和底栏之间没有横线间隔。@1 纯2D扁平卡通，无边框，极简矢量插画，波普涂鸦风格。绝对平涂，大色块，无边框，背景为A的30%的深度颜色。无光影，无阴影，无立体感。粗黑均匀的马克笔勾线，简单的线条。极度简化的五官，卡通大眼睛，红晕色块。无衣服褶皱。鲜艳纯色背景，少量水彩斑点。幽默俏皮，不对称构图，人物相关元素。独立绘本，极简主义，留白。标题文字严格环绕人物头部出现。底栏无背景颜色。左侧是文字信息以粗标题呈现。右侧是巨大面值，[变量D]。限色，构成主义拼贴，矢量硬边。垫图只对齐版式、齿孔、线重、裁切和色彩角色，主体只认 @1。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1789873499680",
     "title": "蜡笔手绘",
     "tags": [
