@@ -77,6 +77,7 @@ const PUBLIC_PREVIEW_WATERMARK_OUTLINE_BASELINE = 96.48;
 const PUBLIC_PREVIEW_WATERMARK_OUTLINE_PATH = "M64.7 83.98L55.32 83.98L49.85 63.28L32.67 63.28L27.2 83.98L17.82 83.98L37.35 16.41L45.17 16.41ZM47.9 55.86L41.65 32.03L40.87 32.03L34.62 55.86ZM97.07 83.98L88.09 83.98L88.09 17.19L97.07 17.19ZM174.37 5.47C174.1 9.11 173.97 14.06 173.97 20.31L173.97 83.2C173.97 88.15 172.67 91.28 170.07 92.58C167.46 93.88 163.04 94.79 156.79 95.31C156.27 92.19 155.09 89.19 153.27 86.33C159 86.33 162.58 86.2 164.01 85.94C165.45 85.68 166.16 84.11 166.16 81.25L166.16 20.31C166.16 15.63 166.03 10.68 165.77 5.47ZM152.1 32.81C149.76 39.32 147.02 46.81 143.9 55.27C140.77 63.74 138.04 70.05 135.69 74.22C133.09 72.14 130.35 70.83 127.49 70.31C131.92 62.5 135.43 54.75 138.04 47.07C140.64 39.39 142.33 33.72 143.12 30.08C146.24 31.64 149.24 32.55 152.1 32.81ZM192.72 29.69C203.14 48.44 209.39 61.2 211.47 67.97C208.87 68.49 206.27 69.66 203.66 71.48C199.76 60.29 193.77 47.79 185.69 33.98C187.78 32.94 190.12 31.51 192.72 29.69ZM295.7 26.56C295.44 30.47 295.31 35.16 295.31 40.63L295.31 57.03C295.31 60.68 295.44 66.15 295.7 73.44L250 73.44C250.26 69.27 250.39 64.97 250.39 60.55L250.39 41.41C250.39 35.68 250.26 30.73 250 26.56ZM239.06 82.81L306.25 82.81L306.25 43.36C306.25 41.02 306.12 37.89 305.86 33.98L314.45 33.98C314.19 37.63 314.06 40.76 314.06 43.36L314.06 83.98C314.06 86.59 314.19 90.36 314.45 95.31L306.25 95.31L306.25 88.67L231.25 88.67C231.51 85.81 231.64 82.29 231.64 78.13L231.64 44.14C231.64 40.76 231.51 37.5 231.25 34.38L239.06 34.38ZM297.27 10.55C302.99 10.55 308.59 10.42 314.06 10.16L314.06 17.19C308.59 16.93 302.99 16.8 297.27 16.8L251.56 16.8C245.05 16.8 238.67 16.93 232.42 17.19L232.42 10.16C238.67 10.42 245.05 10.55 251.56 10.55ZM269.53 67.19L269.53 52.73L257.42 52.73L257.42 67.19ZM269.53 46.48L269.53 32.42L257.42 32.42L257.42 46.48ZM288.28 67.19L288.28 52.73L276.56 52.73L276.56 67.19ZM288.28 46.48L288.28 32.42L276.56 32.42L276.56 46.48ZM379.15 68.36C370.56 75.13 362.61 80.47 355.32 84.38C348.03 88.28 341.78 91.54 336.57 94.14C334.49 91.54 332.54 89.19 330.71 87.11C343.47 82.94 353.56 78.52 360.99 73.83C368.41 69.14 373.68 65.1 376.81 61.72C375.77 59.9 374.72 58.33 373.68 57.03C365.61 62.76 358.45 67.32 352.2 70.7C345.95 74.09 341 76.43 337.35 77.73C335.53 75.13 333.58 72.92 331.49 71.09C341.91 67.97 350.18 64.58 356.3 60.94C362.42 57.29 366.78 54.3 369.38 51.95C368.34 50.65 367.17 49.22 365.87 47.66C361.7 50 357.21 52.28 352.39 54.49C347.57 56.71 342.43 58.98 336.96 61.33C335.4 58.72 333.58 56.12 331.49 53.52C342.17 50.91 350.37 48.18 356.1 45.31C361.83 42.45 366 39.58 368.6 36.72L363.13 36.72C359.49 36.72 355.19 36.85 350.24 37.11L350.24 30.08C355.19 30.34 359.49 30.47 363.13 30.47L389.7 30.47C393.08 30.47 397.25 30.34 402.2 30.08L402.2 37.11C397.25 36.85 393.08 36.72 389.7 36.72L379.15 36.72C376.81 38.8 374.2 41.15 371.34 43.75C373.42 45.57 375.37 47.46 377.2 49.41C379.02 51.37 380.97 54.04 383.06 57.42C386.18 55.86 389.7 53.71 393.6 50.98C397.51 48.24 401.03 44.79 404.15 40.63C408.06 44.27 410.66 46.74 411.96 48.05C408.84 49.35 406.1 50.65 403.76 51.95C401.42 53.26 399.46 54.69 397.9 56.25C400.24 64.06 403.24 69.66 406.88 73.05C410.53 76.43 415.61 79.69 422.12 82.81C419.52 84.64 417.17 87.11 415.09 90.23C407.8 85.55 402.46 80.66 399.07 75.59C395.69 70.51 393.34 65.23 392.04 59.77C389.96 61.07 387.87 62.24 385.79 63.28C387.09 70.31 387.68 76.17 387.55 80.86C387.42 85.55 385.47 89.13 381.69 91.6C377.91 94.08 373.42 95.7 368.21 96.48C367.17 93.1 366 90.1 364.7 87.5C369.12 87.5 372.64 87.11 375.24 86.33C377.85 85.55 379.35 83.59 379.74 80.47C380.13 77.34 379.93 73.31 379.15 68.36ZM377.98 3.52C378.5 6.12 379.67 10.03 381.49 15.23L417.43 15.23C417.17 19.4 417.04 22.79 417.04 25.39C417.04 27.73 417.17 30.73 417.43 34.38L409.23 34.38L409.23 21.48L341.26 21.48L341.26 36.33L333.06 36.33C333.32 32.16 333.45 28.52 333.45 25.39C333.45 22.01 333.32 18.62 333.06 15.23L372.12 15.23C371.08 11.85 369.91 8.85 368.6 6.25C371.99 5.47 375.11 4.56 377.98 3.52Z";
 const VISITOR_COOKIE_NAME = "pg_visitor";
 const WEB_ACCOUNT_COOKIE_NAME = "pg_web_account";
+const WEB_DEVICE_COOKIE_NAME = "pg_device";
 const USER_SESSION_COOKIE_NAME = "pg_user_session";
 const WEB_WECHAT_OAUTH_STATE_COOKIE_NAME = "pg_wechat_oauth_state";
 const ADMIN_COOKIE_NAME = "pg_admin";
@@ -464,6 +465,20 @@ function nowMs() {
 
 function elapsedMs(startMs) {
   return Math.max(0, Math.round(nowMs() - Number(startMs || 0)));
+}
+
+// 性能诊断开关：PERF_LOG=1 时打印每次任务列表请求的分段耗时，
+// 其它接口仅在超过 PERF_SLOW_MS（默认 800ms）时打印一行慢请求日志。
+const PERF_LOG_ENABLED = String(process.env.PERF_LOG || "") === "1";
+const PERF_SLOW_MS = Math.max(100, Number(process.env.PERF_SLOW_MS || 800));
+
+async function measurePerf(timings, label, task) {
+  const startedAt = process.hrtime.bigint();
+  try {
+    return await task();
+  } finally {
+    timings[label] = Number(process.hrtime.bigint() - startedAt) / 1e6;
+  }
 }
 
 function normalizeTelemetryNumber(value) {
@@ -993,6 +1008,19 @@ app.use(webAccountSessionMiddleware);
 app.use(userSessionMiddleware);
 app.use(adminSessionMiddleware);
 
+app.use((req, res, next) => {
+  const startedAt = process.hrtime.bigint();
+  res.on("finish", () => {
+    // /api/image-jobs 的分段明细由 queryImageJobs 统一输出，避免重复。
+    if (req.path === "/api/image-jobs") return;
+    const costMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+    if (costMs >= PERF_SLOW_MS) {
+      console.warn(`[perf] ${req.method} ${req.originalUrl} ${res.statusCode} ${costMs.toFixed(0)}ms`);
+    }
+  });
+  next();
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, app: "prompt-gallery" });
 });
@@ -1021,7 +1049,8 @@ app.get("/api/public/account-avatars/:accountId", async (req, res, next) => {
   }
 });
 
-app.get("/api/auth/me", requireWebAccount, (req, res) => {
+app.get("/api/auth/me", (req, res) => {
+  // 只读接口，不触发懒创建。
   res.json({ authenticated: Boolean(req.userSession), account: toPublicCommerceAccount(req.webAccount) });
 });
 
@@ -5326,6 +5355,13 @@ function clearWebAccountCookie(req, res) {
   }));
 }
 
+function setWebDeviceCookie(req, res, deviceId) {
+  appendSetCookie(res, serializeCookie(WEB_DEVICE_COOKIE_NAME, deviceId, {
+    maxAge: 60 * 60 * 24 * 365,
+    secure: shouldUseSecureCookies(req)
+  }));
+}
+
 function setUserSessionCookie(req, res, sessionId) {
   appendSetCookie(res, serializeCookie(USER_SESSION_COOKIE_NAME, sessionId, {
     maxAge: USER_SESSION_TTL_MS / 1000,
@@ -5385,22 +5421,45 @@ async function webAccountSessionMiddleware(req, res, next) {
   try {
     const cookies = parseCookies(req);
     const accountId = cookies[WEB_ACCOUNT_COOKIE_NAME];
+    // 设备标识用于新手奖励限领：清掉账户 cookie 后仍能识别同一设备。
+    // 页面导航时下发，保证后续接口请求都带着同一个设备标识；静态资源跳过。
+    let deviceId = String(cookies[WEB_DEVICE_COOKIE_NAME] || "");
+    if (!isSafeAccountId(deviceId)) {
+      deviceId = "";
+      const looksLikeStaticAsset = /\.[a-z0-9]{2,8}$/i.test(req.path);
+      if (!looksLikeStaticAsset) {
+        deviceId = randomUUID();
+        setWebDeviceCookie(req, res, deviceId);
+      }
+    }
+    req.webDeviceId = deviceId;
+    req.webClientIp = getClientIp(req);
     req.webAccount = isSafeAccountId(accountId) ? commerceStore.readAccount(accountId) : null;
-    if (!req.webAccount) {
-      // 小程序只使用微信账户，不为未授权用户创建或保留访客账户。
+    if (req.webAccount) commerceStore.linkVisitor(req.webAccount.id, req.visitorId);
+    // 懒创建：没有 cookie 时不再为每个请求新建 browser_guest 账户。
+    // 此前页面 HTML、静态资源、预取请求和爬虫都会各建一个账户，是账户膨胀的主因。
+    // 现在由真正需要账户身份的接口调用 req.ensureWebAccount() 按需创建。
+    req.ensureWebAccount = async () => {
+      if (req.webAccount) return req.webAccount;
+      // 小程序只使用微信账户，不为未授权用户创建访客账户。
       const isMiniProgramRequest = String(req.get("X-PetPaint-Client") || "").toLowerCase() === "miniprogram";
       const isPublicAvatarRequest = req.path.startsWith("/api/public/account-avatars/") || req.path.startsWith("/account-avatars/");
-      if (isMiniProgramRequest || isPublicAvatarRequest) return next();
+      if (isMiniProgramRequest || isPublicAvatarRequest) return null;
+      // 爬虫不需要账户，避免脚本反复领取新手奖励。
+      const userAgent = String(req.get("user-agent") || "").toLowerCase();
+      const looksLikeBot = /\b(bot|crawler|spider|scrapy|curl|wget|python-requests|headless|slurp|bingpreview|facebookexternalhit|semrush|ahrefs|bytespider|yandex|baiduspider|petalbot|gptbot|claudebot|ccbot)\b/.test(userAgent);
+      if (looksLikeBot) return null;
       const settings = await readAppSettings();
       req.webAccount = commerceStore.createOrGetBrowserAccount({
         visitorId: req.visitorId,
         signupCredits: settings.defaultCoinBonus,
-        signupBeans: settings.defaultBeanBonus
+        signupBeans: settings.defaultBeanBonus,
+        clientIp: req.webClientIp,
+        deviceId: req.webDeviceId
       });
       setWebAccountCookie(req, res, req.webAccount.id);
-    } else {
-      commerceStore.linkVisitor(req.webAccount.id, req.visitorId);
-    }
+      return req.webAccount;
+    };
     next();
   } catch (error) {
     next(error);
@@ -5479,9 +5538,16 @@ function createHttpError(status, publicMessage) {
 }
 
 function getClientIp(req) {
-  const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
-  const remoteAddress = String(req.socket?.remoteAddress || "");
-  return forwarded || remoteAddress || "unknown";
+  // nginx 会用 $remote_addr 覆盖 X-Real-IP，优先使用它，避免客户端伪造 X-Forwarded-For
+  // 绕过按 IP 的新手奖励限领。没有反向代理时退回 XFF 最后一跳 / socket 地址。
+  const realIp = String(req.headers["x-real-ip"] || "").trim();
+  if (realIp) return realIp;
+  const forwardedChain = String(req.headers["x-forwarded-for"] || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (forwardedChain.length) return forwardedChain[forwardedChain.length - 1];
+  return String(req.socket?.remoteAddress || "") || "unknown";
 }
 
 function pruneTimestamps(store, key, windowMs, now) {
@@ -8759,9 +8825,59 @@ function normalizePem(value) {
 }
 
 async function toPublicWebAccountState(req, account) {
-  const publicAccount = toPublicCommerceAccount(account);
   const visitor = await getVisitorState(req).catch(() => null);
   const storeOwner = getActiveVisitorStoreOwner(visitor);
+  const storeOwnerFields = {
+    storeOwnerAccountId: storeOwner?.storeOwnerAccountId || "",
+    storeOwnerName: storeOwner?.storeOwnerName || "",
+    storeOwnerWechatId: storeOwner?.storeOwnerWechatId || "",
+    storeOwnerExpiresAt: storeOwner?.storeOwnerExpiresAt || null
+  };
+  if (!account) {
+    // 懒创建：没有账户时不写库，按新手奖励回显一份预览余额，
+    // 等用户真正开始制作/下单时再创建账户并写入账本。
+    // 已被该 IP / 设备领过时不再显示奖励，避免"显示 5 币、建号变 0 币"。
+    const eligible = commerceStore.isSignupBonusEligible({
+      ip: req.webClientIp || getClientIp(req),
+      deviceId: req.webDeviceId || ""
+    });
+    const settings = eligible ? await readAppSettings() : null;
+    const previewCoins = eligible ? Math.max(0, Math.trunc(Number(settings.defaultCoinBonus || 0))) : 0;
+    const previewBeans = eligible ? Math.max(0, Math.trunc(Number(settings.defaultBeanBonus || 0))) : 0;
+    return {
+      visitorId: req.visitorId,
+      tier: "web_account",
+      authenticated: true,
+      quotaLimit: previewCoins,
+      quotaUsed: 0,
+      quotaRemaining: previewCoins,
+      canGenerate: previewCoins > 0,
+      contactMessage: "",
+      account: {
+        id: "",
+        isGuest: true,
+        isRegistered: false,
+        username: "新访客",
+        defaultWechatNickname: "",
+        hasWechatProfile: false,
+        wechatAvatarUrl: "/account-avatars/default-avatar.svg",
+        email: "",
+        accountStatus: "active",
+        coinBalance: previewCoins,
+        beanBalance: previewBeans,
+        referralBalanceCents: 0,
+        referralPendingCents: 0,
+        canRedeemOriginalDownloads: false,
+        paidOriginalDownloadCents: 0,
+        originalDownloadAllowance: { paidCents: 0, unlimited: false, total: 0, used: 0, remaining: 0, adjustment: 0 },
+        createdAt: null
+      },
+      redemptionEntitlements: { fridgeMagnetItemCount: 0, bodyBookPrintCount: 0 },
+      ...storeOwnerFields,
+      authorizationUrl: ""
+    };
+  }
+  const publicAccount = toPublicCommerceAccount(account);
   return {
     visitorId: req.visitorId,
     tier: "web_account",
@@ -8773,10 +8889,7 @@ async function toPublicWebAccountState(req, account) {
     contactMessage: publicAccount.accountStatus === "disabled" ? "该账户已被禁用，请联系管理员。" : "",
     account: publicAccount,
     redemptionEntitlements: commerceStore.getRedemptionEntitlementSummary(publicAccount.id),
-    storeOwnerAccountId: storeOwner?.storeOwnerAccountId || "",
-    storeOwnerName: storeOwner?.storeOwnerName || "",
-    storeOwnerWechatId: storeOwner?.storeOwnerWechatId || "",
-    storeOwnerExpiresAt: storeOwner?.storeOwnerExpiresAt || null,
+    ...storeOwnerFields,
     authorizationUrl: ""
   };
 }
@@ -8875,12 +8988,18 @@ async function fetchWechatWebUserProfile(code) {
   };
 }
 
-function requireWebAccount(req, _res, next) {
-  if (req.accountDisabled || req.webAccount?.accountStatus === "disabled") {
-    return next(createHttpError(403, "该账户已被禁用，请联系管理员。"));
+async function requireWebAccount(req, _res, next) {
+  try {
+    if (req.accountDisabled || req.webAccount?.accountStatus === "disabled") {
+      return next(createHttpError(403, "该账户已被禁用，请联系管理员。"));
+    }
+    if (req.webAccount) return next();
+    const account = await req.ensureWebAccount?.();
+    if (account) return next();
+    return next(createHttpError(401, "访客账户初始化失败，请刷新后重试。"));
+  } catch (error) {
+    next(error);
   }
-  if (req.webAccount) return next();
-  return next(createHttpError(401, "访客账户初始化失败，请刷新后重试。"));
 }
 
 function assertRegisteredAccount(req) {
@@ -9218,15 +9337,36 @@ async function listAdminUserRecords({
   const safeLastLoginEnd = normalizeVisitRecordDateFilter(lastLoginEnd);
   const safeRegisteredStart = normalizeVisitRecordDateFilter(registeredStart);
   const safeRegisteredEnd = normalizeVisitRecordDateFilter(registeredEnd);
-  const [visitors, accounts, jobs, visitSessions] = await Promise.all([
-    listVisitorStates(),
-    Promise.resolve(commerceStore.listAdminAccounts()),
-    listImageJobs(),
-    listVisitSessions()
+  const perfStartedAt = process.hrtime.bigint();
+  const perfTimings = {};
+  const [visitors, jobs, visitSessions] = await Promise.all([
+    measurePerf(perfTimings, "visitors", listVisitorStates),
+    measurePerf(perfTimings, "jobs", listImageJobs),
+    measurePerf(perfTimings, "sessions", listVisitSessions)
   ]);
-  const accountByVisitorId = new Map();
   const visitorGenerationCount = new Map();
   const accountGenerationCount = new Map();
+  jobs.forEach((job) => {
+    if (job?.ownerAdmin === true) return;
+    const visitorId = String(job?.ownerVisitorId || "");
+    const accountId = String(job?.ownerAccountId || "");
+    if (accountId) {
+      accountGenerationCount.set(accountId, Number(accountGenerationCount.get(accountId) || 0) + 1);
+      return;
+    }
+    if (!visitorId) return;
+    visitorGenerationCount.set(visitorId, Number(visitorGenerationCount.get(visitorId) || 0) + 1);
+  });
+  // 只查"注册账户 + 与有生成记录的访客/任务相关联的账户"，
+  // 不再全量扫描 12 万访客账户（同步查询会阻塞事件循环）。
+  const accountsStartedAt = process.hrtime.bigint();
+  const accounts = commerceStore.listAdminAccountSummaries({
+    visitorIds: Array.from(visitorGenerationCount.keys()),
+    accountIds: Array.from(accountGenerationCount.keys())
+  });
+  const accountsMs = Number(process.hrtime.bigint() - accountsStartedAt) / 1e6;
+  const accountById = new Map(accounts.map((account) => [String(account.id || ""), account]));
+  const accountByVisitorId = new Map();
   const registeredVisitorOwnerCount = new Map();
   const latestSessionByVisitorId = new Map();
   const visitorById = new Map(visitors.map((visitor) => {
@@ -9239,17 +9379,6 @@ async function listAdminUserRecords({
       if (!safeVisitorId) return;
       registeredVisitorOwnerCount.set(safeVisitorId, Number(registeredVisitorOwnerCount.get(safeVisitorId) || 0) + 1);
     });
-  });
-  jobs.forEach((job) => {
-    if (job?.ownerAdmin === true) return;
-    const visitorId = String(job?.ownerVisitorId || "");
-    const accountId = String(job?.ownerAccountId || "");
-    if (accountId) {
-      accountGenerationCount.set(accountId, Number(accountGenerationCount.get(accountId) || 0) + 1);
-      return;
-    }
-    if (!visitorId) return;
-    visitorGenerationCount.set(visitorId, Number(visitorGenerationCount.get(visitorId) || 0) + 1);
   });
   visitSessions.forEach((session) => {
     const safeSession = normalizeVisitSession(session);
@@ -9276,7 +9405,7 @@ async function listAdminUserRecords({
   // an independent visitor.
   jobs.forEach((job) => {
     const visitorId = String(job?.ownerVisitorId || "");
-    const account = accounts.find((item) => String(item.id || "") === String(job?.ownerAccountId || ""));
+    const account = accountById.get(String(job?.ownerAccountId || ""));
     if (visitorId && account?.isRegistered) accountByVisitorId.set(visitorId, account);
   });
   const latestActivityByAccountId = new Map();
@@ -9364,6 +9493,19 @@ async function listAdminUserRecords({
   const total = records.length;
   const totalPages = Math.max(1, Math.ceil(total / safeLimit));
   const safePage = Math.min(requestedPage, totalPages);
+  const totalMs = Number(process.hrtime.bigint() - perfStartedAt) / 1e6;
+  if (PERF_LOG_ENABLED || totalMs >= PERF_SLOW_MS) {
+    const ms = (value) => Math.round(value);
+    console.info(
+      `[perf] /api/admin/users total=${ms(totalMs)}ms | accounts=${ms(accountsMs)}ms | visitors=${ms(perfTimings.visitors || 0)}ms jobs=${ms(perfTimings.jobs || 0)}ms sessions=${ms(perfTimings.sessions || 0)}ms | records=${total} | q=${JSON.stringify({
+        page: requestedPage,
+        limit: safeLimit,
+        search: keyword ? keyword.slice(0, 20) : "",
+        status: safeStatus,
+        type: safeType
+      })}`
+    );
+  }
   return {
     total,
     page: safePage,
@@ -14708,20 +14850,22 @@ function invalidateImageJobsCache() {
   imageJobsCacheEpoch += 1;
 }
 
-// listAdminAccounts 对约 5 万账户跑 4 个关联子查询，单次 2 秒以上，
-// 且被任务列表/统计等多个高频接口调用。用短 TTL 缓存兜底，
-// 账户相关展示最多延迟 30 秒。TTL 需明显大于任务页 5 秒轮询间隔，
-// 否则每次轮询都会恰好过期、次次命中慢查询。
-const ADMIN_ACCOUNTS_CACHE_TTL_MS = 30000;
-let adminAccountsCache = null;
+// 任务列表解析"发起用户"只需要账户身份信息，不需要订单统计。
+// listAdminAccounts 在 12 万账户下要 4 秒以上且为同步查询，
+// 会阻塞整个事件循环，因此这里改用轻量查询并延长 TTL。
+const ADMIN_ACCOUNT_IDENTITIES_CACHE_TTL_MS = 5 * 60 * 1000;
+let adminAccountIdentitiesCache = null;
 
-function listAdminAccountsCached() {
+function listAccountIdentitiesCached() {
   const now = Date.now();
-  if (adminAccountsCache && now - adminAccountsCache.cachedAt < ADMIN_ACCOUNTS_CACHE_TTL_MS) {
-    return adminAccountsCache.value;
+  if (
+    adminAccountIdentitiesCache &&
+    now - adminAccountIdentitiesCache.cachedAt < ADMIN_ACCOUNT_IDENTITIES_CACHE_TTL_MS
+  ) {
+    return adminAccountIdentitiesCache.value;
   }
-  const value = commerceStore.listAdminAccounts();
-  adminAccountsCache = { value, cachedAt: now };
+  const value = commerceStore.listAccountIdentities();
+  adminAccountIdentitiesCache = { value, cachedAt: now };
   return value;
 }
 
@@ -14844,12 +14988,20 @@ async function queryImageJobs(options = {}) {
   const likedOnly = normalizeBooleanQuery(options.likedOnly);
   const owner = normalizeImageJobOwnerFilter(options.owner);
   const styleId = normalizeImageJobStyleIdFilter(options.styleId);
+  const perfStartedAt = process.hrtime.bigint();
+  const perfTimings = {};
+  const jobsCacheHit = Boolean(imageJobsCache);
+  const accountsCacheFresh = Boolean(
+    adminAccountIdentitiesCache &&
+      Date.now() - adminAccountIdentitiesCache.cachedAt < ADMIN_ACCOUNT_IDENTITIES_CACHE_TTL_MS
+  );
   const [jobs, styles, accounts, visitors] = await Promise.all([
-    listImageJobs(),
-    readStyles(),
-    Promise.resolve(listAdminAccountsCached()),
-    listVisitorStates()
+    measurePerf(perfTimings, "jobs", listImageJobs),
+    measurePerf(perfTimings, "styles", readStyles),
+    measurePerf(perfTimings, "accounts", () => Promise.resolve(listAccountIdentitiesCached())),
+    measurePerf(perfTimings, "visitors", listVisitorStates)
   ]);
+  const loadMs = Number(process.hrtime.bigint() - perfStartedAt) / 1e6;
   const ownerContext = buildImageJobOwnerContext(accounts, visitors);
   const stylesByPrompt = new Map();
   styles.forEach((style) => {
@@ -14859,6 +15011,7 @@ async function queryImageJobs(options = {}) {
     matches.push(style);
     stylesByPrompt.set(key, matches);
   });
+  const filterStartedAt = process.hrtime.bigint();
   const jobsWithOwners = jobs.map((job) => ({ job, owner: resolveImageJobOwner(job, ownerContext) }));
   const ownerOptions = Array.from(new Map(jobsWithOwners.map(({ owner: item }) => [item.key, item])).values())
     .sort((left, right) => left.name.localeCompare(right.name, "zh-CN"))
@@ -14871,6 +15024,7 @@ async function queryImageJobs(options = {}) {
     .filter(({ owner: item }) => !owner || item.key === owner)
     .filter(({ job, owner: item }) => matchesImageJobSearch(job, search, item))
     .sort(({ job: left }, { job: right }) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
+  const filterMs = Number(process.hrtime.bigint() - filterStartedAt) / 1e6;
   const total = filteredJobs.length;
   const totalPages = total > 0 ? Math.ceil(total / limit) : 1;
   const safePage = Math.min(page, totalPages);
@@ -14885,7 +15039,8 @@ async function queryImageJobs(options = {}) {
     else progress.remaining += 1;
     showcaseProgressByBatch.set(batchId, progress);
   });
-  return {
+  const renderStartedAt = process.hrtime.bigint();
+  const result = {
     jobs: filteredJobs.slice(start, start + limit).map(({ job, owner: jobOwner }) => {
       const matches = stylesByPrompt.get(normalizeStylePromptMatchKey(job.prompt)) || [];
       const matchedStyle = matches.length === 1 ? matches[0] : null;
@@ -14908,6 +15063,24 @@ async function queryImageJobs(options = {}) {
     limit,
     ownerOptions
   };
+  const renderMs = Number(process.hrtime.bigint() - renderStartedAt) / 1e6;
+  const totalMs = Number(process.hrtime.bigint() - perfStartedAt) / 1e6;
+  if (PERF_LOG_ENABLED || totalMs >= PERF_SLOW_MS) {
+    const ms = (value) => Math.round(value);
+    console.info(
+      `[perf] /api/image-jobs total=${ms(totalMs)}ms | load=${ms(loadMs)}ms (jobs=${ms(perfTimings.jobs || 0)}, styles=${ms(perfTimings.styles || 0)}, accounts=${ms(perfTimings.accounts || 0)}, visitors=${ms(perfTimings.visitors || 0)}) | filter=${ms(filterMs)}ms | render=${ms(renderMs)}ms | jobs=${jobs.length} matched=${total} | jobsCache=${jobsCacheHit ? "hit" : "miss"} accountsCache=${accountsCacheFresh ? "fresh" : "expired"} | q=${JSON.stringify({
+        page,
+        limit,
+        status,
+        search: search ? `${search.slice(0, 20)}${search.length > 20 ? "…" : ""}` : "",
+        date,
+        likedOnly,
+        owner,
+        styleId
+      })}`
+    );
+  }
+  return result;
 }
 
 function normalizeImageJobOwnerFilter(value) {

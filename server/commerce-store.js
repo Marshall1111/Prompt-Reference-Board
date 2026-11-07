@@ -4,6 +4,9 @@ import { randomInt, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 const ORIGINAL_IMAGE_DOWNLOAD_UNLOCK_CENTS = 20 * 100;
+// 新手奖励限领窗口：同一 IP 在该窗口内最多发放 N 次（设备维度永久只发一次）。
+const SIGNUP_BONUS_IP_WINDOW_MS = 24 * 60 * 60 * 1000;
+const SIGNUP_BONUS_IP_LIMIT = Math.max(1, Math.trunc(Number(process.env.SIGNUP_BONUS_IP_DAILY_LIMIT || 3)));
 
 function nowIso() {
   return new Date().toISOString();
@@ -135,6 +138,16 @@ export function createCommerceStore({ dbPath }) {
       created_at TEXT NOT NULL,
       PRIMARY KEY (account_id, visitor_id),
       FOREIGN KEY (account_id) REFERENCES commerce_accounts(id) ON DELETE CASCADE
+    );
+
+    -- 新手奖励发放记录：按 IP / 设备维度限领，避免清 cookie 后反复领取。
+    CREATE TABLE IF NOT EXISTS commerce_signup_bonus_grants (
+      id TEXT PRIMARY KEY,
+      ip TEXT NOT NULL DEFAULT '',
+      device_id TEXT NOT NULL DEFAULT '',
+      account_id TEXT NOT NULL,
+      visitor_id TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS commerce_credit_ledger (
@@ -408,6 +421,8 @@ export function createCommerceStore({ dbPath }) {
     );
 
     CREATE INDEX IF NOT EXISTS idx_commerce_account_visitors_visitor ON commerce_account_visitors(visitor_id);
+    CREATE INDEX IF NOT EXISTS idx_commerce_signup_bonus_grants_ip ON commerce_signup_bonus_grants(ip, created_at);
+    CREATE INDEX IF NOT EXISTS idx_commerce_signup_bonus_grants_device ON commerce_signup_bonus_grants(device_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_payment_intents_account ON commerce_payment_intents(account_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_commerce_payment_intents_transaction ON commerce_payment_intents(transaction_id);
     CREATE INDEX IF NOT EXISTS idx_commerce_redemption_entitlements_account ON commerce_redemption_entitlements(account_id, entitlement_type, created_at);
@@ -1659,9 +1674,11 @@ export function createCommerceStore({ dbPath }) {
     return readAccount(account.id);
   }
 
-  function createOrGetBrowserAccount({ visitorId, signupCredits = 5, signupBeans = 10 }) {
+  function createOrGetBrowserAccount({ visitorId, signupCredits = 5, signupBeans = 10, clientIp = "", deviceId = "" }) {
     const normalizedVisitorId = String(visitorId || "").trim();
     if (!normalizedVisitorId) throw new Error("缺少访客标识。");
+    const normalizedIp = String(clientIp || "").trim();
+    const normalizedDeviceId = String(deviceId || "").trim();
     return withTransaction(db, () => {
       let account = readAccountByOpenIdStatement.get("browser_guest", normalizedVisitorId);
       if (!account) {
@@ -1670,6 +1687,10 @@ export function createCommerceStore({ dbPath }) {
           WHERE visitor_id = ?
           LIMIT 1
         `).get(normalizedVisitorId));
+        const eligible = !hasClaimedVisitorBonus && isSignupBonusEligible({
+          ip: normalizedIp,
+          deviceId: normalizedDeviceId
+        });
         const createdAt = nowIso();
         const id = randomUUID();
         db.prepare(`
@@ -1677,20 +1698,62 @@ export function createCommerceStore({ dbPath }) {
           VALUES (?, 'browser_guest', ?, 0, 0, NULL, ?, ?)
         `).run(id, normalizedVisitorId, createdAt, createdAt);
         account = readAccount(id);
-        appendLedger(account.id, hasClaimedVisitorBonus ? 0 : Math.max(0, Math.trunc(Number(signupCredits || 0))), {
+        appendLedger(account.id, eligible ? Math.max(0, Math.trunc(Number(signupCredits || 0))) : 0, {
           reason: "signup_bonus",
           referenceType: "account",
           referenceId: account.id
         });
-        appendBeanLedger(account.id, hasClaimedVisitorBonus ? 0 : Math.max(0, Math.trunc(Number(signupBeans || 0))), {
+        appendBeanLedger(account.id, eligible ? Math.max(0, Math.trunc(Number(signupBeans || 0))) : 0, {
           reason: "signup_bonus",
           referenceType: "account",
           referenceId: account.id
         });
+        if (eligible) {
+          recordSignupBonusGrant({
+            accountId: account.id,
+            visitorId: normalizedVisitorId,
+            ip: normalizedIp,
+            deviceId: normalizedDeviceId
+          });
+        }
       }
       linkVisitor(account.id, normalizedVisitorId);
       return readAccount(account.id);
     });
+  }
+
+  // 新手奖励限领：同一设备只能领一次；同一 IP 在窗口期内最多领 N 次
+  // （默认 3 次/24 小时，可用 SIGNUP_BONUS_IP_DAILY_LIMIT 调整）。
+  function isSignupBonusEligible({ ip = "", deviceId = "", windowMs = SIGNUP_BONUS_IP_WINDOW_MS, ipLimit = SIGNUP_BONUS_IP_LIMIT } = {}) {
+    const safeDeviceId = String(deviceId || "").trim();
+    if (safeDeviceId) {
+      const deviceGrant = db.prepare(`
+        SELECT 1 FROM commerce_signup_bonus_grants WHERE device_id = ? LIMIT 1
+      `).get(safeDeviceId);
+      if (deviceGrant) return false;
+    }
+    const safeIp = String(ip || "").trim();
+    if (!safeIp) return true;
+    const since = new Date(Date.now() - windowMs).toISOString();
+    const total = Number(db.prepare(`
+      SELECT COUNT(*) AS total FROM commerce_signup_bonus_grants
+      WHERE ip = ? AND created_at >= ?
+    `).get(safeIp, since)?.total || 0);
+    return total < Math.max(1, Math.trunc(Number(ipLimit || 1)));
+  }
+
+  function recordSignupBonusGrant({ accountId, visitorId = "", ip = "", deviceId = "" }) {
+    db.prepare(`
+      INSERT INTO commerce_signup_bonus_grants (id, ip, device_id, account_id, visitor_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      randomUUID(),
+      String(ip || "").trim(),
+      String(deviceId || "").trim(),
+      String(accountId || ""),
+      String(visitorId || "").trim(),
+      nowIso()
+    );
   }
 
   function createPaymentIntent({ accountId, outTradeNo, kind, amountCents, creditAmount = 0, targetOrderId = "", expiresAt = null, metadata = {} }) {
@@ -2544,6 +2607,144 @@ export function createCommerceStore({ dbPath }) {
     }));
   }
 
+  // 仅供任务列表解析"发起用户"使用：不含订单统计等关联子查询，
+  // 12 万账户下比 listAdminAccounts 快一个数量级。
+  function listAccountIdentities() {
+    const rows = db.prepare(`
+      SELECT id, channel, open_id, email, username, password_hash, wechat_nickname, registered_at
+      FROM commerce_accounts
+    `).all();
+    const visitorRows = db.prepare(`
+      SELECT account_id, visitor_id
+      FROM commerce_account_visitors
+      ORDER BY created_at ASC
+    `).all();
+    const visitorIdsByAccountId = new Map();
+    visitorRows.forEach((row) => {
+      const accountId = String(row.account_id || "");
+      const visitorId = String(row.visitor_id || "");
+      if (!accountId || !visitorId) return;
+      const current = visitorIdsByAccountId.get(accountId) || [];
+      current.push(visitorId);
+      visitorIdsByAccountId.set(accountId, current);
+    });
+    return rows.map((row) => ({
+      ...mapAccount(row),
+      visitorIds: visitorIdsByAccountId.get(String(row.id || "")) || []
+    }));
+  }
+
+  // 后台用户列表用：账户身份 + 访客绑定 + 邀请人 + 订单统计。
+  // 传入 visitorIds/accountIds 时只查相关账户，避免每次全量扫 12 万行。
+  function listAdminAccountSummaries(options = {}) {
+    const accountColumns = `id, channel, open_id, credit_balance, bean_balance, referral_balance_cents, referral_pending_cents,
+             referral_role, store_role, store_wechat_id, original_downloads_unlocked_at,
+             email, username, password_hash, wechat_nickname, wechat_avatar_url,
+             account_status, registered_at, last_login_at, created_at, updated_at`;
+    const hasFilter = Array.isArray(options.visitorIds) || Array.isArray(options.accountIds);
+    const visitorIds = Array.from(new Set((Array.isArray(options.visitorIds) ? options.visitorIds : [])
+      .map((value) => String(value || ""))
+      .filter(Boolean)));
+    const accountIds = Array.from(new Set((Array.isArray(options.accountIds) ? options.accountIds : [])
+      .map((value) => String(value || ""))
+      .filter(Boolean)));
+    let rows;
+    if (!hasFilter) {
+      rows = db.prepare(`SELECT ${accountColumns} FROM commerce_accounts`).all();
+    } else {
+      const where = ["registered_at IS NOT NULL"];
+      const params = [];
+      if (visitorIds.length) {
+        where.push(`id IN (SELECT account_id FROM commerce_account_visitors WHERE visitor_id IN (${visitorIds.map(() => "?").join(",")}))`);
+        params.push(...visitorIds);
+      }
+      if (accountIds.length) {
+        where.push(`id IN (${accountIds.map(() => "?").join(",")})`);
+        params.push(...accountIds);
+      }
+      rows = db.prepare(`SELECT ${accountColumns} FROM commerce_accounts WHERE ${where.join(" OR ")}`).all(...params);
+    }
+    const selectedAccountIds = rows.map((row) => String(row.id || ""));
+    let visitorRows = [];
+    if (!hasFilter) {
+      visitorRows = db.prepare(`
+        SELECT account_id, visitor_id
+        FROM commerce_account_visitors
+        ORDER BY created_at ASC
+      `).all();
+    } else {
+      for (let index = 0; index < selectedAccountIds.length; index += 500) {
+        const slice = selectedAccountIds.slice(index, index + 500);
+        visitorRows.push(...db.prepare(`
+          SELECT account_id, visitor_id
+          FROM commerce_account_visitors
+          WHERE account_id IN (${slice.map(() => "?").join(",")})
+          ORDER BY created_at ASC
+        `).all(...slice));
+      }
+    }
+    const visitorIdsByAccountId = new Map();
+    visitorRows.forEach((row) => {
+      const accountId = String(row.account_id || "");
+      const visitorId = String(row.visitor_id || "");
+      if (!accountId || !visitorId) return;
+      const current = visitorIdsByAccountId.get(accountId) || [];
+      current.push(visitorId);
+      visitorIdsByAccountId.set(accountId, current);
+    });
+    const inviterByInviteeId = new Map();
+    db.prepare(`
+      SELECT r.invitee_account_id, r.referrer_account_id,
+             inviter.username AS inviter_username, inviter.email AS inviter_email,
+             inviter.wechat_nickname AS inviter_wechat_nickname
+      FROM commerce_referrals r
+      LEFT JOIN commerce_accounts inviter ON inviter.id = r.referrer_account_id
+    `).all().forEach((row) => {
+      inviterByInviteeId.set(String(row.invitee_account_id || ""), row);
+    });
+    const orderStatsByAccountId = new Map();
+    const orderStatsByVisitorId = new Map();
+    const addOrderStats = (map, key, row) => {
+      if (!key) return;
+      const current = map.get(key) || { orderCount: 0, paidTotalCents: 0 };
+      current.orderCount += 1;
+      if (String(row.payment_status || "") === "paid") current.paidTotalCents += Number(row.total_cents || 0);
+      map.set(key, current);
+    };
+    db.prepare(`
+      SELECT account_id, visitor_id, payment_status, total_cents
+      FROM orders
+    `).all().forEach((row) => {
+      if (row.account_id) addOrderStats(orderStatsByAccountId, String(row.account_id), row);
+      else addOrderStats(orderStatsByVisitorId, String(row.visitor_id || ""), row);
+    });
+    return rows.map((row) => {
+      const accountId = String(row.id || "");
+      const visitorIds = visitorIdsByAccountId.get(accountId) || [];
+      const direct = orderStatsByAccountId.get(accountId) || { orderCount: 0, paidTotalCents: 0 };
+      let orderCount = direct.orderCount;
+      let paidTotalCents = direct.paidTotalCents;
+      visitorIds.forEach((visitorId) => {
+        const stats = orderStatsByVisitorId.get(visitorId);
+        if (!stats) return;
+        orderCount += stats.orderCount;
+        paidTotalCents += stats.paidTotalCents;
+      });
+      const inviter = inviterByInviteeId.get(accountId) || {};
+      return {
+        ...mapAccount(row),
+        visitorCount: visitorIds.length,
+        visitorIds,
+        orderCount,
+        paidTotalCents,
+        inviterAccountId: String(inviter.referrer_account_id || ""),
+        inviterUsername: String(inviter.inviter_username || ""),
+        inviterEmail: String(inviter.inviter_email || ""),
+        inviterWechatNickname: String(inviter.inviter_wechat_nickname || "")
+      };
+    });
+  }
+
   function readRegisteredUserDetail(accountId) {
     const accountRow = db.prepare(`
       SELECT a.*, r.referrer_account_id AS inviter_account_id,
@@ -2602,6 +2803,7 @@ export function createCommerceStore({ dbPath }) {
 
   return {
     createOrGetBrowserAccount,
+    isSignupBonusEligible,
     createOrGetWebAccount,
     captureReferral,
     createEmailVerification,
@@ -2666,6 +2868,8 @@ export function createCommerceStore({ dbPath }) {
     listAllBeanLedger,
     listAllPaymentIntents,
     listAdminAccounts,
+    listAccountIdentities,
+    listAdminAccountSummaries,
     listPaymentIntents,
     listRegisteredUsers,
     listVisitorIds,

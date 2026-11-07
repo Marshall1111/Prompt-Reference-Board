@@ -9138,7 +9138,7 @@ function ImageJobsPage({ onStylePreviewReplaced }) {
 
       <div className="task-list">
         {jobs.map((job) => {
-          const imageSource = job.result?.previewUrl || job.result?.thumbnailUrl || job.result?.imageDataUrl || job.result?.imageUrl;
+          const imageSource = job.result?.thumbnailUrl || job.result?.previewUrl || job.result?.imageDataUrl || job.result?.imageUrl;
           const providerDiagnostics = formatImageJobProviderDiagnostics(job);
           const stylePreviewMatch = job.stylePreviewMatch;
           const styleQrMatch = stylePreviewMatch?.drawCardEnabled ? stylePreviewMatch : null;
