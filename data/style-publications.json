@@ -64,7 +64,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "幽默": 2
+      "幽默": 3
     }
   },
   {
@@ -137,7 +137,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 30,
-      "幽默": 9,
+      "幽默": 10,
       "日常": 12
     }
   },
@@ -187,7 +187,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 28,
-      "幽默": 8,
+      "幽默": 9,
       "日常": 10
     }
   },
@@ -212,7 +212,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "儿童": 17,
-      "幽默": 7
+      "幽默": 8
     }
   },
   {
@@ -236,7 +236,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "宠物": 4,
-      "幽默": 6
+      "幽默": 7
     }
   },
   {
@@ -304,7 +304,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "幽默": 4
+      "幽默": 5
     }
   },
   {
@@ -536,7 +536,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "宠物": 7,
-      "幽默": 3
+      "幽默": 4
     }
   },
   {
@@ -1006,7 +1006,7 @@
     "sortOrders": {
       "推荐": 9,
       "儿童": 12,
-      "幽默": 11
+      "幽默": 12
     }
   },
   {
@@ -1388,7 +1388,7 @@
     "createdAt": "2026-08-31T21:58:00.387Z",
     "updatedAt": "2026-08-31T21:58:00.387Z",
     "sortOrders": {
-      "幽默": 10
+      "幽默": 11
     }
   },
   {
@@ -1838,7 +1838,7 @@
     "createdAt": "2026-09-01T22:26:46.168Z",
     "updatedAt": "2026-09-01T22:26:46.168Z",
     "sortOrders": {
-      "幽默": 5
+      "幽默": 6
     }
   },
   {
@@ -2102,7 +2102,7 @@
     "createdAt": "2026-09-11T07:27:03.389Z",
     "updatedAt": "2026-09-11T07:27:03.389Z",
     "sortOrders": {
-      "幽默": 12
+      "幽默": 13
     }
   },
   {
@@ -2146,7 +2146,7 @@
     "createdAt": "2026-09-11T23:52:16.809Z",
     "updatedAt": "2026-09-11T23:52:16.809Z",
     "sortOrders": {
-      "幽默": 13
+      "幽默": 14
     }
   },
   {
@@ -2564,7 +2564,7 @@
     "createdAt": "2026-10-01T01:15:04.034Z",
     "updatedAt": "2026-10-01T01:15:04.034Z",
     "sortOrders": {
-      "幽默": 14
+      "幽默": 15
     }
   },
   {
@@ -2587,28 +2587,6 @@
     "updatedAt": "2026-10-01T01:18:48.568Z",
     "sortOrders": {
       "旅行": 26
-    }
-  },
-  {
-    "publicationId": "a44ec3063802f5a83e1e47f0bbd5cf48",
-    "jobId": "e4a5dba7-bf93-41fd-bd81-bd248428fb82",
-    "styleId": "style_1792236245515",
-    "styleName": "野笔稚像",
-    "prompt": "A naïve outsider-art portrait, frontal head-and-shoulders view, hand-drawn on paper.\r\nAwkward, highly individual facial proportions, asymmetrical eyes, unusual nose and mouth, peculiar expression, simplified shapes, imperfect anatomy, spontaneous and eccentric character.\r\nBold black felt-tip marker outlines, uneven line weight, slightly wobbly contours, blunt strokes, occasional overlapping lines. Bright saturated colors: orange, lemon yellow, vermilion red, grass green, cyan blue, magenta and black. Large, flat, opaque color blocks filled with broad felt-tip markers, subtle overlapping ink streaks and slightly uneven coverage, but clean, vivid surfaces. Simple solid-color background.\r\nRaw naïve folk-art expression, authentic outsider-art sensibility, unpolished and distinctly handmade. Strong graphic contrast, simple silhouettes, minimal but characterful details.",
-    "tags": [
-      "幽默"
-    ],
-    "effectImageUrl": "/style-publications/a44ec3063802f5a83e1e47f0bbd5cf48/effect.webp",
-    "effectGridImageUrl": "/style-publications/a44ec3063802f5a83e1e47f0bbd5cf48/effect-small.webp",
-    "effectGridWidth": 427,
-    "effectGridHeight": 640,
-    "referenceImageUrl": "/style-publications/a44ec3063802f5a83e1e47f0bbd5cf48/reference.webp",
-    "sourceEffectImageUrl": "/generated-images/e4a5dba7-bf93-41fd-bd81-bd248428fb82.png",
-    "sourceReferenceImageUrl": "/job-references/e4a5dba7-bf93-41fd-bd81-bd248428fb82/1-1792236128763.jpg",
-    "createdAt": "2026-10-17T11:24:20.118Z",
-    "updatedAt": "2026-10-17T11:24:20.118Z",
-    "sortOrders": {
-      "幽默": 15
     }
   },
   {
@@ -2653,6 +2631,50 @@
     "updatedAt": "2026-11-05T21:12:22.076Z",
     "sortOrders": {
       "宠物": 3
+    }
+  },
+  {
+    "publicationId": "ef0fce45190d2dfafcaf2ef186460bbe",
+    "jobId": "ce5123a4-4ddb-45b0-ac71-4bbd018ed8bc",
+    "styleId": "style_1792236245515",
+    "styleName": "野笔稚像",
+    "prompt": "A naïve outsider-art portrait, frontal head-and-shoulders view, hand-drawn on paper.\r\nAwkward, highly individual facial proportions, unusual eyes, unusual nose and mouth, peculiar expression, simplified shapes, imperfect anatomy, spontaneous and eccentric character.\r\nBold black felt-tip marker outlines, uneven line weight, slightly wobbly contours, blunt strokes, occasional overlapping lines. Bright saturated colors: orange, lemon yellow, vermilion red, grass green, cyan blue, magenta and black. Large, flat, opaque color blocks filled with broad felt-tip markers, subtle overlapping ink streaks and slightly uneven coverage, but clean, vivid surfaces. Simple solid-color background.\r\nRaw naïve folk-art expression, authentic outsider-art sensibility, unpolished and distinctly handmade. Strong graphic contrast, simple silhouettes, minimal but characterful details.",
+    "tags": [
+      "幽默"
+    ],
+    "effectImageUrl": "/style-publications/ef0fce45190d2dfafcaf2ef186460bbe/effect.webp",
+    "effectGridImageUrl": "/style-publications/ef0fce45190d2dfafcaf2ef186460bbe/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/ef0fce45190d2dfafcaf2ef186460bbe/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/ce5123a4-4ddb-45b0-ac71-4bbd018ed8bc.png",
+    "sourceReferenceImageUrl": "/job-references/ce5123a4-4ddb-45b0-ac71-4bbd018ed8bc/1-1793998941289.jpg",
+    "createdAt": "2026-11-06T21:08:52.659Z",
+    "updatedAt": "2026-11-06T21:08:52.659Z",
+    "sortOrders": {
+      "幽默": 2
+    }
+  },
+  {
+    "publicationId": "32bf72aa5228dcfde5a6f759eeb23b70",
+    "jobId": "8a46da63-4035-4b85-8aa0-e26f61e0b80a",
+    "styleId": "style_1794003234579",
+    "styleName": "日式插画",
+    "prompt": "把照片生成いらすとや风格的图片",
+    "tags": [
+      "幽默"
+    ],
+    "effectImageUrl": "/style-publications/32bf72aa5228dcfde5a6f759eeb23b70/effect.webp",
+    "effectGridImageUrl": "/style-publications/32bf72aa5228dcfde5a6f759eeb23b70/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/32bf72aa5228dcfde5a6f759eeb23b70/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/8a46da63-4035-4b85-8aa0-e26f61e0b80a.png",
+    "sourceReferenceImageUrl": "/job-references/8a46da63-4035-4b85-8aa0-e26f61e0b80a/1-1794003040036.jpg",
+    "createdAt": "2026-11-06T22:15:29.084Z",
+    "updatedAt": "2026-11-06T22:15:29.084Z",
+    "sortOrders": {
+      "幽默": 16
     }
   }
 ]
