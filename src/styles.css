@@ -7660,6 +7660,34 @@ textarea {
   gap: 8px;
 }
 
+/* 未加入卡夹时的“提交定制 / 加入卡夹 / 做同款”固定在同一行 */
+.draw-card-lightbox-actions.is-customize-actions {
+  flex-wrap: nowrap;
+  min-width: 0;
+  gap: 8px;
+}
+
+.draw-card-lightbox-actions.is-customize-actions > button {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-inline: 10px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .draw-card-lightbox-actions.is-customize-actions {
+    width: 100%;
+  }
+
+  .draw-card-lightbox-actions.is-customize-actions > button {
+    flex: 1 1 0;
+    gap: 4px;
+    padding-inline: 6px;
+    font-size: 13px;
+  }
+}
+
 .checkout-order-items .draw-card-order-item {
   grid-template-columns: auto 96px minmax(0, 1fr);
 }

@@ -68,7 +68,6 @@ function createExperiencePage(config) {
       previewNeedsLongPress: false,
       isPreviewOriginalLoading: false,
       isPreviewClipUpdating: false,
-      showOriginalDownloadUnlock: false,
       inviteCode: "",
       errorMessage: "",
       isSubmitting: false,
@@ -767,14 +766,8 @@ function createExperiencePage(config) {
     downloadPreviewOriginal: function () {
       var self = this;
       var jobId = String(this.data.previewJobId || "");
-      var visitorState = this.data.visitorState || {};
-      var account = visitorState.account || {};
 
       if (!jobId || this.data.isPreviewOriginalLoading) return;
-      if (!account.canRedeemOriginalDownloads) {
-        this.setData({ showOriginalDownloadUnlock: true });
-        return;
-      }
 
       this.setData({ isPreviewOriginalLoading: true });
       wx.showLoading({ title: "正在加载原图", mask: true });
@@ -794,8 +787,8 @@ function createExperiencePage(config) {
       }).catch(function (error) {
         wx.hideLoading();
         var message = String(error && error.message || "");
-        if (message.indexOf("购买币累计满 20 元") !== -1) {
-          self.setData({ showOriginalDownloadUnlock: true });
+        if (message.indexOf("提交定制后获得原图下载权限") !== -1) {
+          showOriginalDownloadUnlockModal(self);
           return;
         }
         wx.showToast({ title: message || "原图加载失败，请重试", icon: "none" });
@@ -804,38 +797,11 @@ function createExperiencePage(config) {
       });
     },
 
-    closeOriginalDownloadUnlock: function () {
-      this.setData({ showOriginalDownloadUnlock: false });
-    },
-
-    openOriginalUnlockCoinPurchase: function () {
-      this.setData({
-        showOriginalDownloadUnlock: false,
-        showImagePreview: false,
-        previewImageUrl: "",
-        previewJobId: "",
-        previewIsOriginal: false,
-        previewNeedsLongPress: false,
-        isPreviewOriginalLoading: false
-      });
-      this.openCoinPurchase();
-    },
-
-    openOriginalUnlockOrder: function () {
-      this.setData({ showOriginalDownloadUnlock: false, showImagePreview: false });
-      this.openOrderModal();
-    },
-
     downloadClipOriginal: function (event) {
       var self = this;
       var jobId = event.currentTarget.dataset.jobid;
-      var visitorState = this.data.visitorState || {};
 
       if (!jobId) return;
-      if (!visitorState.account || !visitorState.account.canRedeemOriginalDownloads) {
-        showOriginalDownloadUnlockModal(self);
-        return;
-      }
       downloadClipOriginalToAlbum(self, jobId);
     },
 
@@ -1597,7 +1563,12 @@ function downloadClipOriginalToAlbum(page, jobId) {
     return page.refreshPublicState();
   }).catch(function (error) {
     wx.hideLoading();
-    page.setData({ errorMessage: (error && error.message) || "保存原图失败，请稍后再试。" });
+    var message = String(error && error.message || "");
+    if (message.indexOf("提交定制后获得原图下载权限") !== -1) {
+      showOriginalDownloadUnlockModal(page);
+      return;
+    }
+    page.setData({ errorMessage: message || "保存原图失败，请稍后再试。" });
   });
 }
 
@@ -1668,13 +1639,10 @@ function purchaseCoins(page, coinCount) {
 
 function showOriginalDownloadUnlockModal(page) {
   wx.showModal({
-    title: "解锁原图下载",
-    content: "成功购买币累计满 20 元，或任意定制订单支付成功后，即可下载同一账户下的全部原图，无需额外消耗币。",
-    confirmText: "购买币",
-    cancelText: "知道了",
-    success: function (result) {
-      if (result.confirm) page.openCoinPurchase();
-    }
+    title: "需要定制才能下载原图",
+    content: "提交定制后获得原图下载权限。已定制的小画与整本认知书可永久下载原图。",
+    showCancel: false,
+    confirmText: "知道了"
   });
 }
 

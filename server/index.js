@@ -11,6 +11,8 @@ import { promisify } from "node:util";
 import { createOrderStore } from "./order-store.js";
 import { createMerchantStore } from "./merchant-store.js";
 import { createCommerceStore } from "./commerce-store.js";
+import { PUBLIC_PREVIEW_WATERMARK_LABEL } from "./watermark-label.js";
+import { buildPublicPreviewQrUrl, renderPublicPreviewQr } from "./watermark-qr.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,7 +72,6 @@ const DRAW_CARD_WAITING_MESSAGE = "总计需要约 5 分钟。无需保持当前
 const DRAW_CARD_SUCCESS_MESSAGE = "结果已准备好。";
 const DRAW_CARD_FAILURE_MESSAGE = "这一轮未能顺利完成，请重新开始。";
 const DRAW_CARD_PARTIAL_MESSAGE = "部分结果已准备好，仅扣除成功生成的币。";
-const PUBLIC_PREVIEW_WATERMARK_TEXT = "AI小画家";
 const PUBLIC_PREVIEW_WATERMARK_OUTLINE_FONT_SIZE = 100;
 const PUBLIC_PREVIEW_WATERMARK_OUTLINE_ADVANCE = 404.3;
 const PUBLIC_PREVIEW_WATERMARK_OUTLINE_BASELINE = 96.48;
@@ -1657,15 +1658,20 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
     assertValidOrderAddress(address);
 
     const jobs = await Promise.all(jobIds.map((jobId) => readImageJob(jobId)));
-    const likedJobs = jobs.filter(Boolean).filter((job) =>
+    // 卡夹图片，以及 24 小时内最近任务的已成功图片，都可以直接下单。
+    const recentCutoffAt = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const orderableJobs = jobs.filter(Boolean).filter((job) =>
       job.visibility === "public" &&
       accountOwnsPublicRecord(req.webAccount, job) &&
-      job.isLiked &&
+      (job.isLiked || (
+        job.status === "succeeded" &&
+        String(job.createdAt || "") >= recentCutoffAt
+      )) &&
       normalizePublicExperienceType(job.experienceType) === experienceType
     );
-    if (likedJobs.length !== jobIds.length) throw createHttpError(403, "只能下单当前卡夹中的图片。");
+    if (orderableJobs.length !== jobIds.length) throw createHttpError(403, "只能下单卡夹中或 24 小时内最近任务中的图片。");
 
-    const likedJobById = new Map(likedJobs.map((job) => [String(job.jobId || ""), job]));
+    const orderableJobById = new Map(orderableJobs.map((job) => [String(job.jobId || ""), job]));
     const totalRequestedItemCount = requestedItems.reduce((sum, item) => sum + item.quantity, 0);
     const amount = calculateOrderAmounts(totalRequestedItemCount, pricing);
     const redemptionEntitlements = commerceStore.getRedemptionEntitlementSummary(req.webAccount.id);
@@ -1681,7 +1687,7 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
     const storedOrderItems = await buildStoredOrderItems({
       orderId,
       requestedItems,
-      likedJobById
+      likedJobById: orderableJobById
     });
     const coinDiscountCents = 0;
     const payableCents = usesFridgeRedemption ? 0 : amount.totalCents;
@@ -1758,6 +1764,16 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
       if (usesFridgeRedemption) commerceStore.restoreRedemptionEntitlement({ accountId: req.webAccount.id, entitlementType: "fridge_magnet_item", referenceId: orderId });
       throw error;
     }
+
+    // 下单成功即视为定制：最近任务里未加入卡夹的图片自动加入卡夹。
+    await Promise.all(orderableJobs.filter((job) => !job.isLiked).map(async (job) => {
+      try {
+        const nowIso = new Date().toISOString();
+        await saveImageJob({ ...job, isLiked: true, likedAt: job.likedAt || nowIso, updatedAt: nowIso });
+      } catch (error) {
+        console.error(error);
+      }
+    }));
 
     if (usesFridgeRedemption) {
       const paidOrder = orderStore.updateOrderAndAppendEvent(created.id, {}, {
@@ -2707,7 +2723,7 @@ app.get("/api/body-book/projects/:sessionId/pages/:pageKey/download-original", r
     if (!file) throw createHttpError(404, "该认知书原图不存在。");
     const authorization = commerceStore.authorizeBookOriginalDownload(req.webAccount.id, session.sessionId, page.key);
     if (!authorization.allowed) {
-      throw createHttpError(403, "免分享下载次数已用完。请分享给一位新访客并由对方打开链接，或累计实付满 20 元后再下载认知书原图。", "免分享下载次数已用完。请分享给一位新访客并由对方打开链接，或累计实付满 20 元后再下载认知书原图。");
+      throw createHttpError(403, "提交定制后获得原图下载权限。", "提交定制后获得原图下载权限。");
     }
     await sendBodyBookOriginalImage(res, page, file, { inline: String(req.query?.inline || "") === "1" });
   } catch (error) {
@@ -3323,13 +3339,20 @@ app.post("/api/image-jobs/batch", requireAdmin, async (req, res) => {
 app.get("/api/public/clip-items", requireWebAccount, async (req, res) => {
   try {
     const experienceType = String(req.query.experience || "").trim();
+    // 选图定制页需要同时展示卡夹图片和 24 小时内最近任务的成功图片。
+    const includeRecent = ["1", "true"].includes(String(req.query.recent || "").toLowerCase());
+    const recentCutoffAt = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     const jobs = await listImageJobs();
     const items = jobs
       .filter(
         (job) =>
           job.visibility === "public" &&
           accountOwnsPublicRecord(req.webAccount, job) &&
-          job.isLiked &&
+          (job.isLiked || (
+            includeRecent &&
+            job.status === "succeeded" &&
+            String(job.createdAt || "") >= recentCutoffAt
+          )) &&
           (!experienceType || normalizePublicExperienceType(job.experienceType) === normalizePublicExperienceType(experienceType))
       )
       .sort((a, b) => String(b.likedAt || b.updatedAt || b.createdAt || "").localeCompare(String(a.likedAt || a.updatedAt || a.createdAt || "")))
@@ -3338,7 +3361,6 @@ app.get("/api/public/clip-items", requireWebAccount, async (req, res) => {
         originalRedeemed: commerceStore.isOriginalImageRedeemed(req.webAccount.id, job.jobId),
         originalDownloadAccess: commerceStore.canDownloadDrawOriginal(req.webAccount.id, job.jobId),
         originalDownloadAvailable: commerceStore.canDownloadDrawOriginal(req.webAccount.id, job.jobId)
-          || Number(commerceStore.getOriginalDownloadAllowance(req.webAccount.id).remaining || 0) > 0
        }));
     res.json({ items });
   } catch (error) {
@@ -3400,12 +3422,13 @@ app.get("/api/public/clip-items/:jobId/download-original", requireWebAccount, as
     assertRegisteredAccount(req);
     const file = await resolveJobImageFile(job);
     if (!file) throw createHttpError(404, "原图不存在。");
-    const authorization = commerceStore.authorizeDrawOriginalDownload(req.webAccount.id, job.jobId);
+    const authorization = commerceStore.authorizeDrawOriginalDownload(req.webAccount.id, job.jobId, {
+      recordUse: String(req.query?.preview || "") !== "1"
+    });
     if (!authorization.allowed) {
-      throw createHttpError(403, "免分享下载次数已用完。请分享给一位新访客并由对方打开链接，或累计实付满 20 元后再下载小画原图。", "免分享下载次数已用完。请分享给一位新访客并由对方打开链接，或累计实付满 20 元后再下载小画原图。");
+      throw createHttpError(403, "提交定制后获得原图下载权限。", "提交定制后获得原图下载权限。");
     }
-    // preview=1 仅用于长按保存的原图预览展示：扣次数发生在无 preview 参数的校验请求上，
-    // 避免 <img> 加载同一资源时重复扣次数。
+    // preview=1 仅用于长按保存的原图预览展示：只做权限校验，不记录下载流水。
     if (String(req.query?.preview || "") !== "1") {
       commerceStore.redeemOriginalImage({ accountId: req.webAccount.id, jobId: job.jobId });
     }
@@ -9028,7 +9051,7 @@ function toPublicCommerceAccount(account) {
     beanBalance: Math.max(0, Number(account.beanBalance || 0)),
     referralBalanceCents: Math.max(0, Number(account.referralBalanceCents || 0)),
     referralPendingCents: Math.max(0, Number(account.referralPendingCents || 0)),
-    canRedeemOriginalDownloads: commerceStore.hasOriginalImageDownloadAccess(account.id),
+    canRedeemOriginalDownloads: commerceStore.hasPaidCustomizedOrder(account.id),
     paidOriginalDownloadCents: commerceStore.getPaidOriginalDownloadCents(account.id),
     originalDownloadAllowance: commerceStore.getOriginalDownloadAllowance(account.id),
     createdAt: account.createdAt || null
@@ -13347,10 +13370,7 @@ function toPublicBodyBookSession(session, accountId = "") {
     completedAt: current.completedAt,
     savedAt: current.savedAt,
     share: toPublicBodyBookShare(current.share),
-    originalDownloadAccess: Boolean(accountId) && (
-      commerceStore.hasOriginalImageDownloadAccess(accountId)
-      || commerceStore.hasOriginalDownloadGrant(accountId, "book_project_share", current.sessionId)
-    ),
+    originalDownloadAccess: Boolean(accountId) && commerceStore.canDownloadBookOriginal(accountId, current.sessionId),
     originalDownloadAllowance: accountId ? commerceStore.getOriginalDownloadAllowance(accountId) : null,
     billingError: current.billingError,
     chargedCount: Math.max(0, current.chargedJobIds.length - new Set(current.refundedJobIds).size),
@@ -13363,11 +13383,8 @@ function toPublicBodyBookSession(session, accountId = "") {
     pages: current.pages.map((page) => ({
       ...page,
       result: toPublicPreviewResult(page.result),
-      originalDownloadAccess: Boolean(accountId) && commerceStore.canDownloadBookOriginal(accountId, current.sessionId, page.key),
-      originalDownloadAvailable: Boolean(accountId) && (
-        commerceStore.canDownloadBookOriginal(accountId, current.sessionId, page.key)
-        || Number(commerceStore.getOriginalDownloadAllowance(accountId).remaining || 0) > 0
-      ),
+      originalDownloadAccess: Boolean(accountId) && commerceStore.canDownloadBookOriginal(accountId, current.sessionId),
+      originalDownloadAvailable: Boolean(accountId) && commerceStore.canDownloadBookOriginal(accountId, current.sessionId),
       usesProjectReference: page.references?.every((reference, index) => String(reference?.filename || "") === String(current.references[index]?.filename || "")),
       referenceUrl: `/api/body-book/projects/${encodeURIComponent(current.sessionId)}/pages/${encodeURIComponent(page.key)}/reference`,
       referenceUrls: (page.references || []).map((reference, index) => buildBodyBookReferenceUrl(current.sessionId, index, reference, page.key)),
@@ -15450,6 +15467,7 @@ async function createPublicPreview(jobId, bytes) {
   if (!sharp || !bytes?.length) return null;
 
   try {
+    const qrUrl = buildPublicPreviewQrUrl(await resolvePublicPreviewQrTarget(jobId));
     const resized = await sharp(bytes, { animated: false })
       .rotate()
       .resize({
@@ -15462,7 +15480,7 @@ async function createPublicPreview(jobId, bytes) {
     const width = Number(resized.info?.width || 0) || PUBLIC_PREVIEW_MAX_EDGE;
     const height = Number(resized.info?.height || 0) || PUBLIC_PREVIEW_MAX_EDGE;
     const transformed = await sharp(resized.data, { animated: false })
-      .composite([{ input: createPublicPreviewWatermark(width, height) }])
+      .composite([{ input: createPublicPreviewWatermark(width, height, qrUrl) }])
       .webp({ quality: 88 })
       .toBuffer({ resolveWithObject: true });
     await mkdir(generatedPreviewRoot, { recursive: true });
@@ -15479,13 +15497,51 @@ async function createPublicPreview(jobId, bytes) {
   }
 }
 
-function createPublicPreviewWatermark(width, height) {
+// 二维码带上该图的风格与分享者邀请码，扫码后直达“做同款”并计入邀请。
+async function resolvePublicPreviewQrTarget(jobId) {
+  try {
+    const job = await readImageJob(jobId);
+    if (!job) return {};
+    // 认知书等类型的 styleId 是页面 key，不是真实风格 id，不能用于做同款。
+    const rawStyleId = String(job.styleId || job.telemetry?.styleId || "").trim();
+    const styleId = String(job.experienceType || "") === "draw-card" && /^style_\d+$/.test(rawStyleId) ? rawStyleId : "";
+    const ownerAccountId = String(job.ownerAccountId || "").trim();
+    let referralCode = "";
+    if (ownerAccountId) {
+      try {
+        // 访客账户不能邀请新用户，此时二维码只保留风格、不带邀请码。
+        referralCode = String(commerceStore.getOrCreateReferralLink(ownerAccountId)?.token || "");
+      } catch {
+        referralCode = "";
+      }
+    }
+    return { styleId, referralCode };
+  } catch {
+    return {};
+  }
+}
+
+function createPublicPreviewWatermark(width, height, qrUrl = "") {
   const safeWidth = Math.max(1, Math.round(width || PUBLIC_PREVIEW_MAX_EDGE));
   const safeHeight = Math.max(1, Math.round(height || PUBLIC_PREVIEW_MAX_EDGE));
-  const barHeight = Math.max(72, Math.floor(safeHeight * 0.11));
-  const labelFontSize = Math.max(28, Math.floor(safeWidth * 0.04));
+  const barHeight = Math.max(96, Math.floor(safeHeight * 0.14));
   const labelX = Math.max(24, Math.floor(safeWidth * 0.035));
   const labelY = safeHeight - Math.max(22, Math.floor(barHeight * 0.36));
+  // 右侧二维码白底方块，垂直居中于底部黑条。
+  const qrPlate = Math.max(72, Math.floor(barHeight * 0.86));
+  const qrQuiet = Math.max(6, Math.round(qrPlate * 0.08));
+  const qrX = safeWidth - labelX - qrPlate;
+  const qrY = Math.max(0, safeHeight - barHeight) + Math.floor((barHeight - qrPlate) / 2);
+  const labelMaxWidth = Math.max(60, qrX - Math.max(10, Math.floor(qrPlate * 0.18)) - labelX);
+  // 短文案按底栏高度放大，并受可用宽度约束，避免与二维码重叠。
+  const labelFontSize = Math.max(
+    16,
+    Math.min(
+      Math.floor(barHeight * 0.42),
+      Math.floor(labelMaxWidth / Math.max(1, PUBLIC_PREVIEW_WATERMARK_LABEL.advanceEm))
+    )
+  );
+  const labelScale = labelFontSize / PUBLIC_PREVIEW_WATERMARK_LABEL.unitsPerEm;
   const patternFontSize = Math.max(20, Math.floor(safeWidth * 0.032));
   const patternWidth = Math.max(220, Math.floor(safeWidth * 0.23));
   const patternHeight = Math.max(140, Math.floor(safeHeight * 0.17));
@@ -15493,8 +15549,6 @@ function createPublicPreviewWatermark(width, height) {
   const watermarkOutlineAdvance = PUBLIC_PREVIEW_WATERMARK_OUTLINE_ADVANCE * watermarkOutlineScale;
   const watermarkOutlineY = Math.floor(patternHeight * 0.6) - PUBLIC_PREVIEW_WATERMARK_OUTLINE_BASELINE * watermarkOutlineScale;
   const watermarkOutlineOffsets = [-watermarkOutlineAdvance, 0, watermarkOutlineAdvance, watermarkOutlineAdvance * 2];
-  const labelOutlineScale = labelFontSize / PUBLIC_PREVIEW_WATERMARK_OUTLINE_FONT_SIZE;
-  const labelOutlineY = labelY - PUBLIC_PREVIEW_WATERMARK_OUTLINE_BASELINE * labelOutlineScale;
   const watermarkOutlinePaths = watermarkOutlineOffsets.map((offset) => `
     <path
       d="${PUBLIC_PREVIEW_WATERMARK_OUTLINE_PATH}"
@@ -15517,14 +15571,11 @@ function createPublicPreviewWatermark(width, height) {
       <rect x="0" y="0" width="${safeWidth}" height="${safeHeight}" fill="url(#preview-diagonal-pattern)" />
       <rect x="0" y="${Math.max(0, safeHeight - barHeight)}" width="${safeWidth}" height="${barHeight}" fill="#08080a" fill-opacity="0.82" />
       <path
-        d="${PUBLIC_PREVIEW_WATERMARK_OUTLINE_PATH}"
-        transform="translate(${labelX} ${labelOutlineY}) scale(${labelOutlineScale})"
+        d="${PUBLIC_PREVIEW_WATERMARK_LABEL.path}"
+        transform="translate(${labelX} ${labelY}) scale(${labelScale} ${-labelScale})"
         fill="#ffffff"
-        fill-opacity="1"
-        stroke="#08080a"
-        stroke-opacity="0.52"
-        stroke-width="${1.5 / labelOutlineScale}"
       />
+      ${renderPublicPreviewQr({ url: qrUrl, x: qrX, y: qrY, size: qrPlate, quiet: qrQuiet })}
     </svg>
   `);
 }

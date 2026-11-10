@@ -656,8 +656,52 @@ export function createCommerceStore({ dbPath }) {
     return Math.max(0, purchasedUnits - refundedUnits);
   }
 
-  function hasOriginalImageDownloadAccess(accountId) {
-    return getPaidOriginalDownloadCents(accountId) >= ORIGINAL_IMAGE_DOWNLOAD_UNLOCK_CENTS;
+  // 原图下载权限只看是否真的定制过：小画按单张 job 判定，认知书按整本 project 判定。
+  function hasPaidCustomizedOrder(accountId) {
+    const safeAccountId = String(accountId || "");
+    if (!safeAccountId) return false;
+    return Boolean(db.prepare(`
+      SELECT 1 FROM orders o
+      WHERE (o.account_id = ? OR o.visitor_id IN (
+        SELECT visitor_id FROM commerce_account_visitors WHERE account_id = ?
+      ))
+        AND o.payment_status = 'paid'
+      LIMIT 1
+    `).get(safeAccountId, safeAccountId));
+  }
+
+  function hasPurchasedDrawOriginal(accountId, jobId) {
+    const safeAccountId = String(accountId || "");
+    const safeJobId = String(jobId || "");
+    if (!safeAccountId || !safeJobId) return false;
+    return Boolean(db.prepare(`
+      SELECT 1
+      FROM orders o
+      INNER JOIN order_items i ON i.order_id = o.id
+      WHERE (o.account_id = ? OR o.visitor_id IN (
+          SELECT visitor_id FROM commerce_account_visitors WHERE account_id = ?
+        ))
+        AND o.payment_status = 'paid'
+        AND i.job_id = ?
+      LIMIT 1
+    `).get(safeAccountId, safeAccountId, safeJobId));
+  }
+
+  function hasPurchasedBookOriginal(accountId, projectId) {
+    const safeAccountId = String(accountId || "");
+    const safeProjectId = String(projectId || "");
+    if (!safeAccountId || !safeProjectId) return false;
+    return Boolean(db.prepare(`
+      SELECT 1
+      FROM orders o
+      INNER JOIN body_book_order_books b ON b.order_id = o.id
+      WHERE (o.account_id = ? OR o.visitor_id IN (
+          SELECT visitor_id FROM commerce_account_visitors WHERE account_id = ?
+        ))
+        AND o.payment_status = 'paid'
+        AND b.project_id = ?
+      LIMIT 1
+    `).get(safeAccountId, safeAccountId, safeProjectId));
   }
 
   function getOriginalDownloadAllowanceAdjustment(accountId) {
@@ -693,72 +737,32 @@ export function createCommerceStore({ dbPath }) {
     return { paidCents, unlimited: false, total, used, remaining: Math.max(0, total - used), adjustment };
   }
 
-  function hasOriginalDownloadGrant(accountId, scope, resourceId) {
-    return Boolean(db.prepare(`
-      SELECT 1 FROM commerce_original_download_grants
-      WHERE account_id = ? AND scope = ? AND resource_id = ?
-      LIMIT 1
-    `).get(String(accountId || ""), String(scope || ""), String(resourceId || "")));
-  }
-
-  function buildOriginalDownloadResourceId(type, resourceId, pageKey = "") {
-    return type === "book_page"
-      ? `${String(resourceId || "")}:${String(pageKey || "")}`
-      : String(resourceId || "");
-  }
-
-  function hasOriginalDownloadUse(accountId, resourceType, resourceId) {
-    const allowance = getOriginalDownloadAllowance(accountId);
-    const allowedUseCount = allowance.unlimited ? Number.MAX_SAFE_INTEGER : Math.max(0, Number(allowance.total || 0));
-    if (allowedUseCount <= 0) return false;
-    return Boolean(db.prepare(`
-      SELECT 1
-      FROM commerce_original_download_uses target
-      WHERE target.account_id = ? AND target.resource_type = ? AND target.resource_id = ?
-        AND (
-          SELECT COUNT(*)
-          FROM commerce_original_download_uses earlier
-          WHERE earlier.account_id = target.account_id AND earlier.rowid <= target.rowid
-        ) <= ?
-      LIMIT 1
-    `).get(String(accountId || ""), String(resourceType || ""), String(resourceId || ""), allowedUseCount));
-  }
-
-  function canDownloadBookOriginal(accountId, projectId, pageKey = "") {
-    const resourceId = buildOriginalDownloadResourceId("book_page", projectId, pageKey);
-    return hasOriginalImageDownloadAccess(accountId)
-      || hasOriginalDownloadGrant(accountId, "book_project_share", projectId)
-      || hasOriginalDownloadUse(accountId, "book_page", resourceId);
+  function canDownloadBookOriginal(accountId, projectId) {
+    return hasPurchasedBookOriginal(accountId, projectId);
   }
 
   function canDownloadDrawOriginal(accountId, jobId) {
-    return hasOriginalImageDownloadAccess(accountId)
-      || hasOriginalDownloadGrant(accountId, "draw_image_share", jobId)
-      || hasOriginalDownloadUse(accountId, "draw_image", jobId);
+    return hasPurchasedDrawOriginal(accountId, jobId);
   }
 
-  function authorizeOriginalDownload({ accountId, resourceType, resourceId, shareScope = "", shareResourceId = "" }) {
+  function authorizeOriginalDownload({ accountId, resourceType, resourceId, recordUse = true }) {
     const safeAccountId = String(accountId || "");
     const safeResourceType = String(resourceType || "");
     const safeResourceId = String(resourceId || "");
     if (!safeAccountId || !["book_page", "draw_image"].includes(safeResourceType) || !safeResourceId) {
       throw new Error("Invalid original download resource.");
     }
+    const allowed = safeResourceType === "book_page"
+      ? hasPurchasedBookOriginal(safeAccountId, safeResourceId.split(":")[0])
+      : hasPurchasedDrawOriginal(safeAccountId, safeResourceId);
+    if (!allowed) return { allowed: false, source: "none", usedNow: false };
+    if (!recordUse) return { allowed: true, source: "customized", usedNow: false };
     return withTransaction(db, () => {
-      if (hasOriginalImageDownloadAccess(safeAccountId)) return { allowed: true, source: "paid_unlimited", usedNow: false };
-      if (shareScope && hasOriginalDownloadGrant(safeAccountId, shareScope, shareResourceId)) {
-        return { allowed: true, source: "share", usedNow: false };
-      }
-      if (hasOriginalDownloadUse(safeAccountId, safeResourceType, safeResourceId)) {
-        return { allowed: true, source: "paid_allowance", usedNow: false };
-      }
-      const allowance = getOriginalDownloadAllowance(safeAccountId);
-      if (allowance.remaining <= 0) return { allowed: false, source: "none", usedNow: false, allowance };
       db.prepare(`
         INSERT INTO commerce_original_download_uses (account_id, resource_type, resource_id, created_at)
         VALUES (?, ?, ?, ?)
       `).run(safeAccountId, safeResourceType, safeResourceId, nowIso());
-      return { allowed: true, source: "paid_allowance", usedNow: true, allowance: getOriginalDownloadAllowance(safeAccountId) };
+      return { allowed: true, source: "customized", usedNow: true };
     });
   }
 
@@ -766,35 +770,17 @@ export function createCommerceStore({ dbPath }) {
     return authorizeOriginalDownload({
       accountId,
       resourceType: "book_page",
-      resourceId: buildOriginalDownloadResourceId("book_page", projectId, pageKey),
-      shareScope: "book_project_share",
-      shareResourceId: projectId
+      resourceId: `${String(projectId || "")}:${String(pageKey || "")}`
     });
   }
 
-  function authorizeDrawOriginalDownload(accountId, jobId) {
+  function authorizeDrawOriginalDownload(accountId, jobId, options = {}) {
     return authorizeOriginalDownload({
       accountId,
       resourceType: "draw_image",
       resourceId: String(jobId || ""),
-      shareScope: "draw_image_share",
-      shareResourceId: jobId
+      recordUse: options.recordUse !== false
     });
-  }
-
-  function grantOriginalDownload({ accountId, scope, resourceId, sourceShareToken = "" }) {
-    const safeAccountId = String(accountId || "");
-    const safeScope = String(scope || "");
-    const safeResourceId = String(resourceId || "");
-    if (!safeAccountId || !["book_project_share", "draw_image_share"].includes(safeScope) || !safeResourceId) {
-      throw new Error("Invalid original download grant.");
-    }
-    const result = db.prepare(`
-      INSERT OR IGNORE INTO commerce_original_download_grants
-        (id, account_id, scope, resource_id, source_share_token, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(randomUUID(), safeAccountId, safeScope, safeResourceId, String(sourceShareToken || ""), nowIso());
-    return Number(result.changes || 0) > 0;
   }
 
   function recordContentShareVisit({ shareType, shareToken, visitorId, ownerAccountId, resourceId, viewerAccountId = "" }) {
@@ -803,8 +789,7 @@ export function createCommerceStore({ dbPath }) {
     const safeVisitorId = String(visitorId || "").trim();
     const safeOwnerAccountId = String(ownerAccountId || "").trim();
     const safeResourceId = String(resourceId || "").trim();
-    const scope = safeShareType === "book" ? "book_project_share" : safeShareType === "draw" ? "draw_image_share" : "";
-    if (!scope || !safeToken || !safeVisitorId || !safeOwnerAccountId || !safeResourceId) {
+    if (!["book", "draw"].includes(safeShareType) || !safeToken || !safeVisitorId || !safeOwnerAccountId || !safeResourceId) {
       return { recorded: false, granted: false, reason: "invalid" };
     }
     if (safeOwnerAccountId === String(viewerAccountId || "")) {
@@ -815,52 +800,31 @@ export function createCommerceStore({ dbPath }) {
         SELECT 1 FROM commerce_account_visitors WHERE account_id = ? AND visitor_id = ? LIMIT 1
       `).get(safeOwnerAccountId, safeVisitorId);
       if (ownerVisitor) return { recorded: false, granted: false, reason: "owner" };
-      // 小画次数型权益按“人”去重：同一访客对同一分享者（跨其所有小画分享链接）
-      // 只计 1 次额度。需在写入本次访问前判断，否则会匹配到刚插入的记录。
-      const priorDrawVisitByVisitor = safeShareType === "draw"
-        ? Boolean(db.prepare(`
-            SELECT 1 FROM commerce_content_share_visits
-            WHERE share_type = 'draw' AND owner_account_id = ? AND visitor_id = ?
-            LIMIT 1
-          `).get(safeOwnerAccountId, safeVisitorId))
-        : false;
+      // 分享奖励按“人”去重：同一访客对同一分享者（跨其所有分享链接，小画与认知书合并计算）
+      // 只奖励 1 次。需在写入本次访问前判断，否则会匹配到刚插入的记录。
+      const priorVisitByVisitor = Boolean(db.prepare(`
+        SELECT 1 FROM commerce_content_share_visits
+        WHERE owner_account_id = ? AND visitor_id = ?
+        LIMIT 1
+      `).get(safeOwnerAccountId, safeVisitorId));
       const result = db.prepare(`
         INSERT OR IGNORE INTO commerce_content_share_visits
           (share_type, share_token, visitor_id, owner_account_id, visited_at)
         VALUES (?, ?, ?, ?, ?)
       `).run(safeShareType, safeToken, safeVisitorId, safeOwnerAccountId, nowIso());
       if (Number(result.changes || 0) <= 0) return { recorded: false, granted: false, reason: "duplicate" };
-      if (safeShareType === "draw") {
-        if (priorDrawVisitByVisitor) {
-          // 该访客已为分享者计过次数：仅记录本次访问，不再发放额度。
-          return { recorded: true, granted: false, reason: "already_credited" };
-        }
-        // 小画分享是次数型权益：每位新访客首次打开分享者的任一小画分享链接，
-        // 就给分享者账户加 1 次可下载任意原图的免分享额度。
-        // 已在事务内，直接写额度调整表（adjustOriginalDownloadAllowance 自带事务，不可嵌套调用）。
-        db.prepare(`
-          INSERT INTO commerce_original_download_allowance_adjustments (id, account_id, delta, note, created_at)
-          VALUES (?, ?, ?, ?, ?)
-        `).run(
-          randomUUID(),
-          safeOwnerAccountId,
-          1,
-          `小画分享被新访客打开 +1 次免分享下载（分享码 ${safeToken.slice(0, 8)}）`,
-          nowIso()
-        );
-        return { recorded: true, granted: true, reason: "recorded" };
+      if (priorVisitByVisitor) {
+        // 该访客已为分享者计过奖励：仅记录本次访问，不再发放。
+        return { recorded: true, granted: false, reason: "already_credited" };
       }
-      // 认知书分享保持原逻辑：首位新访客打开后解锁本工程全部原图。
-      return {
-        recorded: true,
-        granted: grantOriginalDownload({
-          accountId: safeOwnerAccountId,
-          scope,
-          resourceId: safeResourceId,
-          sourceShareToken: safeToken
-        }),
-        reason: "recorded"
-      };
+      // 每位新访客首次打开分享者的分享链接，给分享者账户加 1 个币。
+      appendLedger(safeOwnerAccountId, 1, {
+        reason: "content_share_visit_reward",
+        referenceType: "content_share_visit",
+        referenceId: safeVisitorId,
+        note: `新访客打开${safeShareType === "book" ? "认知书" : "小画"}分享链接，奖励 1 个币（分享码 ${safeToken.slice(0, 8)}）`
+      });
+      return { recorded: true, granted: true, rewardCoins: 1, reason: "recorded" };
     });
   }
 
@@ -1204,21 +1168,7 @@ export function createCommerceStore({ dbPath }) {
   }
 
   function isOriginalImageRedeemed(accountId, jobId) {
-    const safeAccountId = String(accountId || "");
-    const safeJobId = String(jobId || "");
-    if (readOriginalImageRedemptionStatement.get(safeAccountId, safeJobId)) return true;
-    return Boolean(db.prepare(`
-      SELECT 1
-      FROM commerce_payment_intents p
-      INNER JOIN orders o ON o.id = p.target_order_id
-      INNER JOIN order_items i ON i.order_id = o.id
-      WHERE p.account_id = ?
-        AND p.kind = 'physical_order'
-        AND p.status = 'paid'
-        AND o.account_id = ?
-        AND i.job_id = ?
-      LIMIT 1
-    `).get(safeAccountId, safeAccountId, safeJobId));
+    return hasPurchasedDrawOriginal(accountId, jobId);
   }
 
   function createUserSession(accountId, { ttlMs = 30 * 24 * 60 * 60 * 1000 } = {}) {
@@ -1967,11 +1917,13 @@ export function createCommerceStore({ dbPath }) {
         SELECT o.id
         FROM orders o
         INNER JOIN order_items i ON i.order_id = o.id
-        WHERE o.account_id = ?
+        WHERE (o.account_id = ? OR o.visitor_id IN (
+            SELECT visitor_id FROM commerce_account_visitors WHERE account_id = ?
+          ))
           AND o.payment_status = 'paid'
           AND i.job_id = ?
         LIMIT 1
-      `).get(safeAccountId, safeJobId);
+      `).get(safeAccountId, safeAccountId, safeJobId);
       const redeemedAt = nowIso();
       if (includedOrder) {
         db.prepare(`
@@ -2856,9 +2808,9 @@ export function createCommerceStore({ dbPath }) {
     getPaidOriginalDownloadCents,
     getOriginalDownloadAllowance,
     listOriginalDownloadAllowanceAdjustments,
-    grantOriginalDownload,
-    hasOriginalDownloadGrant,
-    hasOriginalImageDownloadAccess,
+    hasPaidCustomizedOrder,
+    hasPurchasedDrawOriginal,
+    hasPurchasedBookOriginal,
     hasPaidPhysicalOrder,
     isOriginalImageRedeemed,
     linkVisitor,

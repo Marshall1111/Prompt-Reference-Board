@@ -103,7 +103,7 @@
             <view class="clip-meta">
               <text>{{item.styleName || clipItemFallback}}</text>
               <view class="clip-item-actions">
-                <button bindtap="downloadClipOriginal" class="mini-primary" data-jobid="{{item.jobId}}">{{visitorState && visitorState.account && visitorState.account.canRedeemOriginalDownloads ? '下载原图' : '解锁后下载'}}</button>
+                <button bindtap="downloadClipOriginal" class="mini-primary" data-jobid="{{item.jobId}}">下载原图</button>
                 <button bindtap="removeFromClip" class="mini-danger" data-jobid="{{item.jobId}}">{{pocketRemoveLabel}}</button>
               </view>
             </view>
@@ -122,7 +122,7 @@
         <view class="account-panel" wx:if="{{!isDrawCard}}">
           <view class="account-summary">
             <text class="account-name">{{visitorState && visitorState.account ? visitorState.account.username : '微信用户'}}</text>
-            <text class="account-access">{{visitorState && visitorState.account && visitorState.account.canRedeemOriginalDownloads ? '已解锁账户下全部原图下载' : '购买币累计满 20 元或完成定制订单可解锁原图下载'}}</text>
+            <text class="account-access">{{visitorState && visitorState.account && visitorState.account.canRedeemOriginalDownloads ? '已定制，可下载已定制内容的原图' : '提交定制后，已定制的小画与整本认知书可下载原图'}}</text>
           </view>
           <text>账户币：{{visitorState && visitorState.account ? visitorState.account.coinBalance : '--'}}</text>
           <input bindinput="onInviteInput" class="inline-input" placeholder="输入兑换码" value="{{inviteCode}}" />
@@ -153,18 +153,6 @@
         <button bindtap="downloadPreviewOriginal" class="image-preview-download" loading="{{isPreviewOriginalLoading}}" disabled="{{isPreviewOriginalLoading || isPreviewClipUpdating || !previewJobId}}">下载原图</button>
       </view>
       <text class="image-preview-tip" wx:if="{{previewNeedsLongPress}}">请长按图片保存原图</text>
-    </view>
-  </view>
-
-  <view bindtap="closeOriginalDownloadUnlock" class="original-unlock-mask" wx:if="{{showOriginalDownloadUnlock}}">
-    <view catchtap="stopTap" class="original-unlock-card">
-      <text class="original-unlock-title">解锁原图下载</text>
-      <text class="original-unlock-text">购买币累计满 20 元，或完成任意冰箱贴定制订单支付后，即可下载本账户下的全部原图，无需额外消耗币。</text>
-      <view class="original-unlock-actions">
-        <button bindtap="openOriginalUnlockCoinPurchase" class="primary-button">购买币</button>
-        <button bindtap="openOriginalUnlockOrder" class="secondary-button">选图定制</button>
-      </view>
-      <button bindtap="closeOriginalDownloadUnlock" class="original-unlock-dismiss">暂不解锁</button>
     </view>
   </view>
 
@@ -371,7 +359,7 @@
       <button bindtap="closeCoinPurchase" class="modal-close-button" disabled="{{isCoinPurchaseBusy}}" aria-label="关闭">×</button>
       <text class="modal-eyebrow">Buy coins</text>
       <text class="modal-title">购买币</text>
-      <text class="coin-purchase-intro">{{coinPurchaseUnitPriceText}} = 1 币。成功购买的金额可抵扣冰箱贴商品金额，每枚冰箱贴最多抵扣 15 元；累计成功购买满 20 元可解锁账户下全部原图下载。</text>
+      <text class="coin-purchase-intro">{{coinPurchaseUnitPriceText}} = 1 币。成功购买的金额可抵扣冰箱贴商品金额，每枚冰箱贴最多抵扣 15 元；原图下载需在提交定制订单后获得。</text>
 
       <view class="coin-purchase-presets">
         <button bindtap="selectCoinPurchaseCount" class="coin-purchase-preset" data-count="10" disabled="{{isCoinPurchaseBusy}}">10 币</button>
