@@ -48,15 +48,6 @@ export async function downloadQrPng(text, filename, options = {}) {
   downloadBlob(blob, filename);
 }
 
-function loadDataUrlImage(dataUrl) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("生成二维码图片失败。"));
-    image.src = dataUrl;
-  });
-}
-
 function splitCaptionLines(context, text, maxWidth) {
   const characters = Array.from(String(text || "").trim());
   if (!characters.length) return [];
@@ -83,12 +74,6 @@ export async function createLabeledQrPngDataUrl(text, label, options = {}) {
   const lineHeight = Math.round(fontSize * 1.45);
   const captionTop = Math.round(pixelSize * 0.025);
   const captionBottom = Math.round(pixelSize * 0.055);
-  const qrDataUrl = await QRCode.toDataURL(String(text || ""), {
-    ...normalizeOptions(options),
-    type: "png",
-    width: qrSize
-  });
-  const qrImage = await loadDataUrlImage(qrDataUrl);
   const measureCanvas = document.createElement("canvas");
   const measureContext = measureCanvas.getContext("2d");
   if (!measureContext) throw new Error("浏览器不支持生成风格码。");
@@ -102,7 +87,13 @@ export async function createLabeledQrPngDataUrl(text, label, options = {}) {
   if (!context) throw new Error("浏览器不支持生成风格码。");
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(qrImage, outerPadding, outerPadding, qrSize, qrSize);
+  // 直接把二维码画到独立画布再贴图，省掉一次 PNG 编码 + 解码的开销。
+  const qrCanvas = document.createElement("canvas");
+  await QRCode.toCanvas(qrCanvas, String(text || ""), {
+    ...normalizeOptions(options),
+    width: qrSize
+  });
+  context.drawImage(qrCanvas, outerPadding, outerPadding, qrSize, qrSize);
   if (lines.length) {
     context.fillStyle = "#202020";
     context.font = `600 ${fontSize}px "Microsoft YaHei", "PingFang SC", sans-serif`;

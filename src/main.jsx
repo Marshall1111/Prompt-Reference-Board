@@ -7059,13 +7059,12 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
 
   async function openDrawShare(item) {
     if (!item?.jobId || drawShareBusy) return;
-    const latest = await fetchVisitorState().catch(() => visitorState);
-    if (!latest?.account?.isRegistered) {
+    // 登录状态用页面已加载的 visitorState 判断，省掉一次接口往返。
+    if (visitorState && !visitorState.account?.isRegistered) {
       pendingDrawShareRef.current = item;
       setShowAuthModal(true);
       return;
     }
-    setVisitorState(latest);
     setDrawShareTarget(item);
     setDrawShareBusy(true);
     setDrawShareUrl("");
@@ -7081,6 +7080,12 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
         setDrawShareNotice("分享链接已生成，请点击下方按钮复制。");
       }
     } catch (nextError) {
+      if (nextError?.status === 401) {
+        pendingDrawShareRef.current = item;
+        setDrawShareTarget(null);
+        setShowAuthModal(true);
+        return;
+      }
       setDrawShareError(nextError.message || "创建分享链接失败，请稍后重试。");
     } finally {
       setDrawShareBusy(false);
@@ -7090,12 +7095,11 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
   async function openStyleQr(item) {
     const safeStyleId = String(item?.styleId || "").trim();
     if (!safeStyleId || styleQrBusy) return;
-    const latest = await fetchVisitorState().catch(() => visitorState);
-    if (!latest?.account?.isRegistered) {
+    // 登录状态用页面已加载的 visitorState 判断，省掉一次接口往返。
+    if (visitorState && !visitorState.account?.isRegistered) {
       setShowAuthModal(true);
       return;
     }
-    setVisitorState(latest);
     setStyleQrBusy(true);
     setStyleQrError("");
     setStyleQrPreview(null);
@@ -7113,6 +7117,10 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
         })
       });
     } catch (nextError) {
+      if (nextError?.status === 401) {
+        setShowAuthModal(true);
+        return;
+      }
       setStyleQrError(nextError.message || "生成风格码失败，请稍后再试。");
     } finally {
       setStyleQrBusy(false);
@@ -10344,14 +10352,25 @@ async function createReferralLink(target = "") {
   return payload;
 }
 
+// 邀请链接与登录态无关、同一用户同一风格长期不变，缓存 5 分钟避免重复点击时再次往返。
+const STYLE_INVITE_LINK_TTL_MS = 5 * 60 * 1000;
+const styleInviteLinkCache = new Map();
+
 async function createStyleInviteLink(styleId) {
+  const cached = styleInviteLinkCache.get(styleId);
+  if (cached && Date.now() - cached.cachedAt < STYLE_INVITE_LINK_TTL_MS) return cached.payload;
   const response = await fetch("/api/referrals/link", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ target: "draw-card", styleId })
   });
   const payload = await readAuthJsonResponse(response, { message: "生成风格码失败。" });
-  if (!response.ok) throw new Error(payload.message || "生成风格码失败。");
+  if (!response.ok) {
+    const error = new Error(payload.message || "生成风格码失败。");
+    error.status = response.status;
+    throw error;
+  }
+  styleInviteLinkCache.set(styleId, { cachedAt: Date.now(), payload });
   return payload;
 }
 
@@ -14343,7 +14362,11 @@ async function recordPublicDrawShareVisit(token) {
 async function createDrawImageShare(jobId) {
   const response = await fetch(`/api/public/clip-items/${encodeURIComponent(jobId)}/share`, { method: "POST" });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.message || "创建分享链接失败，请稍后重试。");
+  if (!response.ok) {
+    const error = new Error(payload.message || "创建分享链接失败，请稍后重试。");
+    error.status = response.status;
+    throw error;
+  }
   return payload;
 }
 
