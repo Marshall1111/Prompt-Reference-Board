@@ -6398,6 +6398,17 @@ h2 {
   min-width: 120px;
 }
 
+/* 商户列表列较多，改为自动布局并允许横向滚动，避免列被压扁。 */
+.referral-admin-card .user-admin-table.store-owner-table {
+  table-layout: auto;
+  min-width: 1120px;
+}
+
+.store-owner-price-input {
+  min-width: 88px !important;
+  max-width: 110px;
+}
+
 .store-owner-wechat-edit .secondary-button {
   min-height: 28px;
   padding: 0 10px;
@@ -12903,4 +12914,228 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .body-book-flip-stage,
   .body-book-flip-page-inner { scroll-behavior: auto; }
+}
+
+/* 商户工作台（/merchant）：面向店家的独立页面，不复用 C 端导航。 */
+.merchant-page {
+  width: min(920px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0 56px;
+  color: #1d1d1f;
+}
+
+.merchant-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.merchant-header h1 { margin: 4px 0 0; font-size: clamp(24px, 4vw, 32px); letter-spacing: -0.03em; }
+.merchant-sub { display: inline-block; margin-top: 6px; color: #6e6e73; font-size: 13px; }
+.merchant-home-link { color: #0071e3; font-size: 14px; text-decoration: none; white-space: nowrap; }
+.merchant-home-link:hover { text-decoration: underline; }
+
+.merchant-card,
+.merchant-stat-grid article,
+.merchant-stat-grid .merchant-stat-card {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.035);
+}
+
+.merchant-card { margin-top: 16px; padding: 22px 24px; }
+.merchant-card h2 { margin: 0; font-size: 18px; }
+.merchant-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.merchant-gate { display: grid; gap: 10px; justify-items: start; }
+
+.merchant-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f2f2f4;
+  color: #6e6e73;
+  white-space: nowrap;
+}
+
+.merchant-badge.is-online { background: #e7f6ec; color: #1a7f37; }
+.merchant-badge.is-offline { background: #fdecec; color: #c02b2b; }
+.merchant-badge.is-pending { background: #fff4e0; color: #a05a00; }
+.merchant-badge.is-processing { background: #e8f0fe; color: #1a56c4; }
+
+.merchant-status-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+.merchant-status-grid > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #ececef;
+  border-radius: 14px;
+  background: #fafafa;
+}
+.merchant-status-grid span { display: block; color: #6e6e73; font-size: 12px; }
+.merchant-status-grid strong { font-size: 18px; letter-spacing: -0.02em; word-break: break-all; }
+.merchant-status-grid strong.is-online { color: #1a7f37; }
+.merchant-status-grid strong.is-offline { color: #c02b2b; }
+
+.merchant-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.merchant-stat-grid article,
+.merchant-stat-grid .merchant-stat-card { padding: 18px; min-width: 0; }
+.merchant-stat-grid span { display: block; color: #6e6e73; font-size: 13px; }
+.merchant-stat-grid strong { display: block; margin-top: 8px; font-size: 26px; letter-spacing: -0.03em; }
+
+.merchant-stat-card {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.merchant-stat-card:hover { background: #fafafa; }
+.merchant-stat-card small { display: block; margin-top: 6px; color: #0071e3; font-size: 12px; }
+
+.task-toolbar-actions { display: flex; align-items: center; gap: 10px; }
+
+.merchant-login-qr { width: 180px; height: 180px; border: 1px solid #ececef; border-radius: 12px; background: #fff; }
+.merchant-login-url { margin: 0; color: #6e6e73; font-size: 12px; word-break: break-all; }
+
+.merchant-header-actions { display: flex; align-items: center; gap: 10px; }
+.merchant-settings-button {
+  padding: 7px 14px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  background: #fff;
+  color: #1d1d1f;
+  font-size: 13px;
+  cursor: pointer;
+}
+.merchant-settings-button:hover { background: #f5f5f7; }
+
+.merchant-modal.is-wallet { width: min(460px, 100%); }
+.merchant-modal.is-today { width: min(600px, 100%); max-height: min(86vh, 760px); overflow-y: auto; }
+.merchant-today-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+.merchant-today-list > li {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #ececef;
+  border-radius: 14px;
+  background: #fafafa;
+}
+.merchant-today-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.merchant-today-head > div { display: grid; gap: 3px; min-width: 0; }
+.merchant-today-head strong { font-size: 15px; letter-spacing: -0.01em; }
+.merchant-today-head small { color: #6e6e73; font-size: 12px; word-break: break-all; }
+.merchant-today-income { display: grid; justify-items: end; gap: 6px; text-align: right; }
+.merchant-today-income > span { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.merchant-wallet-summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #f7f7f9;
+}
+.merchant-wallet-summary span { display: block; color: #6e6e73; font-size: 12px; }
+.merchant-wallet-summary strong { display: block; margin-top: 6px; font-size: 22px; letter-spacing: -0.02em; }
+.merchant-wallet-title { margin: 4px 0 0; font-size: 14px; color: #6e6e73; font-weight: 500; }
+.merchant-wallet-entries { margin: 0; padding: 0; list-style: none; max-height: 260px; overflow-y: auto; }
+.merchant-wallet-entries li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f2;
+}
+.merchant-wallet-entries li:last-child { border-bottom: 0; }
+.merchant-wallet-entries div { display: grid; gap: 2px; min-width: 0; }
+.merchant-wallet-entries small { color: #98989d; font-size: 12px; }
+.merchant-wallet-entries .is-income { color: #1a7f37; font-variant-numeric: tabular-nums; }
+.merchant-wallet-entries .is-withdrawal { color: #c02b2b; font-variant-numeric: tabular-nums; }
+
+.merchant-task-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+}
+.merchant-task-images figure { margin: 0; display: grid; gap: 6px; }
+.merchant-task-images img,
+.merchant-task-images .merchant-job-placeholder {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #f0f0f2;
+}
+.merchant-job-placeholder {
+  display: grid;
+  place-items: center;
+  color: #98989d;
+  font-size: 12px;
+}
+.merchant-job-download {
+  justify-self: start;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #1d1d1f;
+  color: #fff;
+  font-size: 12px;
+  text-decoration: none;
+}
+.merchant-job-download:hover { opacity: 0.86; }
+
+.merchant-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.36);
+}
+.merchant-modal {
+  width: min(380px, 100%);
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+}
+.merchant-modal h2 { margin: 0; font-size: 18px; }
+.merchant-field { display: grid; gap: 6px; font-size: 13px; color: #6e6e73; }
+.merchant-field input {
+  padding: 11px 14px;
+  border: 1px solid #d8d8dc;
+  border-radius: 12px;
+  font-size: 15px;
+  color: #1d1d1f;
+}
+.merchant-field input:focus { outline: 2px solid rgba(0, 113, 227, 0.35); outline-offset: 1px; }
+.merchant-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+@media (max-width: 720px) {
+  .merchant-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .merchant-stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .merchant-stat-grid article,
+  .merchant-stat-grid .merchant-stat-card { padding: 12px; }
+  .merchant-stat-grid strong { font-size: 18px; }
+  .merchant-stat-grid small { display: none; }
+  .merchant-header { flex-direction: column; }
+  .merchant-header-actions { width: 100%; justify-content: space-between; }
 }

@@ -1055,6 +1055,359 @@ app.get("/api/auth/me", (req, res) => {
   res.json({ authenticated: Boolean(req.userSession), account: toPublicCommerceAccount(req.webAccount) });
 });
 
+const MERCHANT_WALLETS_PATH = path.join(rootDir, "data", "merchant-wallets.json");
+
+async function readMerchantWalletsMap() {
+  try {
+    const payload = JSON.parse(await readFile(MERCHANT_WALLETS_PATH, "utf-8"));
+    return payload && typeof payload === "object" ? payload : {};
+  } catch (error) {
+    if (error.code === "ENOENT") return {};
+    throw error;
+  }
+}
+
+// 商户结算：每张图按固定单价结算收益（单价在后台商户页维护，默认 8 元/张）。
+const DEFAULT_MERCHANT_UNIT_PRICE_CENTS = 800;
+
+function resolveMerchantUnitPriceCents(settings) {
+  const value = Math.round(Number(settings?.unitPriceCents));
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_MERCHANT_UNIT_PRICE_CENTS;
+}
+
+// 提现流水：amountCents 为负数；收益不落库，按任务张数 × 单价实时计算。
+function readMerchantWithdrawals(wallet) {
+  return (Array.isArray(wallet?.entries) ? wallet.entries : [])
+    .filter((entry) => entry?.type === "withdrawal")
+    .map((entry) => ({
+      id: String(entry?.id || ""),
+      type: "withdrawal",
+      amountCents: -Math.abs(Number(entry?.amountCents || 0)),
+      note: String(entry?.note || ""),
+      taskNo: "",
+      createdAt: entry?.createdAt || null
+    }))
+    .sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
+}
+
+function summarizeMerchantEarnings({ totalImages = 0, todayImages = 0, unitPriceCents = 0, wallet = null }) {
+  const withdrawals = readMerchantWithdrawals(wallet);
+  const totalIncomeCents = Number(totalImages || 0) * Number(unitPriceCents || 0);
+  const totalWithdrawnCents = withdrawals.reduce((sum, entry) => sum + Math.abs(entry.amountCents), 0);
+  return {
+    unitPriceCents: Number(unitPriceCents || 0),
+    totalIncomeCents,
+    todayIncomeCents: Number(todayImages || 0) * Number(unitPriceCents || 0),
+    totalWithdrawnCents,
+    balanceCents: totalIncomeCents - totalWithdrawnCents,
+    withdrawals
+  };
+}
+
+const MERCHANT_SETTINGS_PATH = path.join(rootDir, "data", "merchant-settings.json");
+
+async function readMerchantSettingsMap() {
+  try {
+    const payload = JSON.parse(await readFile(MERCHANT_SETTINGS_PATH, "utf-8"));
+    return payload && typeof payload === "object" ? payload : {};
+  } catch (error) {
+    if (error.code === "ENOENT") return {};
+    throw error;
+  }
+}
+
+async function writeMerchantSettingsMap(next) {
+  await mkdir(path.dirname(MERCHANT_SETTINGS_PATH), { recursive: true });
+  await writeFile(MERCHANT_SETTINGS_PATH, `${JSON.stringify(next, null, 2)}\n`, "utf-8");
+}
+
+// 商户归属关系：访客在店家风格码落地时写入 storeOwnerAccountId，
+// 这里按访客档案反查该店家名下的访客，再据此聚合订单与任务。
+const storeOwnerVisitorIdsCache = new Map();
+const STORE_OWNER_VISITOR_CACHE_TTL_MS = 60 * 1000;
+
+async function listStoreOwnerVisitorIds(storeOwnerAccountId) {
+  const accountId = String(storeOwnerAccountId || "");
+  if (!accountId) return [];
+  const cached = storeOwnerVisitorIdsCache.get(accountId);
+  if (cached && Date.now() - cached.cachedAt < STORE_OWNER_VISITOR_CACHE_TTL_MS) return cached.visitorIds;
+
+  await mkdir(visitorStateRoot, { recursive: true });
+  const entries = await readdir(visitorStateRoot, { withFileTypes: true });
+  const fileNames = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".json")).map((entry) => entry.name);
+  const pattern = new RegExp(`"storeOwnerAccountId"\\s*:\\s*"${accountId.replace(/[^a-zA-Z0-9_-]/g, "")}"`);
+  const visitorIds = [];
+  for (let index = 0; index < fileNames.length; index += 200) {
+    const batch = fileNames.slice(index, index + 200);
+    const texts = await Promise.all(batch.map((name) => readFile(path.join(visitorStateRoot, name), "utf-8")));
+    texts.forEach((text, offset) => {
+      if (pattern.test(text)) visitorIds.push(batch[offset].replace(/\.json$/, ""));
+    });
+  }
+  storeOwnerVisitorIdsCache.set(accountId, { visitorIds, cachedAt: Date.now() });
+  return visitorIds;
+}
+
+function requireMerchantAccount(req) {
+  if (!req.userSession || !req.webAccount) {
+    throw createHttpError(401, "请先用微信登录商户账号。", "请先在微信中登录商户账号。");
+  }
+  if (!req.webAccount.isStoreOwner || req.webAccount.accountStatus === "disabled") {
+    throw createHttpError(403, "当前账号没有商户权限。", "当前账号还不是商户，请联系客服开通。");
+  }
+  return req.webAccount;
+}
+
+function getShanghaiDayStartIso() {
+  const now = new Date();
+  const shanghaiNow = new Date(now.getTime() + 8 * 3600 * 1000);
+  const dayStartUtc = Date.UTC(
+    shanghaiNow.getUTCFullYear(),
+    shanghaiNow.getUTCMonth(),
+    shanghaiNow.getUTCDate()
+  ) - 8 * 3600 * 1000;
+  return new Date(dayStartUtc).toISOString();
+}
+
+function merchantTaskStatus(status) {
+  if (status === "completed" || status === "shipped") return { label: "打印成功", tone: "is-online" };
+  if (status === "in_production") return { label: "打印中", tone: "is-processing" };
+  if (status === "cancelled" || status === "refunded" || status === "failed") return { label: "打印失败", tone: "is-offline" };
+  return { label: "待打印", tone: "is-pending" };
+}
+
+// 商户口径：平台收到已支付订单后派发一个打印任务，多张图仍算一个任务。
+function toMerchantTask(order, unitPriceCents = 0) {
+  const status = merchantTaskStatus(order?.fulfillmentStatus);
+  const taskNo = String(order?.orderNo || "");
+  const imageCount = Number(order?.itemCount || (Array.isArray(order?.items) ? order.items.length : 0));
+  const images = (Array.isArray(order?.items) ? order.items : []).map((item) => ({
+    jobId: String(item?.jobId || ""),
+    styleName: String(item?.styleName || ""),
+    thumbnailUrl: String(item?.thumbnailUrl || ""),
+    originalUrl: item?.jobId ? `/api/merchant/jobs/${encodeURIComponent(item.jobId)}/original` : ""
+  }));
+  return {
+    taskNo,
+    experienceType: normalizePublicExperienceType(order?.experienceType),
+    imageCount,
+    status: String(order?.fulfillmentStatus || "new"),
+    statusLabel: status.label,
+    statusTone: status.tone,
+    createdAt: order?.createdAt || null,
+    paidAt: order?.paidAt || null,
+    // 固定单价结算：收益 = 张数 × 每张单价。
+    incomeCents: imageCount * Number(unitPriceCents || 0),
+    unitPriceCents: Number(unitPriceCents || 0),
+    images
+  };
+}
+
+app.get("/api/merchant/me", async (req, res, next) => {
+  // 商户工作台入口：只读接口，未登录时不触发建号。
+  // 商户身份复用“小画店家”（commerce_accounts.store_role = 'store_owner'），无需新的账号体系。
+  try {
+    const account = req.userSession ? req.webAccount : null;
+    if (!account) {
+      res.json({ authenticated: false, isMerchant: false, merchant: null, settings: null });
+      return;
+    }
+    const isMerchant = Boolean(account.isStoreOwner) && account.accountStatus !== "disabled";
+    const settingsMap = isMerchant ? await readMerchantSettingsMap() : {};
+    res.json({
+      authenticated: true,
+      isMerchant,
+      merchant: isMerchant
+        ? {
+            accountId: account.id,
+            name: account.username || account.wechatNickname || account.email || `商户 ${account.id.slice(-6)}`,
+            wechatId: account.storeWechatId || "",
+            avatarUrl: account.wechatAvatarUrl ? `/api/public/account-avatars/${account.id}` : ""
+          }
+        : null,
+      settings: isMerchant
+        ? {
+            phone: String(settingsMap[account.id]?.phone || ""),
+            unitPriceCents: resolveMerchantUnitPriceCents(settingsMap[account.id])
+          }
+        : null
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/merchant/overview", async (req, res, next) => {
+  try {
+    const account = requireMerchantAccount(req);
+    const visitorIds = await listStoreOwnerVisitorIds(account.id);
+    const todayStart = getShanghaiDayStartIso();
+    const stats = orderStore.summarizeTasksForVisitors({ visitorIds, todayStart });
+    const unitPriceCents = resolveMerchantUnitPriceCents((await readMerchantSettingsMap())[account.id]);
+    const earnings = summarizeMerchantEarnings({
+      totalImages: stats.totalImages,
+      todayImages: stats.todayImages,
+      unitPriceCents,
+      wallet: (await readMerchantWalletsMap())[account.id]
+    });
+    res.json({
+      merchant: {
+        accountId: account.id,
+        name: account.username || account.wechatNickname || account.email || `商户 ${account.id.slice(-6)}`,
+        wechatId: account.storeWechatId || ""
+      },
+      stats,
+      wallet: {
+        balanceCents: earnings.balanceCents,
+        todayIncomeCents: earnings.todayIncomeCents,
+        totalIncomeCents: earnings.totalIncomeCents,
+        unitPriceCents
+      },
+      // 打印机状态由代理心跳上报，接入前 connected 为 false，排队数先用待打印任务数。
+      printer: {
+        connected: false,
+        online: false,
+        fault: "",
+        paperOut: false,
+        printingCount: 0,
+        queuedCount: Number(stats?.pendingTasks || 0)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/merchant/wallet", async (req, res, next) => {
+  try {
+    const account = requireMerchantAccount(req);
+    const visitorIds = await listStoreOwnerVisitorIds(account.id);
+    const todayStart = getShanghaiDayStartIso();
+    const stats = orderStore.summarizeTasksForVisitors({ visitorIds, todayStart });
+    const unitPriceCents = resolveMerchantUnitPriceCents((await readMerchantSettingsMap())[account.id]);
+    const earnings = summarizeMerchantEarnings({
+      totalImages: stats.totalImages,
+      todayImages: stats.todayImages,
+      unitPriceCents,
+      wallet: (await readMerchantWalletsMap())[account.id]
+    });
+    // 收益流水由已支付任务实时推导，只取最近 50 条用于展示。
+    const recentTasks = visitorIds.length
+      ? orderStore.listOrders({
+          visitorIds,
+          paymentStatus: "paid",
+          excludeExperienceType: "body-book",
+          limit: 50
+        })
+      : { items: [] };
+    const incomeEntries = recentTasks.items.map((order) => {
+      const task = toMerchantTask(order, unitPriceCents);
+      return {
+        id: `income-${task.taskNo}`,
+        type: "income",
+        amountCents: task.incomeCents,
+        note: `任务 ${task.taskNo} · ${task.imageCount} 张`,
+        taskNo: task.taskNo,
+        createdAt: task.paidAt || task.createdAt
+      };
+    });
+    const entries = [...incomeEntries, ...earnings.withdrawals]
+      .sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
+    res.json({
+      unitPriceCents,
+      balanceCents: earnings.balanceCents,
+      totalIncomeCents: earnings.totalIncomeCents,
+      totalWithdrawnCents: earnings.totalWithdrawnCents,
+      todayIncomeCents: earnings.todayIncomeCents,
+      entries
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/merchant/tasks", async (req, res, next) => {
+  try {
+    const account = requireMerchantAccount(req);
+    const visitorIds = await listStoreOwnerVisitorIds(account.id);
+    if (!visitorIds.length) {
+      res.json({ total: 0, page: 1, limit: 10, items: [] });
+      return;
+    }
+    const limit = Math.min(Math.max(Number(req.query?.limit || 10), 1), 50);
+    const todayOnly = String(req.query?.today || "") === "1";
+    // 认知书有独立商户页，当前工作台只展示小画任务。
+    const result = orderStore.listOrders({
+      visitorIds,
+      paymentStatus: "paid",
+      excludeExperienceType: "body-book",
+      paidFrom: todayOnly ? getShanghaiDayStartIso() : "",
+      page: req.query?.page,
+      limit
+    });
+    const unitPriceCents = resolveMerchantUnitPriceCents((await readMerchantSettingsMap())[account.id]);
+    res.json({
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      unitPriceCents,
+      items: result.items.map((order) => toMerchantTask(order, unitPriceCents))
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/merchant/jobs/:jobId/original", async (req, res) => {
+  try {
+    // 客户已支付的订单，商家同样可以下载原图；未支付则拒绝。
+    const account = requireMerchantAccount(req);
+    const job = await readImageJob(req.params.jobId);
+    if (!job) throw createHttpError(404, "任务不存在。");
+    const visitorIds = await listStoreOwnerVisitorIds(account.id);
+    const owned =
+      visitorIds.includes(String(job.ownerVisitorId || "")) ||
+      (job.storeOwnerAccountId && String(job.storeOwnerAccountId) === account.id);
+    if (!owned) throw createHttpError(403, "该任务不属于你的店铺。", "该任务不属于你的店铺。");
+    const paidJobIds = new Set(orderStore.listPaidJobIdsForVisitors({ visitorIds }));
+    if (!paidJobIds.has(String(job.jobId || ""))) {
+      throw createHttpError(403, "客户还未完成支付，暂不能下载原图。", "客户还未完成支付，暂不能下载原图。");
+    }
+    const file = await resolveJobImageFile(job);
+    if (!file) throw createHttpError(404, "原图不存在。");
+    await sendPublicClipOriginalImage(res, job, file);
+  } catch (error) {
+    console.error(error);
+    res.status(error.status || 500).json({ message: error.publicMessage || "下载原图失败，请稍后再试。" });
+  }
+});
+
+app.get("/api/merchant/settings", async (req, res, next) => {
+  try {
+    const account = requireMerchantAccount(req);
+    const settingsMap = await readMerchantSettingsMap();
+    res.json({ phone: String(settingsMap[account.id]?.phone || "") });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/merchant/settings", async (req, res, next) => {
+  try {
+    const account = requireMerchantAccount(req);
+    const phone = String(req.body?.phone || "").trim();
+    if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
+      throw createHttpError(400, "请填写正确的 11 位手机号。", "请填写正确的 11 位手机号。");
+    }
+    const settingsMap = await readMerchantSettingsMap();
+    settingsMap[account.id] = { ...(settingsMap[account.id] || {}), phone, updatedAt: new Date().toISOString() };
+    await writeMerchantSettingsMap(settingsMap);
+    res.json({ phone });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/auth/wechat/authorize", (req, res, next) => {
   try {
     if (!isWechatBrowser(req)) throw createHttpError(400, "请在微信内置浏览器中使用微信登录。", "请在微信内打开后再使用微信登录。");
@@ -4247,9 +4600,39 @@ app.delete("/api/admin/referrals/influencers/:accountId", requireAdmin, (req, re
   }
 });
 
-app.get("/api/admin/store-owners", requireAdmin, (req, res, next) => {
+app.get("/api/admin/store-owners", requireAdmin, async (req, res, next) => {
   try {
-    res.json({ storeOwners: commerceStore.listStoreOwners().map(toPublicAdminUser) });
+    // 商户列表附带经营数据：任务数、收益、提现与钱包余额（收益 = 已支付任务张数 × 单价）。
+    const accounts = commerceStore.listStoreOwners();
+    const todayStart = getShanghaiDayStartIso();
+    const settingsMap = await readMerchantSettingsMap();
+    const walletsMap = await readMerchantWalletsMap();
+    const storeOwners = [];
+    for (const account of accounts) {
+      const visitorIds = await listStoreOwnerVisitorIds(account.id);
+      const stats = orderStore.summarizeTasksForVisitors({ visitorIds, todayStart });
+      const unitPriceCents = resolveMerchantUnitPriceCents(settingsMap[account.id]);
+      const earnings = summarizeMerchantEarnings({
+        totalImages: stats.totalImages,
+        todayImages: stats.todayImages,
+        unitPriceCents,
+        wallet: walletsMap[account.id]
+      });
+      storeOwners.push({
+        ...toPublicAdminUser(account),
+        merchantStats: {
+          // 打印机状态需由店内打印代理心跳上报，接入前统一显示未接入。
+          deviceStatus: "未接入",
+          todayTasks: stats.todayTasks,
+          totalTasks: stats.totalTasks,
+          totalIncomeCents: earnings.totalIncomeCents,
+          withdrawnCents: earnings.totalWithdrawnCents,
+          balanceCents: earnings.balanceCents,
+          unitPriceCents
+        }
+      });
+    }
+    res.json({ storeOwners });
   } catch (error) {
     next(error);
   }
@@ -4267,13 +4650,31 @@ app.post("/api/admin/store-owners", requireAdmin, (req, res, next) => {
   }
 });
 
-app.patch("/api/admin/store-owners/:accountId", requireAdmin, (req, res, next) => {
+app.patch("/api/admin/store-owners/:accountId", requireAdmin, async (req, res, next) => {
   try {
+    const accountId = String(req.params.accountId || "").trim();
     const wechatId = String(req.body?.wechatId || "").trim();
-    if (!wechatId) throw createHttpError(400, "请填写店家微信号。");
-    const account = commerceStore.updateStoreOwnerWechat(req.params.accountId, wechatId);
-    if (!account) throw createHttpError(404, "小画店家不存在。");
-    res.json({ storeOwner: toPublicAdminUser(account) });
+    const hasUnitPrice = req.body?.unitPriceCents !== undefined && req.body?.unitPriceCents !== null;
+    if (!wechatId && !hasUnitPrice) throw createHttpError(400, "没有需要更新的内容。");
+    let account = commerceStore.readAccount(accountId);
+    if (!account?.isStoreOwner) throw createHttpError(404, "小画店家不存在。");
+    if (wechatId) {
+      account = commerceStore.updateStoreOwnerWechat(accountId, wechatId);
+      if (!account) throw createHttpError(404, "小画店家不存在。");
+    }
+    let unitPriceCents = null;
+    if (hasUnitPrice) {
+      // 结算单价：按分存储，限制 0.01 元 ~ 100 元/张。
+      const nextUnitPrice = Math.round(Number(req.body?.unitPriceCents));
+      if (!Number.isFinite(nextUnitPrice) || nextUnitPrice < 1 || nextUnitPrice > 10000) {
+        throw createHttpError(400, "结算单价需在 0.01 元到 100 元之间。");
+      }
+      const settingsMap = await readMerchantSettingsMap();
+      settingsMap[accountId] = { ...(settingsMap[accountId] || {}), unitPriceCents: nextUnitPrice };
+      await writeMerchantSettingsMap(settingsMap);
+      unitPriceCents = nextUnitPrice;
+    }
+    res.json({ storeOwner: toPublicAdminUser(account), unitPriceCents });
   } catch (error) {
     next(error);
   }

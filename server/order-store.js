@@ -561,7 +561,7 @@ export function createOrderStore({ dbPath }) {
     `).run({ now });
   }
 
-  function listOrders({ visitorId = "", accountId = "", merchantId = "", experienceScope = "", orderStatus = "", search = "", startDate = "", endDate = "", excludeUserDeleted = false, page = 1, limit = 20 } = {}) {
+  function listOrders({ visitorId = "", visitorIds = [], accountId = "", merchantId = "", paymentStatus = "", experienceScope = "", excludeExperienceType = "", paidFrom = "", orderStatus = "", search = "", startDate = "", endDate = "", excludeUserDeleted = false, page = 1, limit = 20 } = {}) {
     expireUnpaidOrders();
 
     const conditions = [];
@@ -569,6 +569,18 @@ export function createOrderStore({ dbPath }) {
     if (visitorId) {
       conditions.push("visitor_id = @visitorId");
       params.visitorId = visitorId;
+    }
+    // 商户工作台按“归属于该店家的访客”批量查询订单。
+    if (Array.isArray(visitorIds) && visitorIds.length) {
+      const placeholders = visitorIds.map((_, index) => `@visitorIdList${index}`);
+      visitorIds.forEach((id, index) => {
+        params[`visitorIdList${index}`] = id;
+      });
+      conditions.push(`visitor_id IN (${placeholders.join(", ")})`);
+    }
+    if (paymentStatus) {
+      conditions.push("payment_status = @paymentStatus");
+      params.paymentStatus = paymentStatus;
     }
     if (accountId) {
       conditions.push("account_id = @accountId");
@@ -578,6 +590,15 @@ export function createOrderStore({ dbPath }) {
       conditions.push("experience_type = 'body-book'");
     } else if (experienceScope === "fridge") {
       conditions.push("experience_type != 'body-book'");
+    }
+    // 小画商户工作台只看小画类任务（认知书有独立商户页）。
+    if (excludeExperienceType) {
+      conditions.push("experience_type != @excludeExperienceType");
+      params.excludeExperienceType = excludeExperienceType;
+    }
+    if (paidFrom) {
+      conditions.push("paid_at >= @paidFrom");
+      params.paidFrom = paidFrom;
     }
     if (excludeUserDeleted) {
       conditions.push("(user_deleted_at IS NULL OR user_deleted_at = '')");
@@ -849,6 +870,63 @@ export function createOrderStore({ dbPath }) {
     return { updatedOrderCount };
   }
 
+  // 商户工作台统计：按归属于店家的访客聚合打印任务（一个已支付订单 = 一个任务）。
+  function summarizeTasksForVisitors({ visitorIds = [], todayStart = "" } = {}) {
+    const empty = {
+      totalTasks: 0,
+      todayTasks: 0,
+      totalImages: 0,
+      todayImages: 0,
+      pendingTasks: 0,
+      completedTasks: 0
+    };
+    if (!Array.isArray(visitorIds) || !visitorIds.length) return empty;
+    const placeholders = visitorIds.map((_, index) => `@visitorIdSum${index}`);
+    const params = { todayStart };
+    visitorIds.forEach((id, index) => {
+      params[`visitorIdSum${index}`] = id;
+    });
+    // 商户口径：一个已支付订单 = 一个打印任务，item_count 即该任务的张数。
+    const row = db.prepare(`
+      SELECT
+        SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END) AS total_tasks,
+        SUM(CASE WHEN payment_status = 'paid' AND paid_at >= @todayStart THEN 1 ELSE 0 END) AS today_tasks,
+        SUM(CASE WHEN payment_status = 'paid' THEN item_count ELSE 0 END) AS total_images,
+        SUM(CASE WHEN payment_status = 'paid' AND paid_at >= @todayStart THEN item_count ELSE 0 END) AS today_images,
+        SUM(CASE WHEN payment_status = 'paid' AND fulfillment_status IN ('new', 'in_production') THEN 1 ELSE 0 END) AS pending_tasks,
+        SUM(CASE WHEN payment_status = 'paid' AND fulfillment_status IN ('shipped', 'completed') THEN 1 ELSE 0 END) AS completed_tasks
+      FROM orders
+      WHERE visitor_id IN (${placeholders.join(", ")})
+        AND experience_type != 'body-book'
+    `).get(params);
+    return {
+      totalTasks: Number(row?.total_tasks || 0),
+      todayTasks: Number(row?.today_tasks || 0),
+      totalImages: Number(row?.total_images || 0),
+      todayImages: Number(row?.today_images || 0),
+      pendingTasks: Number(row?.pending_tasks || 0),
+      completedTasks: Number(row?.completed_tasks || 0)
+    };
+  }
+
+  // 已支付订单里包含的任务 ID 集合：商户可凭此下载原图。
+  function listPaidJobIdsForVisitors({ visitorIds = [] } = {}) {
+    if (!Array.isArray(visitorIds) || !visitorIds.length) return [];
+    const placeholders = visitorIds.map((_, index) => `@visitorIdJob${index}`);
+    const params = {};
+    visitorIds.forEach((id, index) => {
+      params[`visitorIdJob${index}`] = id;
+    });
+    return db.prepare(`
+      SELECT DISTINCT oi.job_id AS job_id
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      WHERE o.payment_status = 'paid'
+        AND oi.job_id != ''
+        AND o.visitor_id IN (${placeholders.join(", ")})
+    `).all(params).map((row) => String(row.job_id || ""));
+  }
+
   return {
     appendPaymentEvent,
     backfillMissingCommissionSnapshots,
@@ -858,12 +936,14 @@ export function createOrderStore({ dbPath }) {
     listOrders,
     listOrdersForExport,
     listMerchantCommissionSummary,
+    listPaidJobIdsForVisitors,
     readOrder,
     readOrderByOutTradeNo,
     readOrderItems,
     readBodyBookOrderBooks,
     readOrderWithRelations,
     replaceOrderOutTradeNo,
+    summarizeTasksForVisitors,
     updateOrder,
     updateOrderAndAppendEvent
   };

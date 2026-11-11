@@ -309,6 +309,7 @@ function readRoute() {
   if (pathname === "/book/works") return "public-body-book-works";
   if (pathname.startsWith("/book/share/")) return "public-body-book-share";
   if (pathname === "/book/referrals") return "public-referrals";
+  if (pathname === "/merchant") return "merchant-dashboard";
   if (pathname === "/fridge") return "public-draw";
   if (pathname === "/book") return "public-body-book";
   if (pathname === "/gallery") return "admin-gallery";
@@ -466,6 +467,7 @@ function App() {
       "public-body-book-works": "我的作品",
       "public-body-book-share": "好友分享的认知书",
       "public-referrals": "我的邀请",
+      "merchant-dashboard": "商户工作台",
       "public-fridge-orders": "我的冰箱贴订单",
       "admin-api-providers": "API 配置",
       "admin-referrals": "推荐管理",
@@ -491,6 +493,7 @@ function App() {
       "public-body-book-cart": "/book/cart",
       "public-body-book-works": "/book/works",
       "public-referrals": "/book/referrals",
+      "merchant-dashboard": "/merchant",
       "public-fridge-order": window.location.pathname,
       "public-body-book-order": window.location.pathname,
       "admin-gallery": "/gallery",
@@ -554,6 +557,9 @@ function App() {
   }
   if (route === "public-referrals") {
     return <ReferralPage />;
+  }
+  if (route === "merchant-dashboard") {
+    return <MerchantDashboardPage />;
   }
   if (route === "public-fridge") {
     return <FridgeMagnetPage />;
@@ -657,6 +663,368 @@ function ReferralPage() {
           {visibleDetails.length ? <div className="referral-detail-list">{visibleDetails.map((detail, index) => <article key={`${detail.type}-${detail.createdAt}-${index}`}><div><strong>{detailLabel(detail)}</strong>{detail.type === "referral_payment_reward" ? <small>好友实付 {formatCurrencyCents(detail.orderAmountCents)}</small> : null}{detail.note ? <small>{detail.note}</small> : null}</div><time>{formatDateTime(detail.createdAt)}</time></article>)}</div> : <p className="storage-note">分享邀请链接后，奖励会显示在这里。</p>}
         </section>
       </> : null}
+    </main>
+  );
+}
+
+async function readJsonResponse(promise) {
+  const response = await promise;
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.message || "请求失败，请稍后再试。");
+  return payload;
+}
+
+function formatMerchantTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("zh-CN", { hour12: false, month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function formatMerchantMoney(cents) {
+  return `￥${(Number(cents || 0) / 100).toFixed(2)}`;
+}
+
+function MerchantDashboardPage() {
+  const [payload, setPayload] = useState(null);
+  const [overview, setOverview] = useState(null);
+  const [todayOpen, setTodayOpen] = useState(false);
+  const [todayTasks, setTodayTasks] = useState({ total: 0, items: [] });
+  const [todayError, setTodayError] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
+  const [wallet, setWallet] = useState(null);
+  const [walletError, setWalletError] = useState("");
+  const [phoneDraft, setPhoneDraft] = useState("");
+  const [settingsError, setSettingsError] = useState("");
+  const [settingsSaved, setSettingsSaved] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    readJsonResponse(fetch("/api/merchant/me"))
+      .then((next) => {
+        if (active) setPayload(next);
+      })
+      .catch((nextError) => {
+        if (active) setError(nextError.message || "读取商户信息失败。");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!payload?.isMerchant) return undefined;
+    let active = true;
+    readJsonResponse(fetch("/api/merchant/overview"))
+      .then((nextOverview) => {
+        if (active) setOverview(nextOverview);
+      })
+      .catch((nextError) => {
+        if (active) setError(nextError.message || "读取商户数据失败。");
+      });
+    return () => {
+      active = false;
+    };
+  }, [payload?.isMerchant]);
+
+  async function openTodayTasks() {
+    setTodayOpen(true);
+    setTodayError("");
+    try {
+      const next = await readJsonResponse(fetch("/api/merchant/tasks?today=1&limit=50"));
+      setTodayTasks(next);
+    } catch (nextError) {
+      setTodayError(nextError.message || "读取今日任务失败。");
+    }
+  }
+
+  async function openWallet() {
+    setWalletOpen(true);
+    setWalletError("");
+    try {
+      const next = await readJsonResponse(fetch("/api/merchant/wallet"));
+      setWallet(next);
+    } catch (nextError) {
+      setWalletError(nextError.message || "读取钱包失败。");
+    }
+  }
+
+  async function saveMerchantSettings(event) {
+    event.preventDefault();
+    setSettingsError("");
+    setSettingsSaved("");
+    setBusy("settings");
+    try {
+      const response = await fetch("/api/merchant/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phoneDraft.trim() })
+      });
+      const next = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(next.message || "保存失败，请稍后再试。");
+      setSettingsSaved("已保存，打印失败或设备离线时会短信通知该号码。");
+    } catch (nextError) {
+      setSettingsError(nextError.message || "保存失败，请稍后再试。");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function loginWithWechat() {
+    const returnTo = `${window.location.pathname}${window.location.search}`;
+    window.location.assign(`/api/auth/wechat/authorize?returnTo=${encodeURIComponent(returnTo)}`);
+  }
+
+  const merchant = payload?.merchant;
+  const stats = overview?.stats;
+  const printer = overview?.printer;
+  const inWechatBrowser = /MicroMessenger/i.test(window.navigator.userAgent);
+  const merchantEntryUrl = `${window.location.origin}/merchant`;
+
+  return (
+    <main className="merchant-page">
+      <header className="merchant-header">
+        <div>
+          <p className="eyebrow">小画商户工作台</p>
+          <h1>{merchant?.name || "商户工作台"}</h1>
+          {merchant?.wechatId ? <span className="merchant-sub">店家微信 {merchant.wechatId}</span> : null}
+        </div>
+        <div className="merchant-header-actions">
+          {payload?.isMerchant ? (
+            <button
+              className="merchant-settings-button"
+              onClick={() => {
+                setSettingsError("");
+                setSettingsSaved("");
+                setPhoneDraft(payload?.settings?.phone || "");
+                setSettingsOpen(true);
+              }}
+              type="button"
+            >
+              设置
+            </button>
+          ) : null}
+          <a className="merchant-home-link" href="/">返回小画页</a>
+        </div>
+      </header>
+
+      {loading ? <section className="merchant-card"><p className="storage-note">正在读取商户信息…</p></section> : null}
+      {error ? <section className="merchant-card"><p className="error-note">{error}</p></section> : null}
+
+      {!loading && !error && payload && !payload.authenticated ? (
+        <section className="merchant-card merchant-gate">
+          <h2>{inWechatBrowser ? "请先登录" : "请在手机微信中打开"}</h2>
+          {inWechatBrowser ? (
+            <>
+              <p className="storage-note">商户工作台使用微信身份登录，登录后自动识别商户权限。</p>
+              <button className="draw-card-primary" onClick={loginWithWechat} type="button">微信登录</button>
+            </>
+          ) : (
+            <>
+              <p className="storage-note">电脑端不支持微信授权登录，请用手机微信扫描下方二维码，在手机上打开商户工作台。</p>
+              <img alt="商户工作台二维码" className="merchant-login-qr" src={createQrSvgDataUrl(merchantEntryUrl, { margin: 1 })} />
+              <p className="merchant-login-url">{merchantEntryUrl}</p>
+            </>
+          )}
+        </section>
+      ) : null}
+
+      {!loading && !error && payload?.authenticated && !payload.isMerchant ? (
+        <section className="merchant-card merchant-gate">
+          <h2>当前账号还不是商户</h2>
+          <p className="storage-note">如需开通商户权限，请联系客服登记，开通后重新打开本页即可。</p>
+        </section>
+      ) : null}
+
+      {payload?.isMerchant ? (
+        <>
+          <section className="merchant-card">
+            <div className="merchant-card-head">
+              <h2>当前状态</h2>
+              {printer?.connected ? (
+                <span className={`merchant-badge ${printer.online ? "is-online" : "is-offline"}`}>
+                  {printer.online ? "在线" : "离线"}
+                </span>
+              ) : (
+                <span className="merchant-badge">未接入</span>
+              )}
+            </div>
+            <div className="merchant-status-grid">
+              <div>
+                <span>打印机</span>
+                <strong className={printer?.connected ? (printer.online ? "is-online" : "is-offline") : ""}>
+                  {printer?.connected ? (printer.online ? "在线" : "离线") : "未接入"}
+                </strong>
+              </div>
+              <div>
+                <span>故障</span>
+                <strong className={printer?.fault ? "is-offline" : ""}>
+                  {printer?.fault ? printer.fault : printer?.connected ? "无" : "—"}
+                </strong>
+              </div>
+              <div>
+                <span>纸张</span>
+                <strong className={printer?.paperOut ? "is-offline" : ""}>
+                  {printer?.connected ? (printer.paperOut ? "缺纸" : "正常") : "—"}
+                </strong>
+              </div>
+              <div>
+                <span>打印中</span>
+                <strong>{printer?.printingCount || 0}</strong>
+              </div>
+              <div>
+                <span>排队任务</span>
+                <strong>{printer?.queuedCount || 0}</strong>
+              </div>
+            </div>
+            {printer?.connected ? null : (
+              <p className="storage-note">打印机状态由店内打印代理上报，接入后这里会实时显示在线、故障、缺纸和打印进度。</p>
+            )}
+          </section>
+
+          <section className="merchant-stat-grid is-three">
+            <button className="merchant-stat-card" onClick={openTodayTasks} type="button">
+              <span>今日任务</span>
+              <strong>{stats?.todayTasks || 0}</strong>
+              <small>查看今日明细</small>
+            </button>
+            <article>
+              <span>今日收益</span>
+              <strong>{formatMerchantMoney(overview?.wallet?.todayIncomeCents)}</strong>
+            </article>
+            <button className="merchant-stat-card is-wallet" onClick={openWallet} type="button">
+              <span>钱包</span>
+              <strong>{formatMerchantMoney(overview?.wallet?.balanceCents)}</strong>
+              <small>查看收益与提现流水</small>
+            </button>
+          </section>
+        </>
+      ) : null}
+
+      {todayOpen ? (
+        <div className="merchant-modal-backdrop" role="presentation" onClick={() => setTodayOpen(false)}>
+          <div className="merchant-modal is-today" onClick={(event) => event.stopPropagation()}>
+            <div className="merchant-card-head">
+              <h2>今日任务</h2>
+              <button className="merchant-settings-button" onClick={() => setTodayOpen(false)} type="button">关闭</button>
+            </div>
+            <p className="storage-note">按支付时间从近到远，结算单价 {formatMerchantMoney(overview?.wallet?.unitPriceCents)}/张。</p>
+            {todayError ? <p className="error-note">{todayError}</p> : null}
+            {todayTasks.items?.length ? (
+              <ul className="merchant-today-list">
+                {todayTasks.items.map((task) => (
+                  <li key={task.taskNo}>
+                    <div className="merchant-today-head">
+                      <div>
+                        <strong>{formatMerchantTime(task.paidAt || task.createdAt)}</strong>
+                        <small>任务 {task.taskNo} · {task.imageCount} 张</small>
+                      </div>
+                      <div className="merchant-today-income">
+                        <span>{task.incomeCents === null ? "待结算" : formatMerchantMoney(task.incomeCents)}</span>
+                        <em className={`merchant-badge ${task.statusTone}`}>{task.statusLabel}</em>
+                      </div>
+                    </div>
+                    {task.images?.length ? (
+                      <div className="merchant-task-images">
+                        {task.images.map((image, index) => (
+                          <figure key={`${task.taskNo}-${image.jobId || index}`}>
+                            {image.thumbnailUrl ? (
+                              <img alt={image.styleName || `第 ${index + 1} 张`} src={image.thumbnailUrl} />
+                            ) : (
+                              <div className="merchant-job-placeholder">无预览</div>
+                            )}
+                            {image.originalUrl ? (
+                              <a className="merchant-job-download" href={image.originalUrl}>原图</a>
+                            ) : null}
+                          </figure>
+                        ))}
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="storage-note">今天还没有打印任务。</p>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {walletOpen ? (
+        <div className="merchant-modal-backdrop" role="presentation" onClick={() => setWalletOpen(false)}>
+          <div className="merchant-modal is-wallet" onClick={(event) => event.stopPropagation()}>
+            <div className="merchant-card-head">
+              <h2>钱包</h2>
+              <button className="merchant-settings-button" onClick={() => setWalletOpen(false)} type="button">关闭</button>
+            </div>
+            <div className="merchant-wallet-summary">
+              <div>
+                <span>当前余额</span>
+                <strong>{formatMerchantMoney(wallet?.balanceCents)}</strong>
+              </div>
+              <div>
+                <span>累计提现</span>
+                <strong>{formatMerchantMoney(wallet?.totalWithdrawnCents)}</strong>
+              </div>
+            </div>
+            <p className="storage-note">结算单价 {formatMerchantMoney(wallet?.unitPriceCents)}/张，任务收益按张数 × 单价实时计算；流水展示最近 50 条任务收益与全部提现记录。</p>
+            {walletError ? <p className="error-note">{walletError}</p> : null}
+            <h3 className="merchant-wallet-title">收益 / 提现流水</h3>
+            {wallet?.entries?.length ? (
+              <ul className="merchant-wallet-entries">
+                {wallet.entries.map((entry) => (
+                  <li key={entry.id}>
+                    <div>
+                      <strong>{entry.type === "withdrawal" ? "提现" : "任务收益"}</strong>
+                      <small>{entry.note || formatMerchantTime(entry.createdAt)}</small>
+                    </div>
+                    <span className={entry.amountCents >= 0 ? "is-income" : "is-withdrawal"}>
+                      {entry.amountCents >= 0 ? "+" : "-"}
+                      {formatMerchantMoney(Math.abs(entry.amountCents))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="storage-note">还没有流水记录。任务收益结算后会显示在这里。</p>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {settingsOpen ? (
+        <div className="merchant-modal-backdrop" role="presentation" onClick={() => setSettingsOpen(false)}>
+          <form className="merchant-modal" onClick={(event) => event.stopPropagation()} onSubmit={saveMerchantSettings}>
+            <h2>通知设置</h2>
+            <p className="storage-note">填写手机号后，打印失败或设备离线时会短信通知你；留空则关闭短信通知。</p>
+            <label className="merchant-field">
+              <span>手机号</span>
+              <input
+                inputMode="numeric"
+                maxLength={11}
+                onChange={(event) => setPhoneDraft(event.target.value)}
+                placeholder="请输入 11 位手机号"
+                value={phoneDraft}
+              />
+            </label>
+            {settingsError ? <p className="error-note">{settingsError}</p> : null}
+            {settingsSaved ? <p className="success-note">{settingsSaved}</p> : null}
+            <div className="merchant-modal-actions">
+              <button className="draw-card-secondary" onClick={() => setSettingsOpen(false)} type="button">取消</button>
+              <button className="draw-card-primary" disabled={busy === "settings"} type="submit">
+                {busy === "settings" ? "保存中…" : "保存"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -3302,7 +3670,7 @@ function BodyBookPage() {
       {showBookCheckout ? <div className="modal-backdrop" onClick={() => !bookOrderBusy && setShowBookCheckout(false)} role="presentation"><section className="body-book-project-modal body-book-checkout-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="下单认知书实体书"><button className="icon-button" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button"><X size={18} /></button><p className="body-book-kicker">Print your book</p><h2>{bookOrderBlockReason ? "暂时无法下单" : "下单认知书实体书"}</h2>{bookOrderBlockReason ? <><div className="body-book-checkout-blocked"><AlertTriangle size={24} /><p>{bookOrderBlockReason}</p></div><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={() => setShowBookCheckout(false)} type="button">知道了</button></div></> : <><p>以下为将要印刷的全部页面，共 {bookPreviewPages.length} 页；成书时会自动插入对应的内置认知页，不含固定封底。</p><div className="body-book-checkout-preview" aria-label="成书预览">{bookPreviewPages.map((page, index) => <figure className="body-book-checkout-preview-item" key={`${page.key}-${index}`}><img alt={`${page.title} 成书预览`} decoding="async" loading="lazy" src={getBodyBookThumbnail(page)} /><figcaption><span>第 {index + 1} 页</span><strong>{page.title}</strong></figcaption></figure>)}</div><div className="draw-card-order-summary"><p>实体书 {formatCurrencyCents(bodyBookPricing.priceCents)}</p><p>邮费 {Number(bodyBookPricing.shippingFeeCents || 0) > 0 ? formatCurrencyCents(bodyBookPricing.shippingFeeCents) : "包邮"}</p><strong>实付 {formatCurrencyCents(bookOrderPayablePreviewCents)}</strong><p className="draw-card-order-summary-warning">AI生成图片可能会有穿帮现象（如手指数异常等），请重点检查。如有问题可重新生成单张图片，下单后无法更改。</p></div><div className="draw-card-order-form"><label className="field-label">收件人<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverName: event.target.value }))} type="text" value={bookOrderForm.receiverName} /></label><label className="field-label">手机号<input onChange={(event) => setBookOrderForm((current) => ({ ...current, receiverPhone: event.target.value }))} type="tel" value={bookOrderForm.receiverPhone} /></label><label className="field-label">收货地址<input onChange={(event) => setBookOrderForm((current) => ({ ...current, address: event.target.value, addressDetail: event.target.value }))} type="text" value={bookOrderForm.address || bookOrderForm.addressDetail || ""} /></label><label className="field-label">备注<textarea onChange={(event) => setBookOrderForm((current) => ({ ...current, remark: event.target.value }))} rows="2" value={bookOrderForm.remark} /></label></div><div className="draw-card-confirm-actions"><button className="draw-card-secondary" disabled={bookOrderBusy} onClick={() => setShowBookCheckout(false)} type="button">取消</button><button className="draw-card-primary" disabled={bookOrderBusy} onClick={submitBookOrder} type="button">{bookOrderBusy ? "创建订单中" : formatPaymentButtonLabel(bookOrderPayablePreviewCents)}</button></div></>}</section></div> : null}
       {showAuthModal ? <AuthModal description={pendingBookOriginalDownloadRef.current ? "下载认知书原图前，请先注册并登录。" : pendingBookShareRef.current ? "分享认知书前，请先注册并登录。" : ""} onAuthenticated={async () => { setShowAuthModal(false); const nextVisitorState = await fetchVisitorState(); setVisitorState(nextVisitorState); setBookOrderForm((current) => fillOrderAddressFromSaved(current, nextVisitorState?.account)); await loadSavedBooks(); if (pendingReferralRef.current) { pendingReferralRef.current = false; await showReferralDialog(); } if (pendingBookCheckoutRef.current) { pendingBookCheckoutRef.current = false; setShowBookCheckout(true); } if (pendingBeanPurchaseRef.current) { pendingBeanPurchaseRef.current = false; openBeanPurchase(); } if (pendingBookShareRef.current) { pendingBookShareRef.current = false; await createAndShareBookProject(); } const pendingDownload = pendingBookOriginalDownloadRef.current; pendingBookOriginalDownloadRef.current = null; if (pendingDownload) await downloadBookOriginal(pendingDownload.page, pendingDownload.projectId); }} onClose={() => { pendingReferralRef.current = false; pendingBookCheckoutRef.current = false; pendingBeanPurchaseRef.current = false; pendingBookShareRef.current = false; pendingBookOriginalDownloadRef.current = null; setShowAuthModal(false); }} reloadOnLogin={false} /> : null}
       {showContactModal ? <div className="modal-backdrop draw-card-confirm" onClick={() => setShowContactModal(false)} role="presentation"><section className="draw-card-confirm-panel draw-card-contact-panel body-book-contact-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="联系客服"><button className="icon-button" onClick={() => setShowContactModal(false)} type="button" aria-label="关闭弹窗"><X size={18} /></button><div className="draw-card-contact-copy"><h3>联系客服</h3><p>复制客服微信，返回微信添加</p><div className="draw-card-contact-id"><span>{getContactWechatId(orderConfig)}</span></div></div><div className="draw-card-confirm-actions"><button className="draw-card-primary" onClick={copyBookContactWechat} type="button"><Clipboard size={16} /><span>{contactCopied ? "已复制" : "复制微信号"}</span></button></div></section></div> : null}
-      <footer className="body-book-page-footer"><a className="body-book-admin-entry" href="/admin" aria-label="进入后台管理">后台入口</a></footer>
+      <footer className="body-book-page-footer"><a className="body-book-admin-entry" href="/merchant" aria-label="进入商户工作台">商户入口</a><a className="body-book-admin-entry" href="/admin" aria-label="进入后台管理">后台入口</a></footer>
     </main>
   );
 }
@@ -7304,6 +7672,9 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
       )}
 
       <footer className="draw-card-page-footer">
+        <a className="draw-card-utility-link" href="/merchant" aria-label="进入商户工作台">
+          商户入口
+        </a>
         <a className="draw-card-utility-link" href="/admin" aria-label="进入后台管理">
           后台入口
         </a>
@@ -10773,6 +11144,17 @@ async function updateAdminStoreOwnerWechat(accountId, wechatId) {
   return payload;
 }
 
+async function updateAdminStoreOwnerUnitPrice(accountId, unitPriceCents) {
+  const response = await fetch(`/api/admin/store-owners/${encodeURIComponent(accountId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ unitPriceCents })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "更新结算单价失败。");
+  return payload;
+}
+
 async function removeAdminStoreOwner(accountId) {
   const response = await fetch(`/api/admin/store-owners/${encodeURIComponent(accountId)}`, { method: "DELETE" });
   const payload = await response.json();
@@ -12722,6 +13104,8 @@ function StoreOwnerAdminPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editingPrice, setEditingPrice] = useState({});
+  const [priceInputs, setPriceInputs] = useState({});
 
   const identity = (account) => {
     if (!account) return "—";
@@ -12800,8 +13184,44 @@ function StoreOwnerAdminPage() {
     setError(""); setNotice("");
   }
 
+  function startEditPrice(account) {
+    setEditingPrice((current) => ({ ...current, [account.id]: true }));
+    setPriceInputs((current) => ({
+      ...current,
+      [account.id]: (Number(account.merchantStats?.unitPriceCents || 800) / 100).toFixed(2)
+    }));
+    setError(""); setNotice("");
+  }
+
+  async function savePrice(accountId) {
+    const yuan = Number(priceInputs[accountId]);
+    if (!Number.isFinite(yuan) || yuan <= 0) {
+      setError("请填写大于 0 的结算单价。");
+      return;
+    }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await updateAdminStoreOwnerUnitPrice(accountId, Math.round(yuan * 100));
+      setEditingPrice((current) => ({ ...current, [accountId]: false }));
+      setPriceInputs((current) => ({ ...current, [accountId]: "" }));
+      await refreshAll();
+      setNotice(`结算单价已更新为 ￥${yuan.toFixed(2)}/张，商户收益按新单价实时计算。`);
+    } catch (nextError) { setError(nextError.message || "更新结算单价失败。"); } finally { setBusy(false); }
+  }
+
+  async function copyMerchantEntry() {
+    try {
+      await copyText(`${window.location.origin}/merchant`);
+      setError("");
+      setNotice("商户入口链接已复制，发给店家后用微信登录即可进入商户工作台。");
+    } catch (nextError) {
+      setNotice("");
+      setError(nextError.message || "复制失败，请手动复制。");
+    }
+  }
+
   return <section className="task-page referral-admin-page" aria-label="商户管理">
-    <div className="task-toolbar"><div><p className="eyebrow">Merchants</p><h2>商户</h2><p className="storage-note">将注册用户设为小画店家并维护店家微信号；扫店家的风格码进入选图定制时，默认选择现场制作并展示店家微信。</p></div><button className="secondary-button" disabled={busy} onClick={refreshAll} type="button"><RefreshCw size={18} /><span>{busy ? "刷新中" : "刷新"}</span></button></div>
+    <div className="task-toolbar"><div><p className="eyebrow">Merchants</p><h2>商户</h2><p className="storage-note">将注册用户设为小画店家并维护店家微信号；扫店家的风格码进入选图定制时，默认选择现场制作并展示店家微信。店家在微信里打开商户入口并登录后，即可进入自己的商户工作台。</p></div><div className="task-toolbar-actions"><button className="secondary-button" disabled={busy} onClick={copyMerchantEntry} type="button"><Clipboard size={16} /><span>复制商户入口</span></button><button className="secondary-button" disabled={busy} onClick={refreshAll} type="button"><RefreshCw size={18} /><span>{busy ? "刷新中" : "刷新"}</span></button></div></div>
     {error ? <p className="error-note">{error}</p> : null}{notice ? <p className="success-note">{notice}</p> : null}
 
     <div className="referral-admin-card referral-influencer-card">
@@ -12812,7 +13232,23 @@ function StoreOwnerAdminPage() {
       </div>
       {search.trim() ? <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table"><thead><tr><th>匹配用户</th><th>注册信息</th><th>店家微信号</th><th /></tr></thead><tbody>{candidates.map((user) => <tr key={user.id}><td><div className="user-admin-identity"><strong>{identity(user)}</strong><span>{user.email || "微信账户"}</span></div></td><td>{user.registeredAt ? formatDateTime(user.registeredAt) : "—"}</td><td><input className="field-inline-input" onChange={(event) => setWechatByCandidate((current) => ({ ...current, [user.id]: event.target.value }))} placeholder="输入店家微信号" value={wechatByCandidate[user.id] || ""} /></td><td><button className="secondary-button" disabled={busy} onClick={() => addStoreOwner(user.id)} type="button">设为小画店家</button></td></tr>)}{!candidates.length ? <tr><td colSpan="4" className="order-table-empty">{hasSearched ? "未找到可加入的已注册用户。" : "点击“搜索用户”后显示匹配的已注册用户。"}</td></tr> : null}</tbody></table></div> : <p className="storage-note">输入昵称、邮箱或账户 ID 后搜索，再从匹配结果中设为小画店家。</p>}
       <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Current</p><h3>已加入的小画店家</h3></div></div>
-      <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table"><thead><tr><th>用户</th><th>注册信息</th><th>设为店家时间</th><th>店家微信号</th><th /></tr></thead><tbody>{storeOwners.map((user) => <tr key={user.id}><td><div className="user-admin-identity"><strong>{identity(user)}</strong><span>{user.email || "微信账户"}</span></div></td><td>{user.registeredAt ? formatDateTime(user.registeredAt) : "—"}</td><td>{user.updatedAt ? formatDateTime(user.updatedAt) : "—"}</td><td>{editingWechat[user.id] ? <div className="task-filters store-owner-wechat-edit"><input className="field-inline-input" onChange={(event) => setWechatInputs((current) => ({ ...current, [user.id]: event.target.value }))} value={wechatInputs[user.id] || ""} /><button className="secondary-button" disabled={busy} onClick={() => saveWechat(user.id)} type="button">保存</button><button className="secondary-button" disabled={busy} onClick={() => setEditingWechat((current) => ({ ...current, [user.id]: false }))} type="button">取消</button></div> : <div className="store-owner-wechat-value"><strong>{user.storeWechatId || "—"}</strong><button className="secondary-button" disabled={busy} onClick={() => startEditWechat(user)} type="button"><Pencil size={14} />编辑</button></div>}</td><td><button className="danger-button" disabled={busy} onClick={() => removeStoreOwner(user.id)} type="button">移出店家</button></td></tr>)}{!storeOwners.length ? <tr><td colSpan="5" className="order-table-empty">暂未设置小画店家。</td></tr> : null}</tbody></table></div>
+      <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table store-owner-table"><thead><tr><th>用户</th><th>注册信息</th><th>设为店家时间</th><th>店家微信号</th><th>结算单价</th><th>设备状态</th><th>今日任务</th><th>累计任务</th><th>累计收益</th><th>已提现</th><th>钱包金额</th><th /></tr></thead><tbody>{storeOwners.map((user) => {
+        const merchantStats = user.merchantStats || {};
+        return <tr key={user.id}>
+          <td><div className="user-admin-identity"><strong>{identity(user)}</strong><span>{user.email || "微信账户"}</span></div></td>
+          <td>{user.registeredAt ? formatDateTime(user.registeredAt) : "—"}</td>
+          <td>{user.updatedAt ? formatDateTime(user.updatedAt) : "—"}</td>
+          <td>{editingWechat[user.id] ? <div className="task-filters store-owner-wechat-edit"><input className="field-inline-input" onChange={(event) => setWechatInputs((current) => ({ ...current, [user.id]: event.target.value }))} value={wechatInputs[user.id] || ""} /><button className="secondary-button" disabled={busy} onClick={() => saveWechat(user.id)} type="button">保存</button><button className="secondary-button" disabled={busy} onClick={() => setEditingWechat((current) => ({ ...current, [user.id]: false }))} type="button">取消</button></div> : <div className="store-owner-wechat-value"><strong>{user.storeWechatId || "—"}</strong><button className="secondary-button" disabled={busy} onClick={() => startEditWechat(user)} type="button"><Pencil size={14} />编辑</button></div>}</td>
+          <td>{editingPrice[user.id] ? <div className="task-filters store-owner-wechat-edit"><input className="field-inline-input store-owner-price-input" min="0.01" onChange={(event) => setPriceInputs((current) => ({ ...current, [user.id]: event.target.value }))} step="0.01" type="number" value={priceInputs[user.id] || ""} /><button className="secondary-button" disabled={busy} onClick={() => savePrice(user.id)} type="button">保存</button><button className="secondary-button" disabled={busy} onClick={() => setEditingPrice((current) => ({ ...current, [user.id]: false }))} type="button">取消</button></div> : <div className="store-owner-wechat-value"><strong>{formatCurrencyCents(merchantStats.unitPriceCents || 800)}/张</strong><button className="secondary-button" disabled={busy} onClick={() => startEditPrice(user)} type="button"><Pencil size={14} />编辑</button></div>}</td>
+          <td><span className="merchant-badge">{merchantStats.deviceStatus || "未接入"}</span></td>
+          <td>{Number(merchantStats.todayTasks || 0)}</td>
+          <td>{Number(merchantStats.totalTasks || 0)}</td>
+          <td>{formatCurrencyCents(merchantStats.totalIncomeCents)}</td>
+          <td>{formatCurrencyCents(merchantStats.withdrawnCents)}</td>
+          <td>{formatCurrencyCents(merchantStats.balanceCents)}</td>
+          <td><button className="danger-button" disabled={busy} onClick={() => removeStoreOwner(user.id)} type="button">移出店家</button></td>
+        </tr>;
+      })}{!storeOwners.length ? <tr><td colSpan="12" className="order-table-empty">暂未设置小画店家。</td></tr> : null}</tbody></table></div>
     </div>
   </section>;
 }
