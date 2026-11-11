@@ -1148,14 +1148,29 @@ async function listStoreOwnerVisitorIds(storeOwnerAccountId) {
   return visitorIds;
 }
 
-function requireMerchantAccount(req) {
+// 商户身份 = 小画店家（store_owner）本人，或绑定到该店的店员账号（store_parent_account_id 指向店主）。
+// 返回 { merchantAccount: 店主账号（任务/钱包/设置都挂在店主名下）, role: 'owner'|'staff' }。
+async function resolveMerchantAccess(req) {
   if (!req.userSession || !req.webAccount) {
     throw createHttpError(401, "请先用微信登录商户账号。", "请先在微信中登录商户账号。");
   }
-  if (!req.webAccount.isStoreOwner || req.webAccount.accountStatus === "disabled") {
+  const account = req.webAccount;
+  if (account.accountStatus === "disabled") {
     throw createHttpError(403, "当前账号没有商户权限。", "当前账号还不是商户，请联系客服开通。");
   }
-  return req.webAccount;
+  if (account.isStoreOwner) return { merchantAccount: account, role: "owner" };
+  const parentId = String(account.storeParentAccountId || "");
+  if (parentId) {
+    const parent = commerceStore.readAccount(parentId);
+    if (parent?.isStoreOwner && parent.accountStatus !== "disabled") {
+      return { merchantAccount: parent, role: "staff" };
+    }
+  }
+  throw createHttpError(403, "当前账号没有商户权限。", "当前账号还不是商户，请联系客服开通。");
+}
+
+async function requireMerchantAccount(req) {
+  return (await resolveMerchantAccess(req)).merchantAccount;
 }
 
 function getShanghaiDayStartIso() {
@@ -1209,26 +1224,42 @@ app.get("/api/merchant/me", async (req, res, next) => {
   try {
     const account = req.userSession ? req.webAccount : null;
     if (!account) {
-      res.json({ authenticated: false, isMerchant: false, merchant: null, settings: null });
+      res.json({ authenticated: false, isMerchant: false, role: "", merchant: null, settings: null });
       return;
     }
-    const isMerchant = Boolean(account.isStoreOwner) && account.accountStatus !== "disabled";
+    // 店主本人，或绑定到有效店家的店员，都视为商户。
+    let merchantAccount = null;
+    let role = "";
+    if (account.accountStatus !== "disabled") {
+      if (account.isStoreOwner) {
+        merchantAccount = account;
+        role = "owner";
+      } else if (account.storeParentAccountId) {
+        const parent = commerceStore.readAccount(account.storeParentAccountId);
+        if (parent?.isStoreOwner && parent.accountStatus !== "disabled") {
+          merchantAccount = parent;
+          role = "staff";
+        }
+      }
+    }
+    const isMerchant = Boolean(merchantAccount);
     const settingsMap = isMerchant ? await readMerchantSettingsMap() : {};
     res.json({
       authenticated: true,
       isMerchant,
+      role,
       merchant: isMerchant
         ? {
-            accountId: account.id,
-            name: account.username || account.wechatNickname || account.email || `商户 ${account.id.slice(-6)}`,
-            wechatId: account.storeWechatId || "",
+            accountId: merchantAccount.id,
+            name: merchantAccount.username || merchantAccount.wechatNickname || merchantAccount.email || `商户 ${merchantAccount.id.slice(-6)}`,
+            wechatId: merchantAccount.storeWechatId || "",
             avatarUrl: account.wechatAvatarUrl ? `/api/public/account-avatars/${account.id}` : ""
           }
         : null,
       settings: isMerchant
         ? {
-            phone: String(settingsMap[account.id]?.phone || ""),
-            unitPriceCents: resolveMerchantUnitPriceCents(settingsMap[account.id])
+            phone: String(settingsMap[merchantAccount.id]?.phone || ""),
+            unitPriceCents: resolveMerchantUnitPriceCents(settingsMap[merchantAccount.id])
           }
         : null
     });
@@ -1239,7 +1270,7 @@ app.get("/api/merchant/me", async (req, res, next) => {
 
 app.get("/api/merchant/overview", async (req, res, next) => {
   try {
-    const account = requireMerchantAccount(req);
+    const account = await requireMerchantAccount(req);
     const visitorIds = await listStoreOwnerVisitorIds(account.id);
     const todayStart = getShanghaiDayStartIso();
     const stats = orderStore.summarizeTasksForVisitors({ visitorIds, todayStart });
@@ -1264,11 +1295,14 @@ app.get("/api/merchant/overview", async (req, res, next) => {
         unitPriceCents
       },
       // 打印机状态由代理心跳上报，接入前 connected 为 false，排队数先用待打印任务数。
+      // faultReason 为故障原因文案（如"卡纸"），前端展示在"设备故障"状态下的小字里。
       printer: {
         connected: false,
         online: false,
         fault: "",
+        faultReason: "",
         paperOut: false,
+        ribbonOut: false,
         printingCount: 0,
         queuedCount: Number(stats?.pendingTasks || 0)
       }
@@ -1280,7 +1314,7 @@ app.get("/api/merchant/overview", async (req, res, next) => {
 
 app.get("/api/merchant/wallet", async (req, res, next) => {
   try {
-    const account = requireMerchantAccount(req);
+    const account = await requireMerchantAccount(req);
     const visitorIds = await listStoreOwnerVisitorIds(account.id);
     const todayStart = getShanghaiDayStartIso();
     const stats = orderStore.summarizeTasksForVisitors({ visitorIds, todayStart });
@@ -1328,7 +1362,7 @@ app.get("/api/merchant/wallet", async (req, res, next) => {
 
 app.get("/api/merchant/tasks", async (req, res, next) => {
   try {
-    const account = requireMerchantAccount(req);
+    const account = await requireMerchantAccount(req);
     const visitorIds = await listStoreOwnerVisitorIds(account.id);
     if (!visitorIds.length) {
       res.json({ total: 0, page: 1, limit: 10, items: [] });
@@ -1361,7 +1395,7 @@ app.get("/api/merchant/tasks", async (req, res, next) => {
 app.get("/api/merchant/jobs/:jobId/original", async (req, res) => {
   try {
     // 客户已支付的订单，商家同样可以下载原图；未支付则拒绝。
-    const account = requireMerchantAccount(req);
+    const account = await requireMerchantAccount(req);
     const job = await readImageJob(req.params.jobId);
     if (!job) throw createHttpError(404, "任务不存在。");
     const visitorIds = await listStoreOwnerVisitorIds(account.id);
@@ -1384,7 +1418,7 @@ app.get("/api/merchant/jobs/:jobId/original", async (req, res) => {
 
 app.get("/api/merchant/settings", async (req, res, next) => {
   try {
-    const account = requireMerchantAccount(req);
+    const account = await requireMerchantAccount(req);
     const settingsMap = await readMerchantSettingsMap();
     res.json({ phone: String(settingsMap[account.id]?.phone || "") });
   } catch (error) {
@@ -1394,7 +1428,7 @@ app.get("/api/merchant/settings", async (req, res, next) => {
 
 app.post("/api/merchant/settings", async (req, res, next) => {
   try {
-    const account = requireMerchantAccount(req);
+    const account = await requireMerchantAccount(req);
     const phone = String(req.body?.phone || "").trim();
     if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
       throw createHttpError(400, "请填写正确的 11 位手机号。", "请填写正确的 11 位手机号。");
@@ -4629,7 +4663,8 @@ app.get("/api/admin/store-owners", requireAdmin, async (req, res, next) => {
           withdrawnCents: earnings.totalWithdrawnCents,
           balanceCents: earnings.balanceCents,
           unitPriceCents
-        }
+        },
+        staff: commerceStore.listStoreStaff(account.id).map(toPublicAdminUser)
       });
     }
     res.json({ storeOwners });
@@ -4685,6 +4720,35 @@ app.delete("/api/admin/store-owners/:accountId", requireAdmin, (req, res, next) 
     const account = commerceStore.setStoreOwner(req.params.accountId, false);
     if (!account) throw createHttpError(404, "小画店家不存在。");
     res.json({ storeOwner: toPublicAdminUser(account) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 店员管理：店员先用微信登录过，再由后台按账号绑定到店家；解绑后店员立即失去商户页权限。
+app.post("/api/admin/store-owners/:accountId/staff", requireAdmin, (req, res, next) => {
+  try {
+    const owner = commerceStore.readAccount(req.params.accountId);
+    if (!owner?.isStoreOwner) throw createHttpError(404, "小画店家不存在。");
+    const staffAccountId = String(req.body?.accountId || "").trim();
+    if (!staffAccountId) throw createHttpError(400, "请填写店员账号 ID。");
+    if (staffAccountId === owner.id) throw createHttpError(400, "不能把店家自己绑为店员。");
+    const result = commerceStore.setStoreStaff(staffAccountId, owner.id);
+    if (!result) throw createHttpError(404, "店员账号不存在或尚未注册。");
+    if (result.staffError) throw createHttpError(400, result.staffError);
+    res.status(201).json({ staff: toPublicAdminUser(result) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/store-owners/:accountId/staff/:staffAccountId", requireAdmin, (req, res, next) => {
+  try {
+    const owner = commerceStore.readAccount(req.params.accountId);
+    if (!owner?.isStoreOwner) throw createHttpError(404, "小画店家不存在。");
+    const result = commerceStore.setStoreStaff(req.params.staffAccountId, "");
+    if (!result) throw createHttpError(404, "店员账号不存在。");
+    res.json({ staff: toPublicAdminUser(result) });
   } catch (error) {
     next(error);
   }

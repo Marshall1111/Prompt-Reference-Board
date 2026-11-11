@@ -12968,24 +12968,37 @@ textarea {
 .merchant-badge.is-pending { background: #fff4e0; color: #a05a00; }
 .merchant-badge.is-processing { background: #e8f0fe; color: #1a56c4; }
 
-.merchant-status-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
-}
-.merchant-status-grid > div {
-  display: grid;
-  gap: 6px;
+/* 当前状态：单一大字状态展示，颜色按状态区分。 */
+.merchant-status-hero {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 12px;
+  padding: 22px 12px 6px;
   min-width: 0;
-  padding: 14px;
-  border: 1px solid #ececef;
-  border-radius: 14px;
-  background: #fafafa;
 }
-.merchant-status-grid span { display: block; color: #6e6e73; font-size: 12px; }
-.merchant-status-grid strong { font-size: 18px; letter-spacing: -0.02em; word-break: break-all; }
-.merchant-status-grid strong.is-online { color: #1a7f37; }
-.merchant-status-grid strong.is-offline { color: #c02b2b; }
+.merchant-status-hero strong {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.merchant-status-hero em {
+  font-style: normal;
+  color: #6e6e73;
+  font-size: 13px;
+}
+.merchant-status-hero.is-idle strong { color: #8e8e93; }
+.merchant-status-hero.is-ready strong { color: #248a3d; }
+.merchant-status-hero.is-busy strong { color: #0071e3; }
+.merchant-status-hero.is-warn strong { color: #c93400; }
+.merchant-status-hero.is-error strong { color: #d70015; }
+.merchant-status-queue {
+  margin: 4px 0 0;
+  text-align: center;
+  color: #6e6e73;
+  font-size: 13px;
+}
 
 .merchant-stat-grid {
   display: grid;
@@ -13130,7 +13143,7 @@ textarea {
 .merchant-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
 @media (max-width: 720px) {
-  .merchant-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .merchant-status-hero strong { font-size: 26px; }
   .merchant-stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .merchant-stat-grid article,
   .merchant-stat-grid .merchant-stat-card { padding: 12px; }

@@ -51,6 +51,7 @@ function mapAccount(row) {
     isReferralInfluencer: String(row.referral_role || "standard") === "influencer",
     isStoreOwner: String(row.store_role || "standard") === "store_owner",
     storeWechatId: String(row.store_wechat_id || ""),
+    storeParentAccountId: String(row.store_parent_account_id || ""),
     originalDownloadsUnlockedAt: row.original_downloads_unlocked_at || null,
     email: String(row.email || ""),
     username: String(row.username || ""),
@@ -469,6 +470,7 @@ export function createCommerceStore({ dbPath }) {
   ensureAccountColumn("referral_role", "referral_role TEXT NOT NULL DEFAULT 'standard'");
   ensureAccountColumn("store_role", "store_role TEXT NOT NULL DEFAULT 'standard'");
   ensureAccountColumn("store_wechat_id", "store_wechat_id TEXT NOT NULL DEFAULT ''");
+  ensureAccountColumn("store_parent_account_id", "store_parent_account_id TEXT NOT NULL DEFAULT ''");
   const paymentIntentColumns = db.prepare("PRAGMA table_info(commerce_payment_intents)").all();
   if (!paymentIntentColumns.some((column) => String(column.name || "") === "user_deleted_at")) {
     db.exec("ALTER TABLE commerce_payment_intents ADD COLUMN user_deleted_at TEXT");
@@ -2068,6 +2070,32 @@ export function createCommerceStore({ dbPath }) {
     `).all().map(mapAccount);
   }
 
+  // 店员账号：store_parent_account_id 指向店主账号；parentAccountId 为空表示解绑。
+  function setStoreStaff(accountId, parentAccountId) {
+    const account = readAccount(accountId);
+    if (!account?.isRegistered) return null;
+    const safeParentId = String(parentAccountId || "").trim();
+    if (safeParentId) {
+      const parent = readAccount(safeParentId);
+      if (!parent?.isStoreOwner) return { ...account, staffError: "目标账号不是小画店家。" };
+      if (parent.id === account.id) return { ...account, staffError: "不能把自己绑为店员。" };
+    }
+    db.prepare("UPDATE commerce_accounts SET store_parent_account_id = ?, updated_at = ? WHERE id = ?")
+      .run(safeParentId, nowIso(), account.id);
+    return readAccount(account.id);
+  }
+
+  function listStoreStaff(parentAccountId) {
+    const parentId = String(parentAccountId || "").trim();
+    if (!parentId) return [];
+    return db.prepare(`
+      SELECT * FROM commerce_accounts
+      WHERE store_parent_account_id = ?
+        AND registered_at IS NOT NULL
+      ORDER BY updated_at DESC, id ASC
+    `).all(parentId).map(mapAccount);
+  }
+
   function adjustRedemptionEntitlement({ accountId, entitlementType, delta, note = "", referenceId = "" }) {
     return withTransaction(db, () => {
       const safeAccountId = String(accountId || "");
@@ -2794,6 +2822,8 @@ export function createCommerceStore({ dbPath }) {
     setStoreOwner,
     updateStoreOwnerWechat,
     listStoreOwners,
+    setStoreStaff,
+    listStoreStaff,
     listAdminReferralLedger,
     listAdminReferralRankings,
     recordReferralVisit,

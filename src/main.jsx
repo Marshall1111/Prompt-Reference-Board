@@ -685,6 +685,17 @@ function formatMerchantMoney(cents) {
   return `￥${(Number(cents || 0) / 100).toFixed(2)}`;
 }
 
+// 商户工作台“当前状态”：由打印代理上报字段推导单一状态，按优先级取最需要处理的一项。
+function deriveMerchantPrinterState(printer) {
+  if (!printer?.connected) return { label: "未接入", tone: "is-idle" };
+  if (!printer.online) return { label: "设备离线", tone: "is-error" };
+  if (printer.fault) return { label: "设备故障", tone: "is-error", note: printer.faultReason || printer.fault };
+  if (printer.paperOut) return { label: "缺少纸张", tone: "is-warn" };
+  if (printer.ribbonOut) return { label: "缺少色带", tone: "is-warn" };
+  if (Number(printer.printingCount) > 0) return { label: "打印中", tone: "is-busy", note: `正在打印 ${printer.printingCount} 个` };
+  return { label: "待命中", tone: "is-ready" };
+}
+
 function MerchantDashboardPage() {
   const [payload, setPayload] = useState(null);
   const [overview, setOverview] = useState(null);
@@ -848,42 +859,17 @@ function MerchantDashboardPage() {
           <section className="merchant-card">
             <div className="merchant-card-head">
               <h2>当前状态</h2>
-              {printer?.connected ? (
-                <span className={`merchant-badge ${printer.online ? "is-online" : "is-offline"}`}>
-                  {printer.online ? "在线" : "离线"}
-                </span>
-              ) : (
-                <span className="merchant-badge">未接入</span>
-              )}
             </div>
-            <div className="merchant-status-grid">
-              <div>
-                <span>打印机</span>
-                <strong className={printer?.connected ? (printer.online ? "is-online" : "is-offline") : ""}>
-                  {printer?.connected ? (printer.online ? "在线" : "离线") : "未接入"}
-                </strong>
-              </div>
-              <div>
-                <span>故障</span>
-                <strong className={printer?.fault ? "is-offline" : ""}>
-                  {printer?.fault ? printer.fault : printer?.connected ? "无" : "—"}
-                </strong>
-              </div>
-              <div>
-                <span>纸张</span>
-                <strong className={printer?.paperOut ? "is-offline" : ""}>
-                  {printer?.connected ? (printer.paperOut ? "缺纸" : "正常") : "—"}
-                </strong>
-              </div>
-              <div>
-                <span>打印中</span>
-                <strong>{printer?.printingCount || 0}</strong>
-              </div>
-              <div>
-                <span>排队任务</span>
-                <strong>{printer?.queuedCount || 0}</strong>
-              </div>
-            </div>
+            {(() => {
+              const state = deriveMerchantPrinterState(printer);
+              return (
+                <div className={`merchant-status-hero ${state.tone}`}>
+                  <strong>{state.label}</strong>
+                  {state.note ? <em>{state.note}</em> : null}
+                </div>
+              );
+            })()}
+            <p className="merchant-status-queue">排队任务：{printer?.queuedCount || 0} 个</p>
             {printer?.connected ? null : (
               <p className="storage-note">打印机状态由店内打印代理上报，接入后这里会实时显示在线、故障、缺纸和打印进度。</p>
             )}
@@ -1003,7 +989,10 @@ function MerchantDashboardPage() {
         <div className="merchant-modal-backdrop" role="presentation" onClick={() => setSettingsOpen(false)}>
           <form className="merchant-modal" onClick={(event) => event.stopPropagation()} onSubmit={saveMerchantSettings}>
             <h2>通知设置</h2>
-            <p className="storage-note">填写手机号后，打印失败或设备离线时会短信通知你；留空则关闭短信通知。</p>
+            <p className="storage-note">
+              {payload?.role === "staff" ? "当前身份：店员。" : "当前身份：店主。"}
+              填写手机号后，打印失败或设备离线时会短信通知你；留空则关闭短信通知。
+            </p>
             <label className="merchant-field">
               <span>手机号</span>
               <input
@@ -11162,6 +11151,24 @@ async function removeAdminStoreOwner(accountId) {
   return payload;
 }
 
+async function addAdminStoreStaff(ownerAccountId, staffAccountId) {
+  const response = await fetch(`/api/admin/store-owners/${encodeURIComponent(ownerAccountId)}/staff`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ accountId: staffAccountId })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "绑定店员失败。");
+  return payload;
+}
+
+async function removeAdminStoreStaff(ownerAccountId, staffAccountId) {
+  const response = await fetch(`/api/admin/store-owners/${encodeURIComponent(ownerAccountId)}/staff/${encodeURIComponent(staffAccountId)}`, { method: "DELETE" });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "解绑店员失败。");
+  return payload;
+}
+
 async function claimStoreOwnerContext(inviteToken) {
   const response = await fetch("/api/public/store-owner/claim", {
     method: "POST",
@@ -13106,6 +13113,10 @@ function StoreOwnerAdminPage() {
   const [busy, setBusy] = useState(false);
   const [editingPrice, setEditingPrice] = useState({});
   const [priceInputs, setPriceInputs] = useState({});
+  const [staffModalFor, setStaffModalFor] = useState(null);
+  const [staffSearch, setStaffSearch] = useState("");
+  const [staffCandidates, setStaffCandidates] = useState([]);
+  const [staffHasSearched, setStaffHasSearched] = useState(false);
 
   const identity = (account) => {
     if (!account) return "—";
@@ -13117,8 +13128,10 @@ function StoreOwnerAdminPage() {
     setBusy(true); setError("");
     try {
       const payload = await fetchAdminStoreOwners();
-      setStoreOwners(payload.storeOwners || []);
-    } catch (nextError) { setError(nextError.message || "读取小画店家列表失败。"); } finally { setBusy(false); }
+      const next = payload.storeOwners || [];
+      setStoreOwners(next);
+      return next;
+    } catch (nextError) { setError(nextError.message || "读取小画店家列表失败。"); return []; } finally { setBusy(false); }
   }
   useEffect(() => { void refreshAll(); }, []);
 
@@ -13220,6 +13233,54 @@ function StoreOwnerAdminPage() {
     }
   }
 
+  function openStaffModal(user) {
+    setStaffModalFor(user);
+    setStaffSearch("");
+    setStaffCandidates([]);
+    setStaffHasSearched(false);
+    setError(""); setNotice("");
+  }
+
+  async function searchStaffCandidates() {
+    const keyword = staffSearch.trim();
+    if (!keyword || !staffModalFor) {
+      setStaffCandidates([]);
+      setStaffHasSearched(false);
+      return;
+    }
+    setBusy(true); setError("");
+    try {
+      const payload = await fetchAdminUsers({ type: "registered", search: keyword, limit: 20 });
+      const boundIds = new Set((staffModalFor.staff || []).map((item) => item.id));
+      setStaffCandidates((payload.users || []).filter((user) => !user.isStoreOwner && !boundIds.has(user.id)));
+      setStaffHasSearched(true);
+    } catch (nextError) { setError(nextError.message || "搜索用户失败。"); } finally { setBusy(false); }
+  }
+
+  async function bindStaff(accountId) {
+    if (!staffModalFor) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await addAdminStoreStaff(staffModalFor.id, accountId);
+      const next = await refreshAll();
+      setStaffModalFor((current) => current ? next.find((user) => user.id === current.id) || current : current);
+      setStaffCandidates((list) => list.filter((user) => user.id !== accountId));
+      setNotice("店员已绑定，该微信账号现在可以进入商户工作台。");
+    } catch (nextError) { setError(nextError.message || "绑定店员失败。"); } finally { setBusy(false); }
+  }
+
+  async function unbindStaff(staffAccountId) {
+    if (!staffModalFor) return;
+    if (!window.confirm("确认解绑该店员吗？解绑后该微信账号立即失去商户工作台权限。")) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await removeAdminStoreStaff(staffModalFor.id, staffAccountId);
+      const next = await refreshAll();
+      setStaffModalFor((current) => current ? next.find((user) => user.id === current.id) || current : current);
+      setNotice("店员已解绑。");
+    } catch (nextError) { setError(nextError.message || "解绑店员失败。"); } finally { setBusy(false); }
+  }
+
   return <section className="task-page referral-admin-page" aria-label="商户管理">
     <div className="task-toolbar"><div><p className="eyebrow">Merchants</p><h2>商户</h2><p className="storage-note">将注册用户设为小画店家并维护店家微信号；扫店家的风格码进入选图定制时，默认选择现场制作并展示店家微信。店家在微信里打开商户入口并登录后，即可进入自己的商户工作台。</p></div><div className="task-toolbar-actions"><button className="secondary-button" disabled={busy} onClick={copyMerchantEntry} type="button"><Clipboard size={16} /><span>复制商户入口</span></button><button className="secondary-button" disabled={busy} onClick={refreshAll} type="button"><RefreshCw size={18} /><span>{busy ? "刷新中" : "刷新"}</span></button></div></div>
     {error ? <p className="error-note">{error}</p> : null}{notice ? <p className="success-note">{notice}</p> : null}
@@ -13246,9 +13307,23 @@ function StoreOwnerAdminPage() {
           <td>{formatCurrencyCents(merchantStats.totalIncomeCents)}</td>
           <td>{formatCurrencyCents(merchantStats.withdrawnCents)}</td>
           <td>{formatCurrencyCents(merchantStats.balanceCents)}</td>
-          <td><button className="danger-button" disabled={busy} onClick={() => removeStoreOwner(user.id)} type="button">移出店家</button></td>
+          <td><div className="store-owner-wechat-value"><button className="secondary-button" disabled={busy} onClick={() => openStaffModal(user)} type="button">店员{(user.staff || []).length ? `（${user.staff.length}）` : ""}</button><button className="danger-button" disabled={busy} onClick={() => removeStoreOwner(user.id)} type="button">移出店家</button></div></td>
         </tr>;
       })}{!storeOwners.length ? <tr><td colSpan="12" className="order-table-empty">暂未设置小画店家。</td></tr> : null}</tbody></table></div>
+      {staffModalFor ? <div className="referral-withdrawal-backdrop" role="presentation" onClick={() => setStaffModalFor(null)}>
+        <div className="referral-withdrawal-modal" onClick={(event) => event.stopPropagation()}>
+          <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Staff</p><h3>店员管理 · {identity(staffModalFor)}</h3><p className="storage-note">店员先用微信登录一次，再在这里按账号绑定；店员进入商户工作台后看到的任务、钱包和店主完全一致。</p></div></div>
+          {error ? <p className="error-note">{error}</p> : null}{notice ? <p className="success-note">{notice}</p> : null}
+          <div className="task-filters">
+            <label className="search-box"><Search size={18} /><input onChange={(event) => { setStaffSearch(event.target.value); setStaffCandidates([]); setStaffHasSearched(false); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void searchStaffCandidates(); } }} placeholder="搜索店员昵称、邮箱或账户 ID" value={staffSearch} /></label>
+            <button className="secondary-button" disabled={busy || !staffSearch.trim()} onClick={searchStaffCandidates} type="button">搜索用户</button>
+          </div>
+          {staffSearch.trim() ? <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table"><thead><tr><th>匹配用户</th><th>注册信息</th><th /></tr></thead><tbody>{staffCandidates.map((candidate) => <tr key={candidate.id}><td><div className="user-admin-identity"><strong>{identity(candidate)}</strong><span>{candidate.email || "微信账户"}</span></div></td><td>{candidate.registeredAt ? formatDateTime(candidate.registeredAt) : "—"}</td><td><button className="secondary-button" disabled={busy} onClick={() => bindStaff(candidate.id)} type="button">绑为店员</button></td></tr>)}{!staffCandidates.length ? <tr><td colSpan="3" className="order-table-empty">{staffHasSearched ? "未找到可绑定的已注册用户（店家本人和已有店员除外）。" : "点击“搜索用户”后显示匹配的已注册用户。"}</td></tr> : null}</tbody></table></div> : null}
+          <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Current</p><h4>已绑定的店员</h4></div></div>
+          <div className="user-admin-table-wrap referral-table-wrap"><table className="user-admin-table"><thead><tr><th>店员</th><th>注册信息</th><th /></tr></thead><tbody>{(staffModalFor.staff || []).map((staffMember) => <tr key={staffMember.id}><td><div className="user-admin-identity"><strong>{identity(staffMember)}</strong><span>{staffMember.email || "微信账户"}</span></div></td><td>{staffMember.registeredAt ? formatDateTime(staffMember.registeredAt) : "—"}</td><td><button className="danger-button" disabled={busy} onClick={() => unbindStaff(staffMember.id)} type="button">解绑</button></td></tr>)}{!(staffModalFor.staff || []).length ? <tr><td colSpan="3" className="order-table-empty">还没有绑定店员。</td></tr> : null}</tbody></table></div>
+          <div className="merchant-modal-actions"><button className="secondary-button" onClick={() => setStaffModalFor(null)} type="button">关闭</button></div>
+        </div>
+      </div> : null}
     </div>
   </section>;
 }
