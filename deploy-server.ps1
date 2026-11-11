@@ -2,6 +2,7 @@
 param(
   [string]$RemoteUser = "ubuntu",
   [string]$RemoteHost = "118.25.188.55",
+  [int]$RemotePort = 2222,
   [string]$RemoteAppPath = "/srv/prompt-gallery",
   [string]$RemoteArchivePath = "/home/ubuntu/prompt-gallery-deploy.tgz"
 )
@@ -98,14 +99,14 @@ try {
   }
 
   Run-Step "Uploading archive to server" {
-    & scp $archivePath "${RemoteUser}@${RemoteHost}:$RemoteArchivePath"
+    & scp -P $RemotePort $archivePath "${RemoteUser}@${RemoteHost}:$RemoteArchivePath"
     if ($LASTEXITCODE -ne 0) {
       throw "scp failed with exit code $LASTEXITCODE"
     }
   }
 
   Run-Step "Applying update on server" {
-    & ssh -tt "${RemoteUser}@${RemoteHost}" $remoteCommand
+    & ssh -p $RemotePort -tt "${RemoteUser}@${RemoteHost}" $remoteCommand
     if ($LASTEXITCODE -ne 0) {
       throw "ssh failed with exit code $LASTEXITCODE"
     }
@@ -116,7 +117,8 @@ try {
   Write-Host "Server: ${RemoteUser}@${RemoteHost}" -ForegroundColor Green
   Write-Host "App path: $RemoteAppPath" -ForegroundColor Green
 } finally {
+  # 本地临时包偶尔被 scp/ssh 进程短暂占用，删除失败不影响部署结果。
   if (Test-Path $archivePath) {
-    Remove-Item $archivePath -Force
+    Remove-Item $archivePath -Force -ErrorAction SilentlyContinue
   }
 }
