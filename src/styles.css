@@ -13184,11 +13184,11 @@ textarea {
   border-radius: 14px;
   background: #fafafa;
 }
-.merchant-today-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.merchant-today-head > div { display: grid; gap: 3px; min-width: 0; }
+.merchant-today-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.merchant-today-head > div { display: grid; gap: 3px; min-width: 0; flex: 1 1 140px; }
 .merchant-today-head strong { font-size: 15px; letter-spacing: -0.01em; }
 .merchant-today-head small { color: #6e6e73; font-size: 12px; word-break: break-all; }
-.merchant-today-income { display: grid; justify-items: end; gap: 6px; text-align: right; }
+.merchant-today-income { display: grid; justify-items: end; gap: 6px; text-align: right; margin-left: auto; max-width: 100%; }
 .merchant-today-income > span { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .merchant-wallet-summary {
   display: grid;
@@ -13218,19 +13218,19 @@ textarea {
 
 .merchant-task-images {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
 }
 .merchant-task-images figure { margin: 0; display: grid; gap: 6px; }
-.merchant-task-images a { display: block; border-radius: 10px; }
-.merchant-task-images a img { transition: opacity 0.16s ease; }
-.merchant-task-images a:hover img { opacity: 0.82; }
+.merchant-task-thumb { display: block; width: 100%; padding: 0; border: 0; background: none; border-radius: 8px; overflow: hidden; cursor: zoom-in; }
+.merchant-task-thumb img { display: block; transition: opacity 0.16s ease; }
+.merchant-task-thumb:hover img { opacity: 0.82; }
 .merchant-task-images img,
 .merchant-task-images .merchant-job-placeholder {
   width: 100%;
   aspect-ratio: 3 / 4;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #f0f0f2;
 }
 .merchant-job-placeholder {
@@ -13301,6 +13301,19 @@ textarea {
 }
 .merchant-field input:focus { outline: 2px solid rgba(0, 113, 227, 0.35); outline-offset: 1px; }
 .merchant-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.merchant-image-modal {
+  display: grid;
+  gap: 10px;
+  width: min(720px, 100%);
+  max-height: 92vh;
+  padding: 14px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+}
+.merchant-image-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; color: #6e6e73; }
+.merchant-image-modal-head span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.merchant-image-modal img { width: 100%; max-height: calc(92vh - 110px); object-fit: contain; border-radius: 10px; background: #f7f7f9; }
 
 @media (max-width: 720px) {
   .merchant-status-hero strong { font-size: 26px; }

@@ -733,6 +733,7 @@ function MerchantDashboardPage() {
   const [busy, setBusy] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [walletError, setWalletError] = useState("");
   const [phoneDraft, setPhoneDraft] = useState("");
@@ -993,11 +994,16 @@ function MerchantDashboardPage() {
                           <figure key={`${task.taskNo}-${image.jobId || index}`}>
                             {image.thumbnailUrl ? (
                               image.originalUrl ? (
-                                <a href={image.originalUrl} rel="noreferrer" target="_blank" title="点击查看原图">
-                                  <img alt={image.styleName || `第 ${index + 1} 张`} src={image.thumbnailUrl} />
-                                </a>
+                                <button
+                                  className="merchant-task-thumb"
+                                  onClick={() => setPreviewImage({ url: image.originalUrl, alt: image.styleName || `第 ${index + 1} 张` })}
+                                  title="点击查看原图"
+                                  type="button"
+                                >
+                                  <img alt={image.styleName || `第 ${index + 1} 张`} loading="lazy" src={image.thumbnailUrl} />
+                                </button>
                               ) : (
-                                <img alt={image.styleName || `第 ${index + 1} 张`} src={image.thumbnailUrl} />
+                                <img alt={image.styleName || `第 ${index + 1} 张`} loading="lazy" src={image.thumbnailUrl} />
                               )
                             ) : (
                               <div className="merchant-job-placeholder">无预览</div>
@@ -1029,6 +1035,18 @@ function MerchantDashboardPage() {
             ) : null}
           </section>
         </>
+      ) : null}
+
+      {previewImage ? (
+        <div className="merchant-modal-backdrop" role="presentation" onClick={() => setPreviewImage(null)}>
+          <div className="merchant-image-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="merchant-image-modal-head">
+              <span>{previewImage.alt}</span>
+              <button className="merchant-settings-button" onClick={() => setPreviewImage(null)} type="button">关闭</button>
+            </div>
+            <img alt={previewImage.alt} src={previewImage.url} />
+          </div>
+        </div>
       ) : null}
 
       {walletOpen ? (

@@ -11130,6 +11130,7 @@ const PRINT_DEVICE_ERROR_REASONS = new Set([
   "media-jam-error",
   "cover-open-error",
   "offline-report",
+  "printer-disconnected",
   "shutdown"
 ]);
 
@@ -11156,6 +11157,7 @@ const PRINT_DEVICE_REASON_TEXT = {
   "media-jam-error": "卡纸",
   "cover-open-error": "机盖未关好",
   "offline-report": "打印机离线",
+  "printer-disconnected": "未检测到打印机，请检查 USB 线",
   "spool-area-full-report": "出纸托盘已满"
 };
 

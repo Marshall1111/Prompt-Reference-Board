@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -88,6 +89,26 @@ def run(cmd: list[str], timeout: float = 30) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
 
+def printer_connected(cfg: dict) -> bool:
+    """USB 线被拔掉后 CUPS 队列仍会显示 idle，需要额外确认打印机还在总线上。"""
+    queue = cfg["printer_name"]
+    try:
+        mapping = run(["lpstat", "-v", queue], timeout=10).stdout
+        match = re.search(r"device for [^:]+:\s*(\S+)", mapping)
+        if not match:
+            return True
+        uri = match.group(1).lower()
+        devices = run(["lpinfo", "-v"], timeout=15).stdout.lower()
+    except (OSError, subprocess.SubprocessError):
+        return True
+    if uri in devices:
+        return True
+    serial = re.search(r"serial=([^&\s]+)", uri)
+    if serial:
+        return f"serial={serial.group(1)}" in devices
+    return "usb://" in devices
+
+
 def query_printer(cfg: dict) -> tuple[str, list[str]]:
     queue = cfg["printer_name"]
     try:
@@ -110,6 +131,8 @@ def query_printer(cfg: dict) -> tuple[str, list[str]]:
     for keywords, reason in REASON_RULES:
         if any(keyword in haystack for keyword in keywords) and reason not in reasons:
             reasons.append(reason)
+    if not printer_connected(cfg):
+        reasons.append("printer-disconnected")
     return state, reasons
 
 
