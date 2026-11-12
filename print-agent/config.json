@@ -5,13 +5,13 @@
   "profile": {
     "sheet_width_mm": 105.67,
     "sheet_height_mm": 158.5,
-    "piece_width_mm": 50.0,
-    "piece_height_mm": 74.0,
+    "piece_width_mm": 51.0,
+    "piece_height_mm": 75.0,
     "gap_mm": 0.0,
-    "print_x0_mm": 2.835,
-    "print_x1_mm": 102.835,
-    "print_y0_mm": 5.25,
-    "print_y1_mm": 153.25
+    "print_x0_mm": 1.835,
+    "print_x1_mm": 103.835,
+    "print_y0_mm": 4.25,
+    "print_y1_mm": 154.25
   },
   "print_seconds_per_sheet": 50,
   "scale_x": 1.0,
