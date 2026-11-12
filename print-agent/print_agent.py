@@ -1,12 +1,13 @@
-"""4x6 相纸打印代理：校准页、2-up 排版、IPP 直发打印机。
+"""相纸打印代理：校准页、多张排版、IPP 直发打印机。
 
 用法：
     python print_agent.py calibrate            # 生成并打印校准页
     python print_agent.py calibrate --save a.jpg   # 只生成不打印
-    python print_agent.py layout a.jpg b.jpg   # 排版 2 个 50x75 并打印
+    python print_agent.py layout a.jpg b.jpg   # 一页最多排 4 张成品并打印
     python print_agent.py layout a.jpg --save out.jpg
 
-配置保存在同目录 config.json，首次运行自动创建。
+纸张尺寸、成品尺寸、可打印区域都在同目录 config.json 的 profile 段配置，
+首次运行会自动创建默认配置。
 """
 
 from __future__ import annotations
@@ -19,22 +20,26 @@ import time
 import urllib.request
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 # ---------- 基础参数 ----------
 DPI = 300
-SHEET_W_MM = 101.6          # 4 英寸
-SHEET_H_MM = 152.4          # 6 英寸
-PIECE_W_MM = 50.0           # 成品尺寸
-PIECE_H_MM = 75.0
-BLEED_MM = 2.0              # 出血
-GAP_MM = 10.0               # 两个成品之间的间距
+GUIDE_COLOR = (190, 190, 190)   # 裁切辅助线的浅灰色
+GUIDE_WIDTH_PX = 2
 
-# 实测可打印区域（4x6 纸，HP Smart Tank 510 上报值）
-PRINT_X0_MM = 0.63
-PRINT_X1_MM = 95.81
-PRINT_Y0_MM = 1.85
-PRINT_Y1_MM = 146.75
+# 默认版面参数（4x6 纸 + 50x74 成品），实际以 config.json 的 profile 段为准
+DEFAULT_PROFILE = {
+    "sheet_width_mm": 101.6,    # 纸张宽
+    "sheet_height_mm": 152.4,   # 纸张高
+    "piece_width_mm": 50.0,     # 成品短边上限
+    "piece_height_mm": 74.0,    # 成品长边上限
+    "gap_mm": 10.0,              # 成品之间的间距
+    # 实测可打印区域（4x6 纸，HP Smart Tank 510 上报值）
+    "print_x0_mm": 0.63,
+    "print_x1_mm": 95.81,
+    "print_y0_mm": 1.85,
+    "print_y1_mm": 146.75,
+}
 
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "config.json"
@@ -42,15 +47,16 @@ DEFAULT_CONFIG = {
     "printer_ip": "192.168.31.100",
     "printer_uri_path": "/ipp/print",
     "media": "na_index-4x6_4x6in",
-    # 打印机把 4x6 整页缩到可打印区，实测：实际 = offset + scale × 设计
+    "profile": dict(DEFAULT_PROFILE),
+    # 打印机把整页缩到可打印区，实测：实际 = offset + scale × 设计
     "scale_x": 1.0,
     "scale_y": 1.0,
     "offset_x_mm": 0.0,
     "offset_y_mm": 0.0,
 }
 REASON_TEXT = {
-    "media-empty-error": "缺纸（放 4x6 相纸）",
-    "media-empty-warning": "缺纸（放 4x6 相纸）",
+    "media-empty-error": "缺纸（请放入相纸）",
+    "media-empty-warning": "缺纸（请放入相纸）",
     "spool-area-full-report": "出纸托盘已满，请把打印好的纸拿走",
     "media-jam-error": "卡纸",
     "cover-open-error": "机盖未关好",
@@ -64,11 +70,17 @@ def mm2px(mm: float) -> int:
 def load_config() -> dict:
     if CONFIG_PATH.exists():
         cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-        return {**DEFAULT_CONFIG, **cfg}
+        merged = {**DEFAULT_CONFIG, **cfg}
+        merged["profile"] = {**DEFAULT_PROFILE, **(cfg.get("profile") or {})}
+        return merged
     CONFIG_PATH.write_text(
         json.dumps(DEFAULT_CONFIG, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     return dict(DEFAULT_CONFIG)
+
+
+def profile(cfg: dict) -> dict:
+    return cfg.get("profile") or DEFAULT_PROFILE
 
 
 def font(size: int) -> ImageFont.ImageFont:
@@ -80,16 +92,22 @@ def font(size: int) -> ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
-def new_canvas() -> Image.Image:
-    img = Image.new("RGB", (mm2px(SHEET_W_MM), mm2px(SHEET_H_MM)), "white")
-    return img
+def new_canvas(cfg: dict) -> Image.Image:
+    p = profile(cfg)
+    return Image.new("RGB", (mm2px(p["sheet_width_mm"]), mm2px(p["sheet_height_mm"])), "white")
 
 
 # ---------- 校准验证页 ----------
 def build_calibration(cfg: dict) -> Image.Image:
-    img = new_canvas()
+    p = profile(cfg)
+    img = new_canvas(cfg)
     d = ImageDraw.Draw(img)
-    W, H = SHEET_W_MM, SHEET_H_MM
+    W, H = p["sheet_width_mm"], p["sheet_height_mm"]
+    piece_w, piece_h = p["piece_width_mm"], p["piece_height_mm"]
+    x0, x1 = p["print_x0_mm"], p["print_x1_mm"]
+    y0, y1 = p["print_y0_mm"], p["print_y1_mm"]
+    hr_len = min(90.0, max(10.0, W - 10.0))   # 横向标尺长度
+    vr_len = min(140.0, max(10.0, H - 8.0))   # 竖向标尺长度
 
     # 边框：用来目测四周白边是否等宽
     d.rectangle([mm2px(5), mm2px(5), mm2px(W - 5), mm2px(H - 5)], outline=(0, 110, 220), width=2)
@@ -100,47 +118,47 @@ def build_calibration(cfg: dict) -> Image.Image:
     d.text((mm2px(12), mm2px(8)), "校准验证页", fill=(40, 40, 40), font=font(30))
     for i, line in enumerate(
         [
-            "横标尺 0-90 应正好 90mm；竖标尺 0-140 应正好 140mm",
-            "成品框应正好 宽 50mm × 高 75mm",
+            f"横标尺 0-{hr_len:g} 应正好 {hr_len:g}mm；竖标尺 0-{vr_len:g} 应正好 {vr_len:g}mm",
+            f"成品框应正好 宽 {piece_w:g}mm × 高 {piece_h:g}mm",
             "任一数值不符，把实测值告诉我即可",
         ]
     ):
         d.text((mm2px(12), mm2px(16 + i * 7.5)), line, fill=(60, 60, 60), font=font(21))
 
-    # 成品框 50 x 75（与正式排版同位置）
-    cx = (PRINT_X0_MM + PRINT_X1_MM) / 2
-    cy = (PRINT_Y0_MM + PRINT_Y1_MM) / 2
+    # 成品框（与正式排版同位置）
+    cx = (x0 + x1) / 2
+    cy = (y0 + y1) / 2
     d.rectangle(
         [
-            mm2px(cx - PIECE_W_MM / 2),
-            mm2px(cy - PIECE_H_MM / 2),
-            mm2px(cx + PIECE_W_MM / 2),
-            mm2px(cy + PIECE_H_MM / 2),
+            mm2px(cx - piece_w / 2),
+            mm2px(cy - piece_h / 2),
+            mm2px(cx + piece_w / 2),
+            mm2px(cy + piece_h / 2),
         ],
         outline=(200, 0, 150),
         width=3,
     )
     d.text(
-        (mm2px(cx - PIECE_W_MM / 2 + 1.5), mm2px(cy - PIECE_H_MM / 2 + 1.5)),
-        "成品 50 x 75",
+        (mm2px(cx - piece_w / 2 + 1.5), mm2px(cy - piece_h / 2 + 1.5)),
+        f"成品 {piece_w:g} x {piece_h:g}",
         fill=(200, 0, 150),
         font=font(24),
     )
 
-    # 横向 90mm 标尺
-    ry = 126.0
-    d.line([mm2px(4), mm2px(ry), mm2px(94), mm2px(ry)], fill=(0, 0, 0), width=2)
-    for i in range(0, 91, 5):
+    # 横向标尺
+    ry = H - 22.0
+    d.line([mm2px(4), mm2px(ry), mm2px(4 + hr_len), mm2px(ry)], fill=(0, 0, 0), width=2)
+    for i in range(0, int(hr_len) + 1, 5):
         x = 4 + i
         length = 6.0 if i % 10 == 0 else 3.0
         d.line([mm2px(x), mm2px(ry), mm2px(x), mm2px(ry - length)], fill=(0, 0, 0), width=2)
         if i % 10 == 0:
             d.text((mm2px(x) - 6, mm2px(ry + 1.2)), str(i), fill=(0, 0, 0), font=font(18))
 
-    # 竖向 140mm 标尺
-    rx = 94.0
-    d.line([mm2px(rx), mm2px(4), mm2px(rx), mm2px(144)], fill=(0, 0, 0), width=2)
-    for i in range(0, 141, 5):
+    # 竖向标尺
+    rx = W - 6.0
+    d.line([mm2px(rx), mm2px(4), mm2px(rx), mm2px(4 + vr_len)], fill=(0, 0, 0), width=2)
+    for i in range(0, int(vr_len) + 1, 5):
         y = 4 + i
         length = 6.0 if i % 10 == 0 else 3.0
         d.line([mm2px(rx), mm2px(y), mm2px(rx - length), mm2px(y)], fill=(0, 0, 0), width=2)
@@ -151,46 +169,76 @@ def build_calibration(cfg: dict) -> Image.Image:
 
 
 # ---------- 正式排版 ----------
-def cover_resize(src: Path, w_px: int, h_px: int) -> Image.Image:
-    img = Image.open(src).convert("RGB")
-    scale = max(w_px / img.width, h_px / img.height)
-    new_size = (max(1, int(round(img.width * scale))), max(1, int(round(img.height * scale))))
-    img = img.resize(new_size, Image.LANCZOS)
-    left = (img.width - w_px) // 2
-    top = (img.height - h_px) // 2
-    return img.crop((left, top, left + w_px, top + h_px))
+def fit_piece(src: Path, cell_w_mm: float, cell_h_mm: float, p: dict) -> Image.Image:
+    """按原图比例缩放：长边不超过成品高、短边不超过成品宽，不裁剪不变形。
+    横图先顺时针旋转 90° 变成竖图再排版。"""
+    img = ImageOps.exif_transpose(Image.open(src)).convert("RGB")
+    if img.width > img.height:
+        img = img.rotate(-90, expand=True)
+    scale = min(
+        p["piece_width_mm"] / img.width,
+        p["piece_height_mm"] / img.height,
+        cell_w_mm / img.width,
+        cell_h_mm / img.height,
+    )
+    size = (
+        max(1, round(img.width * scale * DPI / 25.4)),
+        max(1, round(img.height * scale * DPI / 25.4)),
+    )
+    return img.resize(size, Image.LANCZOS)
 
 
 def build_layout(images: list[Path], cfg: dict) -> Image.Image:
-    img = new_canvas()
-    d = ImageDraw.Draw(img)
+    """一页最多 4 张：1 张居中，2 张上下，3-4 张 2x2，每张按原比例缩放。"""
+    p = profile(cfg)
+    img = new_canvas(cfg)
+    pages = images[:4]
+    if not pages:
+        return img
 
-    # 成品旋转 90° 放置：纸面上占 75 宽 × 50 高
-    pw_mm, ph_mm = PIECE_H_MM, PIECE_W_MM
-    piece_w, piece_h = mm2px(pw_mm), mm2px(ph_mm)
-    bleed = mm2px(BLEED_MM)
-    total_h_mm = ph_mm * 2 + GAP_MM
-    start_x_mm = PRINT_X0_MM + (PRINT_X1_MM - PRINT_X0_MM - pw_mm) / 2
-    start_y_mm = PRINT_Y0_MM + (PRINT_Y1_MM - PRINT_Y0_MM - total_h_mm) / 2
+    cols = 1 if len(pages) <= 2 else 2
+    rows = (len(pages) + cols - 1) // cols
+    gap = p["gap_mm"]
+    area_w = p["print_x1_mm"] - p["print_x0_mm"]
+    area_h = p["print_y1_mm"] - p["print_y0_mm"]
+    cell_w = (area_w - gap * (cols - 1)) / cols
+    cell_h = (area_h - gap * (rows - 1)) / rows
+    grid_w = cell_w * cols + gap * (cols - 1)
+    grid_h = cell_h * rows + gap * (rows - 1)
+    start_x = p["print_x0_mm"] + (area_w - grid_w) / 2
+    start_y = p["print_y0_mm"] + (area_h - grid_h) / 2
 
-    for idx, path in enumerate(images[:2]):
-        top_mm = start_y_mm + idx * (ph_mm + GAP_MM)
-        left_px = mm2px(start_x_mm) - bleed
-        top_px = mm2px(top_mm) - bleed
-        piece = cover_resize(path, piece_w + bleed * 2, piece_h + bleed * 2)
-        img.paste(piece, (left_px, top_px))
+    placed_rects = []
+    guide_xs: set[int] = set()
+    guide_ys: set[int] = set()
 
-    # 裁切辅助线：沿成品四边贯穿到相纸边缘，方便用裁刀对齐
-    guide = (150, 150, 150)
-    for x_mm in (start_x_mm, start_x_mm + pw_mm):
-        d.line([mm2px(x_mm), 0, mm2px(x_mm), img.height - 1], fill=guide, width=2)
-    for y_mm in (
-        start_y_mm,
-        start_y_mm + ph_mm,
-        start_y_mm + ph_mm + GAP_MM,
-        start_y_mm + ph_mm * 2 + GAP_MM,
-    ):
-        d.line([0, mm2px(y_mm), img.width - 1, mm2px(y_mm)], fill=guide, width=2)
+    for idx, path in enumerate(pages):
+        col, row = idx % cols, idx // cols
+        cell_x = start_x + col * (cell_w + gap)
+        cell_y = start_y + row * (cell_h + gap)
+        piece = fit_piece(path, cell_w, cell_h, p)
+        piece_w_mm = piece.width * 25.4 / DPI
+        piece_h_mm = piece.height * 25.4 / DPI
+        px = mm2px(cell_x + (cell_w - piece_w_mm) / 2)
+        py = mm2px(cell_y + (cell_h - piece_h_mm) / 2)
+        img.paste(piece, (px, py))
+        placed_rects.append((px, py, px + piece.width, py + piece.height))
+        guide_xs.update((px, px + piece.width))
+        guide_ys.update((py, py + piece.height))
+
+    # 裁切辅助线：沿每张图片的四边画浅灰延长线，一直延伸到相纸边缘；
+    # 线条落在照片上的部分会被遮掉，避免在成品画面上留下灰线。
+    guide_mask = Image.new("L", img.size, 0)
+    guide_draw = ImageDraw.Draw(guide_mask)
+    for x in sorted(guide_xs):
+        if 0 <= x < img.width:
+            guide_draw.line([(x, 0), (x, img.height - 1)], fill=255, width=GUIDE_WIDTH_PX)
+    for y in sorted(guide_ys):
+        if 0 <= y < img.height:
+            guide_draw.line([(0, y), (img.width - 1, y)], fill=255, width=GUIDE_WIDTH_PX)
+    for left, top, right, bottom in placed_rects:
+        guide_draw.rectangle([left, top, right + GUIDE_WIDTH_PX, bottom + GUIDE_WIDTH_PX], fill=0)
+    img.paste(GUIDE_COLOR, (0, 0), guide_mask)
 
     return img
 
@@ -332,14 +380,14 @@ def save_and_print(img: Image.Image, cfg: dict, save: str | None, name: str) -> 
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="4x6 相纸打印代理")
+    parser = argparse.ArgumentParser(description="相纸打印代理（尺寸见 config.json）")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_cal = sub.add_parser("calibrate", help="打印校准页")
     p_cal.add_argument("--save", help="只保存不打印")
 
-    p_layout = sub.add_parser("layout", help="排版 2 个 50x75 成品")
-    p_layout.add_argument("images", nargs="+", help="原图路径（1~2 张）")
+    p_layout = sub.add_parser("layout", help="排版成品并打印（一页最多 4 张）")
+    p_layout.add_argument("images", nargs="+", help="原图路径（1~4 张）")
     p_layout.add_argument("--save", help="只保存不打印")
 
     args = parser.parse_args()

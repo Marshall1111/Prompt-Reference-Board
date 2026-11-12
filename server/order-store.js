@@ -32,6 +32,12 @@ function mapOrderRow(row) {
     bodyBookThemeName: String(row.body_book_theme_name || ""),
     paymentStatus: String(row.payment_status || "unpaid"),
     fulfillmentStatus: String(row.fulfillment_status || "new"),
+    fulfillmentMode: String(row.fulfillment_mode || "mail"),
+    // 账号 ID 是 UUID 字符串，转 Number 会变成 NaN 并最终存成 NULL，导致订单失去店家归属。
+    storeOwnerAccountId: row.store_owner_account_id == null || row.store_owner_account_id === ""
+      ? null
+      : String(row.store_owner_account_id),
+    storeName: String(row.store_name || ""),
     itemCount: Number(row.item_count || 0),
     unitPriceCents: Number(row.unit_price_cents || 0),
     shippingFeeCents: Number(row.shipping_fee_cents || 0),
@@ -143,6 +149,9 @@ export function createOrderStore({ dbPath }) {
       body_book_theme_name TEXT NOT NULL DEFAULT '',
       payment_status TEXT NOT NULL,
       fulfillment_status TEXT NOT NULL,
+      fulfillment_mode TEXT NOT NULL DEFAULT 'mail',
+      store_owner_account_id INTEGER,
+      store_name TEXT NOT NULL DEFAULT '',
       item_count INTEGER NOT NULL,
       unit_price_cents INTEGER NOT NULL,
       shipping_fee_cents INTEGER NOT NULL,
@@ -276,11 +285,20 @@ export function createOrderStore({ dbPath }) {
   if (!orderColumns.some((column) => String(column.name || "") === "refunded_at")) {
     db.exec("ALTER TABLE orders ADD COLUMN refunded_at TEXT");
   }
+  if (!orderColumns.some((column) => String(column.name || "") === "fulfillment_mode")) {
+    db.exec("ALTER TABLE orders ADD COLUMN fulfillment_mode TEXT NOT NULL DEFAULT 'mail'");
+  }
+  if (!orderColumns.some((column) => String(column.name || "") === "store_owner_account_id")) {
+    db.exec("ALTER TABLE orders ADD COLUMN store_owner_account_id INTEGER");
+  }
+  if (!orderColumns.some((column) => String(column.name || "") === "store_name")) {
+    db.exec("ALTER TABLE orders ADD COLUMN store_name TEXT NOT NULL DEFAULT ''");
+  }
 
   const insertOrderStatement = db.prepare(`
     INSERT INTO orders (
       id, order_no, visitor_id, account_id, public_token, experience_type, body_book_theme_name,
-      payment_status, fulfillment_status, item_count,
+      payment_status, fulfillment_status, fulfillment_mode, store_owner_account_id, store_name, item_count,
       unit_price_cents, shipping_fee_cents, subtotal_cents, total_cents, bean_discount_cents, coin_discount_cents, payable_cents,
       remark, receiver_name, receiver_phone, province, city, district, address_detail,
       source_merchant_id, source_merchant_name, commission_rate_bps, source_claimed_at,
@@ -289,7 +307,7 @@ export function createOrderStore({ dbPath }) {
       completed_at, cancelled_at, refunded_at, user_deleted_at, created_at, updated_at
     ) VALUES (
       @id, @orderNo, @visitorId, @accountId, @publicToken, @experienceType, @bodyBookThemeName,
-      @paymentStatus, @fulfillmentStatus, @itemCount,
+      @paymentStatus, @fulfillmentStatus, @fulfillmentMode, @storeOwnerAccountId, @storeName, @itemCount,
       @unitPriceCents, @shippingFeeCents, @subtotalCents, @totalCents, @beanDiscountCents, @coinDiscountCents, @payableCents,
       @remark, @receiverName, @receiverPhone, @province, @city, @district, @addressDetail,
       @sourceMerchantId, @sourceMerchantName, @commissionRateBps, @sourceClaimedAt,
@@ -373,6 +391,11 @@ export function createOrderStore({ dbPath }) {
       insertOrderStatement.run({
         accountId: order.accountId || "",
         bodyBookThemeName: order.bodyBookThemeName || "",
+        fulfillmentMode: order.fulfillmentMode === "onsite" ? "onsite" : "mail",
+        storeOwnerAccountId: order.storeOwnerAccountId == null || order.storeOwnerAccountId === ""
+          ? null
+          : String(order.storeOwnerAccountId).trim(),
+        storeName: String(order.storeName || ""),
         beanDiscountCents: Math.max(0, Math.trunc(Number(order.beanDiscountCents || 0))),
         coinDiscountCents: Math.max(0, Math.trunc(Number(order.coinDiscountCents || 0))),
         payableCents: Math.max(0, Math.trunc(Number(order.payableCents ?? order.totalCents ?? 0))),
@@ -472,6 +495,9 @@ export function createOrderStore({ dbPath }) {
       sourceMerchantName: next.sourceMerchantName,
       commissionRateBps: next.commissionRateBps,
       sourceClaimedAt: next.sourceClaimedAt,
+      fulfillmentMode: next.fulfillmentMode,
+      storeOwnerAccountId: next.storeOwnerAccountId,
+      storeName: next.storeName,
       adminRemark: next.adminRemark,
       wechatOpenId: next.wechatOpenId,
       wechatTransactionId: next.wechatTransactionId,
@@ -504,6 +530,9 @@ export function createOrderStore({ dbPath }) {
         source_merchant_name = @sourceMerchantName,
         commission_rate_bps = @commissionRateBps,
         source_claimed_at = @sourceClaimedAt,
+        fulfillment_mode = @fulfillmentMode,
+        store_owner_account_id = @storeOwnerAccountId,
+        store_name = @storeName,
         admin_remark = @adminRemark,
         wechat_open_id = @wechatOpenId,
         wechat_transaction_id = @wechatTransactionId,

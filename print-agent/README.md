@@ -1,14 +1,14 @@
-# print-agent：4×6 相纸打印代理
+# print-agent：CP1500 相纸打印代理
 
-把网页上的成品图排成「一张 4×6 相纸出 2 个 50×75mm 成品」，并通过 IPP 直接发给局域网打印机。
-目前是单机版（自己测试用），后续扩展成树莓派上的常驻代理，从 petpaint 服务端拉任务打印。
+把网页上的成品图排成「一张 100×148 相纸最多出 4 个 50×74mm 成品」，按原图比例缩放、不裁剪不变形。
+树莓派上由 `agent.py` 常驻运行，从 petpaint 服务端拉任务，排版后交给 CUPS 队列出纸。
 
 ## 当前硬件与环境
 
-- 打印机：HP Smart Tank 510 series（Wi-Fi 接入家庭网络，IP `192.168.31.100`，IPP 端口 631，路径 `/ipp/print`）
-- 相纸：4×6 英寸（101.6 × 152.4 mm），300 DPI → 页面 1200 × 1800 px
-- 打印环境：Windows + Python 3，依赖 `Pillow`
-- 打印机不支持无边距，实际可打印区约 x 0.63~95.81mm、y 1.85~146.75mm
+- 打印机：Canon SELPHY CP1500（USB 直连树莓派，CUPS 队列名 `cp1500`）
+- 相纸：100 × 148 mm，300 DPI；Gutenprint 的 Postcard 页面是 105.67 × 158.5 mm，成品区按 100×148 居中
+- 打印环境：树莓派（Raspberry Pi OS，Python 3 + Pillow），驱动用 Gutenprint 5.3.5+
+- 出纸走 CUPS：`PageSize=Postcard`、`StpBorderless=True`、`print-scaling=none`
 
 ```powershell
 pip install pillow
@@ -23,8 +23,8 @@ python print_agent.py calibrate
 # 只生成不打印
 python print_agent.py calibrate --save check.jpg
 
-# 正式排版：1~2 张原图，一张相纸出 2 个 50×75 成品
-python print_agent.py layout a.jpg b.jpg
+# 正式排版：1~4 张原图，一页最多 4 个 50×74 成品（4 张时正好铺满整张相纸）
+python print_agent.py layout a.jpg b.jpg c.jpg d.jpg
 
 # 只生成排版文件
 python print_agent.py layout a.jpg --save out.jpg
@@ -39,14 +39,27 @@ python print_agent.py layout a.jpg --save out.jpg
   "printer_ip": "192.168.31.100",
   "printer_uri_path": "/ipp/print",
   "media": "na_index-4x6_4x6in",
-  "scale_x": 0.9368,
-  "scale_y": 0.9508,
-  "offset_x_mm": 0.63,
-  "offset_y_mm": 1.85
+  "profile": {
+    "sheet_width_mm": 105.67,
+    "sheet_height_mm": 158.5,
+    "piece_width_mm": 50.0,
+    "piece_height_mm": 74.0,
+    "gap_mm": 0.0,
+    "print_x0_mm": 2.835,
+    "print_x1_mm": 102.835,
+    "print_y0_mm": 5.25,
+    "print_y1_mm": 153.25
+  },
+  "scale_x": 1.0,
+  "scale_y": 1.0,
+  "offset_x_mm": 0.0,
+  "offset_y_mm": 0.0
 }
 ```
 
-后四个是**本机实测校准值**，换打印机必须重新校准。
+`profile` 是页面与成品尺寸：`sheet_*` 是**发给打印机的页面尺寸**（CP1500 要填 Gutenprint 的 Postcard 实际页面 105.67×158.5，不是相纸的 100×148）、`piece_*` 是成品上限（长边 `piece_height_mm`、短边 `piece_width_mm`）、`gap_mm` 成品间距、`print_*` 是相纸在页面里的位置（成品区居中，左右各留 2.835mm、上下各留 5.25mm，打印时被裁掉）。
+排版按原图比例缩放，不裁剪不变形：方图 50×50，竖图长边不超过 74、短边不超过 50，横图先转 90°；一页最多 4 张（1 张居中、2 张上下、3–4 张 2×2），4 张时正好铺满 100×148。
+`scale_*` / `offset_*` 是**本机实测校准值**；CP1500 实测 1:1，保持 1.0 / 0 即可。
 
 ## 校准原理与步骤
 
@@ -64,14 +77,14 @@ python print_agent.py layout a.jpg --save out.jpg
 2. 打一张 `calibrate`，量出标尺/框的真实长度，解出 `scale` 与 `offset`；
 3. 填回配置，再打一张验证页，量 90mm 横标尺、140mm 竖标尺、50×75 成品框，误差进 ±0.3mm 即可。
 
-当前校准精度：横 90mm、竖 140mm、成品框 50×75 均已对上。
+当前校准精度：CP1500 实测 1:1（50×74 框实测 50×73.5，标尺误差 ≤1%），`scale_*` / `offset_*` 保持 1.0 / 0。
 
 ## 排版规则
 
-- 4×6 纸放不下两个 50×75 竖放（100mm 宽 > 95.2mm 可打印宽），所以**成品旋转 90°**：纸面上每个占 75 宽 × 50 高，两张上下排列，中间 10mm 间距。
-- 每张四周各留 2mm 出血（成品框内被裁掉），因此两张图之间的白边是 6mm。
-- 四边各画一条灰色辅助线，从成品裁切边**贯穿到相纸边缘**，裁刀沿线走即可；灰线才是 50×75 的裁切线，线外的 2mm 是出血。
-- 内容整体居中于可打印区，距纸边 ≥10mm，进纸偏移 1~2mm 也不会切到画面。
+- 100×148 相纸按 2×2 刚好放下 4 个 50×74 成品，`gap_mm` 设 0，四张之间不留白。
+- 每张图按原比例缩放到 50×74 的格子里：方图 50×50 居中，3:4 竖图 50×66.6，横图先顺时针转 90° 再排。
+- 每个格子的边界画灰色裁切线并贯穿整页；4 张时中间的十字线就是裁切线，沿线裁开即得 4 张 50×74。
+- 不足 4 张时：1 张居中、2 张上下、3 张时第三张在左下，空位留白。
 
 ## IPP 踩坑记录（重要）
 
@@ -85,7 +98,7 @@ python print_agent.py layout a.jpg --save out.jpg
 ## 已知限制
 
 - 进纸有轻微歪斜（每次 1~2mm），软件无法补偿，靠留白规避；裁切以打印出的辅助线为准，因此不影响成品尺寸。
-- 目前一张纸固定出 2 个，且必须人工裁切。
+- 目前一张纸最多出 4 个，且必须人工裁切。
 - 只支持 JPEG/300DPI 页面，未做色彩管理。
 
 ## 下一步（树莓派方案）

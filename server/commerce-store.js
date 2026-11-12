@@ -51,6 +51,7 @@ function mapAccount(row) {
     isReferralInfluencer: String(row.referral_role || "standard") === "influencer",
     isStoreOwner: String(row.store_role || "standard") === "store_owner",
     storeWechatId: String(row.store_wechat_id || ""),
+    storeName: String(row.store_name || ""),
     storeParentAccountId: String(row.store_parent_account_id || ""),
     originalDownloadsUnlockedAt: row.original_downloads_unlocked_at || null,
     email: String(row.email || ""),
@@ -125,6 +126,7 @@ export function createCommerceStore({ dbPath }) {
       referral_role TEXT NOT NULL DEFAULT 'standard',
       store_role TEXT NOT NULL DEFAULT 'standard',
       store_wechat_id TEXT NOT NULL DEFAULT '',
+      store_name TEXT NOT NULL DEFAULT '',
       original_downloads_unlocked_at TEXT,
       wechat_nickname TEXT NOT NULL DEFAULT '',
       wechat_avatar_url TEXT NOT NULL DEFAULT '',
@@ -470,6 +472,7 @@ export function createCommerceStore({ dbPath }) {
   ensureAccountColumn("referral_role", "referral_role TEXT NOT NULL DEFAULT 'standard'");
   ensureAccountColumn("store_role", "store_role TEXT NOT NULL DEFAULT 'standard'");
   ensureAccountColumn("store_wechat_id", "store_wechat_id TEXT NOT NULL DEFAULT ''");
+  ensureAccountColumn("store_name", "store_name TEXT NOT NULL DEFAULT ''");
   ensureAccountColumn("store_parent_account_id", "store_parent_account_id TEXT NOT NULL DEFAULT ''");
   const paymentIntentColumns = db.prepare("PRAGMA table_info(commerce_payment_intents)").all();
   if (!paymentIntentColumns.some((column) => String(column.name || "") === "user_deleted_at")) {
@@ -2043,12 +2046,13 @@ export function createCommerceStore({ dbPath }) {
     `).all().map(mapAccount);
   }
 
-  function setStoreOwner(accountId, enabled, wechatId = "") {
+  function setStoreOwner(accountId, enabled, wechatId = "", storeName = "") {
     const account = readAccount(accountId);
     if (!account?.isRegistered) return null;
     const safeWechatId = String(wechatId || "").trim().slice(0, 64);
-    db.prepare("UPDATE commerce_accounts SET store_role = ?, store_wechat_id = ?, updated_at = ? WHERE id = ?")
-      .run(enabled ? "store_owner" : "standard", enabled ? safeWechatId : "", nowIso(), account.id);
+    const safeStoreName = enabled ? String(storeName || "").trim().slice(0, 30) : account.storeName;
+    db.prepare("UPDATE commerce_accounts SET store_role = ?, store_wechat_id = ?, store_name = ?, updated_at = ? WHERE id = ?")
+      .run(enabled ? "store_owner" : "standard", enabled ? safeWechatId : "", safeStoreName, nowIso(), account.id);
     return readAccount(account.id);
   }
 
@@ -2058,6 +2062,15 @@ export function createCommerceStore({ dbPath }) {
     const safeWechatId = String(wechatId || "").trim().slice(0, 64);
     db.prepare("UPDATE commerce_accounts SET store_wechat_id = ?, updated_at = ? WHERE id = ?")
       .run(safeWechatId, nowIso(), account.id);
+    return readAccount(account.id);
+  }
+
+  function updateStoreOwnerName(accountId, storeName) {
+    const account = readAccount(accountId);
+    if (!account?.isRegistered || !account.isStoreOwner) return account;
+    const safeStoreName = String(storeName || "").trim().slice(0, 30);
+    db.prepare("UPDATE commerce_accounts SET store_name = ?, updated_at = ? WHERE id = ?")
+      .run(safeStoreName, nowIso(), account.id);
     return readAccount(account.id);
   }
 
@@ -2618,7 +2631,7 @@ export function createCommerceStore({ dbPath }) {
   // 传入 visitorIds/accountIds 时只查相关账户，避免每次全量扫 12 万行。
   function listAdminAccountSummaries(options = {}) {
     const accountColumns = `id, channel, open_id, credit_balance, bean_balance, referral_balance_cents, referral_pending_cents,
-             referral_role, store_role, store_wechat_id, original_downloads_unlocked_at,
+             referral_role, store_role, store_wechat_id, store_name, original_downloads_unlocked_at,
              email, username, password_hash, wechat_nickname, wechat_avatar_url,
              account_status, registered_at, last_login_at, created_at, updated_at`;
     const hasFilter = Array.isArray(options.visitorIds) || Array.isArray(options.accountIds);
@@ -2821,6 +2834,7 @@ export function createCommerceStore({ dbPath }) {
     listReferralInfluencers,
     setStoreOwner,
     updateStoreOwnerWechat,
+    updateStoreOwnerName,
     listStoreOwners,
     setStoreStaff,
     listStoreStaff,

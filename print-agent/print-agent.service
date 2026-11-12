@@ -1,0 +1,16 @@
+[Unit]
+Description=Petpaint on-site print agent
+After=network-online.target cups.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/print-agent
+ExecStart=/usr/bin/python3 /home/pi/print-agent/agent.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

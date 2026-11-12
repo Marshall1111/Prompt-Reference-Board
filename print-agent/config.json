@@ -2,8 +2,20 @@
   "printer_ip": "192.168.31.100",
   "printer_uri_path": "/ipp/print",
   "media": "na_index-4x6_4x6in",
-  "scale_x": 0.9368,
-  "scale_y": 0.9508,
-  "offset_x_mm": 0.63,
-  "offset_y_mm": 1.85
+  "profile": {
+    "sheet_width_mm": 105.67,
+    "sheet_height_mm": 158.5,
+    "piece_width_mm": 50.0,
+    "piece_height_mm": 74.0,
+    "gap_mm": 0.0,
+    "print_x0_mm": 2.835,
+    "print_x1_mm": 102.835,
+    "print_y0_mm": 5.25,
+    "print_y1_mm": 153.25
+  },
+  "print_seconds_per_sheet": 50,
+  "scale_x": 1.0,
+  "scale_y": 1.0,
+  "offset_x_mm": 0.0,
+  "offset_y_mm": 0.0
 }

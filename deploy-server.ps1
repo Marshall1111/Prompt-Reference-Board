@@ -1,10 +1,12 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
   [string]$RemoteUser = "ubuntu",
   [string]$RemoteHost = "118.25.188.55",
   [int]$RemotePort = 2222,
   [string]$RemoteAppPath = "/srv/prompt-gallery",
-  [string]$RemoteArchivePath = "/home/ubuntu/prompt-gallery-deploy.tgz"
+  [string]$RemoteArchivePath = "/home/ubuntu/prompt-gallery-deploy.tgz",
+  [string]$IdentityFile = "",
+  [switch]$SetupKey
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,6 +36,60 @@ function Run-Step {
 Require-Command "tar"
 Require-Command "scp"
 Require-Command "ssh"
+
+function Resolve-IdentityFile {
+  if ($IdentityFile) {
+    if (-not (Test-Path $IdentityFile)) { throw "IdentityFile not found: $IdentityFile" }
+    return (Resolve-Path $IdentityFile).Path
+  }
+  foreach ($name in @("id_ed25519", "id_rsa")) {
+    $path = Join-Path $HOME ".ssh\$name"
+    if (Test-Path $path) { return $path }
+  }
+  return ""
+}
+
+$identity = Resolve-IdentityFile
+
+function Get-CommonSshArgs {
+  $items = @()
+  if ($identity) { $items += @("-i", $identity, "-o", "IdentitiesOnly=yes") }
+  $items += @("-o", "BatchMode=yes", "-o", "ConnectTimeout=15")
+  return $items
+}
+
+# scp 用 -P 指定端口，ssh 用 -p，两者参数不能混用。
+$commonArgs = Get-CommonSshArgs
+$scpArgs = @("-P", $RemotePort) + $commonArgs
+$sshArgs = @("-p", $RemotePort) + $commonArgs
+
+# 一次性安装公钥：只剩这一步需要输入服务器密码，之后全部免密。
+if ($SetupKey) {
+  Run-Step "Installing SSH public key" {
+    if (-not $identity) {
+      $sshDir = Join-Path $HOME ".ssh"
+      if (-not (Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir -Force | Out-Null }
+      $identity = Join-Path $sshDir "id_ed25519"
+      & ssh-keygen -t ed25519 -N '""' -f $identity -C "petpaint-deploy"
+      if ($LASTEXITCODE -ne 0) { throw "ssh-keygen failed" }
+    }
+
+    $pub = "$identity.pub"
+    if (-not (Test-Path $pub)) {
+      & ssh-keygen -y -f $identity | Set-Content -Path $pub -Encoding ascii
+    }
+
+    $remoteCmd = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && echo KEY_INSTALLED"
+    $cmdLine = 'type "{0}" | ssh -p {1} -o PubkeyAuthentication=no {2}@{3} "{4}"' -f $pub, $RemotePort, $RemoteUser, $RemoteHost, $remoteCmd
+    & cmd /c $cmdLine
+    if ($LASTEXITCODE -ne 0) { throw "public key install failed" }
+
+    & ssh @sshArgs "${RemoteUser}@${RemoteHost}" "echo KEY_OK"
+    if ($LASTEXITCODE -ne 0) { throw "key auth check failed" }
+    Write-Host "Key login ready: $identity" -ForegroundColor Green
+  }
+  return
+}
 
 if (Test-Path $archivePath) {
   Remove-Item $archivePath -Force
@@ -99,14 +155,14 @@ try {
   }
 
   Run-Step "Uploading archive to server" {
-    & scp -P $RemotePort $archivePath "${RemoteUser}@${RemoteHost}:$RemoteArchivePath"
+    & scp @scpArgs $archivePath "${RemoteUser}@${RemoteHost}:$RemoteArchivePath"
     if ($LASTEXITCODE -ne 0) {
-      throw "scp failed with exit code $LASTEXITCODE"
+      throw "scp failed with exit code $LASTEXITCODE；若提示 Permission denied，请先执行 .\deploy-server.ps1 -SetupKey 安装公钥。"
     }
   }
 
   Run-Step "Applying update on server" {
-    & ssh -p $RemotePort -tt "${RemoteUser}@${RemoteHost}" $remoteCommand
+    & ssh @sshArgs -tt "${RemoteUser}@${RemoteHost}" $remoteCommand
     if ($LASTEXITCODE -ne 0) {
       throw "ssh failed with exit code $LASTEXITCODE"
     }

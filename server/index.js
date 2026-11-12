@@ -1,7 +1,7 @@
 import express from "express";
 import multer from "multer";
 import path from "node:path";
-import { createReadStream, existsSync, readFileSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createHash, createHmac, createPrivateKey, createPublicKey, createSign, createVerify, randomInt, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { access, appendFile, copyFile, mkdir, open, readFile, readdir, rename, rm, stat, statfs, writeFile } from "node:fs/promises";
@@ -11,6 +11,7 @@ import { promisify } from "node:util";
 import { createOrderStore } from "./order-store.js";
 import { createMerchantStore } from "./merchant-store.js";
 import { createCommerceStore } from "./commerce-store.js";
+import { createPrintStore } from "./print-store.js";
 import { PUBLIC_PREVIEW_WATERMARK_LABEL } from "./watermark-label.js";
 import { buildPublicPreviewQrUrl, renderPublicPreviewQr } from "./watermark-qr.js";
 
@@ -100,6 +101,7 @@ const DEFAULT_STORAGE_CLEANUP_DAYS = 30;
 const MAX_STORAGE_CLEANUP_DAYS = 3650;
 const DEFAULT_FRIDGE_ORDERING_ENABLED = false;
 const DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS = 2000;
+const DEFAULT_ONSITE_UNIT_PRICE_CENTS = 1500;
 const DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS = 800;
 const DEFAULT_BODY_BOOK_ORDERING_ENABLED = false;
 const DEFAULT_BODY_BOOK_PRICE_CENTS = 0;
@@ -422,6 +424,14 @@ const visitorRequestLog = new Map();
 const ipRequestLog = new Map();
 const orderStore = createOrderStore({ dbPath: orderDbPath });
 const commerceStore = createCommerceStore({ dbPath: orderDbPath });
+const printStore = createPrintStore({ dbPath: orderDbPath });
+setInterval(() => {
+  try {
+    printStore.requeueStaleJobs();
+  } catch (error) {
+    console.error("[print] 重置超时打印任务失败", error);
+  }
+}, 60 * 1000).unref?.();
 commerceStore.releaseCompletedReferralPayments();
 const merchantStore = createMerchantStore({ filePath: merchantDataPath });
 
@@ -1191,9 +1201,19 @@ function merchantTaskStatus(status) {
   return { label: "待打印", tone: "is-pending" };
 }
 
+// 有打印任务时以任务真实状态为准，方便店家直接看到失败并重试。
+function merchantPrintTaskStatus(printJob) {
+  if (!printJob) return null;
+  if (printJob.status === "printed") return { label: "打印成功", tone: "is-online" };
+  if (printJob.status === "claimed") return { label: "打印中", tone: "is-processing" };
+  if (printJob.status === "failed") return { label: "打印失败", tone: "is-offline" };
+  return { label: "排队中", tone: "is-pending" };
+}
+
 // 商户口径：平台收到已支付订单后派发一个打印任务，多张图仍算一个任务。
 function toMerchantTask(order, unitPriceCents = 0) {
-  const status = merchantTaskStatus(order?.fulfillmentStatus);
+  const printJob = order?.printJob || null;
+  const status = merchantPrintTaskStatus(printJob) || merchantTaskStatus(order?.fulfillmentStatus);
   const taskNo = String(order?.orderNo || "");
   const imageCount = Number(order?.itemCount || (Array.isArray(order?.items) ? order.items.length : 0));
   const images = (Array.isArray(order?.items) ? order.items : []).map((item) => ({
@@ -1205,10 +1225,14 @@ function toMerchantTask(order, unitPriceCents = 0) {
   return {
     taskNo,
     experienceType: normalizePublicExperienceType(order?.experienceType),
+    buyerName: String(order?.buyerName || "访客"),
     imageCount,
     status: String(order?.fulfillmentStatus || "new"),
     statusLabel: status.label,
     statusTone: status.tone,
+    printJobId: printJob ? Number(printJob.id) : null,
+    canRetry: printJob?.status === "failed",
+    printError: String(printJob?.errorMessage || ""),
     createdAt: order?.createdAt || null,
     paidAt: order?.paidAt || null,
     // 固定单价结算：收益 = 张数 × 每张单价。
@@ -1281,6 +1305,11 @@ app.get("/api/merchant/overview", async (req, res, next) => {
       unitPriceCents,
       wallet: (await readMerchantWalletsMap())[account.id]
     });
+    const device = printStore.findPrintDeviceByStoreOwner(account.id);
+    const deviceHealth = resolveDeviceHealth(device);
+    const deviceReasons = Array.isArray(device?.reasons) ? device.reasons : [];
+    const reasonText = deviceReasons.map((reason) => PRINT_DEVICE_REASON_TEXT[reason]).filter(Boolean).join("、");
+    const jobCounts = device ? printStore.countActiveJobs(device.deviceId) : { printing: 0, queued: 0 };
     res.json({
       merchant: {
         accountId: account.id,
@@ -1294,17 +1323,26 @@ app.get("/api/merchant/overview", async (req, res, next) => {
         totalIncomeCents: earnings.totalIncomeCents,
         unitPriceCents
       },
-      // 打印机状态由代理心跳上报，接入前 connected 为 false，排队数先用待打印任务数。
-      // faultReason 为故障原因文案（如"卡纸"），前端展示在"设备故障"状态下的小字里。
+      // 打印机状态取该店家绑定的设备；未绑定设备时 connected 为 false。
       printer: {
-        connected: false,
-        online: false,
-        fault: "",
-        faultReason: "",
-        paperOut: false,
+        connected: Boolean(device),
+        online: deviceHealth.healthy,
+        fault: Boolean(device) && !deviceHealth.healthy,
+        faultReason: !device
+          ? ""
+          : deviceHealth.code === "offline"
+            ? "设备离线，请检查树莓派电源与网络"
+            : reasonText
+              ? `打印机报错：${reasonText}`
+              : deviceHealth.healthy
+                ? ""
+                : "打印机状态异常",
+        paperOut: deviceReasons.includes("media-empty-error") || deviceReasons.includes("media-empty-warning"),
         ribbonOut: false,
-        printingCount: 0,
-        queuedCount: Number(stats?.pendingTasks || 0)
+        printingCount: jobCounts.printing > 0
+          ? jobCounts.printing
+          : String(device?.printerState || "") === "processing" ? 1 : 0,
+        queuedCount: device ? jobCounts.queued : Number(stats?.pendingTasks || 0)
       }
     });
   } catch (error) {
@@ -1364,11 +1402,11 @@ app.get("/api/merchant/tasks", async (req, res, next) => {
   try {
     const account = await requireMerchantAccount(req);
     const visitorIds = await listStoreOwnerVisitorIds(account.id);
+    const limit = Math.min(Math.max(Number(req.query?.limit || 20), 1), 100);
     if (!visitorIds.length) {
-      res.json({ total: 0, page: 1, limit: 10, items: [] });
+      res.json({ total: 0, page: 1, limit, items: [] });
       return;
     }
-    const limit = Math.min(Math.max(Number(req.query?.limit || 10), 1), 50);
     const todayOnly = String(req.query?.today || "") === "1";
     // 认知书有独立商户页，当前工作台只展示小画任务。
     const result = orderStore.listOrders({
@@ -1385,8 +1423,39 @@ app.get("/api/merchant/tasks", async (req, res, next) => {
       page: result.page,
       limit: result.limit,
       unitPriceCents,
-      items: result.items.map((order) => toMerchantTask(order, unitPriceCents))
+      items: result.items.map((order) => {
+        const buyer = order.accountId ? commerceStore.readAccount(order.accountId) : null;
+        return toMerchantTask(
+          {
+            ...order,
+            buyerName: buyer ? getAccountDisplayName(buyer) : "访客",
+            printJob: printStore.findPrintJobByOrder(order.id)
+          },
+          unitPriceCents
+        );
+      })
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 店家自己重试失败的打印任务，避免重复出纸由店家确认。
+app.post("/api/merchant/print-jobs/:jobId/retry", async (req, res, next) => {
+  try {
+    const account = await requireMerchantAccount(req);
+    const job = printStore.readPrintJob(req.params.jobId);
+    if (!job) throw createHttpError(404, "打印任务不存在。");
+    const order = orderStore.readOrder(job.orderId);
+    if (!order || String(order.storeOwnerAccountId || "") !== account.id) {
+      throw createHttpError(403, "该任务不属于你的店铺。");
+    }
+    if (job.status !== "failed") throw createHttpError(400, "只有失败的打印任务可以重试。");
+    const device = printStore.findPrintDeviceByStoreOwner(account.id);
+    if (!String(job.deviceId || "").trim() && !device) {
+      throw createHttpError(409, "当前店铺还没有绑定打印设备，请先绑定后再重试。");
+    }
+    res.json({ job: printStore.retryPrintJob(job.id, { deviceId: device?.deviceId || "" }) });
   } catch (error) {
     next(error);
   }
@@ -2023,6 +2092,10 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
 
     const settings = await readAppSettings();
     const pricing = getOrderPricingSnapshot(settings);
+    const fulfillmentMode = normalizeOrderFulfillmentMode(req.body?.fulfillmentMode);
+    const isOnsite = fulfillmentMode === "onsite";
+    let onsiteStoreOwner = null;
+    let onsiteStoreName = "";
 
     const requestedExperienceType = String(req.body?.experienceType || "fridge-magnet").trim().toLowerCase();
     if (requestedExperienceType === "body-book") {
@@ -2030,19 +2103,36 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
       return res.status(201).json(created);
     }
 
-    if (!pricing.enabled) throw createHttpError(403, "冰箱贴下单暂未开放。");
+    if (!isOnsite && !pricing.enabled) throw createHttpError(403, "冰箱贴下单暂未开放。");
 
     const experienceType = normalizePublicExperienceType(requestedExperienceType);
     if (!new Set(["draw-card", "fridge-magnet"]).has(experienceType)) {
       throw createHttpError(400, "当前仅支持卡夹图片定制。");
     }
 
+    if (isOnsite) {
+      if (!pricing.onsite?.enabled) throw createHttpError(403, "现场制作暂未开放。");
+      const visitor = await getVisitorState(req);
+      onsiteStoreOwner = getActiveVisitorStoreOwner(visitor);
+      if (!onsiteStoreOwner?.storeOwnerAccountId) {
+        throw createHttpError(400, "请通过店家提供的专属链接进入。");
+      }
+      onsiteStoreName = String(onsiteStoreOwner.storeOwnerName || "").trim();
+      if (!onsiteStoreName) throw createHttpError(409, "该店家尚未设置店名，请联系店家。");
+      const onsiteDevice = printStore.findPrintDeviceByStoreOwner(onsiteStoreOwner.storeOwnerAccountId);
+      if (!resolveDeviceHealth(onsiteDevice).healthy) {
+        throw createHttpError(409, "当前设备异常，请提醒店家。");
+      }
+    }
+
     const requestedItems = normalizeRequestedOrderItems(req.body || {});
     const jobIds = requestedItems.map((item) => item.jobId);
     if (!jobIds.length) throw createHttpError(400, "请先选择要定制的卡夹图片。");
 
-    const address = normalizeOrderAddress(req.body || {});
-    assertValidOrderAddress(address);
+    const address = isOnsite
+      ? { remark: "", receiverName: "", receiverPhone: "", province: "", city: "", district: "", addressDetail: "" }
+      : normalizeOrderAddress(req.body || {});
+    if (!isOnsite) assertValidOrderAddress(address);
 
     const jobs = await Promise.all(jobIds.map((jobId) => readImageJob(jobId)));
     // 卡夹图片，以及 24 小时内最近任务的已成功图片，都可以直接下单。
@@ -2060,9 +2150,21 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
 
     const orderableJobById = new Map(orderableJobs.map((job) => [String(job.jobId || ""), job]));
     const totalRequestedItemCount = requestedItems.reduce((sum, item) => sum + item.quantity, 0);
-    const amount = calculateOrderAmounts(totalRequestedItemCount, pricing);
+    // 现场制作的冰箱贴单价支持按店家单独配置，未配置时回落到全局单价。
+    const onsitePricing = isOnsite && onsiteStoreOwner?.storeOwnerAccountId
+      ? {
+          ...pricing.onsite,
+          unitPriceCents: resolveStoreOnsiteUnitPriceCents(
+            (await readMerchantSettingsMap())[onsiteStoreOwner.storeOwnerAccountId],
+            pricing.onsite?.unitPriceCents
+          )
+        }
+      : pricing.onsite;
+    const amount = isOnsite
+      ? calculateOnsiteOrderAmounts(onsitePricing, totalRequestedItemCount)
+      : calculateOrderAmounts(totalRequestedItemCount, pricing);
     const redemptionEntitlements = commerceStore.getRedemptionEntitlementSummary(req.webAccount.id);
-    const usesFridgeRedemption = redemptionEntitlements.fridgeMagnetItemCount >= amount.itemCount;
+    const usesFridgeRedemption = !isOnsite && redemptionEntitlements.fridgeMagnetItemCount >= amount.itemCount;
     // Partner commission attribution has been retired. New collaborators use
     // the normal account referral link, while old order snapshots stay intact.
     const merchantSource = { sourceMerchantId: "", sourceMerchantName: "", commissionRateBps: 0, sourceClaimedAt: null };
@@ -2102,6 +2204,9 @@ app.post("/api/orders", requireWebAccount, async (req, res, next) => {
         experienceType,
         paymentStatus: usesFridgeRedemption ? "paid" : "unpaid",
         fulfillmentStatus: "new",
+        fulfillmentMode,
+        storeOwnerAccountId: isOnsite ? onsiteStoreOwner.storeOwnerAccountId : null,
+        storeName: isOnsite ? onsiteStoreName : "",
         itemCount: amount.itemCount,
         unitPriceCents: amount.unitPriceCents,
         shippingFeeCents: amount.shippingFeeCents,
@@ -2549,6 +2654,7 @@ app.post("/api/payments/wechat/notify", express.text({ type: "*/*" }), async (re
         });
       }
       queueOrderOriginalImageBundle(paidOrder);
+      enqueueOnsitePrintJob(paidOrder);
     }
 
     res.json({ code: "SUCCESS", message: "成功" });
@@ -4652,11 +4758,12 @@ app.get("/api/admin/store-owners", requireAdmin, async (req, res, next) => {
         unitPriceCents,
         wallet: walletsMap[account.id]
       });
+      const storeDevice = printStore.findPrintDeviceByStoreOwner(account.id);
+      const storeDeviceHealth = resolveDeviceHealth(storeDevice);
       storeOwners.push({
         ...toPublicAdminUser(account),
         merchantStats: {
-          // 打印机状态需由店内打印代理心跳上报，接入前统一显示未接入。
-          deviceStatus: "未接入",
+          deviceStatus: storeDeviceHealth.healthy ? "在线" : "异常",
           todayTasks: stats.todayTasks,
           totalTasks: stats.totalTasks,
           totalIncomeCents: earnings.totalIncomeCents,
@@ -4677,7 +4784,9 @@ app.post("/api/admin/store-owners", requireAdmin, (req, res, next) => {
   try {
     const accountId = String(req.body?.accountId || "").trim();
     const wechatId = String(req.body?.wechatId || "").trim();
-    const account = commerceStore.setStoreOwner(accountId, true, wechatId);
+    const storeName = String(req.body?.storeName || "").trim();
+    if (storeName && storeName.length > 30) throw createHttpError(400, "店名最多 30 个字。");
+    const account = commerceStore.setStoreOwner(accountId, true, wechatId, storeName);
     if (!account) throw createHttpError(404, "仅可将已注册用户设为小画店家。");
     res.status(201).json({ storeOwner: toPublicAdminUser(account) });
   } catch (error) {
@@ -4689,12 +4798,19 @@ app.patch("/api/admin/store-owners/:accountId", requireAdmin, async (req, res, n
   try {
     const accountId = String(req.params.accountId || "").trim();
     const wechatId = String(req.body?.wechatId || "").trim();
+    const hasStoreName = req.body?.storeName !== undefined && req.body?.storeName !== null;
+    const storeName = hasStoreName ? String(req.body?.storeName || "").trim() : "";
     const hasUnitPrice = req.body?.unitPriceCents !== undefined && req.body?.unitPriceCents !== null;
-    if (!wechatId && !hasUnitPrice) throw createHttpError(400, "没有需要更新的内容。");
+    if (!wechatId && !hasStoreName && !hasUnitPrice) throw createHttpError(400, "没有需要更新的内容。");
     let account = commerceStore.readAccount(accountId);
     if (!account?.isStoreOwner) throw createHttpError(404, "小画店家不存在。");
     if (wechatId) {
       account = commerceStore.updateStoreOwnerWechat(accountId, wechatId);
+      if (!account) throw createHttpError(404, "小画店家不存在。");
+    }
+    if (hasStoreName) {
+      if (!storeName || storeName.length > 30) throw createHttpError(400, "店名需为 1 到 30 个字。");
+      account = commerceStore.updateStoreOwnerName(accountId, storeName);
       if (!account) throw createHttpError(404, "小画店家不存在。");
     }
     let unitPriceCents = null;
@@ -4710,6 +4826,263 @@ app.patch("/api/admin/store-owners/:accountId", requireAdmin, async (req, res, n
       unitPriceCents = nextUnitPrice;
     }
     res.json({ storeOwner: toPublicAdminUser(account), unitPriceCents });
+  } catch (error) {
+    next(error);
+  }
+});
+
+function normalizeMerchantPhoneInput(value) {
+  const phone = String(value || "").trim();
+  if (phone && !/^1[3-9]\d{9}$/.test(phone)) throw createHttpError(400, "请填写正确的 11 位手机号。");
+  return phone;
+}
+
+function resolveStoreOnsiteUnitPriceCents(settings, fallbackCents) {
+  const value = Math.round(Number(settings?.onsiteUnitPriceCents));
+  if (Number.isFinite(value) && value > 0) return value;
+  return normalizeMoneyCents(fallbackCents, DEFAULT_ONSITE_UNIT_PRICE_CENTS);
+}
+
+// 商户信息维护：店名、店家微信、通知手机号、冰箱贴单价（顾客支付）、结算单价（店家收益）。
+app.get("/api/admin/store-owners/:accountId/profile", requireAdmin, async (req, res, next) => {
+  try {
+    const account = commerceStore.readAccount(String(req.params.accountId || "").trim());
+    if (!account?.isStoreOwner) throw createHttpError(404, "小画店家不存在。");
+    const settingsMap = await readMerchantSettingsMap();
+    const settings = settingsMap[account.id] || {};
+    const globalOnsiteUnitPriceCents = (await readAppSettings()).onsiteUnitPriceCents;
+    const device = printStore.findPrintDeviceByStoreOwner(account.id);
+    const staff = commerceStore.listStoreStaff(account.id).map((staffAccount) => {
+      const staffSettings = settingsMap[staffAccount.id] || {};
+      return {
+        ...toPublicAdminUser(staffAccount),
+        phone: String(staffSettings.phone || ""),
+        notifyEnabled: staffSettings.notifyEnabled !== false
+      };
+    });
+    res.json({
+      profile: {
+        accountId: account.id,
+        storeName: account.storeName || "",
+        wechatId: account.storeWechatId || "",
+        phone: String(settings.phone || ""),
+        onsiteUnitPriceCents: resolveStoreOnsiteUnitPriceCents(settings, globalOnsiteUnitPriceCents),
+        unitPriceCents: resolveMerchantUnitPriceCents(settings)
+      },
+      staff,
+      device: device
+        ? { ...device, token: printStore.readPrintDeviceToken(device.deviceId), healthy: resolveDeviceHealth(device).healthy }
+        : null,
+      globalOnsiteUnitPriceCents
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/store-owners/:accountId/profile", requireAdmin, async (req, res, next) => {
+  try {
+    const accountId = String(req.params.accountId || "").trim();
+    let account = commerceStore.readAccount(accountId);
+    if (!account?.isStoreOwner) throw createHttpError(404, "小画店家不存在。");
+    const storeName = String(req.body?.storeName || "").trim();
+    if (!storeName || storeName.length > 30) throw createHttpError(400, "店名需为 1 到 30 个字。");
+    const wechatId = String(req.body?.wechatId || "").trim().slice(0, 64);
+    if (!wechatId) throw createHttpError(400, "店家微信号不能为空，顾客扫码锁定店家时依赖该微信号。");
+    const phone = normalizeMerchantPhoneInput(req.body?.phone);
+    const onsiteUnitPriceCents = Math.round(Number(req.body?.onsiteUnitPriceCents));
+    if (!Number.isFinite(onsiteUnitPriceCents) || onsiteUnitPriceCents < 1 || onsiteUnitPriceCents > 100000) {
+      throw createHttpError(400, "冰箱贴单价需在 0.01 元到 1000 元之间。");
+    }
+    const unitPriceCents = Math.round(Number(req.body?.unitPriceCents));
+    if (!Number.isFinite(unitPriceCents) || unitPriceCents < 1 || unitPriceCents > 10000) {
+      throw createHttpError(400, "结算单价需在 0.01 元到 100 元之间。");
+    }
+    account = commerceStore.updateStoreOwnerName(accountId, storeName);
+    account = commerceStore.updateStoreOwnerWechat(accountId, wechatId);
+    const settingsMap = await readMerchantSettingsMap();
+    settingsMap[accountId] = {
+      ...(settingsMap[accountId] || {}),
+      phone,
+      onsiteUnitPriceCents,
+      unitPriceCents,
+      updatedAt: new Date().toISOString()
+    };
+    await writeMerchantSettingsMap(settingsMap);
+    res.json({ profile: { accountId, storeName, wechatId, phone, onsiteUnitPriceCents, unitPriceCents } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 店员通知设置：手机号 + 是否接收通知，按店员账号存储在商户设置里。
+app.patch("/api/admin/store-owners/:accountId/staff/:staffAccountId", requireAdmin, async (req, res, next) => {
+  try {
+    const owner = commerceStore.readAccount(String(req.params.accountId || "").trim());
+    if (!owner?.isStoreOwner) throw createHttpError(404, "小画店家不存在。");
+    const staffAccountId = String(req.params.staffAccountId || "").trim();
+    const bound = commerceStore.listStoreStaff(owner.id).some((item) => item.id === staffAccountId);
+    if (!bound) throw createHttpError(404, "该店员未绑定到此店家。");
+    const phone = normalizeMerchantPhoneInput(req.body?.phone);
+    const notifyEnabled = req.body?.notifyEnabled !== false;
+    const settingsMap = await readMerchantSettingsMap();
+    settingsMap[staffAccountId] = {
+      ...(settingsMap[staffAccountId] || {}),
+      phone,
+      notifyEnabled,
+      updatedAt: new Date().toISOString()
+    };
+    await writeMerchantSettingsMap(settingsMap);
+    res.json({ phone, notifyEnabled });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/admin/print-devices/:deviceId", requireAdmin, (req, res, next) => {
+  try {
+    const device = printStore.updatePrintDevice(req.params.deviceId, {
+      label: String(req.body?.label || ""),
+      printerName: String(req.body?.printerName || "hp518")
+    });
+    if (!device) throw createHttpError(404, "打印设备不存在。");
+    res.json({ device });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/print-devices/:deviceId", requireAdmin, (req, res, next) => {
+  try {
+    const removed = printStore.deletePrintDevice(req.params.deviceId);
+    if (!removed) throw createHttpError(404, "打印设备不存在。");
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/public/store-owner/device-status", async (req, res, next) => {
+  try {
+    const visitor = await getVisitorState(req);
+    const storeOwner = getActiveVisitorStoreOwner(visitor);
+    if (!storeOwner?.storeOwnerAccountId) {
+      return res.json({ healthy: false, code: "no_store", message: "未识别店家", printerState: null, lastSeenAt: null, onsiteUnitPriceCents: null });
+    }
+    const device = printStore.findPrintDeviceByStoreOwner(storeOwner.storeOwnerAccountId);
+    const health = resolveDeviceHealth(device);
+    const globalOnsiteUnitPriceCents = (await readAppSettings()).onsiteUnitPriceCents;
+    res.json({
+      healthy: health.healthy,
+      code: health.code,
+      message: health.message,
+      printerState: device?.printerState || null,
+      lastSeenAt: device?.lastSeenAt || null,
+      onsiteUnitPriceCents: resolveStoreOnsiteUnitPriceCents(
+        (await readMerchantSettingsMap())[storeOwner.storeOwnerAccountId],
+        globalOnsiteUnitPriceCents
+      )
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/print-agent/heartbeat", requirePrintDevice, (req, res) => {
+  const device = printStore.touchPrintDevice(req.printDevice.deviceId, {
+    printerState: String(req.body?.printerState || "unknown"),
+    reasons: Array.isArray(req.body?.reasons) ? req.body.reasons : []
+  });
+  res.json({
+    ok: true,
+    deviceId: device.deviceId,
+    pendingJobs: printStore.countPendingJobs(device.deviceId)
+  });
+});
+
+app.get("/api/print-agent/jobs/next", requirePrintDevice, (req, res) => {
+  const job = printStore.claimNextJob(req.printDevice.deviceId);
+  if (!job) return res.json({ job: null });
+  res.json({
+    job: {
+      jobId: job.id,
+      orderNo: job.orderId,
+      layoutMode: job.layoutMode,
+      files: job.imageUrls.map((url, index) => ({
+        name: `${job.id}-${index}`,
+        downloadUrl: `/api/print-agent/jobs/${job.id}/files/${index}`
+      }))
+    }
+  });
+});
+
+app.get("/api/print-agent/jobs/:jobId/files/:index", requirePrintDevice, (req, res, next) => {
+  try {
+    const job = printStore.readPrintJob(req.params.jobId);
+    if (!job || job.deviceId !== req.printDevice.deviceId) throw createHttpError(404, "打印任务不存在。");
+    const assetUrl = job.imageUrls[Number(req.params.index)];
+    if (!assetUrl) throw createHttpError(404, "文件不存在。");
+    const filePath = resolvePublicAssetFilePath(assetUrl);
+    if (!filePath) throw createHttpError(404, "文件不存在。");
+    res.sendFile(filePath);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/print-agent/jobs/:jobId/result", requirePrintDevice, (req, res, next) => {
+  try {
+    const job = printStore.readPrintJob(req.params.jobId);
+    if (!job || job.deviceId !== req.printDevice.deviceId) throw createHttpError(404, "打印任务不存在。");
+    const status = String(req.body?.status || "").trim();
+    if (status !== "printed" && status !== "failed") throw createHttpError(400, "状态不合法。");
+    res.json({ job: printStore.finishPrintJob(job.id, status, String(req.body?.error || "")) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/print-devices", requireAdmin, (req, res) => {
+  const devices = printStore.listPrintDevices().map((device) => {
+    const health = resolveDeviceHealth(device);
+    return { ...device, healthy: health.healthy, healthCode: health.code };
+  });
+  res.json({ devices });
+});
+
+app.post("/api/admin/print-devices", requireAdmin, (req, res, next) => {
+  try {
+    const storeOwnerAccountId = req.body?.storeOwnerAccountId;
+    if (storeOwnerAccountId != null && storeOwnerAccountId !== "") {
+      const account = commerceStore.readAccount(String(storeOwnerAccountId));
+      if (!account?.isStoreOwner) throw createHttpError(404, "小画店家不存在。");
+    }
+    const { device, token } = printStore.createPrintDevice({
+      storeOwnerAccountId,
+      label: String(req.body?.label || ""),
+      printerName: String(req.body?.printerName || "hp518")
+    });
+    res.status(201).json({ device, token });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/print-jobs", requireAdmin, (req, res) => {
+  const orderId = String(req.query?.orderId || "").trim();
+  res.json({ jobs: orderId ? printStore.listJobsByOrder(orderId) : printStore.listFailedJobs(20) });
+});
+
+app.post("/api/admin/print-jobs/:id/retry", requireAdmin, (req, res, next) => {
+  try {
+    const job = printStore.readPrintJob(req.params.id);
+    if (!job) throw createHttpError(404, "打印任务不存在。");
+    // 失败任务可能没有设备归属，重试时按订单的店家补绑当前设备。
+    const order = job.orderId ? orderStore.readOrder(job.orderId) : null;
+    const device = order?.storeOwnerAccountId
+      ? printStore.findPrintDeviceByStoreOwner(order.storeOwnerAccountId)
+      : null;
+    res.json({ job: printStore.retryPrintJob(job.id, { deviceId: device?.deviceId || "" }) });
   } catch (error) {
     next(error);
   }
@@ -5075,6 +5448,9 @@ app.patch("/api/admin/settings", requireAdmin, async (req, res) => {
       fridgeMagnetUnitPriceCents: req.body?.fridgeMagnetUnitPriceCents !== undefined
         ? normalizeMoneyCents(req.body?.fridgeMagnetUnitPriceCents, DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS)
         : current.fridgeMagnetUnitPriceCents,
+      onsiteUnitPriceCents: req.body?.onsiteUnitPriceCents !== undefined
+        ? normalizeMoneyCents(req.body?.onsiteUnitPriceCents, DEFAULT_ONSITE_UNIT_PRICE_CENTS)
+        : current.onsiteUnitPriceCents,
       singleItemShippingFeeCents: req.body?.singleItemShippingFeeCents !== undefined
         ? normalizeMoneyCents(req.body?.singleItemShippingFeeCents, DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS)
         : current.singleItemShippingFeeCents,
@@ -6537,6 +6913,7 @@ function normalizeAppSettings(settings) {
     defaultImageProviderId: normalizeImageProviderId(settings?.defaultImageProviderId),
     fridgeMagnetOrderingEnabled: settings?.fridgeMagnetOrderingEnabled === true,
     fridgeMagnetUnitPriceCents: normalizeMoneyCents(settings?.fridgeMagnetUnitPriceCents, DEFAULT_FRIDGE_MAGNET_UNIT_PRICE_CENTS),
+    onsiteUnitPriceCents: normalizeMoneyCents(settings?.onsiteUnitPriceCents, DEFAULT_ONSITE_UNIT_PRICE_CENTS),
     singleItemShippingFeeCents: normalizeMoneyCents(settings?.singleItemShippingFeeCents, DEFAULT_SINGLE_ITEM_SHIPPING_FEE_CENTS),
     bodyBookOrderingEnabled: settings?.bodyBookOrderingEnabled === true,
     bodyBookPriceCents: normalizeMoneyCents(settings?.bodyBookPriceCents, DEFAULT_BODY_BOOK_PRICE_CENTS),
@@ -7173,7 +7550,7 @@ async function claimStoreOwnerForVisitor(req, inviteToken) {
   const nextVisitor = await saveVisitorState({
     ...visitor,
     storeOwnerAccountId: owner.id,
-    storeOwnerName: getAccountDisplayName(owner),
+    storeOwnerName: String(owner.storeName || "").trim() || getAccountDisplayName(owner),
     storeOwnerWechatId: owner.storeWechatId,
     storeOwnerClaimedAt: now.toISOString(),
     storeOwnerExpiresAt,
@@ -7972,6 +8349,11 @@ function resolvePublicAssetFilePath(assetUrl) {
   if (value.startsWith("/order-assets/")) {
     const relativePath = value.replace(/^\/order-assets\//, "").split("/").join(path.sep);
     return path.join(orderAssetPublicRoot, relativePath);
+  }
+  // 原图只通过设备令牌鉴权的接口读取，不对公网静态暴露。
+  if (value.startsWith("/order-original-downloads/")) {
+    const relativePath = value.replace(/^\/order-original-downloads\//, "").split("/").join(path.sep);
+    return path.join(orderOriginalArchiveRoot, relativePath);
   }
   if (value.startsWith("/body-book-color-pages/")) {
     return path.join(rootDir, "public", "body-book-color-pages", path.basename(value));
@@ -8833,6 +9215,11 @@ function getOrderPricingSnapshot(settings) {
     paymentMode: safeSettings.paymentMode,
     manualPaymentExpireDays: safeSettings.manualPaymentExpireDays,
     contactWechatId: safeSettings.contactWechatId,
+    onsite: {
+      enabled: safeSettings.onsiteUnitPriceCents > 0,
+      unitPriceCents: safeSettings.onsiteUnitPriceCents,
+      paymentMode: safeSettings.paymentMode
+    },
     bodyBook: {
       enabled: safeSettings.bodyBookOrderingEnabled === true && safeSettings.bodyBookPriceCents > 0,
       priceCents: safeSettings.bodyBookPriceCents,
@@ -9108,6 +9495,24 @@ function calculateOrderAmounts(itemCount, pricing) {
     subtotalCents,
     totalCents: subtotalCents + shippingFeeCents
   };
+}
+
+function calculateOnsiteOrderAmounts(pricing, quantity = 1) {
+  const priceCents = normalizeMoneyCents(pricing?.unitPriceCents, DEFAULT_ONSITE_UNIT_PRICE_CENTS);
+  const itemCount = Math.max(1, Math.trunc(Number(quantity || 1)));
+  const subtotalCents = priceCents * itemCount;
+  return {
+    itemCount,
+    unitPriceCents: priceCents,
+    shippingFeeCents: 0,
+    subtotalCents,
+    totalCents: subtotalCents
+  };
+}
+
+function normalizeOrderFulfillmentMode(value) {
+  const mode = String(value || "").trim().toLowerCase();
+  return mode === "onsite" ? "onsite" : "mail";
 }
 
 function normalizeRequestedOrderItems(payload) {
@@ -9574,6 +9979,7 @@ function toPublicAdminUser(account) {
     isReferralInfluencer: account.isReferralInfluencer === true,
     isStoreOwner: account.isStoreOwner === true,
     storeWechatId: String(account.storeWechatId || ""),
+    storeName: String(account.storeName || ""),
     registeredAt: account.registeredAt || null,
     lastLoginAt: account.lastLoginAt || null,
     createdAt: account.createdAt || null,
@@ -10614,11 +11020,16 @@ function toPublicOrder(order, options = {}) {
     ...order,
     paymentStatus: normalizeOrderPaymentStatus(order.paymentStatus),
     fulfillmentStatus: normalizeOrderFulfillmentStatus(order.fulfillmentStatus),
+    fulfillmentMode: normalizeOrderFulfillmentMode(order.fulfillmentMode),
+    storeName: String(order.storeName || ""),
     items: Array.isArray(order.items) ? order.items : [],
     bodyBookBooks: Array.isArray(order.bodyBookBooks) ? order.bodyBookBooks : [],
     paymentEvents: Array.isArray(order.paymentEvents) ? order.paymentEvents : []
   };
   const redemptionUsage = getOrderRedemptionUsage(safeOrder);
+  const onsitePrintJob = safeOrder.fulfillmentMode === "onsite"
+    ? printStore.findPrintJobByOrder(safeOrder.id)
+    : null;
   const shippingCarrier = normalizeShippingCarrierCode(safeOrder.shippingCarrier);
   return {
     id: safeOrder.id,
@@ -10628,6 +11039,10 @@ function toPublicOrder(order, options = {}) {
     orderStatus: getOrderStatus(safeOrder),
     paymentStatus: safeOrder.paymentStatus,
     fulfillmentStatus: safeOrder.fulfillmentStatus,
+    fulfillmentMode: safeOrder.fulfillmentMode,
+    storeName: safeOrder.storeName,
+    printStatus: onsitePrintJob?.status || null,
+    printError: includePrivate ? String(onsitePrintJob?.errorMessage || "") : "",
     itemCount: safeOrder.itemCount,
     unitPriceCents: safeOrder.unitPriceCents,
     shippingFeeCents: safeOrder.shippingFeeCents,
@@ -10708,6 +11123,100 @@ function getOrderRedemptionUsage(order) {
   return { fridgeMagnetItemCount, bodyBookPrintCount };
 }
 
+const PRINT_DEVICE_STALE_MS = 60 * 1000;
+const PRINT_DEVICE_ERROR_REASONS = new Set([
+  "media-empty-error",
+  "media-empty-warning",
+  "media-jam-error",
+  "cover-open-error",
+  "offline-report",
+  "shutdown"
+]);
+
+function resolveDeviceHealth(device) {
+  if (!device) return { healthy: false, code: "no_device", message: "当前设备异常，请提醒店家" };
+  const lastSeenMs = Date.parse(device.lastSeenAt || "");
+  if (!Number.isFinite(lastSeenMs) || Date.now() - lastSeenMs > PRINT_DEVICE_STALE_MS) {
+    return { healthy: false, code: "offline", message: "当前设备异常，请提醒店家" };
+  }
+  if (String(device.printerState || "") === "stopped") {
+    return { healthy: false, code: "stopped", message: "当前设备异常，请提醒店家" };
+  }
+  const reasons = Array.isArray(device.reasons) ? device.reasons : [];
+  if (reasons.some((reason) => PRINT_DEVICE_ERROR_REASONS.has(String(reason || "")))) {
+    return { healthy: false, code: "printer_error", message: "当前设备异常，请提醒店家" };
+  }
+  return { healthy: true, code: "ok", message: "当前设备正常，可提交制作" };
+}
+
+// 心跳上报的 reason 转成商户能看懂的中文提示。
+const PRINT_DEVICE_REASON_TEXT = {
+  "media-empty-error": "缺纸",
+  "media-empty-warning": "缺纸",
+  "media-jam-error": "卡纸",
+  "cover-open-error": "机盖未关好",
+  "offline-report": "打印机离线",
+  "spool-area-full-report": "出纸托盘已满"
+};
+
+function collectOrderGeneratedImages(order) {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  const urls = [];
+  items.forEach((item) => {
+    const url = String(item?.imageUrl || "").trim();
+    if (url && !urls.includes(url)) urls.push(url);
+  });
+  return urls;
+}
+
+// 打印必须用无水印原图，预览图（generated-previews）带水印，不能直接送去出纸。
+function collectOrderOriginalImages(order) {
+  const orderId = String(order?.id || "").trim();
+  if (!orderId) return [];
+  const dir = path.join(orderOriginalArchiveRoot, orderId);
+  if (!existsSync(dir)) return [];
+  try {
+    return readdirSync(dir)
+      .filter((name) => /\.(png|jpe?g|webp)$/i.test(name))
+      .sort((left, right) => left.localeCompare(right))
+      .map((name) => `/order-original-downloads/${orderId}/${name}`);
+  } catch {
+    return [];
+  }
+}
+
+function enqueueOnsitePrintJob(order) {
+  if (!order || normalizeOrderFulfillmentMode(order.fulfillmentMode) !== "onsite") return null;
+  try {
+    if (printStore.findPrintJobByOrder(order.id)) return null;
+    const originals = collectOrderOriginalImages(order);
+    const imageUrls = originals.length ? originals : collectOrderGeneratedImages(order);
+    const device = printStore.findPrintDeviceByStoreOwner(order.storeOwnerAccountId);
+    if (!device) {
+      return printStore.createPrintJob({
+        orderId: order.id,
+        deviceId: "",
+        imageUrls,
+        status: "failed",
+        errorMessage: "该店家未绑定打印设备"
+      });
+    }
+    return printStore.createPrintJob({ orderId: order.id, deviceId: device.deviceId, imageUrls });
+  } catch (error) {
+    console.error("[print] 创建打印任务失败", error);
+    return null;
+  }
+}
+
+function requirePrintDevice(req, res, next) {
+  const header = String(req.get("Authorization") || "");
+  const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+  const device = token ? printStore.findPrintDeviceByTokenHash(token) : null;
+  if (!device) return res.status(401).json({ message: "设备令牌无效。" });
+  req.printDevice = device;
+  next();
+}
+
 function confirmManualOrderPayment(order) {
   if (!order) throw createHttpError(404, "订单不存在。");
   if (order.paymentStatus === "paid") return order;
@@ -10735,7 +11244,7 @@ function confirmManualOrderPayment(order) {
     },
     headers: {}
   });
-  return orderStore.updateOrderAndAppendEvent(order.id, {
+  const paidOrder = orderStore.updateOrderAndAppendEvent(order.id, {
     paymentStatus: "paid",
     fulfillmentStatus: "new",
     lastPaymentChannel: "manual_collection",
@@ -10748,6 +11257,8 @@ function confirmManualOrderPayment(order) {
     success: true,
     payload: { mode: "manual_collection", confirmedBy: "admin" }
   });
+  enqueueOnsitePrintJob(paidOrder);
+  return paidOrder;
 }
 
 function getOrderStatus(order) {

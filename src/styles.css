@@ -1641,6 +1641,30 @@ body {
   .body-book-reference-picker { width: min(320px, 100%); }
 }
 
+.store-welcome-frame {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.store-welcome-frame > .draw-card-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.store-welcome-banner {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 7px 16px;
+  background: linear-gradient(90deg, #dcc29a, #c3a171);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.24);
+  color: #2a1c0e;
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
 .draw-card-shell {
   position: relative;
   min-height: 100vh;
@@ -3541,6 +3565,39 @@ body {
   gap: 14px;
 }
 
+.draw-card-device-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  color: #6b6b6b;
+}
+
+.draw-card-device-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #b6b6b6;
+}
+
+.draw-card-device-status.is-ok {
+  color: #1f7a45;
+}
+
+.draw-card-device-status.is-ok .draw-card-device-dot {
+  background: #22a35a;
+}
+
+.draw-card-device-status.is-error {
+  color: #c0392b;
+}
+
+.draw-card-device-status.is-error .draw-card-device-dot {
+  background: #d9453a;
+}
+
 .draw-card-onsite-wechat {
   display: grid;
   gap: 10px;
@@ -4593,6 +4650,7 @@ h2 {
 .secondary-button,
 .nav-button,
 .danger-button,
+.maintenance-button,
 .add-button,
 .generate-button,
 .icon-button {
@@ -4627,6 +4685,11 @@ h2 {
 
 .danger-button {
   background: #b42318;
+  color: #fff;
+}
+
+.maintenance-button {
+  background: #0071e3;
   color: #fff;
 }
 
@@ -6415,11 +6478,83 @@ h2 {
   font-size: 0.72rem;
 }
 
+.store-profile-modal {
+  width: min(880px, calc(100% - 32px));
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+.store-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 16px;
+  margin: 12px 0;
+}
+
+.store-profile-grid .field-label {
+  display: grid;
+  gap: 6px;
+}
+
+.store-profile-grid .field-inline-input {
+  width: 100%;
+}
+
+.store-profile-grid .merchant-badge,
+.store-profile-grid .storage-note {
+  justify-self: start;
+}
+
+.device-token-value {
+  display: block;
+  padding: 8px 10px;
+  border: 1px solid #d8d8dc;
+  border-radius: 10px;
+  background: #f7f7f9;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #1d1d1f;
+  word-break: break-all;
+}
+
+.store-profile-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #3a3a3c;
+}
+
+
 .referral-withdrawal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 24px;
+  overflow-y: auto;
   background: rgba(0, 0, 0, 0.36);
   backdrop-filter: blur(14px) saturate(1.12);
 }
 
+/* 信息维护弹窗内容多，桌面端需要更宽版心；复合选择器权重高于下面的 .referral-withdrawal-modal(440px)。 */
+.referral-withdrawal-modal.store-profile-modal {
+  width: min(880px, 100%);
+  margin: auto;
+  display: grid;
+  gap: 14px;
+  padding: 26px 28px 28px;
+  align-content: start;
+}
+
+@media (max-width: 720px) {
+  .referral-withdrawal-backdrop { padding: 12px; }
+  .referral-withdrawal-modal.store-profile-modal { width: 100%; padding: 18px 16px 20px; }
+  .store-profile-grid { grid-template-columns: minmax(0, 1fr); }
+}
 .referral-withdrawal-modal {
   width: min(440px, calc(100% - 32px));
   padding: 22px;
@@ -13002,7 +13137,7 @@ textarea {
 
 .merchant-stat-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-top: 16px;
 }
@@ -13087,6 +13222,9 @@ textarea {
   gap: 10px;
 }
 .merchant-task-images figure { margin: 0; display: grid; gap: 6px; }
+.merchant-task-images a { display: block; border-radius: 10px; }
+.merchant-task-images a img { transition: opacity 0.16s ease; }
+.merchant-task-images a:hover img { opacity: 0.82; }
 .merchant-task-images img,
 .merchant-task-images .merchant-job-placeholder {
   width: 100%;
@@ -13111,6 +13249,28 @@ textarea {
   text-decoration: none;
 }
 .merchant-job-download:hover { opacity: 0.86; }
+
+.merchant-task-retry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff5f4;
+}
+.merchant-task-retry .error-note { margin: 0; }
+
+.merchant-task-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 16px;
+  color: #6e6e73;
+  font-size: 13px;
+}
 
 .merchant-modal-backdrop {
   position: fixed;
@@ -13144,7 +13304,7 @@ textarea {
 
 @media (max-width: 720px) {
   .merchant-status-hero strong { font-size: 26px; }
-  .merchant-stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .merchant-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .merchant-stat-grid article,
   .merchant-stat-grid .merchant-stat-card { padding: 12px; }
   .merchant-stat-grid strong { font-size: 18px; }
