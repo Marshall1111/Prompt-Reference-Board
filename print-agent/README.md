@@ -106,6 +106,8 @@ python print_agent.py layout a.jpg --save out.jpg
 
 ## 全新设备部署（树莓派 4B / 斐讯 N1）
 
+> 上门安装、零基础操作请直接看《[现场设备配置手册](../docs/现场设备配置手册.md)》；下面是给开发同学看的简版。
+
 系统刷好（Raspberry Pi OS 或 Armbian，64 位）并联网后，只需要两步：
 
 ```bash
