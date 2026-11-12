@@ -713,8 +713,8 @@ function formatMerchantMoney(cents) {
 // 商户工作台“当前状态”：由打印代理上报字段推导单一状态，按优先级取最需要处理的一项。
 function deriveMerchantPrinterState(printer) {
   if (!printer?.connected) return { label: "未接入", tone: "is-idle" };
-  if (!printer.online) return { label: "设备离线", tone: "is-error" };
-  if (printer.fault) return { label: "设备故障", tone: "is-error", note: printer.faultReason || printer.fault };
+  if (printer.offline) return { label: "设备离线", tone: "is-error" };
+  if (printer.fault || !printer.online) return { label: "设备故障", tone: "is-error", note: printer.faultReason || printer.fault };
   if (printer.paperOut) return { label: "缺少纸张", tone: "is-warn" };
   if (printer.ribbonOut) return { label: "缺少色带", tone: "is-warn" };
   if (Number(printer.printingCount) > 0) return { label: "打印中", tone: "is-busy", note: `正在打印 ${printer.printingCount} 个` };

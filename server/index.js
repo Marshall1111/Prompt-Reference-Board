@@ -1327,6 +1327,7 @@ app.get("/api/merchant/overview", async (req, res, next) => {
       printer: {
         connected: Boolean(device),
         online: deviceHealth.healthy,
+        offline: deviceHealth.code === "offline",
         fault: Boolean(device) && !deviceHealth.healthy,
         faultReason: !device
           ? ""

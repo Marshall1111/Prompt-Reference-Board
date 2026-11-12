@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import shutil
 import subprocess
 import sys
@@ -30,6 +29,8 @@ DEFAULT_CONFIG = {
     "device_id": "dev_replace_me",
     "device_token": "replace_me",
     "printer_name": "hp518",
+    # USB 设备的 vendor:product，用于判断打印机是否还插着（CP1500 为 04a9:3302）。
+    "usb_id": "04a9:3302",
     "python_bin": "python3",
     "print_script": "print_agent.py",
     "lp_command": "lp",
@@ -90,23 +91,24 @@ def run(cmd: list[str], timeout: float = 30) -> subprocess.CompletedProcess:
 
 
 def printer_connected(cfg: dict) -> bool:
-    """USB 线被拔掉后 CUPS 队列仍会显示 idle，需要额外确认打印机还在总线上。"""
-    queue = cfg["printer_name"]
+    """拔线后 CUPS 队列仍显示 idle，且普通用户执行 lpinfo 会 Forbidden，改为直接查 sysfs。"""
+    expected = str(cfg.get("usb_id") or "").strip().lower()
+    devices_dir = Path("/sys/bus/usb/devices")
+    if not expected or not devices_dir.is_dir():
+        return True
     try:
-        mapping = run(["lpstat", "-v", queue], timeout=10).stdout
-        match = re.search(r"device for [^:]+:\s*(\S+)", mapping)
-        if not match:
-            return True
-        uri = match.group(1).lower()
-        devices = run(["lpinfo", "-v"], timeout=15).stdout.lower()
-    except (OSError, subprocess.SubprocessError):
+        for entry in devices_dir.iterdir():
+            vendor_file = entry / "idVendor"
+            product_file = entry / "idProduct"
+            if not vendor_file.exists() or not product_file.exists():
+                continue
+            vendor = vendor_file.read_text(encoding="utf-8").strip().lower()
+            product = product_file.read_text(encoding="utf-8").strip().lower()
+            if f"{vendor}:{product}" == expected:
+                return True
+    except OSError:
         return True
-    if uri in devices:
-        return True
-    serial = re.search(r"serial=([^&\s]+)", uri)
-    if serial:
-        return f"serial={serial.group(1)}" in devices
-    return "usb://" in devices
+    return False
 
 
 def query_printer(cfg: dict) -> tuple[str, list[str]]:
