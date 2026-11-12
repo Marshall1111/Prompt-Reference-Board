@@ -50,12 +50,15 @@ python print_agent.py layout a.jpg --save out.jpg
     "print_y0_mm": 5.25,
     "print_y1_mm": 153.25
   },
+  "print_seconds_per_sheet": 50,
   "scale_x": 1.0,
   "scale_y": 1.0,
   "offset_x_mm": 0.0,
   "offset_y_mm": 0.0
 }
 ```
+
+`print_seconds_per_sheet` 是 CUPS 队列清空后机器继续出纸的秒数（热升华打印机特有的延迟），用于避免提前上报「已打印」，按实际出纸时间调整。
 
 `profile` 是页面与成品尺寸：`sheet_*` 是**发给打印机的页面尺寸**（CP1500 要填 Gutenprint 的 Postcard 实际页面 105.67×158.5，不是相纸的 100×148）、`piece_*` 是成品上限（长边 `piece_height_mm`、短边 `piece_width_mm`）、`gap_mm` 成品间距、`print_*` 是相纸在页面里的位置（成品区居中，左右各留 2.835mm、上下各留 5.25mm，打印时被裁掉）。
 排版按原图比例缩放，不裁剪不变形：方图 50×50，竖图长边不超过 74、短边不超过 50，横图先转 90°；一页最多 4 张（1 张居中、2 张上下、3–4 张 2×2），4 张时正好铺满 100×148。
@@ -101,19 +104,35 @@ python print_agent.py layout a.jpg --save out.jpg
 - 目前一张纸最多出 4 个，且必须人工裁切。
 - 只支持 JPEG/300DPI 页面，未做色彩管理。
 
-## 下一步（树莓派方案）
+## 全新设备部署（树莓派 4B / 斐讯 N1）
 
-1. 服务端（petpaint）：新增 `print_jobs` 表 + 接口
-   - `POST /api/print/agent/claim`：代理长轮询领取任务（返回 jobId + 图片地址 + 商户打印机标识）
-   - `POST /api/print/agent/:jobId/result`：上报成功/失败与原因
-   - 表里预留 `printer_id`，先单商户跑通，后续按商户路由不用改表结构
-2. 代理端：在树莓派上 `python print_agent.py agent --server ... --token ...` 常驻运行，循环「领取 → 下载 → build_layout → submit_job → 上报」，断网自动重试。
-3. 树莓派需要在同一局域网内访问打印机 IP；若打印机 IP 变化，用路由器 DHCP 静态绑定固定为 `192.168.31.100`。
-4. 安装：树莓派 `apt install python3-pil`，把本目录拷过去，`config.json` 沿用当前校准值（同一台打印机）。
+系统刷好（Raspberry Pi OS 或 Armbian，64 位）并联网后，只需要两步：
 
-## 换电脑恢复步骤
+```bash
+git clone https://github.com/Marshall1111/Prompt-Reference-Board.git
+cd Prompt-Reference-Board/print-agent
+sudo ./setup.sh \
+  --server-url https://www.petpaint.top \
+  --device-id dev_xxxxxxxxxxxx \
+  --device-token xxxxxxxxxxxxxxxxxxxxxxxx
+```
 
-1. 装 Python 3 + `pip install pillow`；
-2. 拷贝整个 `print-agent/` 目录（含 `config.json`，校准值在里面）；
-3. 确认新电脑和打印机同一局域网：`ping 192.168.31.100`，能通即可；
-4. `python print_agent.py calibrate` 验证能打出来。
+`--device-id` / `--device-token` 在后台「信息维护 - 打印设备」里获取；不传这两个参数时脚本只装环境、不启动服务。
+
+`setup.sh` 会依次完成：
+
+1. 安装 CUPS、Pillow 和编译依赖；
+2. 屏蔽 `usblp`、停止并 mask `ipp-usb`，避免它们抢占 CP1500 的 USB 接口；
+3. 检查系统里是否已有 CP1500 驱动，没有就编译安装 Gutenprint 5.3.5；
+4. 自动识别 USB 打印机地址（带序列号）并创建 CUPS 队列 `cp1500`，默认 `PageSize=Postcard` + 无边距；
+5. 生成/合并 `agent.json`（该文件含设备令牌，已被 git 忽略）；
+6. 安装并启动 `print-agent.service`。
+
+脚本可重复执行，已完成的步骤会自动跳过。部署完成后验证：
+
+```bash
+lpstat -p cp1500            # 队列存在且为空闲
+systemctl status print-agent
+```
+
+后台设备列表出现心跳即为上线。要重新校准尺寸时执行 `sudo -u pi python3 print_agent.py calibrate`（会真实出纸）。
