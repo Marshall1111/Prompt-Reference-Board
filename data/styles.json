@@ -1,5 +1,45 @@
 [
   {
+    "id": "style_1794609860725",
+    "title": "关爱牛马",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1794609860725/cover.webp",
+    "imageUpdatedAt": "2026-11-13T22:44:20.724Z",
+    "personImage": "",
+    "personImageUpdatedAt": null,
+    "personThumbnailImage": "",
+    "petImage": "",
+    "petImageUpdatedAt": null,
+    "petThumbnailImage": "",
+    "prompt": "Y2K 中文杂志广告式荒诞社畜海报，采用整画幅、满版单张照片的海报构图的低清数码直闪挤地铁照片，轻微胶片颗粒与褪色感，参考图中的宠物拟人化，像上班族一样出现在[上班挤地铁场景]中，表情疲惫，主体外轮廓有红色 editorial cutout outline；顶部是超大红色中文展示字标题“[关爱牛马]”，厚重、变形、紧字距、带 90s/00s 广告标题字气质；四周使用蓝色宋体小字做杂志边注式排版，横竖混排，沿主体轮廓、桌面、屏幕和画面边缘形成图文共构的 editorial typography；整体干净明亮，像低清直闪摄影、早期 Photoshop、中文 DTP 杂志广告和社畜梗图的混合视觉。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1794608570860",
+    "title": "班味过浓",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1794608570860/cover.webp",
+    "imageUpdatedAt": "2026-11-13T22:22:50.860Z",
+    "personImage": "/style-previews/style_1794608570860/cover.webp",
+    "personImageUpdatedAt": "2026-11-13T22:22:50.860Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1794608570860/cover.webp",
+    "petImageUpdatedAt": "2026-11-13T22:22:50.860Z",
+    "petThumbnailImage": "",
+    "prompt": "Y2K 中文杂志广告式荒诞社畜海报，采用整画幅、满版单张照片的海报构图的低清数码直闪办公室照片，轻微胶片颗粒与褪色感，参考图中的宠物拟人化，像员工一样出现在[办公室上班场景]中，主体外轮廓有红色 editorial cutout outline；顶部是超大红色中文展示字标题“[班味过浓]”，厚重、变形、紧字距、带 90s/00s 广告标题字气质；四周使用蓝色宋体小字做杂志边注式排版，横竖混排，沿主体轮廓、桌面、屏幕和画面边缘形成图文共构的 editorial typography；整体干净明亮，像低清直闪摄影、早期 Photoshop、中文 DTP 杂志广告和社畜梗图的混合视觉。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1794199374422",
     "title": "波普雕版肖像",
     "tags": [
@@ -10,11 +50,11 @@
     "drawCardWeight": 100,
     "image": "/style-previews/style_1794199374422/cover.webp",
     "imageUpdatedAt": "2026-11-09T04:42:54.422Z",
-    "personImage": "",
-    "personImageUpdatedAt": null,
+    "personImage": "/style-previews/style_1794199374422/cover.webp",
+    "personImageUpdatedAt": "2026-11-09T04:42:54.422Z",
     "personThumbnailImage": "",
-    "petImage": "",
-    "petImageUpdatedAt": null,
+    "petImage": "/style-previews/style_1794199374422/cover.webp",
+    "petImageUpdatedAt": "2026-11-09T04:42:54.422Z",
     "petThumbnailImage": "",
     "prompt": "上传真实人物照片与风格参考，生成无字波普雕版肖像。照片决定身份、发型轮廓、姿态及关键物件与接触关系；参考决定画法及服装重构。采用woodcut relief print、banknote engraving、guilloche contour hatching：浅粉白脸部布满清晰细密、顺骨骼弯曲的洋红等高刻线，靠疏密塑造明暗，高光留白。神态冷峻克制，保留原有头部方向。头发转为冷白、蓝灰雕刻线；有胡须才画纯白胡须。加入亮橙厚框墨镜，镜片纯黑不透光。服装统一重构为浅米白底、淡蓝细密竖条纹西装与平涂翠绿领带，轮廓平面化。背景纯红#D32123，身侧带深暗色扁平剪影。保持关键动作及物件可辨，画面干净，无文字水印、柔焦渐变或数码3D光泽。",
     "useStyleImageAsReference": false

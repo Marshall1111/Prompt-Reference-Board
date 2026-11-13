@@ -87,7 +87,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 17,
+      "推荐": 18,
       "幽默": 1
     }
   },
@@ -111,7 +111,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 16,
+      "推荐": 17,
       "日常": 8
     }
   },
@@ -136,7 +136,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 30,
+      "推荐": 31,
       "幽默": 10,
       "日常": 12
     }
@@ -161,8 +161,8 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 29,
-      "宠物": 22
+      "推荐": 30,
+      "宠物": 24
     }
   },
   {
@@ -186,7 +186,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 28,
+      "推荐": 29,
       "幽默": 9,
       "日常": 10
     }
@@ -235,7 +235,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 7,
+      "宠物": 9,
       "幽默": 7
     }
   },
@@ -258,7 +258,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 21
+      "宠物": 23
     }
   },
   {
@@ -281,8 +281,8 @@
     "effectGridWidth": 480,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 27,
-      "宠物": 20
+      "推荐": 28,
+      "宠物": 22
     }
   },
   {
@@ -327,8 +327,8 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 26,
-      "宠物": 19
+      "推荐": 27,
+      "宠物": 21
     }
   },
   {
@@ -350,7 +350,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 16
+      "宠物": 18
     }
   },
   {
@@ -372,7 +372,7 @@
     "effectGridWidth": 426,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 13
+      "宠物": 15
     }
   },
   {
@@ -394,7 +394,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 29
+      "宠物": 31
     }
   },
   {
@@ -416,7 +416,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 12
+      "宠物": 14
     }
   },
   {
@@ -439,7 +439,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 25,
+      "推荐": 26,
       "日常": 7
     }
   },
@@ -463,8 +463,8 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 24,
-      "宠物": 11
+      "推荐": 25,
+      "宠物": 13
     }
   },
   {
@@ -487,7 +487,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 5,
+      "推荐": 6,
       "儿童": 1
     }
   },
@@ -511,7 +511,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 23,
+      "推荐": 24,
       "儿童": 16
     }
   },
@@ -535,7 +535,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 10,
+      "宠物": 12,
       "幽默": 4
     }
   },
@@ -559,7 +559,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 22,
+      "推荐": 23,
       "儿童": 15
     }
   },
@@ -583,7 +583,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 21,
+      "推荐": 22,
       "儿童": 12
     }
   },
@@ -607,8 +607,8 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 20,
-      "宠物": 8
+      "推荐": 21,
+      "宠物": 10
     }
   },
   {
@@ -631,8 +631,8 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 19,
-      "宠物": 18
+      "推荐": 20,
+      "宠物": 20
     }
   },
   {
@@ -701,7 +701,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 14,
+      "推荐": 15,
       "儿童": 6
     }
   },
@@ -725,8 +725,8 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 6,
-      "宠物": 17
+      "推荐": 7,
+      "宠物": 19
     }
   },
   {
@@ -749,7 +749,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 7,
+      "推荐": 8,
       "儿童": 8
     }
   },
@@ -773,7 +773,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 8,
+      "推荐": 9,
       "日常": 4
     }
   },
@@ -844,7 +844,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 18,
+      "推荐": 19,
       "日常": 3,
       "旅行": 14
     }
@@ -914,7 +914,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "日常": 1,
-      "推荐": 10
+      "推荐": 11
     }
   },
   {
@@ -1004,7 +1004,7 @@
     "createdAt": "2026-08-31T10:57:49.900Z",
     "updatedAt": "2026-08-31T22:32:26.822Z",
     "sortOrders": {
-      "推荐": 9,
+      "推荐": 10,
       "儿童": 13,
       "幽默": 12
     }
@@ -1029,7 +1029,7 @@
     "createdAt": "2026-08-31T11:18:37.258Z",
     "updatedAt": "2026-08-31T11:18:37.258Z",
     "sortOrders": {
-      "推荐": 11,
+      "推荐": 12,
       "日常": 9
     }
   },
@@ -1141,7 +1141,7 @@
     "createdAt": "2026-08-31T13:29:31.860Z",
     "updatedAt": "2026-08-31T13:29:31.860Z",
     "sortOrders": {
-      "推荐": 13,
+      "推荐": 14,
       "旅行": 2
     }
   },
@@ -1164,7 +1164,7 @@
     "createdAt": "2026-08-31T21:40:12.822Z",
     "updatedAt": "2026-08-31T21:40:12.822Z",
     "sortOrders": {
-      "宠物": 23
+      "宠物": 25
     }
   },
   {
@@ -1186,7 +1186,7 @@
     "createdAt": "2026-08-31T21:41:42.815Z",
     "updatedAt": "2026-08-31T21:41:42.815Z",
     "sortOrders": {
-      "宠物": 24
+      "宠物": 26
     }
   },
   {
@@ -1209,7 +1209,7 @@
     "createdAt": "2026-08-31T21:43:40.525Z",
     "updatedAt": "2026-08-31T21:43:40.525Z",
     "sortOrders": {
-      "推荐": 31,
+      "推荐": 32,
       "旅行": 8
     }
   },
@@ -1233,7 +1233,7 @@
     "createdAt": "2026-08-31T21:45:14.779Z",
     "updatedAt": "2026-08-31T21:45:14.779Z",
     "sortOrders": {
-      "推荐": 4,
+      "推荐": 5,
       "儿童": 10
     }
   },
@@ -1278,7 +1278,7 @@
     "createdAt": "2026-08-31T21:49:38.387Z",
     "updatedAt": "2026-08-31T21:49:38.387Z",
     "sortOrders": {
-      "宠物": 25
+      "宠物": 27
     }
   },
   {
@@ -1322,7 +1322,7 @@
     "createdAt": "2026-08-31T21:50:16.171Z",
     "updatedAt": "2026-08-31T21:50:16.171Z",
     "sortOrders": {
-      "宠物": 15
+      "宠物": 17
     }
   },
   {
@@ -1410,7 +1410,7 @@
     "createdAt": "2026-08-31T21:59:24.228Z",
     "updatedAt": "2026-08-31T21:59:24.228Z",
     "sortOrders": {
-      "宠物": 14
+      "宠物": 16
     }
   },
   {
@@ -1432,7 +1432,7 @@
     "createdAt": "2026-08-31T22:02:52.943Z",
     "updatedAt": "2026-08-31T22:02:52.943Z",
     "sortOrders": {
-      "宠物": 26
+      "宠物": 28
     }
   },
   {
@@ -1498,7 +1498,7 @@
     "createdAt": "2026-08-31T22:16:57.224Z",
     "updatedAt": "2026-08-31T22:16:57.224Z",
     "sortOrders": {
-      "宠物": 27
+      "宠物": 29
     }
   },
   {
@@ -1520,7 +1520,7 @@
     "createdAt": "2026-08-31T22:18:00.539Z",
     "updatedAt": "2026-08-31T22:18:00.539Z",
     "sortOrders": {
-      "宠物": 28
+      "宠物": 30
     }
   },
   {
@@ -1543,7 +1543,7 @@
     "createdAt": "2026-08-31T22:21:32.725Z",
     "updatedAt": "2026-08-31T22:21:32.725Z",
     "sortOrders": {
-      "推荐": 15,
+      "推荐": 16,
       "宠物": 1
     }
   },
@@ -1679,7 +1679,7 @@
     "createdAt": "2026-09-01T07:18:48.918Z",
     "updatedAt": "2026-09-01T07:20:37.542Z",
     "sortOrders": {
-      "推荐": 32,
+      "推荐": 33,
       "旅行": 4
     }
   },
@@ -1703,7 +1703,7 @@
     "createdAt": "2026-09-01T21:26:22.623Z",
     "updatedAt": "2026-09-01T21:26:22.623Z",
     "sortOrders": {
-      "推荐": 33,
+      "推荐": 34,
       "日常": 15
     }
   },
@@ -1726,7 +1726,7 @@
     "createdAt": "2026-09-01T21:26:38.044Z",
     "updatedAt": "2026-09-01T21:26:38.044Z",
     "sortOrders": {
-      "宠物": 30
+      "宠物": 32
     }
   },
   {
@@ -1771,7 +1771,7 @@
     "createdAt": "2026-09-01T22:09:16.136Z",
     "updatedAt": "2026-09-01T22:09:16.136Z",
     "sortOrders": {
-      "推荐": 12,
+      "推荐": 13,
       "旅行": 6
     }
   },
@@ -2168,7 +2168,7 @@
     "createdAt": "2026-09-12T06:56:19.899Z",
     "updatedAt": "2026-11-08T23:12:51.023Z",
     "sortOrders": {
-      "宠物": 33
+      "宠物": 35
     }
   },
   {
@@ -2234,7 +2234,7 @@
     "createdAt": "2026-09-12T07:17:18.606Z",
     "updatedAt": "2026-09-12T07:17:18.606Z",
     "sortOrders": {
-      "宠物": 9
+      "宠物": 11
     }
   },
   {
@@ -2410,7 +2410,7 @@
     "createdAt": "2026-09-13T12:28:59.198Z",
     "updatedAt": "2026-09-13T12:28:59.198Z",
     "sortOrders": {
-      "宠物": 31
+      "宠物": 33
     }
   },
   {
@@ -2432,7 +2432,7 @@
     "createdAt": "2026-09-13T12:31:11.112Z",
     "updatedAt": "2026-09-13T12:31:11.112Z",
     "sortOrders": {
-      "宠物": 32
+      "宠物": 34
     }
   },
   {
@@ -2630,7 +2630,7 @@
     "createdAt": "2026-11-05T21:12:22.076Z",
     "updatedAt": "2026-11-05T21:12:22.076Z",
     "sortOrders": {
-      "宠物": 5
+      "宠物": 6
     }
   },
   {
@@ -2718,7 +2718,7 @@
     "createdAt": "2026-11-08T23:12:05.474Z",
     "updatedAt": "2026-11-08T23:12:55.100Z",
     "sortOrders": {
-      "宠物": 3
+      "宠物": 4
     }
   },
   {
@@ -2740,7 +2740,7 @@
     "createdAt": "2026-11-08T23:20:14.324Z",
     "updatedAt": "2026-11-08T23:20:14.324Z",
     "sortOrders": {
-      "宠物": 6
+      "宠物": 7
     }
   },
   {
@@ -2806,7 +2806,53 @@
     "createdAt": "2026-11-09T04:31:31.689Z",
     "updatedAt": "2026-11-09T04:31:31.689Z",
     "sortOrders": {
-      "宠物": 4
+      "宠物": 5
+    }
+  },
+  {
+    "publicationId": "033910dd34d9aa1926986d8b68570810",
+    "jobId": "6cf9d18d-cbee-44a2-b38f-327abd0aaf0d",
+    "styleId": "style_1794608570860",
+    "styleName": "班味过浓",
+    "prompt": "Y2K 中文杂志广告式荒诞社畜海报，采用整画幅、满版单张照片的海报构图的低清数码直闪办公室照片，轻微胶片颗粒与褪色感，参考图中的宠物拟人化，像员工一样出现在[办公室上班场景]中，主体外轮廓有红色 editorial cutout outline；顶部是超大红色中文展示字标题“[班味过浓]”，厚重、变形、紧字距、带 90s/00s 广告标题字气质；四周使用蓝色宋体小字做杂志边注式排版，横竖混排，沿主体轮廓、桌面、屏幕和画面边缘形成图文共构的 editorial typography；整体干净明亮，像低清直闪摄影、早期 Photoshop、中文 DTP 杂志广告和社畜梗图的混合视觉。",
+    "tags": [
+      "宠物",
+      "推荐"
+    ],
+    "effectImageUrl": "/style-publications/033910dd34d9aa1926986d8b68570810/effect.webp",
+    "effectGridImageUrl": "/style-publications/033910dd34d9aa1926986d8b68570810/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/033910dd34d9aa1926986d8b68570810/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/6cf9d18d-cbee-44a2-b38f-327abd0aaf0d.png",
+    "sourceReferenceImageUrl": "/job-references/6cf9d18d-cbee-44a2-b38f-327abd0aaf0d/1-1794608456963.jpg",
+    "createdAt": "2026-11-13T22:22:59.167Z",
+    "updatedAt": "2026-11-13T22:22:59.167Z",
+    "sortOrders": {
+      "推荐": 4,
+      "宠物": 3
+    }
+  },
+  {
+    "publicationId": "87dc78333c212964a55429ad709c16ff",
+    "jobId": "214375c6-0401-4cfc-9dc3-bf728a5eff55",
+    "styleId": "style_1794609860725",
+    "styleName": "关爱牛马",
+    "prompt": "Y2K 中文杂志广告式荒诞社畜海报，采用整画幅、满版单张照片的海报构图的低清数码直闪挤地铁照片，轻微胶片颗粒与褪色感，参考图中的宠物拟人化，像上班族一样出现在[上班挤地铁场景]中，表情疲惫，主体外轮廓有红色 editorial cutout outline；顶部是超大红色中文展示字标题“[关爱牛马]”，厚重、变形、紧字距、带 90s/00s 广告标题字气质；四周使用蓝色宋体小字做杂志边注式排版，横竖混排，沿主体轮廓、桌面、屏幕和画面边缘形成图文共构的 editorial typography；整体干净明亮，像低清直闪摄影、早期 Photoshop、中文 DTP 杂志广告和社畜梗图的混合视觉。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/87dc78333c212964a55429ad709c16ff/effect.webp",
+    "effectGridImageUrl": "/style-publications/87dc78333c212964a55429ad709c16ff/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/87dc78333c212964a55429ad709c16ff/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/214375c6-0401-4cfc-9dc3-bf728a5eff55.png",
+    "sourceReferenceImageUrl": "/job-references/214375c6-0401-4cfc-9dc3-bf728a5eff55/1-1794609772367.jpg",
+    "createdAt": "2026-11-13T22:44:33.602Z",
+    "updatedAt": "2026-11-13T22:44:33.602Z",
+    "sortOrders": {
+      "宠物": 8
     }
   }
 ]
