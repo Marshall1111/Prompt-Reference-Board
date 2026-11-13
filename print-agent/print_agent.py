@@ -240,6 +240,16 @@ def build_layout(images: list[Path], cfg: dict) -> Image.Image:
         guide_draw.rectangle([left, top, right + GUIDE_WIDTH_PX, bottom + GUIDE_WIDTH_PX], fill=0)
     img.paste(GUIDE_COLOR, (0, 0), guide_mask)
 
+    # 图片自身边缘再压一圈浅灰细线：白底照片贴着纸边打印时，
+    # 只有外侧延长线看不清边界，沿图片边缘画线才方便对位裁切。
+    edge_draw = ImageDraw.Draw(img)
+    for left, top, right, bottom in placed_rects:
+        edge_draw.rectangle(
+            [left, top, right - 1, bottom - 1],
+            outline=GUIDE_COLOR,
+            width=GUIDE_WIDTH_PX,
+        )
+
     return img
 
 
