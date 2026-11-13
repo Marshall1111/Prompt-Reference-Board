@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import glob
+import json
 import os
 import sys
 import threading
@@ -16,6 +17,28 @@ from core import Box, BoxError, local_ipv4, scan_ssh, subnet_prefix
 APP_TITLE = "小画家盒子配置工具"
 DEFAULT_SERVER = "https://www.petpaint.top"
 DEFAULT_QUEUE = "cp1500"
+NAME_CACHE = os.path.join(
+    os.environ.get("APPDATA") or os.path.expanduser("~"), "PetpaintProvisioner", "names.json"
+)
+
+
+def load_name_cache() -> dict[str, str]:
+    """加载「IP → 主机名」缓存：反查不到名字的盒子，登录过一次后也能在列表里看到名称。"""
+    try:
+        with open(NAME_CACHE, encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_name_cache(cache: dict[str, str]) -> None:
+    try:
+        os.makedirs(os.path.dirname(NAME_CACHE), exist_ok=True)
+        with open(NAME_CACHE, "w", encoding="utf-8") as fh:
+            json.dump(cache, fh, ensure_ascii=False, indent=2)
+    except OSError:
+        pass
 
 
 def app_dir() -> str:
@@ -49,6 +72,7 @@ class App(tk.Tk):
         self.scanned: dict[str, dict] = {}
         self.devices: dict[str, dict] = {}
         self.wifi_rows: list[dict] = []
+        self.name_cache: dict[str, str] = load_name_cache()
 
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
@@ -82,7 +106,7 @@ class App(tk.Tk):
         body = ttk.Frame(frame)
         body.pack(fill="both", expand=True, padx=12, pady=6)
 
-        left = ttk.LabelFrame(body, text="扫描结果（双击选择）")
+        left = ttk.LabelFrame(body, text="扫描结果：IP / 名称 / SSH 版本（双击选择）")
         left.pack(side="left", fill="both", expand=True)
         self.device_list = tk.Listbox(left, activestyle="dotbox")
         self.device_list.pack(fill="both", expand=True, padx=6, pady=6)
@@ -136,8 +160,8 @@ class App(tk.Tk):
         self.scan_stop.clear()
 
         def worker():
-            def found(host, banner):
-                self.after(0, lambda: self._add_device(host, banner))
+            def found(host, banner, name):
+                self.after(0, lambda: self._add_device(host, banner, name))
 
             try:
                 scan_ssh(prefix, on_found=found, stop_event=self.scan_stop)
@@ -146,12 +170,20 @@ class App(tk.Tk):
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _add_device(self, host: str, banner: str):
-        label = f"{host}    {banner[:48]}"
-        self.device_list.insert("end", label)
-        self.scanned[host] = {"banner": banner}
+    def _add_device(self, host: str, banner: str, name: str):
+        name = name or self.name_cache.get(host, "")
+        if name:
+            self.name_cache[host] = name
+        self.device_list.insert("end", self._device_line(host, name, banner))
+        self.scanned[host] = {"banner": banner, "name": name}
+
+    @staticmethod
+    def _device_line(host: str, name: str, banner: str) -> str:
+        return f"{host:<15} {name or '—':<14} {banner[:40]}"
 
     def _scan_finished(self):
+        if self.name_cache:
+            save_name_cache(self.name_cache)
         self.scan_btn.configure(state="normal")
         self.stop_btn.configure(state="disabled")
         if self.device_list.size() == 0:
@@ -204,16 +236,27 @@ class App(tk.Tk):
             f"系统：{info['os']}",
             f"架构：{info['arch']}",
             f"根分区：{info['rootfs']}",
-            f"打印机：{'已识别 CP1500' if printer else '未发现'}",
+            f"打印机：{'已识别 CP1500' if printer else '未发现（第三步可勾选「跳过打印机」）'}",
         ]
         self._set_device_info("\n".join(lines))
+        self._remember_name(box.host, info["hostname"])
+        # 没接打印机不算错误：只在这行信息里提示，不弹窗打断第一步连接。
         if info["arch"] and info["arch"] != "arm64":
             messagebox.showwarning(APP_TITLE, f"盒子架构是 {info['arch']}，离线包只支持 arm64")
-        if not printer:
-            messagebox.showwarning(
-                APP_TITLE,
-                "没有识别到 CP1500。\n请确认打印机已开机并用 USB 线连到盒子；\n如果暂时不接打印机，请在第三步勾选「跳过打印机」。",
-            )
+
+    def _remember_name(self, host: str, name: str):
+        """登录后拿到真实主机名，回填到扫描列表并缓存，下次扫描直接显示。"""
+        if not name:
+            return
+        self.name_cache[host] = name
+        save_name_cache(self.name_cache)
+        banner = self.scanned.get(host, {}).get("banner", "")
+        self.scanned.setdefault(host, {})["name"] = name
+        for index in range(self.device_list.size()):
+            if self.device_list.get(index).split()[0] == host:
+                self.device_list.delete(index)
+                self.device_list.insert(index, self._device_line(host, name, banner))
+                break
 
     # ================================================================ WiFi 页
     def _build_wifi_tab(self):

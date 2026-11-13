@@ -19,6 +19,9 @@ if (Test-Path "dist") { Remove-Item "dist" -Recurse -Force }
 if ($LASTEXITCODE -ne 0) { throw "打包失败" }
 
 $offlineSource = Join-Path $root "offline"
+if (-not (Test-Path $offlineSource)) {
+  $offlineSource = Join-Path (Split-Path -Parent $root) "print-agent\offline"
+}
 if (Test-Path $offlineSource) {
   $target = Join-Path $root "dist\offline"
   New-Item -ItemType Directory -Path $target -Force | Out-Null

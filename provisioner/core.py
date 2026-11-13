@@ -30,8 +30,16 @@ def subnet_prefix(ip: str) -> str:
     return ".".join(parts[:3]) + "."
 
 
+def resolve_name(host: str) -> str:
+    """反查主机名。Armbian、树莓派官方系统一般会把 hostname 注册到路由器 DNS。"""
+    try:
+        return socket.gethostbyaddr(host)[0]
+    except OSError:
+        return ""
+
+
 def scan_ssh(prefix: str, on_found=None, stop_event=None, timeout: float = 0.7, workers: int = 128):
-    """扫描 /24 网段里开放 22 端口的主机。"""
+    """扫描 /24 网段里开放 22 端口的主机，返回 (IP, SSH 版本, 主机名)。"""
 
     def probe(index: int):
         if stop_event is not None and stop_event.is_set():
@@ -44,7 +52,7 @@ def scan_ssh(prefix: str, on_found=None, stop_event=None, timeout: float = 0.7, 
                     banner = sock.recv(128).decode("utf-8", "replace").strip()
                 except OSError:
                     banner = ""
-                return host, banner
+                return host, banner, resolve_name(host)
         except OSError:
             return None
 

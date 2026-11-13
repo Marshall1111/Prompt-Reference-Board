@@ -1291,7 +1291,8 @@ app.get("/api/merchant/me", async (req, res, next) => {
       settings: isMerchant
         ? {
             phone: String(settingsMap[merchantAccount.id]?.phone || ""),
-            unitPriceCents: resolveMerchantUnitPriceCents(settingsMap[merchantAccount.id])
+            unitPriceCents: resolveMerchantUnitPriceCents(settingsMap[merchantAccount.id]),
+            wechatAlertEnabled: settingsMap[merchantAccount.id]?.wechatAlertEnabled !== false
           }
         : null
     });
@@ -1550,7 +1551,10 @@ app.get("/api/merchant/settings", async (req, res, next) => {
   try {
     const account = await requireMerchantAccount(req);
     const settingsMap = await readMerchantSettingsMap();
-    res.json({ phone: String(settingsMap[account.id]?.phone || "") });
+    res.json({
+      phone: String(settingsMap[account.id]?.phone || ""),
+      wechatAlertEnabled: settingsMap[account.id]?.wechatAlertEnabled !== false
+    });
   } catch (error) {
     next(error);
   }
@@ -1559,14 +1563,26 @@ app.get("/api/merchant/settings", async (req, res, next) => {
 app.post("/api/merchant/settings", async (req, res, next) => {
   try {
     const account = await requireMerchantAccount(req);
-    const phone = String(req.body?.phone || "").trim();
-    if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
-      throw createHttpError(400, "请填写正确的 11 位手机号。", "请填写正确的 11 位手机号。");
-    }
     const settingsMap = await readMerchantSettingsMap();
-    settingsMap[account.id] = { ...(settingsMap[account.id] || {}), phone, updatedAt: new Date().toISOString() };
+    // 支持只改其中一项，未提交的字段保持原值。
+    const nextSettings = { ...(settingsMap[account.id] || {}) };
+    if (req.body && Object.prototype.hasOwnProperty.call(req.body, "phone")) {
+      const phone = String(req.body.phone || "").trim();
+      if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
+        throw createHttpError(400, "请填写正确的 11 位手机号。", "请填写正确的 11 位手机号。");
+      }
+      nextSettings.phone = phone;
+    }
+    if (typeof req.body?.wechatAlertEnabled === "boolean") {
+      nextSettings.wechatAlertEnabled = req.body.wechatAlertEnabled;
+    }
+    nextSettings.updatedAt = new Date().toISOString();
+    settingsMap[account.id] = nextSettings;
     await writeMerchantSettingsMap(settingsMap);
-    res.json({ phone });
+    res.json({
+      phone: String(nextSettings.phone || ""),
+      wechatAlertEnabled: nextSettings.wechatAlertEnabled !== false
+    });
   } catch (error) {
     next(error);
   }
@@ -11541,6 +11557,8 @@ async function listWechatAlertRecipients(storeOwnerAccountId) {
   const owner = commerceStore.readAccount(String(storeOwnerAccountId || ""));
   if (!owner) return [];
   const settingsMap = await readMerchantSettingsMap();
+  // 店主在工作台关掉「消息提醒」后，整个店铺都不再收微信提醒（含店员）。
+  if (settingsMap[owner.id]?.wechatAlertEnabled === false) return [];
   const accounts = [owner, ...commerceStore.listStoreStaff(owner.id)];
   const seenOpenIds = new Set();
   const recipients = [];

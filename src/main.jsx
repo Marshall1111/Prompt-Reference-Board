@@ -783,6 +783,8 @@ function MerchantDashboardPage() {
   const [previewImage, setPreviewImage] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [walletError, setWalletError] = useState("");
+  const [notifySaving, setNotifySaving] = useState(false);
+  const [notifyError, setNotifyError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -805,6 +807,23 @@ function MerchantDashboardPage() {
     const nextOverview = await readJsonResponse(fetch("/api/merchant/overview"));
     setOverview(nextOverview);
     return nextOverview;
+  }
+
+  async function toggleWechatAlert(enabled) {
+    setNotifySaving(true);
+    setNotifyError("");
+    try {
+      const next = await readJsonResponse(fetch("/api/merchant/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wechatAlertEnabled: enabled })
+      }));
+      setPayload((prev) => (prev ? { ...prev, settings: { ...(prev.settings || {}), ...next } } : prev));
+    } catch (nextError) {
+      setNotifyError(nextError.message || "保存失败，请稍后再试。");
+    } finally {
+      setNotifySaving(false);
+    }
   }
 
   useEffect(() => {
@@ -951,6 +970,7 @@ function MerchantDashboardPage() {
   }
 
   const merchant = payload?.merchant;
+  const wechatAlertEnabled = payload?.settings?.wechatAlertEnabled !== false;
   const printer = overview?.printer;
   const inWechatBrowser = /MicroMessenger/i.test(window.navigator.userAgent);
   const merchantEntryUrl = `${window.location.origin}/merchant`;
@@ -1036,6 +1056,30 @@ function MerchantDashboardPage() {
                     onClick={() => { loadOverview().catch(() => {}); }}
                     type="button"
                   >我已关注</button>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {payload?.role === "owner" ? (
+            <section className="merchant-card">
+              <div className="merchant-card-head">
+                <h2>消息提醒</h2>
+              </div>
+              <div className="merchant-follow-body">
+                <div className="merchant-follow-copy">
+                  <p className="storage-note">打印机故障、缺纸或设备离线时，会给关注了服务号的店铺成员发微信提醒。关掉后整店都不再收到。</p>
+                  {notifyError ? <p className="error-note">{notifyError}</p> : null}
+                  <label className="apple-toggle">
+                    <input
+                      checked={wechatAlertEnabled}
+                      disabled={notifySaving}
+                      onChange={(event) => { toggleWechatAlert(event.target.checked).catch(() => {}); }}
+                      type="checkbox"
+                    />
+                    <span aria-hidden="true" />
+                    <b>{wechatAlertEnabled ? "已开启" : "已关闭"}</b>
+                  </label>
                 </div>
               </div>
             </section>
