@@ -23,6 +23,13 @@ const localEnvPath = path.join(rootDir, ".env");
 // Load .env before reading any environment-backed configuration constants below.
 loadLocalEnv();
 
+// 微信支付回调的 success_time 形如 2026-11-12T18:47:30+08:00，统一转成 UTC ISO，
+// 避免与其它链路写入的 Z 格式混存后按字符串比较日期出错。
+function toUtcIsoString(value) {
+  const date = value ? new Date(value) : new Date();
+  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+}
+
 const authDebugLogPath = path.join(rootDir, "data", "auth-debug.log");
 const dataPath = path.join(rootDir, "data", "styles.json");
 const styleGroupsPath = path.join(rootDir, "data", "style-groups.json");
@@ -2630,7 +2637,7 @@ app.post("/api/payments/wechat/notify", express.text({ type: "*/*" }), async (re
     commerceStore.settlePayment({
       outTradeNo,
       transactionId,
-      paidAt: String(notifyData.success_time || new Date().toISOString()),
+      paidAt: toUtcIsoString(notifyData.success_time),
       payload: notifyData,
       headers
     });
@@ -2645,7 +2652,7 @@ app.post("/api/payments/wechat/notify", express.text({ type: "*/*" }), async (re
           paymentStatus: "paid",
           lastPaymentError: "",
           wechatTransactionId: transactionId,
-          paidAt: String(notifyData.success_time || new Date().toISOString())
+          paidAt: toUtcIsoString(notifyData.success_time)
         }, {
           eventType: "payment_notify",
           eventId: String(payload.id || transactionId),

@@ -626,7 +626,8 @@ export function createOrderStore({ dbPath }) {
       params.excludeExperienceType = excludeExperienceType;
     }
     if (paidFrom) {
-      conditions.push("paid_at >= @paidFrom");
+      // paid_at 同时存在 UTC（Z）与微信回调的 +08:00 两种格式，必须按真实时间比较。
+      conditions.push("datetime(paid_at) >= datetime(@paidFrom)");
       params.paidFrom = paidFrom;
     }
     if (excludeUserDeleted) {
@@ -919,9 +920,9 @@ export function createOrderStore({ dbPath }) {
     const row = db.prepare(`
       SELECT
         SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END) AS total_tasks,
-        SUM(CASE WHEN payment_status = 'paid' AND paid_at >= @todayStart THEN 1 ELSE 0 END) AS today_tasks,
+        SUM(CASE WHEN payment_status = 'paid' AND datetime(paid_at) >= datetime(@todayStart) THEN 1 ELSE 0 END) AS today_tasks,
         SUM(CASE WHEN payment_status = 'paid' THEN item_count ELSE 0 END) AS total_images,
-        SUM(CASE WHEN payment_status = 'paid' AND paid_at >= @todayStart THEN item_count ELSE 0 END) AS today_images,
+        SUM(CASE WHEN payment_status = 'paid' AND datetime(paid_at) >= datetime(@todayStart) THEN item_count ELSE 0 END) AS today_images,
         SUM(CASE WHEN payment_status = 'paid' AND fulfillment_status IN ('new', 'in_production') THEN 1 ELSE 0 END) AS pending_tasks,
         SUM(CASE WHEN payment_status = 'paid' AND fulfillment_status IN ('shipped', 'completed') THEN 1 ELSE 0 END) AS completed_tasks
       FROM orders
