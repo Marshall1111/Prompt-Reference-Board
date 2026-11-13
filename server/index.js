@@ -5024,6 +5024,8 @@ app.post("/api/print-agent/heartbeat", requirePrintDevice, (req, res) => {
     hardwareModel: String(req.body?.hardwareModel || req.body?.model || ""),
     firmwareVersion: String(req.body?.firmwareVersion || req.body?.version || "")
   });
+  markPrintDeviceSeen(device.deviceId);
+  handlePrintDeviceReasons(device, device.reasons);
   res.json({
     ok: true,
     deviceId: device.deviceId,
@@ -5067,7 +5069,9 @@ app.post("/api/print-agent/jobs/:jobId/result", requirePrintDevice, (req, res, n
     if (!job || job.deviceId !== req.printDevice.deviceId) throw createHttpError(404, "打印任务不存在。");
     const status = String(req.body?.status || "").trim();
     if (status !== "printed" && status !== "failed") throw createHttpError(400, "状态不合法。");
-    res.json({ job: printStore.finishPrintJob(job.id, status, String(req.body?.error || "")) });
+    const finishedJob = printStore.finishPrintJob(job.id, status, String(req.body?.error || ""));
+    if (finishedJob?.status === "failed") notifyPrintJobFailed(finishedJob);
+    res.json({ job: finishedJob });
   } catch (error) {
     next(error);
   }
@@ -11313,8 +11317,276 @@ const PRINT_DEVICE_REASON_TEXT = {
   "cover-open-error": "机盖未关好",
   "offline-report": "打印机离线",
   "printer-disconnected": "未检测到打印机，请检查 USB 线",
-  "spool-area-full-report": "出纸托盘已满"
+  "spool-area-full-report": "出纸托盘已满",
+  "shutdown": "设备已关机"
 };
+
+// 打印异常微信通知：使用服务号「设备报警提醒」模板消息，字段为设备名称、报警原因。
+const DEFAULT_WECHAT_ALERT_TEMPLATE_ID = "2HffOpp7Y7plQQYHCfPNqGWjC9YPGvOYIZWPe6Aj7t8";
+// 模板 thing 类型变量最多 20 个字符，超出会导致下发失败。
+const WECHAT_ALERT_THING_MAX_LENGTH = 20;
+
+function toWechatThingValue(value) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text.length > WECHAT_ALERT_THING_MAX_LENGTH
+    ? `${text.slice(0, WECHAT_ALERT_THING_MAX_LENGTH - 1)}…`
+    : text;
+}
+const WECHAT_ALERT_OFFLINE_MS = 5 * 60 * 1000;
+
+function getWechatAlertConfig() {
+  return {
+    appId: String(process.env.WECHAT_PAY_APP_ID || "").trim(),
+    appSecret: String(process.env.WECHAT_OAUTH_APP_SECRET || "").trim(),
+    templateId: String(process.env.WECHAT_ALERT_TEMPLATE_ID || DEFAULT_WECHAT_ALERT_TEMPLATE_ID).trim(),
+    logOnly: String(process.env.WECHAT_ALERT_LOG_ONLY || "true").toLowerCase() !== "false",
+    dailyLimit: Math.max(1, Math.trunc(Number(process.env.WECHAT_ALERT_DAILY_LIMIT || 10)))
+  };
+}
+
+function maskWechatOpenId(openId) {
+  const value = String(openId || "");
+  return value.length <= 8 ? value : `${value.slice(0, 6)}***${value.slice(-2)}`;
+}
+
+let wechatAlertTokenCache = { token: "", expiresAt: 0 };
+let wechatAlertTokenPending = null;
+
+async function requestWechatAlertAccessToken() {
+  const { appId, appSecret } = getWechatAlertConfig();
+  if (!appId || !appSecret) throw new Error("缺少 WECHAT_PAY_APP_ID 或 WECHAT_OAUTH_APP_SECRET");
+  const url = new URL("https://api.weixin.qq.com/cgi-bin/token");
+  url.searchParams.set("grant_type", "client_credential");
+  url.searchParams.set("appid", appId);
+  url.searchParams.set("secret", appSecret);
+  const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.errcode || !payload.access_token) {
+    throw new Error(`获取 access_token 失败：${payload.errcode || response.status} ${payload.errmsg || ""}`.trim());
+  }
+  return {
+    token: String(payload.access_token),
+    expiresAt: Date.now() + Math.max(60, Number(payload.expires_in || 7200) - 300) * 1000
+  };
+}
+
+async function getWechatAlertAccessToken(force = false) {
+  if (!force && wechatAlertTokenCache.token && wechatAlertTokenCache.expiresAt > Date.now()) {
+    return wechatAlertTokenCache.token;
+  }
+  if (!wechatAlertTokenPending) {
+    wechatAlertTokenPending = requestWechatAlertAccessToken()
+      .then((result) => {
+        wechatAlertTokenCache = result;
+        return result.token;
+      })
+      .finally(() => {
+        wechatAlertTokenPending = null;
+      });
+  }
+  return wechatAlertTokenPending;
+}
+
+async function postWechatTemplateMessage({ openId, deviceName, reason, token, config }) {
+  const url = new URL("https://api.weixin.qq.com/cgi-bin/message/template/send");
+  url.searchParams.set("access_token", token);
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      touser: openId,
+      template_id: config.templateId,
+      url: "https://www.petpaint.top/",
+      data: {
+        thing14: { value: toWechatThingValue(deviceName) },
+        thing5: { value: toWechatThingValue(reason) }
+      }
+    }),
+    signal: AbortSignal.timeout(10000)
+  });
+  return response.json().catch(() => ({}));
+}
+
+async function sendWechatTemplateMessage({ openId, deviceName, reason, config }) {
+  let token = await getWechatAlertAccessToken();
+  let payload = await postWechatTemplateMessage({ openId, deviceName, reason, token, config });
+  const tokenErrorCodes = new Set([40001, 40014, 42001]);
+  if (tokenErrorCodes.has(Number(payload.errcode))) {
+    token = await getWechatAlertAccessToken(true);
+    payload = await postWechatTemplateMessage({ openId, deviceName, reason, token, config });
+  }
+  if (payload.errcode) {
+    throw new Error(`模板消息发送失败：${payload.errcode} ${payload.errmsg || ""}`.trim());
+  }
+  return payload;
+}
+
+const wechatAlertDedup = new Map();
+const wechatAlertDailyCount = new Map();
+
+function shouldSendWechatAlert(key, cooldownMs) {
+  const now = Date.now();
+  const until = Number(wechatAlertDedup.get(key) || 0);
+  if (until > now) return false;
+  wechatAlertDedup.set(key, now + cooldownMs);
+  if (wechatAlertDedup.size > 1000) {
+    for (const [itemKey, expiresAt] of wechatAlertDedup) {
+      if (Number(expiresAt) <= now) wechatAlertDedup.delete(itemKey);
+    }
+  }
+  return true;
+}
+
+function consumeWechatAlertQuota(openId, limit) {
+  const day = new Date().toISOString().slice(0, 10);
+  const current = wechatAlertDailyCount.get(openId);
+  if (!current || current.day !== day) {
+    wechatAlertDailyCount.set(openId, { day, count: 1 });
+    return true;
+  }
+  if (current.count >= limit) return false;
+  current.count += 1;
+  return true;
+}
+
+async function listWechatAlertRecipients(storeOwnerAccountId) {
+  const owner = commerceStore.readAccount(String(storeOwnerAccountId || ""));
+  if (!owner) return [];
+  const settingsMap = await readMerchantSettingsMap();
+  const accounts = [owner, ...commerceStore.listStoreStaff(owner.id)];
+  const seenOpenIds = new Set();
+  const recipients = [];
+  for (const account of accounts) {
+    const openId = String(account?.openId || "").trim();
+    if (!openId || seenOpenIds.has(openId)) continue;
+    if (account.id !== owner.id && settingsMap[account.id]?.notifyEnabled === false) continue;
+    seenOpenIds.add(openId);
+    recipients.push({ accountId: account.id, openId });
+  }
+  return recipients;
+}
+
+async function dispatchWechatAlert({ storeOwnerAccountId, deviceName, reason, dedupKey, cooldownMs = 10 * 60 * 1000 }) {
+  const config = getWechatAlertConfig();
+  if (!config.templateId) return;
+  if (!shouldSendWechatAlert(dedupKey, cooldownMs)) return;
+  const recipients = await listWechatAlertRecipients(storeOwnerAccountId);
+  if (!recipients.length) {
+    console.log(`[wechat-alert] 跳过：商户 ${storeOwnerAccountId} 没有可接收通知的微信账号`);
+    return;
+  }
+  for (const recipient of recipients) {
+    if (!consumeWechatAlertQuota(recipient.openId, config.dailyLimit)) {
+      console.warn(`[wechat-alert] 跳过：${maskWechatOpenId(recipient.openId)} 已达到每日上限`);
+      continue;
+    }
+    if (config.logOnly) {
+      console.log(`[wechat-alert][log] to=${maskWechatOpenId(recipient.openId)} device=${deviceName} reason=${reason}`);
+      continue;
+    }
+    try {
+      await sendWechatTemplateMessage({ openId: recipient.openId, deviceName, reason, config });
+      console.log(`[wechat-alert] 已发送 to=${maskWechatOpenId(recipient.openId)}`);
+    } catch (error) {
+      console.error(`[wechat-alert] 发送失败 to=${maskWechatOpenId(recipient.openId)}：${error.message}`);
+    }
+  }
+}
+
+function queueWechatAlert(payload) {
+  dispatchWechatAlert(payload).catch((error) => {
+    console.error("[wechat-alert] 处理通知失败", error);
+  });
+}
+
+const printDeviceAlertStates = new Map();
+
+function markPrintDeviceSeen(deviceId) {
+  const state = printDeviceAlertStates.get(String(deviceId || ""));
+  if (!state) return;
+  state.online = true;
+  state.offlineSince = 0;
+  state.alerted = false;
+}
+
+function buildWechatAlertDeviceLabel(device) {
+  const label = String(device?.label || "").trim();
+  return label || String(device?.deviceId || "").trim() || "打印设备";
+}
+
+function handlePrintDeviceReasons(device, reasons) {
+  if (!device?.storeOwnerAccountId) return;
+  const activeReasons = [...new Set((Array.isArray(reasons) ? reasons : [])
+    .map((reason) => String(reason || ""))
+    .filter((reason) => PRINT_DEVICE_ERROR_REASONS.has(reason)))];
+  const reasonTexts = [...new Set(activeReasons.map((reason) => PRINT_DEVICE_REASON_TEXT[reason] || reason))];
+  if (!reasonTexts.length && String(device.printerState || "") === "stopped") {
+    reasonTexts.push("打印机已停止");
+  }
+  if (!reasonTexts.length) return;
+  queueWechatAlert({
+    storeOwnerAccountId: device.storeOwnerAccountId,
+    deviceName: buildWechatAlertDeviceLabel(device),
+    reason: reasonTexts.join("、"),
+    dedupKey: `device-reason:${device.deviceId}:${activeReasons.sort().join(",") || "stopped"}`,
+    cooldownMs: 10 * 60 * 1000
+  });
+}
+
+async function scanPrintDeviceAlerts() {
+  const now = Date.now();
+  for (const device of printStore.listPrintDevices()) {
+    if (!device.lastSeenAt || !device.storeOwnerAccountId) continue;
+    const lastSeenMs = Date.parse(device.lastSeenAt);
+    const online = Number.isFinite(lastSeenMs) && now - lastSeenMs <= PRINT_DEVICE_STALE_MS;
+    let state = printDeviceAlertStates.get(device.deviceId);
+    if (!state) {
+      state = { online, offlineSince: online ? 0 : now, alerted: false };
+      printDeviceAlertStates.set(device.deviceId, state);
+    }
+    if (online) {
+      state.online = true;
+      state.offlineSince = 0;
+      state.alerted = false;
+      continue;
+    }
+    if (state.online) {
+      state.online = false;
+      state.offlineSince = now;
+      state.alerted = false;
+    }
+    if (state.alerted || now - state.offlineSince < WECHAT_ALERT_OFFLINE_MS) continue;
+    state.alerted = true;
+    queueWechatAlert({
+      storeOwnerAccountId: device.storeOwnerAccountId,
+      deviceName: buildWechatAlertDeviceLabel(device),
+      reason: "设备已离线超过5分钟",
+      dedupKey: `device-offline:${device.deviceId}`,
+      cooldownMs: 30 * 60 * 1000
+    });
+  }
+}
+
+function notifyPrintJobFailed(job) {
+  if (!job || job.status !== "failed") return;
+  const device = job.deviceId ? printStore.readPrintDevice(job.deviceId) : null;
+  const storeOwnerAccountId = device?.storeOwnerAccountId;
+  if (!storeOwnerAccountId) return;
+  const reason = String(job.errorMessage || "").trim().slice(0, 80);
+  queueWechatAlert({
+    storeOwnerAccountId,
+    deviceName: buildWechatAlertDeviceLabel(device),
+    reason: `任务#${job.id}打印失败${reason ? `：${reason}` : ""}`,
+    dedupKey: `print-job:${job.id}`,
+    cooldownMs: 24 * 60 * 60 * 1000
+  });
+}
+
+setInterval(() => {
+  scanPrintDeviceAlerts().catch((error) => {
+    console.error("[wechat-alert] 巡检设备离线失败", error);
+  });
+}, 60 * 1000).unref?.();
 
 function collectOrderGeneratedImages(order) {
   const items = Array.isArray(order?.items) ? order.items : [];

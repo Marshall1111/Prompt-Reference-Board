@@ -734,14 +734,10 @@ function MerchantDashboardPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [walletError, setWalletError] = useState("");
-  const [phoneDraft, setPhoneDraft] = useState("");
-  const [settingsError, setSettingsError] = useState("");
-  const [settingsSaved, setSettingsSaved] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -843,27 +839,6 @@ function MerchantDashboardPage() {
     }
   }
 
-  async function saveMerchantSettings(event) {
-    event.preventDefault();
-    setSettingsError("");
-    setSettingsSaved("");
-    setBusy("settings");
-    try {
-      const response = await fetch("/api/merchant/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phoneDraft.trim() })
-      });
-      const next = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(next.message || "保存失败，请稍后再试。");
-      setSettingsSaved("已保存，打印失败或设备离线时会短信通知该号码。");
-    } catch (nextError) {
-      setSettingsError(nextError.message || "保存失败，请稍后再试。");
-    } finally {
-      setBusy("");
-    }
-  }
-
   function loginWithWechat() {
     const returnTo = `${window.location.pathname}${window.location.search}`;
     window.location.assign(`/api/auth/wechat/authorize?returnTo=${encodeURIComponent(returnTo)}`);
@@ -883,20 +858,6 @@ function MerchantDashboardPage() {
           {merchant?.wechatId ? <span className="merchant-sub">店家微信 {merchant.wechatId}</span> : null}
         </div>
         <div className="merchant-header-actions">
-          {payload?.isMerchant ? (
-            <button
-              className="merchant-settings-button"
-              onClick={() => {
-                setSettingsError("");
-                setSettingsSaved("");
-                setPhoneDraft(payload?.settings?.phone || "");
-                setSettingsOpen(true);
-              }}
-              type="button"
-            >
-              设置
-            </button>
-          ) : null}
           <a className="merchant-home-link" href="/">返回小画页</a>
         </div>
       </header>
@@ -1091,36 +1052,6 @@ function MerchantDashboardPage() {
               <p className="storage-note">还没有流水记录。任务收益结算后会显示在这里。</p>
             )}
           </div>
-        </div>
-      ) : null}
-
-      {settingsOpen ? (
-        <div className="merchant-modal-backdrop" role="presentation" onClick={() => setSettingsOpen(false)}>
-          <form className="merchant-modal" onClick={(event) => event.stopPropagation()} onSubmit={saveMerchantSettings}>
-            <h2>通知设置</h2>
-            <p className="storage-note">
-              {payload?.role === "staff" ? "当前身份：店员。" : "当前身份：店主。"}
-              填写手机号后，打印失败或设备离线时会短信通知你；留空则关闭短信通知。
-            </p>
-            <label className="merchant-field">
-              <span>手机号</span>
-              <input
-                inputMode="numeric"
-                maxLength={11}
-                onChange={(event) => setPhoneDraft(event.target.value)}
-                placeholder="请输入 11 位手机号"
-                value={phoneDraft}
-              />
-            </label>
-            {settingsError ? <p className="error-note">{settingsError}</p> : null}
-            {settingsSaved ? <p className="success-note">{settingsSaved}</p> : null}
-            <div className="merchant-modal-actions">
-              <button className="draw-card-secondary" onClick={() => setSettingsOpen(false)} type="button">取消</button>
-              <button className="draw-card-primary" disabled={busy === "settings"} type="submit">
-                {busy === "settings" ? "保存中…" : "保存"}
-              </button>
-            </div>
-          </form>
         </div>
       ) : null}
     </main>
