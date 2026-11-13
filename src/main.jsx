@@ -445,18 +445,58 @@ function ModalRouteHistory() {
   return null;
 }
 
+const STORE_SESSION_STORAGE_KEY = "pg_store_session_context";
+
+// 到店归属只在“本次扫码会话”内有效：存在 sessionStorage 而不是长期 cookie/访客状态，
+// 关掉标签页或回家后重新扫码（二维码不含店家信息）就不会再默认到店自取。
+function readStoreSessionContext() {
+  try {
+    const raw = window.sessionStorage.getItem(STORE_SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const accountId = String(parsed?.accountId || "").trim();
+    const name = String(parsed?.name || "").trim();
+    if (!accountId && !name) return null;
+    return { token: String(parsed?.token || ""), accountId, name, wechatId: String(parsed?.wechatId || "") };
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeStoreSessionContext(context) {
+  try {
+    if (!context || (!context.accountId && !context.name)) {
+      window.sessionStorage.removeItem(STORE_SESSION_STORAGE_KEY);
+      return;
+    }
+    window.sessionStorage.setItem(STORE_SESSION_STORAGE_KEY, JSON.stringify(context));
+  } catch (error) {
+    // 隐私模式下 sessionStorage 可能不可用，忽略即可，退化为不显示到店入口。
+  }
+}
+
 function StoreWelcomeFrame({ children }) {
   const [storeName, setStoreName] = useState("");
 
   useEffect(() => {
     let active = true;
     const inviteToken = String(new URLSearchParams(window.location.search).get("invite") || "").trim();
-    const ready = inviteToken ? claimStoreOwnerContext(inviteToken).catch(() => null) : Promise.resolve(null);
+    const storedContext = readStoreSessionContext();
+    const storeToken = inviteToken || String(storedContext?.token || "").trim();
+    const ready = storeToken ? claimStoreOwnerContext(storeToken).catch(() => null) : Promise.resolve(null);
     ready
-      .then(() => fetchVisitorState())
-      .then((payload) => {
-        if (!active || !payload) return;
-        setStoreName(String(payload.storeOwnerName || "").trim());
+      .then((claimed) => {
+        if (!active) return;
+        const context = claimed && (claimed.storeOwnerAccountId || claimed.storeOwnerName)
+          ? {
+              token: storeToken,
+              accountId: String(claimed.storeOwnerAccountId || ""),
+              name: String(claimed.storeOwnerName || ""),
+              wechatId: String(claimed.storeOwnerWechatId || "")
+            }
+          : null;
+        writeStoreSessionContext(context);
+        setStoreName(String(context?.name || "").trim());
       })
       .catch(() => {});
     return () => { active = false; };
@@ -4959,10 +4999,30 @@ function DrawCardCheckoutPage() {
     // 扫码进来的链接带 ?invite=，先把访客绑定到店家，再拉访客状态，
     // 否则可能先拉到旧的空状态，导致现场制作没有默认选中。
     const inviteToken = String(new URLSearchParams(window.location.search).get("invite") || "").trim();
-    const claim = inviteToken ? claimStoreOwnerContext(inviteToken).catch(() => {}) : Promise.resolve();
+    const storedContext = readStoreSessionContext();
+    // 到店归属只在本次扫码会话内生效：优先当前链接的 invite，其次本会话记录的店家，
+    // 不读取服务器上长期保存的归属，避免回家后仍默认到店自取。
+    const storeToken = inviteToken || String(storedContext?.token || "").trim();
+    const claim = storeToken ? claimStoreOwnerContext(storeToken).catch(() => null) : Promise.resolve(null);
     claim
-      .then(() => Promise.all([fetchPublicClipItems("draw-card", { includeRecent: true }), fetchOrderConfig(), fetchVisitorState()]))
-      .then(([clipPayload, config, accountPayload]) => {
+      .then((claimed) => {
+        const sessionContext = claimed && (claimed.storeOwnerAccountId || claimed.storeOwnerName)
+          ? {
+              token: storeToken,
+              accountId: String(claimed.storeOwnerAccountId || ""),
+              name: String(claimed.storeOwnerName || ""),
+              wechatId: String(claimed.storeOwnerWechatId || "")
+            }
+          : null;
+        writeStoreSessionContext(sessionContext);
+        return Promise.all([
+          fetchPublicClipItems("draw-card", { includeRecent: true }),
+          fetchOrderConfig(),
+          fetchVisitorState(),
+          Promise.resolve(sessionContext)
+        ]);
+      })
+      .then(([clipPayload, config, accountPayload, sessionContext]) => {
         if (!isActive) return;
         const items = Array.isArray(clipPayload?.items) ? clipPayload.items : [];
         setClipItems(items);
@@ -4980,19 +5040,10 @@ function DrawCardCheckoutPage() {
         setRedemptionEntitlements(accountPayload?.redemptionEntitlements || { fridgeMagnetItemCount: 0 });
         setOrderForm((current) => fillOrderAddressFromSaved(current, accountPayload?.account));
         setQuantities((current) => syncOrderQuantitiesWithClipItems(current, items));
-        // 店家没有填微信号也算已绑定，只要拿到账号或店名就进入现场制作模式。
-        const hasStoreOwner = Boolean(
-          String(accountPayload?.storeOwnerAccountId || "").trim() || String(accountPayload?.storeOwnerName || "").trim()
-        );
-        const activeStoreOwner = hasStoreOwner
-          ? {
-              accountId: String(accountPayload?.storeOwnerAccountId || ""),
-              name: String(accountPayload?.storeOwnerName || ""),
-              wechatId: String(accountPayload?.storeOwnerWechatId || "")
-            }
-          : null;
-        setStoreOwnerContext(activeStoreOwner);
-        if (activeStoreOwner) setFulfillmentMode("onsite");
+        // 只有本次扫码会话能识别到店家时才进入现场制作模式。
+        setStoreOwnerContext(sessionContext);
+        if (sessionContext) setFulfillmentMode("onsite");
+        else setFulfillmentMode("mail");
         setError("");
       })
       .catch((nextError) => {
@@ -5361,12 +5412,16 @@ function DrawCardCheckoutPage() {
             </section>
             <section className="draw-observability-card">
               <h3>制作方式</h3>
-              <div className="draw-card-fulfillment">
-                <div className="draw-card-segmented-control draw-card-fulfillment-control">
-                  <button className={`draw-card-segment${fulfillmentMode === "onsite" ? " is-active" : ""}`} onClick={() => setFulfillmentMode("onsite")} type="button">到店自取</button>
-                  <button className={`draw-card-segment${fulfillmentMode === "mail" ? " is-active" : ""}`} onClick={() => setFulfillmentMode("mail")} type="button">邮寄</button>
+              {storeOwnerContext ? (
+                <div className="draw-card-fulfillment">
+                  <div className="draw-card-segmented-control draw-card-fulfillment-control">
+                    <button className={`draw-card-segment${fulfillmentMode === "onsite" ? " is-active" : ""}`} onClick={() => setFulfillmentMode("onsite")} type="button">到店自取</button>
+                    <button className={`draw-card-segment${fulfillmentMode === "mail" ? " is-active" : ""}`} onClick={() => setFulfillmentMode("mail")} type="button">邮寄</button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <p className="storage-note">邮寄到家。到店自取需扫描店家提供的专属二维码。</p>
+              )}
               {fulfillmentMode === "onsite" ? (
                 <div className="draw-card-order-onsite">
                   <div className="draw-card-order-summary">
@@ -5886,6 +5941,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
   const [isOpeningLatestSession, setIsOpeningLatestSession] = useState(false);
   const [isRestoringSessionReference, setIsRestoringSessionReference] = useState(false);
   const [showPhotoChangeConfirm, setShowPhotoChangeConfirm] = useState(false);
+  const pendingDrawOptionsRef = useRef(null);
   const [waitingLineIndex, setWaitingLineIndex] = useState(0);
   const [waitingStage, setWaitingStage] = useState("offering");
   const [activeResultIndex, setActiveResultIndex] = useState(-1);
@@ -7035,6 +7091,12 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
         setError("请在微信内打开网页并完成授权后再开始制作。");
         return;
       }
+      // 生图必须登录：未注册的访客先弹登录/注册窗口，登录成功后自动继续本次制作。
+      if (!latestVisitorState?.account?.isRegistered) {
+        pendingDrawOptionsRef.current = options;
+        setShowAuthModal(true);
+        return;
+      }
       if (!latestVisitorState?.canGenerate) {
         setError(latestVisitorState?.contactMessage || clipContactFallback);
         if (requestedStyleIds.length) setStylePickerError(latestVisitorState?.contactMessage || clipContactFallback);
@@ -8176,6 +8238,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
 
       {showAuthModal ? (
         <AuthModal
+          description="登录后即可开始制作，首次登录赠送体验币。"
           onAuthenticated={async (account) => {
             setShowAuthModal(false);
             const nextVisitorState = await fetchVisitorState().catch(() => null);
@@ -8195,11 +8258,15 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
             const pendingDrawShare = pendingDrawShareRef.current;
             pendingDrawShareRef.current = null;
             if (pendingDrawShare) await openDrawShare(pendingDrawShare);
+            // 生图前被拦截的本次制作，登录成功后自动继续。
+            const pendingDrawOptions = pendingDrawOptionsRef.current;
+            pendingDrawOptionsRef.current = null;
+            if (pendingDrawOptions) await startDrawCard(pendingDrawOptions);
             const pendingOriginalDownload = pendingOriginalDownloadRef.current;
             pendingOriginalDownloadRef.current = null;
             if (pendingOriginalDownload) await handleDownloadClipOriginal(pendingOriginalDownload);
           }}
-          onClose={() => { pendingReferralRef.current = false; pendingCoinPurchaseRef.current = false; pendingDrawShareRef.current = null; pendingOriginalDownloadRef.current = null; setShowAuthModal(false); }}
+          onClose={() => { pendingReferralRef.current = false; pendingCoinPurchaseRef.current = false; pendingDrawShareRef.current = null; pendingOriginalDownloadRef.current = null; pendingDrawOptionsRef.current = null; setShowAuthModal(false); }}
         />
       ) : null}
 

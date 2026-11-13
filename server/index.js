@@ -3510,6 +3510,10 @@ async function handleCreatePublicExperienceSession(req, res, experienceType) {
     if (req.file.mimetype === "image/svg+xml") {
       return res.status(400).json({ message: "请上传 JPG、PNG 或 WebP 图片。" });
     }
+    // 生图改为必须登录：未注册的访客直接返回 401，由前端弹出微信登录/注册引导。
+    if (!req.webAccount?.isRegistered) {
+      return res.status(401).json({ message: "请先登录后再开始制作。" });
+    }
 
     const clientMetrics = parseDrawCardClientMetrics(req.body);
     const selectedStyleIds = config.experienceType === "draw-card" ? parseSelectedStyleIds(req.body?.selectedStyleIds) : [];
@@ -7755,15 +7759,8 @@ async function claimStoreOwnerForVisitor(req, inviteToken) {
   }
 
   const visitor = await getVisitorState(req);
-  const currentContext = getActiveVisitorStoreOwner(visitor);
-  if (currentContext?.storeOwnerAccountId) {
-    return {
-      visitor,
-      claimedNow: false,
-      locked: true
-    };
-  }
-
+  // 到店归属按“最近一次扫码”为准：允许重新绑定到本次扫码的店家，
+  // 否则用户扫了另一家店的码后会显示上一家店的横幅、并把订单派给上一家店。
   const now = new Date();
   const storeOwnerExpiresAt = new Date(now.getTime() + MERCHANT_SOURCE_LOCK_MS).toISOString();
   const nextVisitor = await saveVisitorState({
