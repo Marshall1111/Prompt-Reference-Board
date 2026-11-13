@@ -240,6 +240,7 @@ class App(tk.Tk):
         ]
         self._set_device_info("\n".join(lines))
         self._remember_name(box.host, info["hostname"])
+        self._load_wifi_async()
         # 没接打印机不算错误：只在这行信息里提示，不弹窗打断第一步连接。
         if info["arch"] and info["arch"] != "arm64":
             messagebox.showwarning(APP_TITLE, f"盒子架构是 {info['arch']}，离线包只支持 arm64")
@@ -263,80 +264,201 @@ class App(tk.Tk):
         frame = self.tab_wifi
         ttk.Label(
             frame,
-            text="按优先级填写，数字越大越优先：店铺 WiFi 300、家里 WiFi 200、手机热点 100。留空的 SSID 不会写入。",
+            text="连接成功后会自动读取盒子上的 WiFi 配置。修改会立即写入盒子；优先级数字越大越优先（店铺 300、家里 200、热点 100）。",
             foreground="#444",
         ).pack(fill="x", padx=12, pady=(12, 6))
 
-        columns = ("ssid", "password", "priority", "hidden")
-        self.wifi_tree = ttk.Treeview(frame, columns=columns, show="headings", height=10)
+        columns = ("conn", "ssid", "priority", "hidden", "active")
+        self.wifi_tree = ttk.Treeview(frame, columns=columns, show="headings", height=9, selectmode="browse")
         for key, title, width in (
-            ("ssid", "WiFi 名称", 240),
-            ("password", "密码", 240),
-            ("priority", "优先级", 90),
-            ("hidden", "隐藏 SSID", 90),
+            ("conn", "连接名", 190),
+            ("ssid", "WiFi 名称", 200),
+            ("priority", "优先级", 80),
+            ("hidden", "隐藏 SSID", 80),
+            ("active", "状态", 90),
         ):
             self.wifi_tree.heading(key, text=title)
             self.wifi_tree.column(key, width=width, anchor="w")
         self.wifi_tree.pack(fill="both", expand=True, padx=12, pady=6)
+        self.wifi_tree.bind("<<TreeviewSelect>>", self.on_pick_wifi)
 
-        form = ttk.LabelFrame(frame, text="添加 / 修改一条 WiFi")
+        form = ttk.LabelFrame(frame, text="新增 / 修改（选中一行会自动填入）")
         form.pack(fill="x", padx=12, pady=6)
+        self.wifi_conn = tk.StringVar()
         self.wifi_ssid = tk.StringVar()
         self.wifi_psk = tk.StringVar()
         self.wifi_priority = tk.StringVar(value="300")
         self.wifi_hidden = tk.BooleanVar(value=False)
 
-        ttk.Label(form, text="名称").grid(row=0, column=0, padx=6, pady=6, sticky="w")
-        ttk.Entry(form, textvariable=self.wifi_ssid, width=26).grid(row=0, column=1, pady=6)
-        ttk.Label(form, text="密码").grid(row=0, column=2, padx=6, pady=6, sticky="w")
-        ttk.Entry(form, textvariable=self.wifi_psk, width=24).grid(row=0, column=3, pady=6)
-        ttk.Label(form, text="优先级").grid(row=0, column=4, padx=6, pady=6, sticky="w")
-        ttk.Spinbox(form, from_=1, to=999, textvariable=self.wifi_priority, width=6).grid(row=0, column=5, pady=6)
-        ttk.Checkbutton(form, text="隐藏 SSID", variable=self.wifi_hidden).grid(row=0, column=6, padx=6)
-        ttk.Button(form, text="添加", command=self.on_add_wifi).grid(row=0, column=7, padx=6)
-        ttk.Button(form, text="删除选中", command=self.on_delete_wifi).grid(row=0, column=8, padx=6)
+        ttk.Label(form, text="连接名").grid(row=0, column=0, padx=6, pady=6, sticky="w")
+        ttk.Entry(form, textvariable=self.wifi_conn, width=20, state="readonly").grid(row=0, column=1, pady=6)
+        ttk.Label(form, text="WiFi 名称").grid(row=0, column=2, padx=6, pady=6, sticky="w")
+        ttk.Entry(form, textvariable=self.wifi_ssid, width=22).grid(row=0, column=3, pady=6)
+        ttk.Label(form, text="密码").grid(row=0, column=4, padx=6, pady=6, sticky="w")
+        ttk.Entry(form, textvariable=self.wifi_psk, width=20).grid(row=0, column=5, pady=6)
+        ttk.Label(form, text="优先级").grid(row=0, column=6, padx=6, pady=6, sticky="w")
+        ttk.Spinbox(form, from_=1, to=999, textvariable=self.wifi_priority, width=6).grid(row=0, column=7, pady=6)
+        ttk.Checkbutton(form, text="隐藏 SSID", variable=self.wifi_hidden).grid(row=0, column=8, padx=6)
+
+        actions = ttk.Frame(frame)
+        actions.pack(fill="x", padx=12, pady=(0, 6))
+        self.wifi_buttons = [
+            ttk.Button(actions, text="新增", command=self.on_add_wifi),
+            ttk.Button(actions, text="保存修改", command=self.on_save_wifi),
+            ttk.Button(actions, text="删除选中", command=self.on_delete_wifi),
+            ttk.Button(actions, text="重新读取", command=self.on_reload_wifi),
+        ]
+        for button in self.wifi_buttons:
+            button.pack(side="left", padx=(0, 8))
+        self.wifi_status = tk.StringVar(value="尚未连接设备")
+        ttk.Label(frame, textvariable=self.wifi_status, foreground="#555").pack(fill="x", padx=14, pady=(0, 4))
 
         ttk.Label(
             frame,
             text="注意：现场配置时请用网线连接盒子。切换 WiFi 会导致 SSH 短暂断开，网线可以保证配置过程不中断。",
             foreground="#a00",
-        ).pack(fill="x", padx=12, pady=(6, 12))
+        ).pack(fill="x", padx=12, pady=(0, 12))
+
+    def _load_wifi_async(self):
+        if self.box is None:
+            return
+        self.wifi_status.set("正在读取盒子上的 WiFi…")
+        box = self.box
+
+        def worker():
+            try:
+                rows = box.list_wifi()
+            except Exception as exc:
+                message = str(exc)
+                self.after(0, lambda: self.wifi_status.set("读取失败：" + message))
+                return
+            self.after(0, lambda: self._apply_wifi_rows(rows))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _apply_wifi_rows(self, rows: list):
+        self.wifi_rows = rows
+        self._refresh_wifi_tree()
+        active = [row for row in rows if row.get("active")]
+        summary = f"已读取 {len(rows)} 条"
+        if active:
+            summary += f"，当前连接：{active[0]['ssid']}"
+        self.wifi_status.set(summary)
 
     def _refresh_wifi_tree(self):
         for item in self.wifi_tree.get_children():
             self.wifi_tree.delete(item)
         for row in sorted(self.wifi_rows, key=lambda r: -int(r["priority"])):
             self.wifi_tree.insert(
-                "", "end",
-                values=(row["ssid"], "*" * len(row["password"]), row["priority"], "是" if row["hidden"] else "否"),
+                "", "end", iid=row["conn"],
+                values=(
+                    row["conn"],
+                    row["ssid"],
+                    row["priority"],
+                    "是" if row["hidden"] else "否",
+                    "已连接" if row.get("active") else "备用",
+                ),
             )
 
-    def on_add_wifi(self):
+    def on_pick_wifi(self, _event=None):
+        selection = self.wifi_tree.selection()
+        if not selection:
+            return
+        row = self._wifi_row(selection[0])
+        if row is None:
+            return
+        self.wifi_conn.set(row["conn"])
+        self.wifi_ssid.set(row["ssid"])
+        self.wifi_psk.set(row.get("password", ""))
+        self.wifi_priority.set(str(row["priority"]))
+        self.wifi_hidden.set(bool(row["hidden"]))
+
+    def _wifi_row(self, conn: str):
+        for row in self.wifi_rows:
+            if row["conn"] == conn:
+                return row
+        return None
+
+    def _run_wifi_action(self, description: str, action):
+        if self.box is None:
+            messagebox.showwarning(APP_TITLE, "请先在第一步连接盒子")
+            self.notebook.select(self.tab_device)
+            return
+        for button in self.wifi_buttons:
+            button.configure(state="disabled")
+        self.wifi_status.set(description + "…")
+        box = self.box
+
+        def worker():
+            try:
+                action(box)
+            except Exception as exc:
+                message = str(exc)
+                self.after(0, lambda: self._wifi_failed(message))
+                return
+            self.after(0, self._wifi_done)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _wifi_failed(self, error: str):
+        for button in self.wifi_buttons:
+            button.configure(state="normal")
+        self.wifi_status.set("失败：" + error)
+        messagebox.showerror(APP_TITLE, error)
+
+    def _wifi_done(self):
+        for button in self.wifi_buttons:
+            button.configure(state="normal")
+        self._load_wifi_async()
+
+    def _wifi_form_values(self):
         ssid = self.wifi_ssid.get().strip()
         if not ssid:
             messagebox.showwarning(APP_TITLE, "请填写 WiFi 名称")
-            return
+            return None
         try:
             priority = int(self.wifi_priority.get())
         except ValueError:
             messagebox.showwarning(APP_TITLE, "优先级必须是数字")
+            return None
+        return ssid, self.wifi_psk.get(), priority, bool(self.wifi_hidden.get())
+
+    def on_add_wifi(self):
+        values = self._wifi_form_values()
+        if values is None:
             return
-        self.wifi_rows = [row for row in self.wifi_rows if row["ssid"] != ssid]
-        self.wifi_rows.append(
-            {"ssid": ssid, "password": self.wifi_psk.get(), "priority": priority, "hidden": bool(self.wifi_hidden.get())}
+        ssid, password, priority, hidden = values
+        # 新增始终用新连接名（petpaint-<SSID>），避免误改当前选中的那条。
+        self._run_wifi_action(
+            f"新增 WiFi {ssid}",
+            lambda box: box.save_wifi("", ssid, password, priority, hidden),
         )
-        self._refresh_wifi_tree()
-        self.wifi_ssid.set("")
-        self.wifi_psk.set("")
+
+    def on_save_wifi(self):
+        conn = self.wifi_conn.get().strip()
+        if not conn:
+            messagebox.showwarning(APP_TITLE, "请先在上面的列表里选中要修改的一条 WiFi")
+            return
+        values = self._wifi_form_values()
+        if values is None:
+            return
+        ssid, password, priority, hidden = values
+        self._run_wifi_action(
+            f"保存 WiFi {ssid}",
+            lambda box: box.save_wifi(conn, ssid, password, priority, hidden),
+        )
 
     def on_delete_wifi(self):
-        selection = self.wifi_tree.selection()
-        if not selection:
+        conn = self.wifi_conn.get().strip()
+        if not conn:
+            messagebox.showwarning(APP_TITLE, "请先在列表里选中要删除的一条 WiFi")
             return
-        values = self.wifi_tree.item(selection[0], "values")
-        ssid = values[0]
-        self.wifi_rows = [row for row in self.wifi_rows if row["ssid"] != ssid]
-        self._refresh_wifi_tree()
+        if not messagebox.askyesno(APP_TITLE, f"删除连接「{conn}」？\n删除后盒子不会再自动连接这个 WiFi。"):
+            return
+        self._run_wifi_action(f"删除 WiFi {conn}", lambda box: box.delete_wifi(conn))
+
+    def on_reload_wifi(self):
+        self._load_wifi_async()
 
     # ================================================================ 执行页
     def _build_run_tab(self):

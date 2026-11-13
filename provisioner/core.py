@@ -200,6 +200,83 @@ class Box:
         except ValueError:
             return False
 
+    # ---------------------------------------------------------------- WiFi
+    def list_wifi(self) -> list[dict]:
+        """读取盒子上已有的 WiFi 连接：名称、SSID、密码、优先级、隐藏、是否已连接。"""
+        script = (
+            "active=$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null"
+            " | awk -F: '$2==\"802-11-wireless\"{print $1}' | tr '\\n' '|'); "
+            "nmcli -t -f NAME,TYPE connection show 2>/dev/null"
+            " | awk -F: '$2==\"802-11-wireless\"{print $1}' | while IFS= read -r name; do "
+            "ssid=$(nmcli -s -g 802-11-wireless.ssid connection show \"$name\" 2>/dev/null); "
+            "psk=$(nmcli -s -g 802-11-wireless-security.psk connection show \"$name\" 2>/dev/null); "
+            "prio=$(nmcli -g connection.autoconnect-priority connection show \"$name\" 2>/dev/null); "
+            "hidden=$(nmcli -g 802-11-wireless.hidden connection show \"$name\" 2>/dev/null); "
+            "case \"|$active\" in *\"|$name|\"*) act=1 ;; *) act=0 ;; esac; "
+            "printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' "
+            "\"$name\" \"$ssid\" \"${prio:-0}\" \"${hidden:-no}\" \"$act\" \"$psk\"; "
+            "done"
+        )
+        code, out, err = self.exec(script, timeout=60)
+        if code != 0:
+            raise BoxError(f"读取 WiFi 配置失败：{(err or out).strip()}")
+        rows = []
+        for line in out.splitlines():
+            parts = line.split("\t")
+            if len(parts) < 6:
+                continue
+            conn, ssid, prio, hidden, act, psk = parts[:6]
+            if not ssid or ssid == "--":
+                continue
+            rows.append({
+                "conn": conn,
+                "ssid": ssid,
+                "password": "" if psk == "--" else psk,
+                "priority": int(prio) if prio.lstrip("-").isdigit() else 0,
+                "hidden": hidden.strip().lower() in ("yes", "true", "1"),
+                "active": act.strip() == "1",
+            })
+        return rows
+
+    def save_wifi(self, conn: str, ssid: str, password: str, priority: int, hidden: bool) -> str:
+        """新增或修改一条 WiFi 连接（连接名已存在则修改），返回连接名。"""
+        if not conn:
+            safe = "".join(ch if (ch.isascii() and (ch.isalnum() or ch in "-_")) else "-" for ch in ssid)
+            conn = f"petpaint-{safe.strip('-') or 'wifi'}"
+        quote = shlex.quote
+        hidden_value = "yes" if hidden else "no"
+        set_secret = ""
+        if password:
+            set_secret = (
+                f"nmcli connection modify {quote(conn)} "
+                f"wifi-sec.key-mgmt wpa-psk wifi-sec.psk {quote(password)} && "
+            )
+        inner = (
+            f"if nmcli -t -f NAME connection show | grep -qxF {quote(conn)}; then "
+            f"nmcli connection modify {quote(conn)} "
+            f"802-11-wireless.ssid {quote(ssid)} "
+            f"connection.autoconnect yes "
+            f"connection.autoconnect-priority {int(priority)} "
+            f"802-11-wireless.hidden {hidden_value} && "
+            f"{set_secret}echo __SAVED__{conn}; "
+            f"else "
+            f"nmcli connection add type wifi con-name {quote(conn)} ifname wlan0 ssid {quote(ssid)} "
+            f"connection.autoconnect yes "
+            f"connection.autoconnect-priority {int(priority)} "
+            f"wifi.hidden {hidden_value} && "
+            f"{set_secret}echo __SAVED__{conn}; "
+            f"fi"
+        )
+        code, out, err = self.exec(inner, timeout=90)
+        if code != 0 or "__SAVED__" not in out:
+            raise BoxError(f"保存 WiFi 失败：{(err or out).strip()}")
+        return conn
+
+    def delete_wifi(self, conn: str) -> None:
+        code, out, err = self.exec(f"nmcli connection delete {shlex.quote(conn)}", timeout=60)
+        if code != 0:
+            raise BoxError(f"删除 WiFi 失败：{(err or out).strip()}")
+
     # ---------------------------------------------------------------- 执行
     def start_provision(
         self,

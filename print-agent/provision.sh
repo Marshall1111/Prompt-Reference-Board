@@ -172,24 +172,26 @@ elif [ -z "$WIFI_JSON" ]; then
 else
   [ -f "$WIFI_JSON" ] || die "WiFi 配置文件不存在：$WIFI_JSON"
   log "写入 WiFi 配置"
-  # 格式：[{"ssid":"店铺WiFi","password":"xxx","priority":300,"hidden":false}, ...]
+  # 格式：[{"conn":"petpaint-xxx","ssid":"店铺WiFi","password":"xxx","priority":300,"hidden":false}, ...]
   WIFI_LINES="$(python3 - "$WIFI_JSON" <<'PY'
 import json, sys
 items = json.load(open(sys.argv[1], encoding="utf-8"))
 for i, item in enumerate(items):
+    priority = int(item.get("priority", 100))
+    name = item.get("conn") or f"petpaint-wifi-{priority}-{i}"
     print("\t".join([
-        str(i),
+        name,
         item["ssid"],
         item.get("password", ""),
-        str(int(item.get("priority", 100))),
+        str(priority),
         "1" if item.get("hidden") else "0",
     ]))
 PY
 )"
   FIRST_CONN=""
-  while IFS=$'\t' read -r idx ssid psk prio hidden; do
+  while IFS=$'\t' read -r conn ssid psk prio hidden; do
     [ -n "$ssid" ] || continue
-    conn="petpaint-wifi-$prio-$idx"
+    [ -n "$conn" ] || conn="petpaint-wifi-$prio"
     nmcli connection delete "$conn" >/dev/null 2>&1 || true
     nmcli connection add type wifi con-name "$conn" ifname wlan0 ssid "$ssid" >/dev/null
     nmcli connection modify "$conn" \
