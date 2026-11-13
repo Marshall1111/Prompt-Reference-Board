@@ -19,12 +19,19 @@ function mapDeviceRow(row) {
   return {
     id: Number(row.id || 0),
     deviceId: String(row.device_id || ""),
-    storeOwnerAccountId: row.store_owner_account_id == null ? null : Number(row.store_owner_account_id),
+    // 账户 ID 可能是 UUID，不能转 Number，否则会变成 NaN 并在 JSON 里丢失。
+    storeOwnerAccountId: row.store_owner_account_id == null || row.store_owner_account_id === ""
+      ? null
+      : String(row.store_owner_account_id),
     label: String(row.label || ""),
     status: String(row.status || "offline"),
     printerName: String(row.printer_name || "hp518"),
     printerState: String(row.printer_state || "unknown"),
     reasons: safeJsonParse(row.printer_reasons, []),
+    hardwareModel: String(row.hardware_model || ""),
+    firmwareVersion: String(row.firmware_version || ""),
+    provisionSource: String(row.provision_source || "legacy"),
+    provisionedAt: row.provisioned_at || null,
     lastSeenAt: row.last_seen_at || null,
     createdAt: row.created_at || null
   };
@@ -63,6 +70,10 @@ export function createPrintStore({ dbPath }) {
       printer_name TEXT NOT NULL DEFAULT 'hp518',
       printer_state TEXT NOT NULL DEFAULT 'unknown',
       printer_reasons TEXT NOT NULL DEFAULT '[]',
+      hardware_model TEXT NOT NULL DEFAULT '',
+      firmware_version TEXT NOT NULL DEFAULT '',
+      provision_source TEXT NOT NULL DEFAULT 'legacy',
+      provisioned_at TEXT,
       last_seen_at TEXT,
       created_at TEXT NOT NULL
     );
@@ -87,9 +98,17 @@ export function createPrintStore({ dbPath }) {
 
   // 兼容旧库：后台需要随时查看明文令牌，缺列时补上（老设备该列为空）。
   const deviceColumns = db.prepare("PRAGMA table_info(print_devices)").all().map((column) => String(column.name || ""));
-  if (!deviceColumns.includes("token_plain")) {
-    db.exec("ALTER TABLE print_devices ADD COLUMN token_plain TEXT NOT NULL DEFAULT ''");
-  }
+  const ensureDeviceColumn = (name, definition) => {
+    if (!deviceColumns.includes(name)) {
+      db.exec(`ALTER TABLE print_devices ADD COLUMN ${name} ${definition}`);
+    }
+  };
+  ensureDeviceColumn("token_plain", "TEXT NOT NULL DEFAULT ''");
+  ensureDeviceColumn("hardware_model", "TEXT NOT NULL DEFAULT ''");
+  ensureDeviceColumn("firmware_version", "TEXT NOT NULL DEFAULT ''");
+  // 老设备没有制盘记录，统一标记为 legacy；新设备在创建时写入 manual / usb。
+  ensureDeviceColumn("provision_source", "TEXT NOT NULL DEFAULT 'legacy'");
+  ensureDeviceColumn("provisioned_at", "TEXT");
 
   const readDeviceByDeviceIdStatement = db.prepare("SELECT * FROM print_devices WHERE device_id = ?");
   const readDeviceByTokenStatement = db.prepare("SELECT * FROM print_devices WHERE token_hash = ?");
@@ -99,12 +118,21 @@ export function createPrintStore({ dbPath }) {
     return createHash("sha256").update(String(token || "")).digest("hex");
   }
 
-  function createPrintDevice({ storeOwnerAccountId = null, label = "", printerName = "hp518" } = {}) {
+  function createPrintDevice({
+    storeOwnerAccountId = null,
+    label = "",
+    printerName = "hp518",
+    hardwareModel = "",
+    provisionSource = "manual"
+  } = {}) {
     const token = randomBytes(32).toString("hex");
     const deviceId = `dev_${randomBytes(6).toString("hex")}`;
     db.prepare(`
-      INSERT INTO print_devices (device_id, store_owner_account_id, label, token_hash, token_plain, status, printer_name, created_at)
-      VALUES (?, ?, ?, ?, ?, 'offline', ?, ?)
+      INSERT INTO print_devices (
+        device_id, store_owner_account_id, label, token_hash, token_plain,
+        status, printer_name, hardware_model, provision_source, created_at
+      )
+      VALUES (?, ?, ?, ?, ?, 'offline', ?, ?, ?, ?)
     `).run(
       deviceId,
       storeOwnerAccountId == null || storeOwnerAccountId === "" ? null : String(storeOwnerAccountId).trim(),
@@ -112,9 +140,15 @@ export function createPrintStore({ dbPath }) {
       hashToken(token),
       token,
       String(printerName || "hp518").trim() || "hp518",
+      String(hardwareModel || "").trim().slice(0, 40),
+      String(provisionSource || "manual").trim().slice(0, 20) || "manual",
       nowIso()
     );
     return { device: mapDeviceRow(readDeviceByDeviceIdStatement.get(deviceId)), token };
+  }
+
+  function readPrintDevice(deviceId) {
+    return mapDeviceRow(readDeviceByDeviceIdStatement.get(String(deviceId || "")));
   }
 
   function findPrintDeviceByTokenHash(token) {
@@ -140,6 +174,39 @@ export function createPrintStore({ dbPath }) {
     return db.prepare("SELECT * FROM print_devices ORDER BY id DESC").all().map(mapDeviceRow);
   }
 
+  function listAvailablePrintDevices() {
+    return db.prepare(`
+      SELECT * FROM print_devices
+      WHERE store_owner_account_id IS NULL
+      ORDER BY id DESC
+    `).all().map(mapDeviceRow);
+  }
+
+  // 绑定/解绑：同一商户只保留一台设备，绑定新设备时自动解绑该商户的旧设备。
+  function bindPrintDevice(deviceId, storeOwnerAccountId) {
+    const normalizedDeviceId = String(deviceId || "").trim();
+    if (!readDeviceByDeviceIdStatement.get(normalizedDeviceId)) return null;
+    const nextOwner = storeOwnerAccountId == null || storeOwnerAccountId === ""
+      ? null
+      : String(storeOwnerAccountId).trim();
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      if (nextOwner) {
+        db.prepare(`
+          UPDATE print_devices SET store_owner_account_id = NULL
+          WHERE store_owner_account_id = ? AND device_id <> ?
+        `).run(nextOwner, normalizedDeviceId);
+      }
+      db.prepare("UPDATE print_devices SET store_owner_account_id = ? WHERE device_id = ?")
+        .run(nextOwner, normalizedDeviceId);
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+    return mapDeviceRow(readDeviceByDeviceIdStatement.get(normalizedDeviceId));
+  }
+
   function updatePrintDevice(deviceId, { label = "", printerName = "hp518" } = {}) {
     const device = readDeviceByDeviceIdStatement.get(String(deviceId || ""));
     if (!device) return null;
@@ -156,13 +223,38 @@ export function createPrintStore({ dbPath }) {
     return Number(result.changes || 0) > 0;
   }
 
-  function touchPrintDevice(deviceId, { printerState = "unknown", reasons = [] } = {}) {
+  function touchPrintDevice(deviceId, {
+    printerState = "unknown",
+    reasons = [],
+    hardwareModel = "",
+    firmwareVersion = ""
+  } = {}) {
     const safeReasons = Array.isArray(reasons) ? reasons.map((item) => String(item || "")).filter(Boolean) : [];
+    const now = nowIso();
+    const assignments = [
+      "status = 'online'",
+      "printer_state = ?",
+      "printer_reasons = ?",
+      "last_seen_at = ?",
+      "provisioned_at = COALESCE(provisioned_at, ?)"
+    ];
+    const values = [String(printerState || "unknown"), JSON.stringify(safeReasons), now, now];
+    const normalizedModel = String(hardwareModel || "").trim().slice(0, 40);
+    const normalizedFirmware = String(firmwareVersion || "").trim().slice(0, 40);
+    if (normalizedModel) {
+      assignments.push("hardware_model = ?");
+      values.push(normalizedModel);
+    }
+    if (normalizedFirmware) {
+      assignments.push("firmware_version = ?");
+      values.push(normalizedFirmware);
+    }
+    values.push(String(deviceId || ""));
     db.prepare(`
       UPDATE print_devices
-      SET status = 'online', printer_state = ?, printer_reasons = ?, last_seen_at = ?
+      SET ${assignments.join(", ")}
       WHERE device_id = ?
-    `).run(String(printerState || "unknown"), JSON.stringify(safeReasons), nowIso(), String(deviceId || ""));
+    `).run(...values);
     return mapDeviceRow(readDeviceByDeviceIdStatement.get(String(deviceId || "")));
   }
 
@@ -275,10 +367,13 @@ export function createPrintStore({ dbPath }) {
 
   return {
     createPrintDevice,
+    readPrintDevice,
     findPrintDeviceByTokenHash,
     readPrintDeviceToken,
     findPrintDeviceByStoreOwner,
     listPrintDevices,
+    listAvailablePrintDevices,
+    bindPrintDevice,
     updatePrintDevice,
     deletePrintDevice,
     touchPrintDevice,

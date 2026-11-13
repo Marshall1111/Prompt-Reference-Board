@@ -4942,11 +4942,31 @@ app.patch("/api/admin/store-owners/:accountId/staff/:staffAccountId", requireAdm
 
 app.patch("/api/admin/print-devices/:deviceId", requireAdmin, (req, res, next) => {
   try {
-    const device = printStore.updatePrintDevice(req.params.deviceId, {
-      label: String(req.body?.label || ""),
-      printerName: String(req.body?.printerName || "hp518")
-    });
+    const deviceId = String(req.params.deviceId || "").trim();
+    let device = printStore.readPrintDevice(deviceId);
     if (!device) throw createHttpError(404, "打印设备不存在。");
+
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "storeOwnerAccountId")) {
+      const rawOwner = req.body?.storeOwnerAccountId;
+      const nextOwner = rawOwner == null || rawOwner === "" ? null : String(rawOwner).trim();
+      if (nextOwner && device.storeOwnerAccountId != null && String(device.storeOwnerAccountId) !== nextOwner) {
+        throw createHttpError(409, "该设备已绑定其他商户，请先解绑。");
+      }
+      if (nextOwner) {
+        const account = commerceStore.readAccount(nextOwner);
+        if (!account?.isStoreOwner) throw createHttpError(404, "小画店家不存在。");
+      }
+      device = printStore.bindPrintDevice(deviceId, nextOwner) || device;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "label")
+      || Object.prototype.hasOwnProperty.call(req.body || {}, "printerName")) {
+      device = printStore.updatePrintDevice(deviceId, {
+        label: String(req.body?.label ?? device.label ?? ""),
+        printerName: String(req.body?.printerName ?? device.printerName ?? "cp1500")
+      }) || device;
+    }
+
     res.json({ device });
   } catch (error) {
     next(error);
@@ -4955,7 +4975,15 @@ app.patch("/api/admin/print-devices/:deviceId", requireAdmin, (req, res, next) =
 
 app.delete("/api/admin/print-devices/:deviceId", requireAdmin, (req, res, next) => {
   try {
-    const removed = printStore.deletePrintDevice(req.params.deviceId);
+    const device = printStore.readPrintDevice(req.params.deviceId);
+    if (!device) throw createHttpError(404, "打印设备不存在。");
+    if (device.storeOwnerAccountId != null) {
+      throw createHttpError(400, "该设备已绑定商户，请先解绑，不能直接删除。");
+    }
+    if (device.lastSeenAt) {
+      throw createHttpError(400, "该设备已有上线记录，不能删除，请保留在库存中。");
+    }
+    const removed = printStore.deletePrintDevice(device.deviceId);
     if (!removed) throw createHttpError(404, "打印设备不存在。");
     res.json({ ok: true });
   } catch (error) {
@@ -4992,7 +5020,9 @@ app.get("/api/public/store-owner/device-status", async (req, res, next) => {
 app.post("/api/print-agent/heartbeat", requirePrintDevice, (req, res) => {
   const device = printStore.touchPrintDevice(req.printDevice.deviceId, {
     printerState: String(req.body?.printerState || "unknown"),
-    reasons: Array.isArray(req.body?.reasons) ? req.body.reasons : []
+    reasons: Array.isArray(req.body?.reasons) ? req.body.reasons : [],
+    hardwareModel: String(req.body?.hardwareModel || req.body?.model || ""),
+    firmwareVersion: String(req.body?.firmwareVersion || req.body?.version || "")
   });
   res.json({
     ok: true,
@@ -5051,6 +5081,128 @@ app.get("/api/admin/print-devices", requireAdmin, (req, res) => {
   res.json({ devices });
 });
 
+// 设备库存：统一展示已绑定和未绑定设备，供后台制盘、绑定、解绑和售后使用。
+app.get("/api/admin/print-devices/inventory", requireAdmin, (req, res) => {
+  const ownerById = new Map(commerceStore.listStoreOwners().map((account) => [String(account.id), account]));
+  const devices = printStore.listPrintDevices().map((device) => {
+    const health = resolveDeviceHealth(device);
+    const owner = device.storeOwnerAccountId == null
+      ? null
+      : ownerById.get(String(device.storeOwnerAccountId)) || null;
+    return {
+      ...device,
+      healthy: health.healthy,
+      healthCode: health.code,
+      storeOwnerName: owner?.storeName || "",
+      storeOwnerWechatId: owner?.storeWechatId || "",
+      storeOwnerUsername: owner ? getAccountDisplayName(owner) : ""
+    };
+  });
+  res.json({
+    devices,
+    summary: {
+      total: devices.length,
+      bound: devices.filter((device) => device.storeOwnerAccountId != null).length,
+      unbound: devices.filter((device) => device.storeOwnerAccountId == null).length,
+      online: devices.filter((device) => device.healthy).length,
+      activated: devices.filter((device) => Boolean(device.provisionedAt || device.lastSeenAt)).length
+    }
+  });
+});
+
+app.get("/api/admin/print-devices/available", requireAdmin, (req, res) => {
+  const search = String(req.query?.search || "").trim().toLowerCase();
+  const devices = printStore.listAvailablePrintDevices()
+    .filter((device) => {
+      if (!search) return true;
+      return `${device.deviceId} ${device.label} ${device.hardwareModel}`.toLowerCase().includes(search);
+    })
+    .map((device) => {
+      const health = resolveDeviceHealth(device);
+      return { ...device, healthy: health.healthy, healthCode: health.code };
+    });
+  res.json({ devices });
+});
+
+app.get("/api/admin/print-devices/export", requireAdmin, (req, res, next) => {
+  try {
+    const includeBound = String(req.query?.includeBound || "") === "1";
+    const devices = printStore.listPrintDevices()
+      .filter((device) => includeBound || device.storeOwnerAccountId == null);
+    const rows = [[
+      "deviceId", "token", "label", "hardwareModel", "printerName", "provisionSource", "createdAt"
+    ]];
+    let skipped = 0;
+    for (const device of devices) {
+      const token = printStore.readPrintDeviceToken(device.deviceId);
+      if (!token) {
+        skipped += 1;
+        continue;
+      }
+      rows.push([
+        device.deviceId,
+        token,
+        device.label,
+        device.hardwareModel,
+        device.printerName,
+        device.provisionSource,
+        device.createdAt || ""
+      ]);
+    }
+    const escapeCell = (value) => {
+      const text = String(value ?? "");
+      return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+    const csv = `\uFEFF${rows.map((row) => row.map(escapeCell).join(",")).join("\r\n")}\r\n`;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="print-devices-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.setHeader("Cache-Control", "no-store");
+    if (skipped > 0) res.setHeader("X-Skipped-Devices", String(skipped));
+    res.send(csv);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/print-devices/:deviceId/token", requireAdmin, (req, res, next) => {
+  try {
+    const device = printStore.readPrintDevice(req.params.deviceId);
+    if (!device) throw createHttpError(404, "打印设备不存在。");
+    const token = printStore.readPrintDeviceToken(device.deviceId);
+    if (!token) throw createHttpError(404, "该设备没有保存明文令牌，无法重新制盘。");
+    res.json({ device, token });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 批量创建库存设备：不绑定商户，由 EXE 制盘时逐台注入 token。
+app.post("/api/admin/print-devices/batch", requireAdmin, (req, res, next) => {
+  try {
+    const count = Math.trunc(Number(req.body?.count));
+    if (!Number.isFinite(count) || count < 1 || count > 200) {
+      throw createHttpError(400, "创建数量需在 1-200 之间。");
+    }
+    const labelPrefix = String(req.body?.labelPrefix || "N1-").trim().slice(0, 24) || "N1-";
+    const hardwareModel = String(req.body?.hardwareModel || "n1").trim().slice(0, 40);
+    const printerName = String(req.body?.printerName || "cp1500").trim() || "cp1500";
+    const devices = [];
+    for (let index = 1; index <= count; index += 1) {
+      const { device, token } = printStore.createPrintDevice({
+        storeOwnerAccountId: null,
+        label: `${labelPrefix}${String(index).padStart(3, "0")}`,
+        printerName,
+        hardwareModel,
+        provisionSource: "usb"
+      });
+      devices.push({ ...device, token });
+    }
+    res.status(201).json({ devices });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/admin/print-devices", requireAdmin, (req, res, next) => {
   try {
     const storeOwnerAccountId = req.body?.storeOwnerAccountId;
@@ -5061,7 +5213,9 @@ app.post("/api/admin/print-devices", requireAdmin, (req, res, next) => {
     const { device, token } = printStore.createPrintDevice({
       storeOwnerAccountId,
       label: String(req.body?.label || ""),
-      printerName: String(req.body?.printerName || "hp518")
+      printerName: String(req.body?.printerName || "hp518"),
+      hardwareModel: String(req.body?.hardwareModel || ""),
+      provisionSource: "manual"
     });
     res.status(201).json({ device, token });
   } catch (error) {
