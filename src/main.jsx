@@ -731,6 +731,11 @@ function MerchantDashboardPage() {
   const [taskError, setTaskError] = useState("");
   const [taskLoading, setTaskLoading] = useState(false);
   const [retryingJobId, setRetryingJobId] = useState(0);
+  const [reprintTask, setReprintTask] = useState(null);
+  const [reprintSelection, setReprintSelection] = useState({});
+  const [reprintSubmitting, setReprintSubmitting] = useState(false);
+  const [reprintError, setReprintError] = useState("");
+  const [reprintMessage, setReprintMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -828,6 +833,67 @@ function MerchantDashboardPage() {
     }
   }
 
+  function openReprint(task) {
+    const selection = {};
+    (task.images || []).forEach((image) => {
+      if (image.jobId) selection[image.jobId] = Math.max(1, Math.min(20, Number(image.quantity) || 1));
+    });
+    setReprintTask(task);
+    setReprintSelection(selection);
+    setReprintError("");
+    setReprintMessage("");
+  }
+
+  function toggleReprintImage(jobId) {
+    if (!jobId) return;
+    setReprintSelection((current) => {
+      const next = { ...current };
+      if (Number(next[jobId] || 0) > 0) delete next[jobId];
+      else next[jobId] = 1;
+      return next;
+    });
+  }
+
+  function changeReprintCopies(jobId, delta) {
+    if (!jobId) return;
+    setReprintSelection((current) => {
+      if (!Number(current[jobId] || 0)) return current;
+      const next = { ...current };
+      next[jobId] = Math.max(1, Math.min(20, Number(next[jobId]) + delta));
+      return next;
+    });
+  }
+
+  async function submitReprint() {
+    if (!reprintTask) return;
+    const items = Object.entries(reprintSelection)
+      .filter(([, copies]) => Number(copies) > 0)
+      .map(([jobId, copies]) => ({ jobId, copies: Number(copies) }));
+    if (!items.length) {
+      setReprintError("请至少选择一张图片。");
+      return;
+    }
+    setReprintSubmitting(true);
+    setReprintError("");
+    try {
+      const response = await fetch(`/api/merchant/tasks/${encodeURIComponent(reprintTask.taskNo)}/reprint`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items })
+      });
+      const next = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(next.message || "提交补打失败，请稍后再试。");
+      setReprintTask(null);
+      setReprintSelection({});
+      setReprintMessage(`已提交补打任务，共 ${next.imageCount || items.length} 张。`);
+      await loadOverview().catch(() => {});
+    } catch (nextError) {
+      setReprintError(nextError.message || "提交补打失败，请稍后再试。");
+    } finally {
+      setReprintSubmitting(false);
+    }
+  }
+
   async function openWallet() {
     setWalletOpen(true);
     setWalletError("");
@@ -911,6 +977,30 @@ function MerchantDashboardPage() {
             )}
           </section>
 
+          {overview?.wechatFollow?.followed === false ? (
+            <section className="merchant-card merchant-follow-card">
+              <div className="merchant-card-head">
+                <h2>关注服务号接收提醒</h2>
+              </div>
+              <div className="merchant-follow-body">
+                <img
+                  alt="AI小画家服务号二维码"
+                  className="merchant-follow-qr"
+                  src={overview.wechatFollow.qrUrl}
+                />
+                <div className="merchant-follow-copy">
+                  <p className="storage-note">打印机故障、缺纸或设备离线时，只有关注服务号才能收到微信提醒。</p>
+                  <p className="storage-note">长按或扫描二维码关注后，点「我已关注」刷新状态。</p>
+                  <button
+                    className="merchant-settings-button"
+                    onClick={() => { loadOverview().catch(() => {}); }}
+                    type="button"
+                  >我已关注</button>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
           <section className="merchant-stat-grid is-two">
             <article>
               <span>今日收益</span>
@@ -938,6 +1028,7 @@ function MerchantDashboardPage() {
             </div>
             <p className="storage-note">按时间从近到远，结算单价 {formatMerchantMoney(overview?.wallet?.unitPriceCents)}/张，共 {taskList.total} 条任务。</p>
             {taskError ? <p className="error-note">{taskError}</p> : null}
+            {reprintMessage ? <p className="storage-note">{reprintMessage}</p> : null}
             {taskList.items.length ? (
               <ul className="merchant-today-list">
                 {taskList.items.map((task) => (
@@ -976,6 +1067,11 @@ function MerchantDashboardPage() {
                         ))}
                       </div>
                     ) : null}
+                    {task.images?.length ? (
+                      <div className="merchant-task-actions">
+                        <button className="merchant-settings-button" onClick={() => openReprint(task)} type="button">再次打印</button>
+                      </div>
+                    ) : null}
                     {task.canRetry ? (
                       <div className="merchant-task-retry">
                         <p className="error-note">打印失败：{task.printError || "请检查打印机后重试。"}</p>
@@ -1009,6 +1105,53 @@ function MerchantDashboardPage() {
               <button className="merchant-settings-button" onClick={() => setPreviewImage(null)} type="button">关闭</button>
             </div>
             <img alt={previewImage.alt} src={previewImage.url} />
+          </div>
+        </div>
+      ) : null}
+
+      {reprintTask ? (
+        <div className="merchant-modal-backdrop" role="presentation" onClick={() => { if (!reprintSubmitting) setReprintTask(null); }}>
+          <div className="merchant-modal is-reprint" onClick={(event) => event.stopPropagation()}>
+            <div className="merchant-card-head">
+              <h2>再次打印</h2>
+              <button className="merchant-settings-button" disabled={reprintSubmitting} onClick={() => setReprintTask(null)} type="button">关闭</button>
+            </div>
+            <p className="storage-note">选择需要补打的图片，同一张图片可设置多张。补打不收费，使用店内相纸，排版沿用自动排版。</p>
+            <div className="merchant-reprint-grid">
+              {(reprintTask.images || []).map((image, index) => {
+                const copies = Number(reprintSelection[image.jobId] || 0);
+                const selected = copies > 0;
+                return (
+                  <div key={`${reprintTask.taskNo}-${image.jobId || index}`} className={`merchant-reprint-item${selected ? " is-selected" : ""}`}>
+                    <button
+                      className="merchant-reprint-thumb"
+                      disabled={!image.jobId}
+                      onClick={() => toggleReprintImage(image.jobId)}
+                      type="button"
+                    >
+                      {image.thumbnailUrl
+                        ? <img alt={image.styleName || `第 ${index + 1} 张`} loading="lazy" src={image.thumbnailUrl} />
+                        : <span className="merchant-job-placeholder">无预览</span>}
+                      <span className="merchant-reprint-check">{selected ? "已选" : "选择"}</span>
+                    </button>
+                    <div className="merchant-reprint-controls">
+                      <button disabled={!selected || copies <= 1} onClick={() => changeReprintCopies(image.jobId, -1)} type="button">−</button>
+                      <span>{selected ? `${copies} 张` : "未选"}</span>
+                      <button disabled={!selected || copies >= 20} onClick={() => changeReprintCopies(image.jobId, 1)} type="button">+</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="storage-note">
+              共 {Object.values(reprintSelection).reduce((sum, copies) => sum + Number(copies || 0), 0)} 张
+            </p>
+            {reprintError ? <p className="error-note">{reprintError}</p> : null}
+            <div className="merchant-reprint-footer">
+              <button className="merchant-settings-button" disabled={reprintSubmitting} onClick={submitReprint} type="button">
+                {reprintSubmitting ? "提交中" : "确认开始打印"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

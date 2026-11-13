@@ -1227,6 +1227,7 @@ function toMerchantTask(order, unitPriceCents = 0) {
     jobId: String(item?.jobId || ""),
     styleName: String(item?.styleName || ""),
     thumbnailUrl: String(item?.thumbnailUrl || ""),
+    quantity: Number(item?.quantity || 1),
     originalUrl: item?.jobId ? `/api/merchant/jobs/${encodeURIComponent(item.jobId)}/original` : ""
   }));
   return {
@@ -1317,6 +1318,7 @@ app.get("/api/merchant/overview", async (req, res, next) => {
     const deviceReasons = Array.isArray(device?.reasons) ? device.reasons : [];
     const reasonText = deviceReasons.map((reason) => PRINT_DEVICE_REASON_TEXT[reason]).filter(Boolean).join("、");
     const jobCounts = device ? printStore.countActiveJobs(device.deviceId) : { printing: 0, queued: 0 };
+    const wechatFollow = await readWechatFollowState(account.openId);
     res.json({
       merchant: {
         accountId: account.id,
@@ -1329,6 +1331,11 @@ app.get("/api/merchant/overview", async (req, res, next) => {
         todayIncomeCents: earnings.todayIncomeCents,
         totalIncomeCents: earnings.totalIncomeCents,
         unitPriceCents
+      },
+      // 未关注服务号时前端展示关注二维码，否则收不到打印异常微信提醒。
+      wechatFollow: {
+        followed: wechatFollow.followed,
+        qrUrl: "/merchant-follow-qr.jpg"
       },
       // 打印机状态取该店家绑定的设备；未绑定设备时 connected 为 false。
       printer: {
@@ -1469,7 +1476,53 @@ app.post("/api/merchant/print-jobs/:jobId/retry", async (req, res, next) => {
   }
 });
 
-app.get("/api/merchant/jobs/:jobId/original", async (req, res) => {
+// 店家补打：按任务内选中的图片与份数重新生成一个打印任务，不计费、沿用自动排版。
+app.post("/api/merchant/tasks/:taskNo/reprint", async (req, res, next) => {
+  try {
+    const account = await requireMerchantAccount(req);
+    const order = orderStore.readOrderByNo(String(req.params.taskNo || "").trim());
+    if (!order) throw createHttpError(404, "任务不存在。");
+    const visitorIds = await listStoreOwnerVisitorIds(account.id);
+    const owned = visitorIds.includes(String(order.visitorId || "")) ||
+      String(order.storeOwnerAccountId || "") === account.id;
+    if (!owned) throw createHttpError(403, "该任务不属于你的店铺。");
+    const device = printStore.findPrintDeviceByStoreOwner(account.id);
+    if (!device) throw createHttpError(409, "当前店铺还没有绑定打印设备，请先绑定后再补打。");
+    const selections = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (!selections.length) throw createHttpError(400, "请至少选择一张图片。");
+    const items = orderStore.readOrderItems(order.id);
+    const archiveDir = path.join(orderOriginalArchiveRoot, order.id);
+    const archiveFiles = existsSync(archiveDir) ? readdirSync(archiveDir) : [];
+    const imageUrls = [];
+    for (const selection of selections) {
+      const jobId = String(selection?.jobId || "");
+      const copies = Math.min(Math.max(Math.trunc(Number(selection?.copies) || 1), 1), 20);
+      const item = items.find((entry) => String(entry.jobId || "") === jobId);
+      if (!item) continue;
+      const sortOrder = Number(item.sortOrder || 0);
+      const archiveName = `original-${String(sortOrder + 1).padStart(2, "0")}`;
+      const archivedFile = archiveFiles.find((name) => path.parse(name).name === archiveName);
+      const assetUrl = archivedFile
+        ? `/order-original-downloads/${order.id}/${archivedFile}`
+        : String(item.imageUrl || "");
+      if (!assetUrl) continue;
+      for (let copy = 0; copy < copies; copy += 1) imageUrls.push(assetUrl);
+    }
+    if (!imageUrls.length) throw createHttpError(400, "选中的图片没有可打印的原图。");
+    // print_jobs.order_id 有唯一索引，补打任务用独立单号，避免与原任务冲突。
+    const job = printStore.createPrintJob({
+      orderId: `reprint-${order.orderNo || order.id}-${Date.now()}`,
+      deviceId: device.deviceId,
+      imageUrls,
+      layoutMode: "2up"
+    });
+    res.json({ job, imageCount: imageUrls.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/merchant/jobs/:jobId/original", async (req, res, next) => {
   try {
     // 客户已支付的订单，商家同样可以下载原图；未支付则拒绝。
     const account = await requireMerchantAccount(req);
@@ -11392,6 +11445,37 @@ async function getWechatAlertAccessToken(force = false) {
       });
   }
   return wechatAlertTokenPending;
+}
+
+// 工作台提示：未关注服务号时展示关注二维码。缓存 60 秒，兼顾接口调用量与「我已关注」的刷新体感。
+const WECHAT_FOLLOW_STATE_TTL_MS = 60 * 1000;
+const wechatFollowStateCache = new Map();
+
+async function readWechatFollowState(openId) {
+  const normalized = String(openId || "").trim();
+  if (!normalized) return { followed: false, hasOpenId: false };
+  const cached = wechatFollowStateCache.get(normalized);
+  if (cached && Date.now() - cached.at < WECHAT_FOLLOW_STATE_TTL_MS) return cached.state;
+  try {
+    const token = await getWechatAlertAccessToken();
+    const url = new URL("https://api.weixin.qq.com/cgi-bin/user/info");
+    url.searchParams.set("access_token", token);
+    url.searchParams.set("openid", normalized);
+    url.searchParams.set("lang", "zh_CN");
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const payload = await response.json().catch(() => ({}));
+    const errcode = Number(payload.errcode || 0);
+    // 43004 未关注、40003 openid 无效按未关注处理；其他错误不打扰商户。
+    const state = errcode === 0
+      ? { followed: Number(payload.subscribe) === 1, hasOpenId: true }
+      : [43004, 40003].includes(errcode)
+        ? { followed: false, hasOpenId: true }
+        : { followed: true, hasOpenId: true };
+    wechatFollowStateCache.set(normalized, { at: Date.now(), state });
+    return state;
+  } catch (error) {
+    return { followed: true, hasOpenId: true };
+  }
 }
 
 async function postWechatTemplateMessage({ openId, deviceName, reason, token, config }) {

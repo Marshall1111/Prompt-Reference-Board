@@ -355,6 +355,10 @@ export function createOrderStore({ dbPath }) {
     return mapOrderRow(selectOrderByOutTradeNoStatement.get(outTradeNo));
   }
 
+  function readOrderByNo(orderNo) {
+    return mapOrderRow(db.prepare("SELECT * FROM orders WHERE order_no = ?").get(String(orderNo || "")));
+  }
+
   function readOrderItems(orderId) {
     return selectOrderItemsStatement.all(orderId).map(mapItemRow);
   }
@@ -968,6 +972,7 @@ export function createOrderStore({ dbPath }) {
     listMerchantCommissionSummary,
     listPaidJobIdsForVisitors,
     readOrder,
+    readOrderByNo,
     readOrderByOutTradeNo,
     readOrderItems,
     readBodyBookOrderBooks,

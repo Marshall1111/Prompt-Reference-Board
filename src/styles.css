@@ -13325,3 +13325,125 @@ textarea {
   .merchant-header { flex-direction: column; }
   .merchant-header-actions { width: 100%; justify-content: space-between; }
 }
+
+/* 商户工作台：未关注服务号时的引导卡片 */
+.merchant-follow-body {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.merchant-follow-qr {
+  width: 132px;
+  height: 132px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+}
+
+.merchant-follow-copy {
+  flex: 1 1 200px;
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+/* 商户工作台：任务补打（再次打印） */
+.merchant-task-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.merchant-modal.is-reprint {
+  max-width: 760px;
+  width: min(760px, calc(100vw - 32px));
+}
+
+.merchant-reprint-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+}
+
+.merchant-reprint-item {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.merchant-reprint-thumb {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 2px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.merchant-reprint-item.is-selected .merchant-reprint-thumb {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.merchant-reprint-thumb img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.merchant-reprint-check {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.62);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.merchant-reprint-item.is-selected .merchant-reprint-check {
+  background: #2563eb;
+}
+
+.merchant-reprint-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.merchant-reprint-controls button {
+  width: 32px;
+  height: 28px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.merchant-reprint-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.merchant-reprint-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
