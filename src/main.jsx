@@ -5410,18 +5410,15 @@ function DrawCardCheckoutPage() {
                 })}
               </div>
             </section>
+            {storeOwnerContext ? (
             <section className="draw-observability-card">
               <h3>制作方式</h3>
-              {storeOwnerContext ? (
-                <div className="draw-card-fulfillment">
-                  <div className="draw-card-segmented-control draw-card-fulfillment-control">
-                    <button className={`draw-card-segment${fulfillmentMode === "onsite" ? " is-active" : ""}`} onClick={() => setFulfillmentMode("onsite")} type="button">到店自取</button>
-                    <button className={`draw-card-segment${fulfillmentMode === "mail" ? " is-active" : ""}`} onClick={() => setFulfillmentMode("mail")} type="button">邮寄</button>
-                  </div>
+              <div className="draw-card-fulfillment">
+                <div className="draw-card-segmented-control draw-card-fulfillment-control">
+                  <button className={`draw-card-segment${fulfillmentMode === "onsite" ? " is-active" : ""}`} onClick={() => setFulfillmentMode("onsite")} type="button">到店自取</button>
+                  <button className={`draw-card-segment${fulfillmentMode === "mail" ? " is-active" : ""}`} onClick={() => setFulfillmentMode("mail")} type="button">邮寄</button>
                 </div>
-              ) : (
-                <p className="storage-note">邮寄到家。到店自取需扫描店家提供的专属二维码。</p>
-              )}
+              </div>
               {fulfillmentMode === "onsite" ? (
                 <div className="draw-card-order-onsite">
                   <div className="draw-card-order-summary">
@@ -5457,6 +5454,7 @@ function DrawCardCheckoutPage() {
                 </div>
               ) : null}
             </section>
+            ) : null}
             {fulfillmentMode === "mail" ? (
             <section className="draw-observability-card">
               <h3>订单信息</h3>
