@@ -6122,6 +6122,14 @@ app.put("/api/styles/:id", requireAdmin, async (req, res) => {
   style.drawCardWeight = normalizeDrawCardWeight(req.body.drawCardWeight);
   style.prompt = String(req.body.prompt || "").trim();
   style.useStyleImageAsReference = Boolean(req.body.useStyleImageAsReference);
+  // 开启“示例图作为参考图”时，参考图必须指向当前示例图，避免仍使用替换前的旧封面。
+  if (style.useStyleImageAsReference) {
+    const sample = resolveStyleSampleImage(style);
+    if (sample.image && sample.image !== style.image) {
+      style.image = sample.image;
+      style.imageUpdatedAt = sample.updatedAt || style.imageUpdatedAt || new Date().toISOString();
+    }
+  }
   await saveStyles(styles);
   // 级联更新发布记录的风格名，保持发布页与图库风格名一致。
   const nextStyleName = formatStyleName(style);
@@ -18110,6 +18118,21 @@ function getStyleVariantImageFields(variant) {
   return fields[String(variant || "").trim()] || null;
 }
 
+function resolveStyleSampleImage(style) {
+  const personImage = String(style?.personImage || "").trim();
+  const petImage = String(style?.petImage || "").trim();
+  if (normalizeStyleSubjectType(style?.subjectType, style) === SUBJECT_PET) {
+    return {
+      image: petImage || personImage,
+      updatedAt: style?.petImageUpdatedAt || style?.personImageUpdatedAt || null
+    };
+  }
+  return {
+    image: personImage || petImage,
+    updatedAt: style?.personImageUpdatedAt || style?.petImageUpdatedAt || null
+  };
+}
+
 async function saveStyleVariantImage(style, variant, bytes, mimeType) {
   const fields = getStyleVariantImageFields(variant);
   if (!fields) throw new Error("UNSUPPORTED_IMAGE_TYPE");
@@ -18137,6 +18160,11 @@ async function saveStyleVariantImage(style, variant, bytes, mimeType) {
   style[fields.image] = imageUrl;
   style[fields.updatedAt] = updatedAt;
   style[fields.thumbnailImage] = String(thumbnail?.url || imageUrl);
+  // 示例图被用作生图参考图时，参考图必须跟随新替换的示例图，否则生图仍会使用旧封面。
+  if (style.useStyleImageAsReference) {
+    style.image = imageUrl;
+    style.imageUpdatedAt = updatedAt;
+  }
   return style;
 }
 
