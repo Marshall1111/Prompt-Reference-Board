@@ -162,7 +162,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 30,
-      "宠物": 24
+      "宠物": 25
     }
   },
   {
@@ -235,7 +235,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 9,
+      "宠物": 10,
       "幽默": 7
     }
   },
@@ -258,7 +258,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 23
+      "宠物": 24
     }
   },
   {
@@ -282,7 +282,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 28,
-      "宠物": 22
+      "宠物": 23
     }
   },
   {
@@ -328,7 +328,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 27,
-      "宠物": 21
+      "宠物": 22
     }
   },
   {
@@ -350,7 +350,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 18
+      "宠物": 19
     }
   },
   {
@@ -372,7 +372,7 @@
     "effectGridWidth": 426,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 15
+      "宠物": 16
     }
   },
   {
@@ -394,7 +394,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 31
+      "宠物": 32
     }
   },
   {
@@ -416,7 +416,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 14
+      "宠物": 15
     }
   },
   {
@@ -464,7 +464,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 25,
-      "宠物": 13
+      "宠物": 14
     }
   },
   {
@@ -535,7 +535,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "宠物": 12,
+      "宠物": 13,
       "幽默": 4
     }
   },
@@ -608,7 +608,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 21,
-      "宠物": 10
+      "宠物": 11
     }
   },
   {
@@ -632,7 +632,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 20,
-      "宠物": 20
+      "宠物": 21
     }
   },
   {
@@ -726,7 +726,7 @@
     "effectGridHeight": 640,
     "sortOrders": {
       "推荐": 7,
-      "宠物": 19
+      "宠物": 20
     }
   },
   {
@@ -1164,7 +1164,7 @@
     "createdAt": "2026-08-31T21:40:12.822Z",
     "updatedAt": "2026-08-31T21:40:12.822Z",
     "sortOrders": {
-      "宠物": 25
+      "宠物": 26
     }
   },
   {
@@ -1186,7 +1186,7 @@
     "createdAt": "2026-08-31T21:41:42.815Z",
     "updatedAt": "2026-08-31T21:41:42.815Z",
     "sortOrders": {
-      "宠物": 26
+      "宠物": 27
     }
   },
   {
@@ -1278,7 +1278,7 @@
     "createdAt": "2026-08-31T21:49:38.387Z",
     "updatedAt": "2026-08-31T21:49:38.387Z",
     "sortOrders": {
-      "宠物": 27
+      "宠物": 28
     }
   },
   {
@@ -1322,7 +1322,7 @@
     "createdAt": "2026-08-31T21:50:16.171Z",
     "updatedAt": "2026-08-31T21:50:16.171Z",
     "sortOrders": {
-      "宠物": 17
+      "宠物": 18
     }
   },
   {
@@ -1410,7 +1410,7 @@
     "createdAt": "2026-08-31T21:59:24.228Z",
     "updatedAt": "2026-08-31T21:59:24.228Z",
     "sortOrders": {
-      "宠物": 16
+      "宠物": 17
     }
   },
   {
@@ -1432,7 +1432,7 @@
     "createdAt": "2026-08-31T22:02:52.943Z",
     "updatedAt": "2026-08-31T22:02:52.943Z",
     "sortOrders": {
-      "宠物": 28
+      "宠物": 29
     }
   },
   {
@@ -1498,7 +1498,7 @@
     "createdAt": "2026-08-31T22:16:57.224Z",
     "updatedAt": "2026-08-31T22:16:57.224Z",
     "sortOrders": {
-      "宠物": 29
+      "宠物": 30
     }
   },
   {
@@ -1520,7 +1520,7 @@
     "createdAt": "2026-08-31T22:18:00.539Z",
     "updatedAt": "2026-08-31T22:18:00.539Z",
     "sortOrders": {
-      "宠物": 30
+      "宠物": 31
     }
   },
   {
@@ -1726,7 +1726,7 @@
     "createdAt": "2026-09-01T21:26:38.044Z",
     "updatedAt": "2026-09-01T21:26:38.044Z",
     "sortOrders": {
-      "宠物": 32
+      "宠物": 33
     }
   },
   {
@@ -2168,7 +2168,7 @@
     "createdAt": "2026-09-12T06:56:19.899Z",
     "updatedAt": "2026-11-08T23:12:51.023Z",
     "sortOrders": {
-      "宠物": 35
+      "宠物": 36
     }
   },
   {
@@ -2234,7 +2234,7 @@
     "createdAt": "2026-09-12T07:17:18.606Z",
     "updatedAt": "2026-09-12T07:17:18.606Z",
     "sortOrders": {
-      "宠物": 11
+      "宠物": 12
     }
   },
   {
@@ -2410,7 +2410,7 @@
     "createdAt": "2026-09-13T12:28:59.198Z",
     "updatedAt": "2026-09-13T12:28:59.198Z",
     "sortOrders": {
-      "宠物": 33
+      "宠物": 34
     }
   },
   {
@@ -2432,7 +2432,7 @@
     "createdAt": "2026-09-13T12:31:11.112Z",
     "updatedAt": "2026-09-13T12:31:11.112Z",
     "sortOrders": {
-      "宠物": 34
+      "宠物": 35
     }
   },
   {
@@ -2740,7 +2740,7 @@
     "createdAt": "2026-11-08T23:20:14.324Z",
     "updatedAt": "2026-11-08T23:20:14.324Z",
     "sortOrders": {
-      "宠物": 7
+      "宠物": 9
     }
   },
   {
@@ -2834,25 +2834,91 @@
     }
   },
   {
-    "publicationId": "87dc78333c212964a55429ad709c16ff",
-    "jobId": "214375c6-0401-4cfc-9dc3-bf728a5eff55",
-    "styleId": "style_1794609860725",
-    "styleName": "关爱牛马",
-    "prompt": "Y2K 中文杂志广告式荒诞社畜海报，采用整画幅、满版单张照片的海报构图的低清数码直闪挤地铁照片，轻微胶片颗粒与褪色感，参考图中的宠物拟人化，像上班族一样出现在[上班挤地铁场景]中，表情疲惫，主体外轮廓有红色 editorial cutout outline；顶部是超大红色中文展示字标题“[关爱牛马]”，厚重、变形、紧字距、带 90s/00s 广告标题字气质；四周使用蓝色宋体小字做杂志边注式排版，横竖混排，沿主体轮廓、桌面、屏幕和画面边缘形成图文共构的 editorial typography；整体干净明亮，像低清直闪摄影、早期 Photoshop、中文 DTP 杂志广告和社畜梗图的混合视觉。",
+    "publicationId": "0f6d1c395d634366a8607287fa0269e2",
+    "jobId": "cbb789d0-8cdc-4be0-bb81-63df03824522",
+    "styleId": "style_1794735679624",
+    "styleName": "大头皮克斯",
+    "prompt": "请根据我上传的多人照片，生成一张3D皮克斯动画风格的双人（或多人）搞怪头像。 核心画面要求： 极端夸张的头身比：每个人物都采用超级大头和微小身体的Q版造型，整体轮廓非常圆润、饱满、肉乎乎。 外貌高度还原：必须精准复刻照片中每个人的复杂外貌特征（包括各自独特的发型纹理、脸型轮廓、五官细节等），确保每个人都能被一眼认出，绝不脸谱化。 动作与表情1:1复刻：必须高度还原照片中每个人的具体动作、姿态和面部表情（如各自的眼神方向、嘴角弧度、歪头或互动姿势），把照片中的神态完美转化为Q版搞怪效果，额头上可保留一张搞怪便签。 材质与质感：精细的3D渲染，拥有细腻皮肤纹理与柔和的影棚布光，纯色干净背景。严谨的肢体与解剖结构（核心）：每个人物和动物的肢体数量必须绝对正常、独立清晰，手部与脚部结构必须精准合理，绝对禁止多余的手臂、错乱的手指、肢体黏连或融合，双手必须自然归位或符合动作逻辑多余的手、多余的脚、多指、断指、畸形肢体、肢体融合、融手融脚、残缺、错乱的五官、恐怖谷效应、真人实景照片、2D平面画风、画质模糊、多余的身体部位、解剖结构错误。",
     "tags": [
       "宠物"
     ],
-    "effectImageUrl": "/style-publications/87dc78333c212964a55429ad709c16ff/effect.webp",
-    "effectGridImageUrl": "/style-publications/87dc78333c212964a55429ad709c16ff/effect-small.webp",
+    "effectImageUrl": "/style-publications/0f6d1c395d634366a8607287fa0269e2/effect.webp",
+    "effectGridImageUrl": "/style-publications/0f6d1c395d634366a8607287fa0269e2/effect-small.webp",
     "effectGridWidth": 427,
     "effectGridHeight": 640,
-    "referenceImageUrl": "/style-publications/87dc78333c212964a55429ad709c16ff/reference.webp",
-    "sourceEffectImageUrl": "/generated-images/214375c6-0401-4cfc-9dc3-bf728a5eff55.png",
-    "sourceReferenceImageUrl": "/job-references/214375c6-0401-4cfc-9dc3-bf728a5eff55/1-1794609772367.jpg",
-    "createdAt": "2026-11-13T22:44:33.602Z",
-    "updatedAt": "2026-11-13T22:44:33.602Z",
+    "referenceImageUrl": "/style-publications/0f6d1c395d634366a8607287fa0269e2/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/cbb789d0-8cdc-4be0-bb81-63df03824522.png",
+    "sourceReferenceImageUrl": "/job-references/cbb789d0-8cdc-4be0-bb81-63df03824522/1-1794735472825.jpg",
+    "createdAt": "2026-11-15T13:16:48.458Z",
+    "updatedAt": "2026-11-15T13:16:48.458Z",
+    "sortOrders": {
+      "宠物": 37
+    }
+  },
+  {
+    "publicationId": "b3121d3da49d8ad01e14f38fcea2d257",
+    "jobId": "03db36c1-af0f-4d3e-8288-eb3c2206a757",
+    "styleId": "style_1794609860725",
+    "styleName": "我爱上班",
+    "prompt": "Y2K 中文杂志广告式荒诞社畜海报，采用整画幅、满版单张照片的海报构图的低清数码直闪挤地铁照片，轻微胶片颗粒与褪色感，参考图中的宠物拟人化，像上班族一样出现在[上班挤地铁场景]中，表情疲惫，主体外轮廓有红色 editorial cutout outline；顶部是超大红色中文展示字标题“[我爱上班]”，厚重、变形、紧字距、带 90s/00s 广告标题字气质；四周使用蓝色宋体小字做杂志边注式排版，横竖混排，沿主体轮廓、桌面、屏幕和画面边缘形成图文共构的 editorial typography；整体干净明亮，像低清直闪摄影、早期 Photoshop、中文 DTP 杂志广告和社畜梗图的混合视觉。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/b3121d3da49d8ad01e14f38fcea2d257/effect.webp",
+    "effectGridImageUrl": "/style-publications/b3121d3da49d8ad01e14f38fcea2d257/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/b3121d3da49d8ad01e14f38fcea2d257/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/03db36c1-af0f-4d3e-8288-eb3c2206a757.png",
+    "sourceReferenceImageUrl": "/job-references/03db36c1-af0f-4d3e-8288-eb3c2206a757/1-1794748684831.jpg",
+    "createdAt": "2026-11-15T13:23:55.955Z",
+    "updatedAt": "2026-11-15T13:23:55.955Z",
+    "sortOrders": {
+      "宠物": 7
+    }
+  },
+  {
+    "publicationId": "2b0d53f6a90ad7aeaa5ebfce19d6320c",
+    "jobId": "4e5e5b04-9564-4a40-b761-58b311a2a66f",
+    "styleId": "style_1794750240637",
+    "styleName": "今天也在硬撑",
+    "prompt": "参考附件的设计，生成一张同系列的 Y2K 中文杂志广告式荒诞社畜海报：高饱和[背景颜色]满版颗粒背景，画面整体干净明亮，留白充足，图二宠物拟人化，穿着职业装，上班族半身像居中偏下，神态疲惫、无奈，手边漂浮[咖啡]和[笔记本电脑/ 极简 icon]。画面上方用巨大黑白立体变形中文标题字排版“[今天也在硬撑]”，字体为宋体设计体，保留宋体横细竖粗与尖锐收笔的骨架，每个字都经过独立的角度设计，带轻微倾斜、拉伸、透视、错位或大小变化，形成不规则但有节奏感的标题排版，像 90 年代中文商业广告中的实验性标题字，字与字之间不要过于连贯整齐。局部只加入少量英文小注释“[英文词组1 / 英文词组2 / 英文词组3]”，搭配极少量小 icon、细小蓝色边注字和一两个红色裁切标记即可。整体画面保持干净、克制、现代，有轻微印刷网点和纸张颗粒感，但不要脏乱，不要过度复古，不要堆复杂贴纸，整体呈现高级、荒诞、冷幽默的中文杂志广告海报气质。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/2b0d53f6a90ad7aeaa5ebfce19d6320c/effect.webp",
+    "effectGridImageUrl": "/style-publications/2b0d53f6a90ad7aeaa5ebfce19d6320c/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/2b0d53f6a90ad7aeaa5ebfce19d6320c/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/4e5e5b04-9564-4a40-b761-58b311a2a66f.png",
+    "sourceReferenceImageUrl": "/job-references/4e5e5b04-9564-4a40-b761-58b311a2a66f/2-1794750055381.jpg",
+    "createdAt": "2026-11-15T13:44:46.080Z",
+    "updatedAt": "2026-11-15T13:44:46.080Z",
     "sortOrders": {
       "宠物": 8
+    }
+  },
+  {
+    "publicationId": "fe457caf863e7e10f285b11f06024414",
+    "jobId": "fd25550d-c28d-4a43-93d9-3e0ac0d14210",
+    "styleId": "style_1794750204179",
+    "styleName": "粉色粗粝油画",
+    "prompt": "【任务】根据用户上传的图二真实人像照片，生成手绘插画头像。真实照片作为身份来源，保留人物识别度，画面必须完全插画化，不保留摄影质感。\r\n【参考】参考图一只作为视觉风格参考，学习粗粝油画棒笔触、蜡笔色块、儿童绘本式造型、粉色纸张背景、松散手绘边缘和高明度撞色，不复制参考图中的人物、服装与动作。\r\n【主体】将照片人物转译成夸张而简洁的大头肖像，保留重要的身份锚点：脸型轮廓、发型外轮廓、眉眼方向、嘴部状态、头部角度，以及眼镜、胡须、耳饰或服装等标志性特征。五官高度概括：眼睛使用深色小色块，眉毛为粗短笔触，鼻子可适度拉长并几何化，嘴部简洁，面颊加入轻微珊瑚粉红晕。发丝、胡须和衣服使用短促、交叠、方向清晰的蜡笔线条表现，保持人物原本特征，不随机增加胡须或配饰。\r\n【构图】人物头肩近景，头部占画面约65%，正面或保留原照片头部角度，主体略微偏离正中心。背景为完整的柔和泡泡糖粉色平面，周围散落少量抽象蜡笔笔刷、星形、弧线和短色块，形成轻松节奏，但不能遮挡脸部。画面无真实空间透视，无复杂场景。\r\n【色彩】背景以柔和粉色为主；肤色为温暖蜜桃色与浅肉粉；辅色使用薄荷绿、珊瑚橙、柠檬黄、淡紫和深森林绿。颜色明亮但略带粉蜡感，局部叠色与露底，避免统一红色滤镜。\r\n【材质与光影】重油蜡笔质感，蜡笔笔触，干刷颜料，可见纸纹，颜色覆盖不均，粗糙手工边缘。使用扁平色块表达结构，只允许极少量同色系笔触区分面部转折。无真实光源，无高光，无体积光，无渐变塑形，无写实投影。\r\n【风格】天真编辑插画，儿童图画书艺术，folk art portrait，oil pastel drawing，awkward linework，flat color blocks，playful proportions，hand-painted paper texture。\r\n【限制】保持本人识别度；不生成写真人像、3D角色、数字厚涂或精致卡通；不出现光滑皮肤、真实毛孔、电影光影、复杂阴影、锐利矢量边缘；不把五官画得过度对称精致；背景元素少而松散。",
+    "tags": [
+      "日常"
+    ],
+    "effectImageUrl": "/style-publications/fe457caf863e7e10f285b11f06024414/effect.webp",
+    "effectGridImageUrl": "/style-publications/fe457caf863e7e10f285b11f06024414/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/fe457caf863e7e10f285b11f06024414/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/fd25550d-c28d-4a43-93d9-3e0ac0d14210.png",
+    "sourceReferenceImageUrl": "/job-references/fd25550d-c28d-4a43-93d9-3e0ac0d14210/2-1794749604408.jpg",
+    "createdAt": "2026-11-15T13:44:54.852Z",
+    "updatedAt": "2026-11-15T13:44:54.852Z",
+    "sortOrders": {
+      "日常": 24
     }
   }
 ]
