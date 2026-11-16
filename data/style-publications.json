@@ -2942,5 +2942,29 @@
     "sortOrders": {
       "日常": 25
     }
+  },
+  {
+    "publicationId": "fbda8d6d00f1ceb94b4083b453f0d1bf",
+    "jobId": "01e0f980-7c00-419a-a51f-5abd9572bcf9",
+    "styleId": "style_1794808188383",
+    "styleName": "像素游戏截图",
+    "prompt": "把同一瞬间复刻成经典16位横向卷轴游戏画面。主体转为小巧像素角色，服装配色、发型、配饰、姿势与原图一致；场景根据原图转化为像素关卡，保留天空、建筑、树木、水面、街道或房间等真实背景，使用瓦片贴图和多层视差背景，构图和空间关系尽量贴近原图。加入少量自然游戏细节，如漂浮金币、物体闪光、发光存档水晶或检查点旗帜。\r\n顶部添加简易HUD：左侧心形生命值条，右侧金币计数，中间显示简短英文关卡名，如“LEVEL 3: GOLDEN HOUR”。底部添加经典像素对话框、角色小头像和一句简短俏皮或温馨英文台词，末尾带闪烁小箭头。\r\n整体为锐利清晰的16位像素画风，方形像素明显，无模糊、无抗锯齿、无渐变。从原图提取有限色板，明亮干净，怀旧复古。界面文字使用简短正确的英文像素字体，不使用真实游戏标题、现成角色、主机Logo、品牌名称或虚构日期。\r\n最终效果为同一瞬间的游戏存档画面。禁止拼贴画、禁止改变人物穿搭和姿势、禁止换成无关场景、禁止顺滑3D、禁止模糊像素、禁止杂乱界面、禁止水印。",
+    "tags": [
+      "儿童",
+      "推荐"
+    ],
+    "effectImageUrl": "/style-publications/fbda8d6d00f1ceb94b4083b453f0d1bf/effect.webp",
+    "effectGridImageUrl": "/style-publications/fbda8d6d00f1ceb94b4083b453f0d1bf/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/fbda8d6d00f1ceb94b4083b453f0d1bf/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/01e0f980-7c00-419a-a51f-5abd9572bcf9.png",
+    "sourceReferenceImageUrl": "/job-references/01e0f980-7c00-419a-a51f-5abd9572bcf9/1-1794808083110.jpg",
+    "createdAt": "2026-11-16T05:52:22.228Z",
+    "updatedAt": "2026-11-16T05:52:22.228Z",
+    "sortOrders": {
+      "推荐": 35,
+      "儿童": 35
+    }
   }
 ]
