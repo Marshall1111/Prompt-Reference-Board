@@ -1,5 +1,25 @@
 [
   {
+    "id": "style_1794876189754",
+    "title": "物品互动",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1794876189754/cover.webp",
+    "imageUpdatedAt": "2026-11-17T00:43:09.754Z",
+    "personImage": "",
+    "personImageUpdatedAt": null,
+    "personThumbnailImage": "",
+    "petImage": "",
+    "petImageUpdatedAt": null,
+    "petThumbnailImage": "",
+    "prompt": "请将我上传的一张肖像照片制作成一张独立的高级设计海报。\r\n将相同人物以高保真摄影抠图的形式置于简洁纯色空场中。人物仍然必须保持真实照片材质，不得转化为插画或卡通人物。\r\n从原照片中选择一件已经真实存在、与人物关系最密切的物件，例如相机、饮料杯、行李箱、水果、书本或随身用品，将它转化为唯一一个人格化卡通伙伴。保留物件原本的外形、颜色和识别特征，在此基础上加入粗黑橡皮管式手脚、椭圆眼睛、白手套、少量网点和克制的复古动画印刷质感。\r\n卡通物件不能只是贴在人物旁边，必须与真人产生明确的空间互动，例如牵手、递送、碰杯、搂抱、回应动作或共同前进。互动自然、有趣且一眼可读，不得遮挡人物面部，不得添加第二个卡通角色。\r\n下半部分背景色从原照片或物件中提取，使用克制的有限色盘，并保留约22%—30%的连续留白。避免贴纸墙、密集装饰和复杂场景。\r\n根据照片内容生成一个简短英文标题，搭配编号\"PHOTO PLAY 01\"和一句具有观察感的英文短句。主标题使用较大、带有复古卡通感的手绘字体，辅助文字清晰克制，与物件的印刷材质相呼应。\r\n整体呈现真人摄影与复古物件卡通共同存在的编辑海报效果，轻松、幽默、聪明、时髦，同时保留真实旅行照片的情绪。\r\n避免人物卡通化、多个吉祥物、现成动画角色、品牌标志、贴纸堆积、遮挡面部、错误手部、廉价模板、乱码、作者名、二维码和水印。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1794808188383",
     "title": "像素游戏截图",
     "tags": [
@@ -10,11 +30,11 @@
     "drawCardWeight": 100,
     "image": "/style-previews/style_1794808188383/cover.webp",
     "imageUpdatedAt": "2026-11-16T05:49:48.383Z",
-    "personImage": "",
-    "personImageUpdatedAt": null,
+    "personImage": "/style-previews/style_1794808188383/cover.webp",
+    "personImageUpdatedAt": "2026-11-16T05:49:48.383Z",
     "personThumbnailImage": "",
-    "petImage": "",
-    "petImageUpdatedAt": null,
+    "petImage": "/style-previews/style_1794808188383/cover.webp",
+    "petImageUpdatedAt": "2026-11-16T05:49:48.383Z",
     "petThumbnailImage": "",
     "prompt": "把同一瞬间复刻成经典16位横向卷轴游戏画面。主体转为小巧像素角色，服装配色、发型、配饰、姿势与原图一致；场景根据原图转化为像素关卡，保留天空、建筑、树木、水面、街道或房间等真实背景，使用瓦片贴图和多层视差背景，构图和空间关系尽量贴近原图。加入少量自然游戏细节，如漂浮金币、物体闪光、发光存档水晶或检查点旗帜。\r\n顶部添加简易HUD：左侧心形生命值条，右侧金币计数，中间显示简短英文关卡名，如“LEVEL 3: GOLDEN HOUR”。底部添加经典像素对话框、角色小头像和一句简短俏皮或温馨英文台词，末尾带闪烁小箭头。\r\n整体为锐利清晰的16位像素画风，方形像素明显，无模糊、无抗锯齿、无渐变。从原图提取有限色板，明亮干净，怀旧复古。界面文字使用简短正确的英文像素字体，不使用真实游戏标题、现成角色、主机Logo、品牌名称或虚构日期。\r\n最终效果为同一瞬间的游戏存档画面。禁止拼贴画、禁止改变人物穿搭和姿势、禁止换成无关场景、禁止顺滑3D、禁止模糊像素、禁止杂乱界面、禁止水印。",
     "useStyleImageAsReference": false

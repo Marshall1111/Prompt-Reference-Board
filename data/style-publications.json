@@ -2966,5 +2966,27 @@
       "推荐": 35,
       "儿童": 35
     }
+  },
+  {
+    "publicationId": "d606ea51d2a8a29de9d15f197af4170b",
+    "jobId": "d6e885a0-41ef-4ea0-98ff-f2a7f3420b7f",
+    "styleId": "style_1794876189754",
+    "styleName": "物品互动",
+    "prompt": "请将我上传的一张肖像照片制作成一张独立的高级设计海报。\r\n将相同人物以高保真摄影抠图的形式置于简洁纯色空场中。人物仍然必须保持真实照片材质，不得转化为插画或卡通人物。\r\n从原照片中选择一件已经真实存在、与人物关系最密切的物件，例如相机、饮料杯、行李箱、水果、书本或随身用品，将它转化为唯一一个人格化卡通伙伴。保留物件原本的外形、颜色和识别特征，在此基础上加入粗黑橡皮管式手脚、椭圆眼睛、白手套、少量网点和克制的复古动画印刷质感。\r\n卡通物件不能只是贴在人物旁边，必须与真人产生明确的空间互动，例如牵手、递送、碰杯、搂抱、回应动作或共同前进。互动自然、有趣且一眼可读，不得遮挡人物面部，不得添加第二个卡通角色。\r\n下半部分背景色从原照片或物件中提取，使用克制的有限色盘，并保留约22%—30%的连续留白。避免贴纸墙、密集装饰和复杂场景。\r\n根据照片内容生成一个简短英文标题，搭配编号\"PHOTO PLAY 01\"和一句具有观察感的英文短句。主标题使用较大、带有复古卡通感的手绘字体，辅助文字清晰克制，与物件的印刷材质相呼应。\r\n整体呈现真人摄影与复古物件卡通共同存在的编辑海报效果，轻松、幽默、聪明、时髦，同时保留真实旅行照片的情绪。\r\n避免人物卡通化、多个吉祥物、现成动画角色、品牌标志、贴纸堆积、遮挡面部、错误手部、廉价模板、乱码、作者名、二维码和水印。",
+    "tags": [
+      "儿童"
+    ],
+    "effectImageUrl": "/style-publications/d606ea51d2a8a29de9d15f197af4170b/effect.webp",
+    "effectGridImageUrl": "/style-publications/d606ea51d2a8a29de9d15f197af4170b/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/d606ea51d2a8a29de9d15f197af4170b/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/d6e885a0-41ef-4ea0-98ff-f2a7f3420b7f.png",
+    "sourceReferenceImageUrl": "/job-references/d6e885a0-41ef-4ea0-98ff-f2a7f3420b7f/1-1794878200933.jpg",
+    "createdAt": "2026-11-17T01:18:50.980Z",
+    "updatedAt": "2026-11-17T01:18:50.980Z",
+    "sortOrders": {
+      "儿童": 36
+    }
   }
 ]
