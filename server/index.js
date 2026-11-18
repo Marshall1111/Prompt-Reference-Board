@@ -50,6 +50,7 @@ const storageBackupRoot = path.join(rootDir, "data", "storage-backups");
 const storageExportTempRoot = path.join(rootDir, "data", "storage-export-temp");
 const orderAssetPublicRoot = path.join(rootDir, "public", "order-assets");
 const accountAvatarPublicRoot = path.join(rootDir, "public", "account-avatars");
+const merchantLogoPublicRoot = path.join(rootDir, "public", "merchant-logos");
 const orderOriginalArchiveRoot = path.join(rootDir, "data", "order-original-downloads");
 const bodyBookPrintBackCoverPath = path.join(rootDir, "public", "body-book-color-pages", "print-back-cover.jpg");
 const bodyBookPresetPageRoot = path.join(rootDir, "public", "body-book-preset-pages");
@@ -4924,6 +4925,13 @@ function resolveStoreOnsiteUnitPriceCents(settings, fallbackCents) {
   return normalizeMoneyCents(fallbackCents, DEFAULT_ONSITE_UNIT_PRICE_CENTS);
 }
 
+async function resolveStoreOwnerLogoUrl(accountId, settings) {
+  const filePath = path.join(merchantLogoPublicRoot, `${String(accountId || "")}.png`);
+  if (!(await fileExists(filePath))) return "";
+  const version = String(settings?.logoUpdatedAt || settings?.updatedAt || "");
+  return `/merchant-logos/${accountId}.png${version ? `?v=${encodeURIComponent(version)}` : ""}`;
+}
+
 // 商户信息维护：店名、店家微信、通知手机号、冰箱贴单价（顾客支付）、结算单价（店家收益）。
 app.get("/api/admin/store-owners/:accountId/profile", requireAdmin, async (req, res, next) => {
   try {
@@ -4931,6 +4939,7 @@ app.get("/api/admin/store-owners/:accountId/profile", requireAdmin, async (req, 
     if (!account?.isStoreOwner) throw createHttpError(404, "小画店家不存在。");
     const settingsMap = await readMerchantSettingsMap();
     const settings = settingsMap[account.id] || {};
+    const logoUrl = await resolveStoreOwnerLogoUrl(account.id, settings);
     const globalOnsiteUnitPriceCents = (await readAppSettings()).onsiteUnitPriceCents;
     const device = printStore.findPrintDeviceByStoreOwner(account.id);
     const staff = commerceStore.listStoreStaff(account.id).map((staffAccount) => {
@@ -4948,7 +4957,9 @@ app.get("/api/admin/store-owners/:accountId/profile", requireAdmin, async (req, 
         wechatId: account.storeWechatId || "",
         phone: String(settings.phone || ""),
         onsiteUnitPriceCents: resolveStoreOnsiteUnitPriceCents(settings, globalOnsiteUnitPriceCents),
-        unitPriceCents: resolveMerchantUnitPriceCents(settings)
+        unitPriceCents: resolveMerchantUnitPriceCents(settings),
+        logoUrl,
+        logoEnabled: settings.logoEnabled === true
       },
       staff,
       device: device
@@ -4982,15 +4993,66 @@ app.patch("/api/admin/store-owners/:accountId/profile", requireAdmin, async (req
     account = commerceStore.updateStoreOwnerName(accountId, storeName);
     account = commerceStore.updateStoreOwnerWechat(accountId, wechatId);
     const settingsMap = await readMerchantSettingsMap();
+    const hasLogoEnabled = req.body?.logoEnabled !== undefined && req.body?.logoEnabled !== null;
+    const logoEnabled = hasLogoEnabled ? req.body.logoEnabled === true : settingsMap[accountId]?.logoEnabled === true;
     settingsMap[accountId] = {
       ...(settingsMap[accountId] || {}),
       phone,
       onsiteUnitPriceCents,
       unitPriceCents,
+      logoEnabled,
       updatedAt: new Date().toISOString()
     };
     await writeMerchantSettingsMap(settingsMap);
-    res.json({ profile: { accountId, storeName, wechatId, phone, onsiteUnitPriceCents, unitPriceCents } });
+    const logoUrl = await resolveStoreOwnerLogoUrl(accountId, settingsMap[accountId]);
+    res.json({ profile: { accountId, storeName, wechatId, phone, onsiteUnitPriceCents, unitPriceCents, logoUrl, logoEnabled } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/store-owners/:accountId/logo", requireAdmin, upload.single("logo"), async (req, res, next) => {
+  try {
+    const accountId = String(req.params.accountId || "").trim();
+    const account = commerceStore.readAccount(accountId);
+    if (!account?.isStoreOwner) throw createHttpError(404, "小画店家不存在。");
+    if (!req.file) throw createHttpError(400, "请选择商户 Logo 图片。");
+    const allowedLogoTypes = new Set(["image/png", "image/webp"]);
+    if (!allowedLogoTypes.has(String(req.file.mimetype || ""))) {
+      throw createHttpError(400, "商户 Logo 仅支持透明背景的 PNG 或 WebP 图片。");
+    }
+    if (Number(req.file.size || 0) > 2 * 1024 * 1024) {
+      throw createHttpError(400, "商户 Logo 请控制在 2MB 以内。");
+    }
+    const sharp = await loadSharpModule();
+    if (!sharp) throw createHttpError(503, "图片处理服务暂不可用，请稍后再试。");
+    const metadata = await sharp(req.file.buffer, { animated: false }).metadata();
+    if (!metadata?.hasAlpha) {
+      throw createHttpError(400, "请上传透明背景的 PNG/WebP Logo。");
+    }
+    const logoBuffer = await sharp(req.file.buffer, { animated: false })
+      .rotate()
+      .resize({ width: 512, height: 512, fit: "inside", withoutEnlargement: true })
+      .png()
+      .toBuffer();
+    await mkdir(merchantLogoPublicRoot, { recursive: true });
+    await writeFile(path.join(merchantLogoPublicRoot, `${account.id}.png`), logoBuffer);
+    const settingsMap = await readMerchantSettingsMap();
+    const previousSettings = settingsMap[account.id] || {};
+    const logoUpdatedAt = new Date().toISOString();
+    const logoEnabled = previousSettings.logoEnabled === undefined ? true : previousSettings.logoEnabled === true;
+    settingsMap[account.id] = {
+      ...previousSettings,
+      logoEnabled,
+      logoUpdatedAt,
+      updatedAt: logoUpdatedAt
+    };
+    await writeMerchantSettingsMap(settingsMap);
+    res.json({
+      logoUrl: await resolveStoreOwnerLogoUrl(account.id, settingsMap[account.id]),
+      logoEnabled,
+      logoUpdatedAt
+    });
   } catch (error) {
     next(error);
   }
@@ -15926,6 +15988,77 @@ async function executeImageJob({ jobId, body, files, outputFormat, prompt, provi
   }
 }
 
+function isMerchantLogoJobType(job) {
+  const experienceType = String(job?.experienceType || "");
+  return experienceType === "draw-card" || experienceType === "fridge-magnet";
+}
+
+async function resolveJobMerchantLogoBuffer(job) {
+  try {
+    if (!isMerchantLogoJobType(job)) return null;
+    const visitorId = String(job?.ownerVisitorId || "");
+    if (!isSafeVisitorId(visitorId)) return null;
+    const visitor = await readVisitorState(visitorId);
+    const storeOwner = getActiveVisitorStoreOwner(visitor);
+    const accountId = String(storeOwner?.storeOwnerAccountId || "");
+    if (!accountId || !isSafeAccountId(accountId)) return null;
+    const settings = (await readMerchantSettingsMap())[accountId];
+    if (settings?.logoEnabled !== true) return null;
+    const logoPath = path.join(merchantLogoPublicRoot, `${accountId}.png`);
+    if (!(await fileExists(logoPath))) return null;
+    return await readFile(logoPath);
+  } catch (error) {
+    console.warn("Merchant logo lookup skipped.", error?.message || error);
+    return null;
+  }
+}
+
+async function applyMerchantLogoToOriginal(jobId, bytes, mimeType) {
+  if (!bytes?.length) return bytes;
+  try {
+    const job = await readImageJob(jobId);
+    if (!job) return bytes;
+    const logoBuffer = await resolveJobMerchantLogoBuffer(job);
+    if (!logoBuffer) return bytes;
+    const sharp = await loadSharpModule();
+    if (!sharp) return bytes;
+    const metadata = await sharp(bytes, { animated: false }).metadata();
+    const orientation = Number(metadata?.orientation || 1);
+    const swapDimensions = orientation >= 5 && orientation <= 8;
+    const sourceWidth = Number(metadata?.width || 0);
+    const sourceHeight = Number(metadata?.height || 0);
+    const width = swapDimensions ? sourceHeight : sourceWidth;
+    const height = swapDimensions ? sourceWidth : sourceHeight;
+    if (!width || !height) return bytes;
+    const margin = Math.max(16, Math.round(Math.min(width, height) * 0.025));
+    const maxLogoWidth = Math.max(48, Math.round(width * 0.22));
+    const maxLogoHeight = Math.max(24, Math.round(height * 0.06));
+    const resizedLogo = await sharp(logoBuffer, { animated: false })
+      .resize({ width: maxLogoWidth, height: maxLogoHeight, fit: "inside", withoutEnlargement: true })
+      .png()
+      .toBuffer({ resolveWithObject: true });
+    const logoWidth = Number(resizedLogo.info?.width || 0);
+    const logoHeight = Number(resizedLogo.info?.height || 0);
+    if (!logoWidth || !logoHeight) return bytes;
+    const left = Math.max(0, width - logoWidth - margin);
+    const top = Math.max(0, height - logoHeight - margin);
+    const pipeline = sharp(bytes, { animated: false })
+      .rotate()
+      .composite([{ input: resizedLogo.data, left, top }]);
+    if (mimeType === "image/png") {
+      pipeline.png();
+    } else if (mimeType === "image/webp") {
+      pipeline.webp({ quality: 90 });
+    } else {
+      pipeline.jpeg({ quality: 92 });
+    }
+    return await pipeline.toBuffer();
+  } catch (error) {
+    console.warn(`Merchant logo composite skipped for job ${jobId}.`, error?.message || error);
+    return bytes;
+  }
+}
+
 async function persistImageJobResult(jobId, result, outputFormat) {
   if (!result.imageDataUrl) return persistRemoteImageJobResult(jobId, result, outputFormat);
 
@@ -15936,9 +16069,13 @@ async function persistImageJobResult(jobId, result, outputFormat) {
   const filename = `${jobId}.${extension}`;
   const bytes = Buffer.from(match[2], "base64");
   await mkdir(generatedImageRoot, { recursive: true });
-  await writeFile(path.join(generatedImageRoot, filename), bytes);
+  const originalPath = path.join(generatedImageRoot, filename);
+  await writeFile(originalPath, bytes);
   const preview = await createPublicPreview(jobId, bytes);
   const thumbnail = await createGeneratedImageThumbnail(jobId, bytes);
+  // 水印预览图和缩略图先用干净原图生成，再把商户 Logo 只写入无水印原图。
+  const logoedBytes = await applyMerchantLogoToOriginal(jobId, bytes, match[1]);
+  if (logoedBytes !== bytes) await writeFile(originalPath, logoedBytes);
 
   return {
     ...result,
@@ -15967,9 +16104,13 @@ async function persistRemoteImageJobResult(jobId, result, outputFormat) {
   const filename = `${jobId}.${extension}`;
   const bytes = Buffer.from(await response.arrayBuffer());
   await mkdir(generatedImageRoot, { recursive: true });
-  await writeFile(path.join(generatedImageRoot, filename), bytes);
+  const originalPath = path.join(generatedImageRoot, filename);
+  await writeFile(originalPath, bytes);
   const preview = await createPublicPreview(jobId, bytes);
   const thumbnail = await createGeneratedImageThumbnail(jobId, bytes);
+  // 水印预览图和缩略图先用干净原图生成，再把商户 Logo 只写入无水印原图。
+  const logoedBytes = await applyMerchantLogoToOriginal(jobId, bytes, contentType);
+  if (logoedBytes !== bytes) await writeFile(originalPath, logoedBytes);
 
   return {
     ...result,

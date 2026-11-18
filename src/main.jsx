@@ -11569,6 +11569,18 @@ async function updateAdminStoreOwnerProfile(accountId, profile) {
   return payload;
 }
 
+async function uploadAdminStoreOwnerLogo(accountId, file) {
+  const formData = new FormData();
+  formData.append("logo", file);
+  const response = await fetch(`/api/admin/store-owners/${encodeURIComponent(accountId)}/logo`, {
+    method: "POST",
+    body: formData
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "上传商户 Logo 失败。");
+  return payload;
+}
+
 async function updateAdminStoreStaffSettings(ownerAccountId, staffAccountId, settings) {
   const response = await fetch(`/api/admin/store-owners/${encodeURIComponent(ownerAccountId)}/staff/${encodeURIComponent(staffAccountId)}`, {
     method: "PATCH",
@@ -13662,10 +13674,11 @@ function StoreOwnerAdminPage() {
   const [busy, setBusy] = useState(false);
   const [profileFor, setProfileFor] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [profileForm, setProfileForm] = useState({ storeName: "", wechatId: "", phone: "", onsiteYuan: "", unitYuan: "" });
+  const [profileForm, setProfileForm] = useState({ storeName: "", wechatId: "", phone: "", onsiteYuan: "", unitYuan: "", logoEnabled: false });
   const [profileError, setProfileError] = useState("");
   const [profileSaved, setProfileSaved] = useState("");
   const [profileLoading, setProfileLoading] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [staffSearch, setStaffSearch] = useState("");
   const [staffCandidates, setStaffCandidates] = useState([]);
   const [staffHasSearched, setStaffHasSearched] = useState(false);
@@ -13753,7 +13766,8 @@ function StoreOwnerAdminPage() {
         wechatId: detail.wechatId || "",
         phone: detail.phone || "",
         onsiteYuan: (Number(detail.onsiteUnitPriceCents || 0) / 100).toFixed(2),
-        unitYuan: (Number(detail.unitPriceCents || 0) / 100).toFixed(2)
+        unitYuan: (Number(detail.unitPriceCents || 0) / 100).toFixed(2),
+        logoEnabled: detail.logoEnabled === true
       });
       const nextStaffDraft = {};
       (next.staff || []).forEach((member) => {
@@ -13781,13 +13795,37 @@ function StoreOwnerAdminPage() {
         wechatId: profileForm.wechatId.trim(),
         phone: profileForm.phone.trim(),
         onsiteUnitPriceCents: onsiteCents,
-        unitPriceCents: unitCents
+        unitPriceCents: unitCents,
+        logoEnabled: profileForm.logoEnabled === true
       });
       const next = await refreshAll();
       setProfileFor((current) => current ? next.find((item) => item.id === current.id) || current : current);
       await loadProfile(profileFor.id);
       setProfileSaved("店家信息已保存，现场制作页会立即使用新的店名和单价。");
     } catch (nextError) { setProfileError(nextError.message || "保存店家信息失败。"); } finally { setBusy(false); }
+  }
+
+  async function uploadStoreLogo(file) {
+    if (!profileFor || !file) return;
+    const allowedTypes = new Set(["image/png", "image/webp"]);
+    if (!allowedTypes.has(String(file.type || ""))) {
+      setProfileError("请上传透明背景的 PNG 或 WebP Logo。");
+      return;
+    }
+    if (Number(file.size || 0) > 2 * 1024 * 1024) {
+      setProfileError("商户 Logo 请控制在 2MB 以内。");
+      return;
+    }
+    setLogoUploading(true); setProfileError(""); setProfileSaved("");
+    try {
+      await uploadAdminStoreOwnerLogo(profileFor.id, file);
+      await loadProfile(profileFor.id);
+      setProfileSaved("商户 Logo 已上传；如需调整是否加 Logo，请修改勾选后保存店家信息。");
+    } catch (nextError) {
+      setProfileError(nextError.message || "上传商户 Logo 失败。");
+    } finally {
+      setLogoUploading(false);
+    }
   }
 
   async function removeStoreOwner(accountId) {
@@ -13978,6 +14016,24 @@ function StoreOwnerAdminPage() {
             <label className="field-label">通知手机号<input className="field-inline-input" placeholder="接收订单通知的 11 位手机号" value={profileForm.phone} onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value }))} /></label>
             <label className="field-label">冰箱贴单价（元）<input className="field-inline-input" min="0.01" step="0.01" type="number" value={profileForm.onsiteYuan} onChange={(event) => setProfileForm((current) => ({ ...current, onsiteYuan: event.target.value }))} /></label>
             <label className="field-label">佣金结算单价（元/张）<input className="field-inline-input" min="0.01" step="0.01" type="number" value={profileForm.unitYuan} onChange={(event) => setProfileForm((current) => ({ ...current, unitYuan: event.target.value }))} /></label>
+          </div>
+          <div className="store-logo-panel">
+            <div className="store-logo-preview">
+              {profile.profile?.logoUrl ? <img alt="商户 Logo" src={profile.profile.logoUrl} /> : <span>未上传</span>}
+            </div>
+            <div className="store-logo-actions">
+              <strong>商户 Logo</strong>
+              <p className="storage-note">透明底 PNG/WebP，≤2MB。仅添加到无水印原图右下角（打印与原图下载），带黑条水印的预览图保持不变。</p>
+              <label className="secondary-button file-button">
+                <ImageUp size={16} />
+                <span>{logoUploading ? "上传中…" : profile.profile?.logoUrl ? "替换 Logo" : "上传 Logo"}</span>
+                <input accept="image/png,image/webp" disabled={logoUploading} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void uploadStoreLogo(file); }} type="file" />
+              </label>
+              <label className="store-profile-checkbox">
+                <input checked={profileForm.logoEnabled === true} disabled={!profile.profile?.logoUrl} onChange={(event) => setProfileForm((current) => ({ ...current, logoEnabled: event.target.checked }))} type="checkbox" />
+                <span>在生成的无水印照片右下角添加商户 Logo</span>
+              </label>
+            </div>
           </div>
           <div className="merchant-modal-actions"><button className="maintenance-button" disabled={busy} onClick={saveProfile} type="button">保存店家信息</button></div>
 
