@@ -87,7 +87,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 18,
+      "推荐": 17,
       "幽默": 1
     }
   },
@@ -98,7 +98,6 @@
     "styleName": "手账贴纸",
     "prompt": "Create a complete image-to-image redraw from the supplied photo as one 2:3 vertical collectible travel memory sticker card.\n\nUse warm off-white uncoated paper with a continuous 4–5% outer margin. The upper 66–68% is one large, near-square, unframed scene illustration printed directly on the paper, with subtly rough edges. Do not use an outline, keyline, inner card, mat, rounded frame, or shadow around the illustration. Leave a shallow exposed-paper footer beneath it, centered with exactly three small English keywords shown once:\n“[KEYWORD 1] · [KEYWORD 2] · [KEYWORD 3]”\n\nThe lower 30–32% contains exactly six separate source-derived travel journaling stickers:\n1. [MAIN SUBJECT FRAGMENT]\n2. [PAIRED SUBJECT OR VARIATION]\n3. [ENVIRONMENTAL FORM]\n4. [STRUCTURAL OR ARCHITECTURAL FRAGMENT]\n5. [FUNCTIONAL OBJECT]\n6. [SMALL ATMOSPHERIC OR SCALE CUE]\n\nGive every sticker a thick, irregular warm-white hand-cut border and a subtle flat paper shadow. Make 2–3 stickers larger and the others smaller. Arrange them across the bottom area in calm, irregular, slightly staggered rows with generous negative space. Do not place stickers on the right side of the card.\n\nPreserve the main identification anchor from the source photo: [IDENTIFICATION ANCHOR]. Preserve its silhouette, proportion, position, relationship to the scene, and signature colors, but redraw it entirely in the same illustrated medium. Never retain a photorealistic patch.\n[OPTIONAL: Preserve this exact landmark text once in the main illustration: “[VERBATIM TEXT]”. Otherwise preserve no source text.]\n\nRebuild the source scene using 5–8 broad, low-saturation matte color families. The first read should be 3–6 oversized blunt shapes and quiet negative space, not visual detail. Expand the source-supported quiet field of [SKY / WATER / ROAD / WALL / SNOW / SAND / GROUND]. Simplify vegetation into 1–3 lumpy tonal masses, buildings and geology into flat planes, and people or animals into compact faceless silhouettes.\n\nUse a cohesive matte gouache, cut-paper, risograph, and screen-print visual language with fine, uniform paper grain. Use hand-cut, chalky, dry-brushed, slightly uneven edges; allow subtle pigment-density variation and soft print misregistration. Keep the mood observational, spacious, humane, slow, and lightly nostalgic. Use restrained source-derived colors with one or two accents, flat color shadows, and very little near-black.\n\nDo not add any title, caption, date, writing area, postal mark, address line, subtitle, additional readable text, watermark, or signature.\n\nNegative prompt: photorealistic, photographic patch, photo collage, realistic photography, watermark, signature, extra text, title, caption, date, writing area, postal marks, address lines, subtitle, frame, border, keyline, inner card, rounded frame, glossy 3D, smooth gradient, dramatic lighting, visible marker strokes, watercolor wash, painterly photo filter, oil painting, polished vector art, anime, clip art, detailed leaves, repeated textures, masonry detail, realistic anatomy, cluttered layout, unrelated objects, stickers on the right side, fewer than six stickers, more than six stickers.",
     "tags": [
-      "推荐",
       "日常"
     ],
     "effectImageUrl": "/style-publications/f647de1528384daba42519e1440501e5/effect.webp",
@@ -106,12 +105,11 @@
     "sourceEffectImageUrl": "/generated-images/bcd81fe5-d596-4e7b-a6a2-f2172d469fe8.png",
     "sourceReferenceImageUrl": "/job-references/bcd81fe5-d596-4e7b-a6a2-f2172d469fe8/1-1787639613226.jpg",
     "createdAt": "2026-08-29T07:36:25.403Z",
-    "updatedAt": "2026-08-31T22:25:02.462Z",
+    "updatedAt": "2026-11-18T10:35:12.309Z",
     "effectGridImageUrl": "/style-publications/f647de1528384daba42519e1440501e5/effect-small.webp",
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 17,
       "日常": 8
     }
   },
@@ -136,7 +134,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 31,
+      "推荐": 29,
       "幽默": 10,
       "日常": 12
     }
@@ -161,7 +159,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 30,
+      "推荐": 28,
       "宠物": 25
     }
   },
@@ -186,7 +184,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 29,
+      "推荐": 27,
       "幽默": 9,
       "日常": 10
     }
@@ -281,7 +279,7 @@
     "effectGridWidth": 480,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 28,
+      "推荐": 26,
       "宠物": 23
     }
   },
@@ -327,7 +325,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 27,
+      "推荐": 25,
       "宠物": 22
     }
   },
@@ -439,7 +437,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 26,
+      "推荐": 24,
       "日常": 7
     }
   },
@@ -463,7 +461,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 25,
+      "推荐": 23,
       "宠物": 14
     }
   },
@@ -511,7 +509,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 24,
+      "推荐": 22,
       "儿童": 16
     }
   },
@@ -559,7 +557,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 23,
+      "推荐": 21,
       "儿童": 15
     }
   },
@@ -583,7 +581,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 22,
+      "推荐": 20,
       "儿童": 12
     }
   },
@@ -607,7 +605,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 21,
+      "推荐": 19,
       "宠物": 11
     }
   },
@@ -618,7 +616,6 @@
     "styleName": "黑白粗粝剪影",
     "prompt": "Create a separate high-end design poster for each uploaded photo, without multi-image collages — output each photo individually. Use an overall 2:3 vertical composition. The final work does not use a top-and-bottom split layout. Instead, convert the entire visual idea of the original photo into the style described below.\r\n\r\nExtract the most identifiable main subject, outline, pose, and narrative relationships from the original photo, and reconstruct them as a minimalist rough black dry-media silhouette illustration. Do not mechanically trace photo details. Condense the subject into rounded, sturdy, slightly generalized forms. You may moderately enlarge the head, main outlines, or the most memorable local details so that the subject remains instantly recognizable from minimal visual information. If the photo contains multiple subjects, retain the most important interactive relationships, treating them as a single overall visual unit rather than dispersing focus evenly.\r\n\r\nThe illustration uses only a near-pure white paper background combined with thick black crayon, charcoal, or dry-brush marks. No colors, no grayscale gradients. The black forms should not be smooth solid vector blocks. Build them from repeated, short, forceful crayon strokes, and retain paper texture, broken lines, indentations, rough edges, uneven density, and partial white exposures. Outlines should be slightly wobbly, incomplete, and imprecise to maintain a genuine handmade feel.\r\n\r\nKey identifying features of the subject should be emphasized through sudden white feature areas cut out from the black silhouette. These may appear around the face, eyes, window openings, vessels, mouth, animal faces, object core structures, or the most distinctive local parts. Complete expressions and details with minimal black dots, short lines, or symbols. Do not aim for realistic facial features or precise structures. Instead, create direct, engaging, and striking recognition through the interplay of black and white.\r\n\r\nThe composition should feature large areas of pure clean white space and one primary visual relationship. The subject can float centered, or be slightly offset, partially cropped, or positioned near the bottom of the frame. Use only a rough ground friction line, a few short lines, or minimal environmental symbols to suggest space. Grass blades, rain streaks, smoke wisps, tabletops, shadows, roads, wind, or other environmental details should all be compressed into sparse crayon marks. Keep the background quiet and expansive. Avoid complex scenes, letting one pose, action, distance, or relationship carry the main narrative.\r\n\r\nThe text should retain a spring high-end editorial feel combined with a children’s book vibe in a small-scale system. Do not merely write locations or object names. Instead, distill a short English title from the photo’s emotions, actions, relationships, time, or tiny stories. Pair it with numbering, fitting quotes, chapter numbers, or one extremely brief, understated snippet of copy. Text can be restrained printed small type, or incorporate minimal clumsy handwriting, crayon lettering, or imperfectly aligned forms so that it feels like it inherently belongs to this illustration.\r\n\r\nText should form clever relationships with the graphics. It can align along the ground line, extend in the direction of the subject’s action, hide in large white spaces, create slight overlaps with outlines, tuck into negative spaces between two subjects, or connect numbering to the subject with a thin line. Keep it to one short title plus one to two groups of extremely small supporting text, making the text part of the composition’s rhythm rather than a standard poster headline.\r\n\r\nOverall, the work should present visual characteristics of thick blacks, clean whites, simple shapes, and rough textures. Maintain a subtle balance between childlike, warm, quiet, humorous, and lonely — like an old black-and-white children’s book re-edited by a high-end design studio. Avoid smooth digital outlines, precise line art, realistic lighting and shadows, heavy impasto, 3D effects, colors, large-area grayscale rendering, cartoon sticker vibes, or templated commercial illustrations.",
     "tags": [
-      "推荐",
       "宠物"
     ],
     "effectImageUrl": "/style-publications/89a41161c23dc69ca6aec3ae96de65af/effect.webp",
@@ -626,12 +623,11 @@
     "sourceEffectImageUrl": "/generated-images/54f3811d-4c15-41bd-8531-edeaf56fe74b.png",
     "sourceReferenceImageUrl": "/job-references/54f3811d-4c15-41bd-8531-edeaf56fe74b/1-1787812824649.jpg",
     "createdAt": "2026-08-29T08:18:15.240Z",
-    "updatedAt": "2026-08-29T08:18:15.240Z",
+    "updatedAt": "2026-11-18T10:36:15.165Z",
     "effectGridImageUrl": "/style-publications/89a41161c23dc69ca6aec3ae96de65af/effect-small.webp",
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 20,
       "宠物": 21
     }
   },
@@ -844,7 +840,7 @@
     "effectGridWidth": 427,
     "effectGridHeight": 640,
     "sortOrders": {
-      "推荐": 19,
+      "推荐": 18,
       "日常": 3,
       "旅行": 15
     }
@@ -1209,7 +1205,7 @@
     "createdAt": "2026-08-31T21:43:40.525Z",
     "updatedAt": "2026-08-31T21:43:40.525Z",
     "sortOrders": {
-      "推荐": 32,
+      "推荐": 30,
       "旅行": 9
     }
   },
@@ -1679,7 +1675,7 @@
     "createdAt": "2026-09-01T07:18:48.918Z",
     "updatedAt": "2026-09-01T07:20:37.542Z",
     "sortOrders": {
-      "推荐": 33,
+      "推荐": 31,
       "旅行": 4
     }
   },
@@ -1703,7 +1699,7 @@
     "createdAt": "2026-09-01T21:26:22.623Z",
     "updatedAt": "2026-09-01T21:26:22.623Z",
     "sortOrders": {
-      "推荐": 34,
+      "推荐": 32,
       "日常": 15
     }
   },
@@ -2963,7 +2959,7 @@
     "createdAt": "2026-11-16T05:52:22.228Z",
     "updatedAt": "2026-11-16T05:52:22.228Z",
     "sortOrders": {
-      "推荐": 35,
+      "推荐": 33,
       "儿童": 35
     }
   },
@@ -3009,6 +3005,28 @@
     "updatedAt": "2026-11-18T08:17:34.077Z",
     "sortOrders": {
       "旅行": 7
+    }
+  },
+  {
+    "publicationId": "fadecbb56a8647ee517c076205722062",
+    "jobId": "bf732d74-1681-4c21-86d1-f8da75c5d62b",
+    "styleId": "style_1794997603740",
+    "styleName": "复古剪纸画报",
+    "prompt": "请将上传照片中的主要主体，转化为一张具有独立杂志审美的复古网点剪纸画报。每张照片单独输出，竖版，不拼图。\r\n【主体保留】\r\n识别并提取原照片的主要主体，去除原背景。准确保留主体的轮廓、比例、角度、姿态及标志性细节。人物或宠物保留五官、神态、毛发特征；物品保留结构、材质特征和透视。可以适当裁切，让主体轮廓集中、有辨识度。\r\n【印刷质感】\r\n将主体转化为深海军蓝油墨印在奶油色旧纸上的单色摄影网点图像。通过大小、疏密变化的半调网点表现明暗与体积：亮部露出纸色，中间调呈现清晰可见的颗粒网点，暗部形成厚重但仍有细节的墨色。保留摄影感，不改成卡通或线描。加入轻微油墨渗透、漏印和自然磨损，质感克制。\r\n【剪纸边缘】\r\n沿主体外轮廓保留一圈较宽的奶油色纸边，宽度约为主体宽度的3%—5%。边缘略有手工剪裁的不规则感与细小纸纤维，避免过度撕裂。纸片平贴于背景，无明显立体阴影。\r\n【背景与构图】\r\n使用低饱和深钴蓝纯色背景，铺满细腻、均匀的旧纸颗粒与纸纤维，不添加场景或渐变。主体居中略偏上，占画面宽度约70%—80%，保持原始比例，上下留白舒展，呈现简洁、有呼吸感的杂志内页。\r\n【文字】\r\n在主体下方居中放置一个与主体相关的简短英文单词，优先使用拟声词或情绪词，也可使用我指定的文字：【填写单词，留空则自动选择】。\r\n采用浅雾蓝色、略微倾斜的粗手写笔刷字，笔画自然，有轻微干刷缺口。文字宽度约为画面宽度的30%—45%，与主体保持适当间距。\r\n整体限定为深钴蓝背景、深海军蓝油墨、奶油色纸张、浅雾蓝文字四种颜色。避免额外装饰、标签、杂志栏头、小字、水印、塑料贴纸质感、3D效果和过密排版。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/fadecbb56a8647ee517c076205722062/effect.webp",
+    "effectGridImageUrl": "/style-publications/fadecbb56a8647ee517c076205722062/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/fadecbb56a8647ee517c076205722062/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/bf732d74-1681-4c21-86d1-f8da75c5d62b.png",
+    "sourceReferenceImageUrl": "/job-references/bf732d74-1681-4c21-86d1-f8da75c5d62b/1-1794997870438.jpg",
+    "createdAt": "2026-11-18T10:32:19.212Z",
+    "updatedAt": "2026-11-18T10:32:19.212Z",
+    "sortOrders": {
+      "宠物": 38
     }
   }
 ]
