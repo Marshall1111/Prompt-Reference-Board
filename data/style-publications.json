@@ -3028,5 +3028,27 @@
     "sortOrders": {
       "宠物": 38
     }
+  },
+  {
+    "publicationId": "4c542133071fb8d5af14d7b870e76332",
+    "jobId": "14a74950-6317-447d-8cc3-c96fe50d142c",
+    "styleId": "style_1795050052549",
+    "styleName": "美食摄影",
+    "prompt": "将我上传的菜品随拍照升级为高端餐厅菜单摄影。必须保留原菜品的主要食材，颜色、烹饪形态、份量、餐具和可识别摆放关系，不得换成另一道菜；优化摆盘整洁度、背景、光线、质感和镜头表现。使用自然侧光或柔和侧光，突出食物水分、油润、酥脆或鲜嫩质感，背景清洁高级，保同真实食物纹理。不要增加不相关食材，不要使用塑料感，不要出现文字、菜单或品牌。",
+    "tags": [
+      "日常"
+    ],
+    "effectImageUrl": "/style-publications/4c542133071fb8d5af14d7b870e76332/effect.webp",
+    "effectGridImageUrl": "/style-publications/4c542133071fb8d5af14d7b870e76332/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/4c542133071fb8d5af14d7b870e76332/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/14a74950-6317-447d-8cc3-c96fe50d142c.png",
+    "sourceReferenceImageUrl": "/job-references/14a74950-6317-447d-8cc3-c96fe50d142c/1-1795049963089.jpg",
+    "createdAt": "2026-11-19T01:02:19.926Z",
+    "updatedAt": "2026-11-19T01:02:19.926Z",
+    "sortOrders": {
+      "日常": 26
+    }
   }
 ]
