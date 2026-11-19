@@ -1367,6 +1367,35 @@ app.get("/api/merchant/overview", async (req, res, next) => {
   }
 });
 
+// 商户工作台兑换码：只返回后台创建时绑定到当前店家的兑换码。
+// 已兑换的兑换码仍保留在列表中，前端置灰并禁用复制。
+app.get("/api/merchant/redemption-codes", async (req, res, next) => {
+  try {
+    const account = await requireMerchantAccount(req);
+    const inviteCodes = (await readInviteCodes())
+      .filter((invite) => invite.enabled !== false && invite.storeOwnerAccountId === account.id)
+      .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    const items = inviteCodes.map((invite) => ({
+      id: invite.id,
+      code: invite.code,
+      coinBonus: invite.coinBonus,
+      beanBonus: invite.beanBonus,
+      redeemed: invite.redeemedCount >= invite.maxRedemptions,
+      redeemedCount: invite.redeemedCount,
+      remainingRedemptions: Math.max(0, invite.maxRedemptions - invite.redeemedCount),
+      createdAt: invite.createdAt
+    }));
+    res.json({
+      totalCount: items.length,
+      remainingCount: items.filter((item) => item.remainingRedemptions > 0).length,
+      redeemedCount: items.filter((item) => item.redeemed).length,
+      items
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/merchant/wallet", async (req, res, next) => {
   try {
     const account = await requireMerchantAccount(req);
@@ -4364,11 +4393,19 @@ async function createRedemptionCodesHandler(req, res) {
     const bodyBookCouponCents = Math.min(Math.max(Math.round(Number(req.body?.bodyBookCouponYuan || 0) * 100), 0), 99900);
     const originalDownloadAllowanceCount = normalizeRedemptionEntitlementCount(req.body?.originalDownloadAllowanceCount);
     const prefix = String(req.body?.prefix || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
-    const created = await createInviteCodes(count, prefix, coinBonus, beanBonus, fridgeMagnetItemCount, bodyBookPrintCount, originalDownloadAllowanceCount, bodyBookCouponCents);
+    // 兑换码可归属到某个商户，商户工作台按 storeOwnerAccountId 查询自己的兑换码。
+    const storeOwnerAccountId = String(req.body?.storeOwnerAccountId || "").trim();
+    let storeOwnerName = "";
+    if (storeOwnerAccountId) {
+      const owner = commerceStore.readAccount(storeOwnerAccountId);
+      if (!owner?.isStoreOwner) throw createHttpError(400, "请选择有效的商户。");
+      storeOwnerName = String(owner.storeName || "").trim() || getAccountDisplayName(owner);
+    }
+    const created = await createInviteCodes(count, prefix, coinBonus, beanBonus, fridgeMagnetItemCount, bodyBookPrintCount, originalDownloadAllowanceCount, bodyBookCouponCents, storeOwnerAccountId, storeOwnerName);
     res.status(201).json({ inviteCodes: created.map(toPublicInviteCode) });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "创建兑换码失败。" });
+    res.status(error.status || 500).json({ message: error.publicMessage || error.message || "创建兑换码失败。" });
   }
 }
 
@@ -11987,6 +12024,8 @@ function normalizeInviteCode(inviteCode) {
     bodyBookPrintCount: normalizeRedemptionEntitlementCount(inviteCode?.bodyBookPrintCount),
     bodyBookCouponCents: Math.min(Math.max(Math.trunc(Number(inviteCode?.bodyBookCouponCents || 0)), 0), 99900),
     originalDownloadAllowanceCount: normalizeRedemptionEntitlementCount(inviteCode?.originalDownloadAllowanceCount),
+    storeOwnerAccountId: String(inviteCode?.storeOwnerAccountId || ""),
+    storeOwnerName: String(inviteCode?.storeOwnerName || ""),
     redeemedCount: Math.max(0, Number(inviteCode?.redeemedCount || 0)),
     redeemedByVisitorIds: Array.isArray(inviteCode?.redeemedByVisitorIds) ? inviteCode.redeemedByVisitorIds.map(String) : [],
     redeemedByAccountIds: Array.isArray(inviteCode?.redeemedByAccountIds) ? inviteCode.redeemedByAccountIds.map(String) : [],
@@ -12008,6 +12047,8 @@ function toPublicInviteCode(inviteCode) {
     bodyBookPrintCount: safeInvite.bodyBookPrintCount,
     bodyBookCouponCents: safeInvite.bodyBookCouponCents,
     originalDownloadAllowanceCount: safeInvite.originalDownloadAllowanceCount,
+    storeOwnerAccountId: safeInvite.storeOwnerAccountId,
+    storeOwnerName: safeInvite.storeOwnerName,
     redeemedCount: safeInvite.redeemedCount,
     remainingRedemptions: Math.max(0, safeInvite.maxRedemptions - safeInvite.redeemedCount),
     createdAt: safeInvite.createdAt,
@@ -12020,7 +12061,7 @@ function normalizeRedemptionEntitlementCount(value) {
   return Number.isFinite(normalized) ? Math.min(Math.max(normalized, 0), 999) : 0;
 }
 
-async function createInviteCodes(count, prefix = "", coinBonus = 5, beanBonus = 10, fridgeMagnetItemCount = 0, bodyBookPrintCount = 0, originalDownloadAllowanceCount = 0, bodyBookCouponCents = 0) {
+async function createInviteCodes(count, prefix = "", coinBonus = 5, beanBonus = 10, fridgeMagnetItemCount = 0, bodyBookPrintCount = 0, originalDownloadAllowanceCount = 0, bodyBookCouponCents = 0, storeOwnerAccountId = "", storeOwnerName = "") {
   const inviteCodes = await readInviteCodes();
   const now = new Date().toISOString();
   const created = Array.from({ length: count }, () => normalizeInviteCode({
@@ -12034,6 +12075,8 @@ async function createInviteCodes(count, prefix = "", coinBonus = 5, beanBonus = 
     bodyBookPrintCount,
     bodyBookCouponCents,
     originalDownloadAllowanceCount,
+    storeOwnerAccountId,
+    storeOwnerName,
     redeemedCount: 0,
     redeemedByVisitorIds: [],
     redeemedByAccountIds: [],

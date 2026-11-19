@@ -4918,10 +4918,15 @@ h2 {
   font-size: 0.78rem;
 }
 
-.redemption-field-grid input {
+.redemption-field-grid input,
+.redemption-field-grid select {
   min-width: 0;
   min-height: 38px;
   padding: 8px 10px;
+}
+
+.redemption-store-owner-field {
+  grid-column: 1 / -1;
 }
 
 .redemption-code-section {
@@ -4989,6 +4994,15 @@ h2 {
   background: #f5f7f4;
   color: #48625a;
   white-space: nowrap;
+}
+
+.redemption-code-merchant {
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: #eef4ff;
+  color: #2b5d9a;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
 }
 
 .redemption-code-usage,
@@ -13227,6 +13241,46 @@ textarea {
 
 .merchant-modal.is-wallet { width: min(460px, 100%); }
 .merchant-modal.is-today { width: min(600px, 100%); max-height: min(86vh, 760px); overflow-y: auto; }
+.merchant-modal.is-redemption { width: min(560px, 100%); max-height: min(86vh, 720px); overflow-y: auto; }
+.merchant-stat-card.is-redemption { grid-column: 1 / -1; }
+
+.merchant-redemption-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #ececef;
+  border-radius: 12px;
+}
+.merchant-redemption-table {
+  width: 100%;
+  min-width: 420px;
+  border-collapse: collapse;
+}
+.merchant-redemption-table th,
+.merchant-redemption-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f2;
+  text-align: left;
+  font-size: 13px;
+}
+.merchant-redemption-table thead th {
+  background: #f7f7f9;
+  color: #6e6e73;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.merchant-redemption-table tbody tr:last-child td { border-bottom: 0; }
+.merchant-redemption-table td strong { font-size: 13px; letter-spacing: 0.02em; }
+.merchant-redemption-table td:nth-child(3) { width: 82px; }
+.merchant-redemption-table td:nth-child(4) { width: 96px; white-space: nowrap; }
+.merchant-redemption-table .merchant-settings-button { padding: 5px 12px; font-size: 12px; }
+.merchant-redemption-table tr.is-redeemed td,
+.merchant-redemption-table tr.is-redeemed td strong { color: #a1a1a6; }
+.merchant-redemption-table tr.is-redeemed .merchant-settings-button {
+  color: #a1a1a6;
+  border-color: #e5e5ea;
+  background: #fafafa;
+  cursor: not-allowed;
+}
 .merchant-today-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
 .merchant-today-list > li {
   display: grid;

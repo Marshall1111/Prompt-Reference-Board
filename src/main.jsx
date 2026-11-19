@@ -783,6 +783,11 @@ function MerchantDashboardPage() {
   const [previewImage, setPreviewImage] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [walletError, setWalletError] = useState("");
+  const [redemption, setRedemption] = useState({ totalCount: 0, remainingCount: 0, redeemedCount: 0, items: [] });
+  const [redemptionOpen, setRedemptionOpen] = useState(false);
+  const [redemptionLoading, setRedemptionLoading] = useState(false);
+  const [redemptionError, setRedemptionError] = useState("");
+  const [copiedCode, setCopiedCode] = useState("");
   const [notifySaving, setNotifySaving] = useState(false);
   const [notifyError, setNotifyError] = useState("");
 
@@ -841,6 +846,7 @@ function MerchantDashboardPage() {
   useEffect(() => {
     if (!payload?.isMerchant) return;
     loadTasks(1);
+    loadRedemptionCodes().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payload?.isMerchant]);
 
@@ -961,6 +967,43 @@ function MerchantDashboardPage() {
       setWallet(next);
     } catch (nextError) {
       setWalletError(nextError.message || "读取钱包失败。");
+    }
+  }
+
+  async function loadRedemptionCodes({ silent = false } = {}) {
+    if (!silent) {
+      setRedemptionLoading(true);
+      setRedemptionError("");
+    }
+    try {
+      const next = await readJsonResponse(fetch("/api/merchant/redemption-codes"));
+      setRedemption({
+        totalCount: Number(next.totalCount || 0),
+        remainingCount: Number(next.remainingCount || 0),
+        redeemedCount: Number(next.redeemedCount || 0),
+        items: Array.isArray(next.items) ? next.items : []
+      });
+    } catch (nextError) {
+      if (!silent) setRedemptionError(nextError.message || "读取兑换码失败。");
+    } finally {
+      if (!silent) setRedemptionLoading(false);
+    }
+  }
+
+  function openRedemptionCodes() {
+    setRedemptionOpen(true);
+    loadRedemptionCodes().catch(() => {});
+  }
+
+  async function copyRedemptionCode(code) {
+    try {
+      await copyText(code);
+      setCopiedCode(code);
+      window.setTimeout(() => {
+        setCopiedCode((current) => (current === code ? "" : current));
+      }, 1500);
+    } catch (nextError) {
+      setRedemptionError(nextError.message || "复制失败，请手动选择兑换码。");
     }
   }
 
@@ -1094,6 +1137,11 @@ function MerchantDashboardPage() {
               <span>钱包</span>
               <strong>{formatMerchantMoney(overview?.wallet?.balanceCents)}</strong>
               <small>查看收益与提现流水</small>
+            </button>
+            <button className="merchant-stat-card is-redemption" onClick={openRedemptionCodes} type="button">
+              <span>兑换码</span>
+              <strong>{redemptionLoading && !redemption.totalCount ? "…" : redemption.remainingCount}</strong>
+              <small>剩余可兑换 · 点击查看</small>
             </button>
           </section>
 
@@ -1277,6 +1325,54 @@ function MerchantDashboardPage() {
               </ul>
             ) : (
               <p className="storage-note">还没有流水记录。任务收益结算后会显示在这里。</p>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {redemptionOpen ? (
+        <div className="merchant-modal-backdrop" role="presentation" onClick={() => setRedemptionOpen(false)}>
+          <div className="merchant-modal is-redemption" onClick={(event) => event.stopPropagation()}>
+            <div className="merchant-card-head">
+              <h2>兑换码</h2>
+              <button className="merchant-settings-button" onClick={() => setRedemptionOpen(false)} type="button">关闭</button>
+            </div>
+            <p className="storage-note">共 {redemption.totalCount} 个，剩余 {redemption.remainingCount} 个可兑换。</p>
+            {redemptionError ? <p className="error-note">{redemptionError}</p> : null}
+            {redemptionLoading ? (
+              <p className="storage-note">正在加载兑换码…</p>
+            ) : redemption.items.length ? (
+              <div className="merchant-redemption-table-wrap">
+                <table className="merchant-redemption-table">
+                  <thead>
+                    <tr>
+                      <th>兑换码</th>
+                      <th>币数量</th>
+                      <th>复制</th>
+                      <th>是否已兑换</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {redemption.items.map((item) => (
+                      <tr className={item.redeemed ? "is-redeemed" : ""} key={item.id}>
+                        <td><strong>{item.code}</strong></td>
+                        <td>{Number(item.coinBonus || 0)} 币</td>
+                        <td>
+                          <button
+                            className="merchant-settings-button"
+                            disabled={item.redeemed}
+                            onClick={() => copyRedemptionCode(item.code)}
+                            type="button"
+                          >{copiedCode === item.code ? "已复制" : "复制"}</button>
+                        </td>
+                        <td>{item.redeemed ? "已兑换" : "未兑换"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="storage-note">还没有分配给你的兑换码。</p>
             )}
           </div>
         </div>
@@ -12015,6 +12111,8 @@ function InviteAdminPage({ inviteCodes, settings, onRefreshInviteCodes, onRefres
   const [bodyBookPrintCount, setBodyBookPrintCount] = useState(0);
   const [bodyBookCouponYuan, setBodyBookCouponYuan] = useState(0);
   const [originalDownloadAllowanceCount, setOriginalDownloadAllowanceCount] = useState(0);
+  const [storeOwnerAccountId, setStoreOwnerAccountId] = useState("");
+  const [storeOwners, setStoreOwners] = useState([]);
   const [defaultCoinBonus, setDefaultCoinBonus] = useState(settings?.defaultCoinBonus ?? 5);
   const [defaultBeanBonus, setDefaultBeanBonus] = useState(settings?.defaultBeanBonus ?? 10);
   const [error, setError] = useState("");
@@ -12029,11 +12127,25 @@ function InviteAdminPage({ inviteCodes, settings, onRefreshInviteCodes, onRefres
     setDefaultBeanBonus(settings?.defaultBeanBonus ?? 10);
   }, [settings]);
 
+  useEffect(() => {
+    let active = true;
+    readJsonResponse(fetch("/api/admin/store-owners"))
+      .then((payload) => {
+        if (active) setStoreOwners(payload.storeOwners || []);
+      })
+      .catch(() => {
+        if (active) setStoreOwners([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   async function createCodes() {
     setIsSubmitting(true);
     setError("");
     try {
-      await createInviteCodesRequest({ count, prefix, coinBonus, beanBonus, fridgeMagnetItemCount, bodyBookPrintCount, bodyBookCouponYuan, originalDownloadAllowanceCount });
+      await createInviteCodesRequest({ count, prefix, coinBonus, beanBonus, fridgeMagnetItemCount, bodyBookPrintCount, bodyBookCouponYuan, originalDownloadAllowanceCount, storeOwnerAccountId });
       await onRefreshInviteCodes();
       setPrefix("");
     } catch (nextError) {
@@ -12089,14 +12201,14 @@ function InviteAdminPage({ inviteCodes, settings, onRefreshInviteCodes, onRefres
 
         <section className="redemption-control-card create-card">
           <div className="redemption-control-head"><div><h3>创建兑换码</h3><p>每个兑换码仅可兑换一次，可叠加虚拟余额、实体定制和免分享原图下载权益。</p></div><button className="copy-button" disabled={isSubmitting} onClick={createCodes} type="button">{isSubmitting ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}<span>{isSubmitting ? "创建中" : "创建"}</span></button></div>
-          <div className="redemption-field-grid"><label className="field-label">数量<input max="20" min="1" onChange={(event) => setCount(Number(event.target.value) || 1)} type="number" value={count} /></label><label className="field-label">前缀<input onChange={(event) => setPrefix(event.target.value.toUpperCase())} placeholder="例如 SHOP" type="text" value={prefix} /></label><label className="field-label">币<input max="999" min="0" onChange={(event) => setCoinBonus(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={coinBonus} /></label><label className="field-label">豆豆<input max="999" min="0" onChange={(event) => setBeanBonus(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={beanBonus} /></label><label className="field-label">冰箱贴（个）<input max="999" min="0" onChange={(event) => setFridgeMagnetItemCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={fridgeMagnetItemCount} /></label><label className="field-label">实体书（册）<input max="999" min="0" onChange={(event) => setBodyBookPrintCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={bodyBookPrintCount} /></label><label className="field-label">实体优惠券（元）<input max="999" min="0" onChange={(event) => setBodyBookCouponYuan(Number(event.target.value) || 0)} type="number" value={bodyBookCouponYuan} /></label><label className="field-label">免分享原图下载（次）<input max="999" min="0" onChange={(event) => setOriginalDownloadAllowanceCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={originalDownloadAllowanceCount} /></label></div>
+          <div className="redemption-field-grid"><label className="field-label redemption-store-owner-field">商户<select disabled={isSubmitting} onChange={(event) => setStoreOwnerAccountId(event.target.value)} value={storeOwnerAccountId}><option value="">不绑定商户</option>{storeOwners.map((owner) => <option key={owner.id} value={owner.id}>{owner.storeName || owner.username || owner.email || owner.id}</option>)}</select></label><label className="field-label">数量<input max="20" min="1" onChange={(event) => setCount(Number(event.target.value) || 1)} type="number" value={count} /></label><label className="field-label">前缀<input onChange={(event) => setPrefix(event.target.value.toUpperCase())} placeholder="例如 SHOP" type="text" value={prefix} /></label><label className="field-label">币<input max="999" min="0" onChange={(event) => setCoinBonus(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={coinBonus} /></label><label className="field-label">豆豆<input max="999" min="0" onChange={(event) => setBeanBonus(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={beanBonus} /></label><label className="field-label">冰箱贴（个）<input max="999" min="0" onChange={(event) => setFridgeMagnetItemCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={fridgeMagnetItemCount} /></label><label className="field-label">实体书（册）<input max="999" min="0" onChange={(event) => setBodyBookPrintCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={bodyBookPrintCount} /></label><label className="field-label">实体优惠券（元）<input max="999" min="0" onChange={(event) => setBodyBookCouponYuan(Number(event.target.value) || 0)} type="number" value={bodyBookCouponYuan} /></label><label className="field-label">免分享原图下载（次）<input max="999" min="0" onChange={(event) => setOriginalDownloadAllowanceCount(normalizeOptionalInviteQuotaBonus(event.target.value))} type="number" value={originalDownloadAllowanceCount} /></label></div>
         </section>
       </div>
       {error ? <p className="error-note">{error}</p> : null}
 
       <section className="redemption-code-section" aria-label="可用兑换码">
         <div className="redemption-section-head"><div><h3>可用兑换码</h3><p>已创建 {availableInviteCodes.length} 个，删除后不可恢复。</p></div></div>
-        {availableInviteCodes.length ? <div className="redemption-code-table"><div className="redemption-code-table-head" role="presentation"><span>兑换码</span><span>发放权益</span><span>核销情况</span><span>创建时间</span><span>操作</span></div>{availableInviteCodes.map((inviteCode) => <article className="redemption-code-row" key={inviteCode.id}><div className="redemption-code-primary"><strong>{inviteCode.code}</strong><span className={`task-status ${inviteCode.enabled ? "succeeded" : "cancelled"}`}>{inviteCode.enabled ? "可用" : "已停用"}</span></div><div className="redemption-code-benefits"><span>{Number(inviteCode.coinBonus ?? inviteCode.quotaBonus ?? 5)} 币</span><span>{Number(inviteCode.beanBonus ?? 10)} 豆豆</span><span>冰箱贴 {Number(inviteCode.fridgeMagnetItemCount || 0)} 个</span><span>实体书 {Number(inviteCode.bodyBookPrintCount || 0)} 册</span><span>实体优惠券 {formatCurrencyCents(inviteCode.bodyBookCouponCents || 0)}</span><span>免分享原图 {Number(inviteCode.originalDownloadAllowanceCount || 0)} 次</span></div><div className="redemption-code-usage">已兑换 {inviteCode.redeemedCount} · 剩余 {inviteCode.remainingRedemptions}</div><time>{formatDateTime(inviteCode.createdAt)}</time><button className="danger-button" onClick={() => deleteInvite(inviteCode)} type="button"><Trash2 size={16} /><span>删除</span></button></article>)}</div> : <p className="empty-note">当前没有可继续兑换的兑换码。</p>}
+        {availableInviteCodes.length ? <div className="redemption-code-table"><div className="redemption-code-table-head" role="presentation"><span>兑换码</span><span>发放权益</span><span>核销情况</span><span>创建时间</span><span>操作</span></div>{availableInviteCodes.map((inviteCode) => <article className="redemption-code-row" key={inviteCode.id}><div className="redemption-code-primary"><strong>{inviteCode.code}</strong><span className={`task-status ${inviteCode.enabled ? "succeeded" : "cancelled"}`}>{inviteCode.enabled ? "可用" : "已停用"}</span>{inviteCode.storeOwnerName ? <span className="redemption-code-merchant">商户：{inviteCode.storeOwnerName}</span> : null}</div><div className="redemption-code-benefits"><span>{Number(inviteCode.coinBonus ?? inviteCode.quotaBonus ?? 5)} 币</span><span>{Number(inviteCode.beanBonus ?? 10)} 豆豆</span><span>冰箱贴 {Number(inviteCode.fridgeMagnetItemCount || 0)} 个</span><span>实体书 {Number(inviteCode.bodyBookPrintCount || 0)} 册</span><span>实体优惠券 {formatCurrencyCents(inviteCode.bodyBookCouponCents || 0)}</span><span>免分享原图 {Number(inviteCode.originalDownloadAllowanceCount || 0)} 次</span></div><div className="redemption-code-usage">已兑换 {inviteCode.redeemedCount} · 剩余 {inviteCode.remainingRedemptions}</div><time>{formatDateTime(inviteCode.createdAt)}</time><button className="danger-button" onClick={() => deleteInvite(inviteCode)} type="button"><Trash2 size={16} /><span>删除</span></button></article>)}</div> : <p className="empty-note">当前没有可继续兑换的兑换码。</p>}
       </section>
     </section>
   );
