@@ -20,10 +20,12 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from print_agent import custom_paper_origin
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "agent.json"
+CUSTOM_LAYOUT_MODE = "custom-sheet-v1"
 DEFAULT_CONFIG = {
     "server_url": "http://192.168.31.148:3000",
     "device_id": "dev_replace_me",
@@ -184,19 +186,51 @@ def wait_cups_job(cfg: dict, job_id: str, timeout: float | None = None) -> None:
 
 
 # ---------- 任务处理 ----------
-def compose_layout(cfg: dict, files: list[Path], out: Path) -> None:
+def compose_layout(cfg: dict, files: list[Path], out: Path, mode: str = "layout") -> None:
     script = str((BASE_DIR / cfg["print_script"]).resolve())
-    cmd = [cfg["python_bin"], script, "layout", *[str(p) for p in files], "--save", str(out)]
+    cmd = [cfg["python_bin"], script, mode, *[str(p) for p in files], "--save", str(out)]
     result = run(cmd, timeout=180)
     if result.returncode != 0 or not out.exists():
         raise RuntimeError((result.stderr or result.stdout or "排版失败").strip())
 
 
+def supported_layout_modes(cfg: dict) -> list[str]:
+    modes = ["2up"]
+    try:
+        layout_cfg = json.loads((BASE_DIR / "config.json").read_text(encoding="utf-8"))
+        custom_paper_origin(layout_cfg)
+        options = " ".join(cfg.get("lp_options") or []).lower()
+        if "postcard" in options and "print-scaling=none" in options:
+            modes.append(CUSTOM_LAYOUT_MODE)
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    return modes
+
+
+def print_custom_job(cfg: dict, job: dict, files: list[Path], workdir: Path) -> int:
+    if CUSTOM_LAYOUT_MODE not in supported_layout_modes(cfg):
+        raise RuntimeError("当前设备不支持100×148毫米自定义版面")
+    copies = job.get("copies", 1)
+    completed = job.get("completedCopies", 0)
+    if len(files) != 1 or not isinstance(copies, int) or not isinstance(completed, int) or not 0 <= completed <= copies <= 20:
+        raise RuntimeError("自定义打印任务参数无效")
+    composed = workdir / "custom-sheet.jpg"
+    compose_layout(cfg, files, composed, "custom-sheet")
+    for index in range(completed, copies):
+        # Acknowledge the lease before putting another physical sheet through.
+        request(cfg, "POST", f"/api/print-agent/jobs/{job['jobId']}/progress", {"completedCopies": index, "attempt": job["attempt"]})
+        cups_job = submit_to_cups(cfg, composed)
+        wait_cups_job(cfg, cups_job)
+        request(cfg, "POST", f"/api/print-agent/jobs/{job['jobId']}/progress", {"completedCopies": index + 1, "attempt": job["attempt"]})
+    return copies - completed
+
+
 def handle_job(cfg: dict, job: dict) -> None:
     job_id = job.get("jobId")
     files = job.get("files") or []
+    result_fields = {"attempt": job.get("attempt")} if job.get("layoutMode") == CUSTOM_LAYOUT_MODE else {}
     if not files:
-        request(cfg, "POST", f"/api/print-agent/jobs/{job_id}/result", {"status": "failed", "error": "任务没有图片"})
+        request(cfg, "POST", f"/api/print-agent/jobs/{job_id}/result", {"status": "failed", "error": "任务没有图片", **result_fields})
         return
 
     workdir = Path(tempfile.mkdtemp(prefix=f"print-job-{job_id}-"))
@@ -208,22 +242,27 @@ def handle_job(cfg: dict, job: dict) -> None:
             local_files.append(target)
 
         composed_count = 0
-        for page_start in range(0, len(local_files), 4):
-            page_files = local_files[page_start:page_start + 4]
-            composed = workdir / f"layout-{composed_count + 1}.jpg"
-            compose_layout(cfg, page_files, composed)
-            cups_job = submit_to_cups(cfg, composed)
-            wait_cups_job(cfg, cups_job)
-            composed_count += 1
-        request(cfg, "POST", f"/api/print-agent/jobs/{job_id}/result", {"status": "printed"})
+        if job.get("layoutMode") == CUSTOM_LAYOUT_MODE:
+            composed_count = print_custom_job(cfg, job, local_files, workdir)
+        elif job.get("layoutMode", "2up") == "2up":
+            for page_start in range(0, len(local_files), 4):
+                page_files = local_files[page_start:page_start + 4]
+                composed = workdir / f"layout-{composed_count + 1}.jpg"
+                compose_layout(cfg, page_files, composed)
+                cups_job = submit_to_cups(cfg, composed)
+                wait_cups_job(cfg, cups_job)
+                composed_count += 1
+        else:
+            raise RuntimeError("不支持的打印版面模式")
+        request(cfg, "POST", f"/api/print-agent/jobs/{job_id}/result", {"status": "printed", **result_fields})
         log(f"任务 {job_id} 打印完成（{composed_count} 页）")
     except urllib.error.HTTPError as error:
         message = f"HTTP {error.code}: {error.read()[:200].decode('utf-8', 'replace')}"
-        request(cfg, "POST", f"/api/print-agent/jobs/{job_id}/result", {"status": "failed", "error": message})
+        request(cfg, "POST", f"/api/print-agent/jobs/{job_id}/result", {"status": "failed", "error": message, **result_fields})
         log(f"任务 {job_id} 处理失败：{message}")
     except Exception as error:  # noqa: BLE001 - 任何异常都要回报给服务端
         message = str(error) or error.__class__.__name__
-        request(cfg, "POST", f"/api/print-agent/jobs/{job_id}/result", {"status": "failed", "error": message})
+        request(cfg, "POST", f"/api/print-agent/jobs/{job_id}/result", {"status": "failed", "error": message, **result_fields})
         log(f"任务 {job_id} 处理失败：{message}")
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
@@ -231,12 +270,13 @@ def handle_job(cfg: dict, job: dict) -> None:
 
 def heartbeat(cfg: dict) -> None:
     state, reasons = query_printer(cfg)
-    request(cfg, "POST", "/api/print-agent/heartbeat", {"printerState": state, "reasons": reasons})
+    request(cfg, "POST", "/api/print-agent/heartbeat", {"printerState": state, "reasons": reasons, "supportedLayoutModes": supported_layout_modes(cfg), "firmwareVersion": "custom-sheet-v1"})
 
 
 def run_once(cfg: dict) -> bool:
     heartbeat(cfg)
-    payload = request(cfg, "GET", "/api/print-agent/jobs/next")
+    modes = ",".join(supported_layout_modes(cfg))
+    payload = request(cfg, "GET", f"/api/print-agent/jobs/next?layoutModes={modes}")
     job = payload.get("job")
     if not job:
         return False

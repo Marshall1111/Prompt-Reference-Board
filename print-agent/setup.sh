@@ -152,6 +152,7 @@ data.update({
     "device_id": device_id,
     "device_token": token,
     "printer_name": queue,
+    "lp_options": ["-o", "PageSize=Postcard", "-o", "StpBorderless=True", "-o", "print-scaling=none"],
 })
 with open(path, "w", encoding="utf-8") as fh:
     json.dump(data, fh, ensure_ascii=False, indent=2)

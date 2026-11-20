@@ -267,6 +267,35 @@ def apply_compensation(img: Image.Image, cfg: dict) -> Image.Image:
     return out
 
 
+def custom_paper_origin(cfg: dict) -> tuple[float, float]:
+    """Physical 100x148 paper centered within the configured driver/bleed area.
+
+    Do not resize the physical paper to the 102x150 bleed area: doing so changes
+    every merchant-selected dimension. Existing calibration is applied later.
+    """
+    p = profile(cfg)
+    if p["print_x1_mm"] - p["print_x0_mm"] < 100 - 1e-6 or p["print_y1_mm"] - p["print_y0_mm"] < 148 - 1e-6:
+        raise ValueError("当前打印配置无法完整容纳100×148毫米相纸")
+    x = (p["print_x0_mm"] + p["print_x1_mm"] - 100) / 2
+    y = (p["print_y0_mm"] + p["print_y1_mm"] - 148) / 2
+    if x < 0 or y < 0 or x + 100 > p["sheet_width_mm"] + 1e-6 or y + 148 > p["sheet_height_mm"] + 1e-6:
+        raise ValueError("相纸位置超出驱动页面，请检查打印校准配置")
+    if cfg["scale_x"] <= 0 or cfg["scale_y"] <= 0:
+        raise ValueError("打印校准缩放必须大于0")
+    return x, y
+
+
+def build_custom_sheet(source: Path, cfg: dict) -> Image.Image:
+    x, y = custom_paper_origin(cfg)
+    with Image.open(source) as src:
+        if src.size != (mm2px(100), mm2px(148)):
+            raise ValueError("自定义版面必须为300DPI的100×148毫米整页图片")
+        sheet = src.convert("RGB")
+    canvas = new_canvas(cfg)
+    canvas.paste(sheet, (mm2px(x), mm2px(y)))
+    return canvas
+
+
 # ---------- IPP ----------
 def _attr(tag: int, name: str, value: bytes) -> bytes:
     nb = name.encode()
@@ -400,11 +429,17 @@ def main() -> None:
     p_layout.add_argument("images", nargs="+", help="原图路径（1~4 张）")
     p_layout.add_argument("--save", help="只保存不打印")
 
+    p_custom = sub.add_parser("custom-sheet", help="将100×148毫米整页版面按原尺寸放入驱动页面")
+    p_custom.add_argument("image", help="服务端生成的300DPI整页图片")
+    p_custom.add_argument("--save", help="只保存不打印")
+
     args = parser.parse_args()
     cfg = load_config()
 
     if args.cmd == "calibrate":
         save_and_print(build_calibration(cfg), cfg, args.save, "calibration")
+    elif args.cmd == "custom-sheet":
+        save_and_print(build_custom_sheet(Path(args.image), cfg), cfg, args.save, "custom-sheet")
     elif args.cmd == "layout":
         paths = [Path(p) for p in args.images]
         for p in paths:

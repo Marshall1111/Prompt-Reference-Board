@@ -117,6 +117,7 @@ $tarArgs = @(
   "--exclude=data/visitor-states",
   "--exclude=data/private-generated-images",
   "--exclude=data/private-job-references",
+  "--exclude=data/custom-prints",
   "--exclude=data/storage-backups",
   "--exclude=data/storage-export-temp",
   "--exclude=data/orders.sqlite",

@@ -18,6 +18,7 @@ data/temp-image-references/
 data/tmp-test/
 data/private-generated-images/
 data/private-job-references/
+data/custom-prints/
 data/storage-backups/
 data/storage-export-temp/
 data/admin-sessions/

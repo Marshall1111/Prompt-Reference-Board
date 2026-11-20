@@ -1,0 +1,65 @@
+.custom-print-overlay { position: fixed; inset: 0; z-index: 2000; background: #f5f6f8; color: #202733; overflow-y: auto; overscroll-behavior: contain; font-family: inherit; }
+.custom-print-header { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #e1e5eb; background: rgba(255,255,255,.96); }
+.custom-print-header h1 { margin: 0; font-size: 20px; }
+.custom-print-header > span { color: #7a8594; font-size: 12px; }
+.custom-print-main { max-width: 1060px; margin: auto; padding: 24px; }
+.custom-print-layout { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(280px, 1fr); gap: 28px; align-items: start; }
+.custom-print-paper-panel { padding: 20px; border-radius: 18px; background: #e9edf2; }
+.custom-paper-wrap { max-width: 390px; margin: auto; }
+.custom-paper-label { margin-bottom: 14px; text-align: center; font-size: 13px; color: #536276; }
+.custom-paper { display: block; width: 100%; aspect-ratio: 100 / 148; background: white; box-shadow: 0 6px 24px #15213220; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.custom-paper [data-item-id] { cursor: move; }
+.custom-print-controls, .custom-crop-panel, .custom-final-preview { padding: 22px; border: 1px solid #e1e5eb; border-radius: 18px; background: white; }
+.custom-print-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.custom-print-section-head h2, .custom-final-preview h2 { margin: 0; font-size: 18px; }
+.custom-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; border: 1px solid #dae0e8; border-radius: 10px; padding: 9px 12px; background: white; color: #26354b; font: inherit; font-size: 13px; cursor: pointer; }
+.custom-button:hover { background: #f1f5fb; }
+.custom-button:disabled { opacity: .5; cursor: default; }
+.custom-button.is-primary { color: white; background: #276ed9; border-color: #276ed9; }
+.custom-button.is-primary:hover { background: #1e60c1; }
+.custom-button.is-selected { border-color: #287be8; background: #eaf2ff; }
+.custom-help { display: flex; align-items: center; gap: 5px; color: #667386; line-height: 1.6; font-size: 13px; }
+.custom-error { padding: 10px 12px; color: #b62b2b; background: #fff0f0; border-radius: 9px; font-size: 13px; line-height: 1.6; }
+.custom-print-busy { display: flex; gap: 8px; align-items: center; padding: 12px; margin-bottom: 16px; color: #276ed9; }
+.custom-hidden-input { display: none; }
+.custom-empty { padding: 35px 10px; text-align: center; color: #8390a1; }
+.custom-empty p { color: #536276; }
+.custom-empty span { font-size: 12px; }
+.custom-assets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.custom-asset { overflow: hidden; border: 1px solid #e1e5eb; border-radius: 10px; padding: 0; background: #f9fafc; cursor: pointer; }
+.custom-asset img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+.custom-asset span { display: block; padding: 8px 2px; font-size: 11px; color: #526176; }
+.custom-selected-controls { margin-top: 20px; padding-top: 14px; border-top: 1px solid #e1e5eb; }
+.custom-selected-controls h3, .custom-pending h3 { font-size: 14px; margin: 0 0 12px; }
+.custom-action-row, .custom-presets, .custom-item-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.custom-item-list { margin-top: 16px; }
+.custom-angle, .custom-copies { display: flex; gap: 12px; align-items: center; margin: 14px 0; font-size: 13px; }
+.custom-angle label { display: flex; align-items: center; gap: 7px; }
+.custom-angle input, .custom-copies input { width: 72px; padding: 9px; border: 1px solid #dae0e8; border-radius: 8px; font: inherit; font-size: 16px; background: white; color: #202733; }
+.custom-pending { padding: 14px; margin-top: 16px; border-radius: 10px; background: #fff8eb; }
+.custom-pending > div { display: flex; gap: 8px; margin-top: 8px; }
+.custom-crop-panel { max-width: 440px; margin: auto; }
+.custom-size-fields { display: flex; align-items: end; gap: 10px; margin-bottom: 12px; }
+.custom-size-fields label { flex: 1; font-size: 13px; }
+.custom-size-fields input { display: block; width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #dae0e8; border-radius: 9px; margin-top: 7px; font: inherit; font-size: 16px; color: #202733; background: white; }
+.custom-size-fields > span { padding-bottom: 12px; }
+.custom-presets { margin-bottom: 18px; }
+.custom-crop-stage { position: relative; height: 340px; overflow: hidden; border-radius: 12px; background: #1c2531; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.custom-crop-stage > img { position: absolute; left: 50%; top: 50%; max-width: none; max-height: none; pointer-events: none; }
+.custom-crop-window { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); box-sizing: border-box; border: 1px solid white; box-shadow: 0 0 0 2000px #0009; pointer-events: none; }
+.custom-crop-grid { width: 100%; height: 100%; background-image: linear-gradient(to right, transparent 33.1%, #ffffff55 33.1%, #ffffff55 33.5%, transparent 33.5%, transparent 66.4%, #ffffff55 66.4%, #ffffff55 66.8%, transparent 66.8%), linear-gradient(to bottom, transparent 33.1%, #ffffff55 33.1%, #ffffff55 33.5%, transparent 33.5%, transparent 66.4%, #ffffff55 66.4%, #ffffff55 66.8%, transparent 66.8%); }
+.custom-crop-zoom { display: flex; align-items: center; gap: 10px; margin: 14px 0; font-size: 13px; }
+.custom-crop-zoom input { flex: 1; min-width: 0; }
+.custom-crop-panel > .is-primary { width: 100%; margin-top: 8px; }
+.custom-final-preview { max-width: 440px; margin: auto; }
+.custom-final-preview > img { display: block; width: 100%; max-width: 320px; margin: 20px auto; box-shadow: 0 3px 16px #15213220; }
+@media (max-width: 650px) {
+  .custom-print-main { padding: 14px; }
+  .custom-print-layout { grid-template-columns: 1fr; gap: 16px; }
+  .custom-print-header { padding: 12px; }
+  .custom-print-header h1 { font-size: 17px; }
+  .custom-print-paper-panel { padding: 14px 24px; }
+  .custom-paper-wrap { max-width: 320px; }
+  .custom-print-controls, .custom-crop-panel, .custom-final-preview { padding: 16px; }
+  .custom-print-header > span { display: none; }
+}

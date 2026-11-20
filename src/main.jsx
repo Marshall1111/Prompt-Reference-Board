@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import HTMLFlipBook from "react-pageflip";
 import { createLabeledQrPngDataUrl, createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
 import "./styles.css";
+import CustomPrintEditor from "./CustomPrintEditor.jsx";
 
 const DEFAULT_CONTACT_WECHAT_ID = "PetPaint";
 const DEFAULT_ORDER_ADDRESS = {
@@ -765,6 +766,9 @@ function deriveMerchantPrinterState(printer) {
 }
 
 function MerchantDashboardPage() {
+  const [customPrintOpen, setCustomPrintOpen] = useState(false);
+  const [customRetryTask, setCustomRetryTask] = useState(null);
+  const [customCompletedCopies, setCustomCompletedCopies] = useState(0);
   const [payload, setPayload] = useState(null);
   const [overview, setOverview] = useState(null);
   const [taskList, setTaskList] = useState({ page: 1, limit: 20, total: 0, items: [] });
@@ -882,15 +886,18 @@ function MerchantDashboardPage() {
     }
   }
 
-  async function retryTask(jobId) {
+  async function retryTask(jobId, completedCopies) {
     if (!jobId) return;
     setRetryingJobId(jobId);
     setTaskError("");
     try {
-      const response = await fetch(`/api/merchant/print-jobs/${jobId}/retry`, { method: "POST" });
+      const response = await fetch(`/api/merchant/print-jobs/${jobId}/retry`, {
+        method: "POST", ...(completedCopies !== undefined ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ completedCopies }) } : {})
+      });
       const next = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(next.message || "重试失败，请稍后再试。");
       await loadTasks(taskList.page);
+      setCustomRetryTask(null);
     } catch (nextError) {
       setTaskError(nextError.message || "重试失败，请稍后再试。");
     } finally {
@@ -1064,6 +1071,7 @@ function MerchantDashboardPage() {
           <section className="merchant-card">
             <div className="merchant-card-head">
               <h2>当前状态</h2>
+              <button className="merchant-settings-button" onClick={() => setCustomPrintOpen(true)} type="button">自定义打印</button>
             </div>
             {(() => {
               const state = deriveMerchantPrinterState(printer);
@@ -1168,7 +1176,7 @@ function MerchantDashboardPage() {
                     <div className="merchant-today-head">
                       <div>
                         <strong>{formatMerchantTime(task.paidAt || task.createdAt)}</strong>
-                        <small>任务 {task.taskNo} · {task.imageCount} 张 · 下单账号 {task.buyerName}</small>
+                        <small>{task.taskType === "custom" ? `自定义打印 · ${task.imageCount}张图 · ${task.completedCopies}/${task.copies}份完成` : `任务 ${task.taskNo} · ${task.imageCount} 张 · 下单账号 ${task.buyerName}`}</small>
                       </div>
                       <div className="merchant-today-income">
                         <span>{formatMerchantMoney(task.incomeCents)}</span>
@@ -1199,7 +1207,7 @@ function MerchantDashboardPage() {
                         ))}
                       </div>
                     ) : null}
-                    {task.images?.length ? (
+                    {task.images?.length && task.taskType !== "custom" ? (
                       <div className="merchant-task-actions">
                         <button className="merchant-settings-button" onClick={() => openReprint(task)} type="button">再次打印</button>
                       </div>
@@ -1207,7 +1215,10 @@ function MerchantDashboardPage() {
                     {task.canRetry ? (
                       <div className="merchant-task-retry">
                         <p className="error-note">打印失败：{task.printError || "请检查打印机后重试。"}</p>
-                        <button className="merchant-settings-button" disabled={retryingJobId === task.printJobId} onClick={() => retryTask(task.printJobId)} type="button">
+                        <button className="merchant-settings-button" disabled={retryingJobId === task.printJobId} onClick={() => {
+                          if (task.taskType === "custom") { setCustomRetryTask(task); setCustomCompletedCopies(task.completedCopies); }
+                          else retryTask(task.printJobId);
+                        }} type="button">
                           {retryingJobId === task.printJobId ? "提交中" : "重试打印"}
                         </button>
                       </div>
@@ -1228,6 +1239,19 @@ function MerchantDashboardPage() {
           </section>
         </>
       ) : null}
+
+      {customPrintOpen ? <CustomPrintEditor printer={printer} onClose={() => setCustomPrintOpen(false)} onSubmitted={() => {
+        setCustomPrintOpen(false); setReprintMessage("自定义打印任务已提交，可在任务列表查看进度。");
+        loadTasks(1); loadOverview().catch(() => {});
+      }} /> : null}
+
+      {customRetryTask ? <div className="merchant-modal-backdrop" role="presentation"><div className="merchant-modal" role="dialog" aria-modal="true" aria-label="核对打印份数">
+        <div className="merchant-card-head"><h2>核对已出纸份数</h2><button className="merchant-settings-button" disabled={!!retryingJobId} onClick={() => setCustomRetryTask(null)}>关闭</button></div>
+        <p className="storage-note">请检查打印机实际完成了几份。记录可能未包含中断前正在出纸的那一份，重试只打印剩余份数。</p>
+        <label className="custom-copies">已完成<input aria-label="已完成打印份数" type="number" min="0" max={customRetryTask.copies} value={customCompletedCopies} onChange={(e) => setCustomCompletedCopies(e.target.value === "" ? "" : Number(e.target.value))} /> / {customRetryTask.copies}份</label>
+        {taskError ? <p className="error-note">{taskError}</p> : null}
+        <button className="merchant-settings-button" disabled={!!retryingJobId || !Number.isInteger(customCompletedCopies) || customCompletedCopies < 0 || customCompletedCopies > customRetryTask.copies} onClick={() => retryTask(customRetryTask.printJobId, customCompletedCopies)}>{customCompletedCopies === customRetryTask.copies ? "确认已全部打印" : `重试剩余${Math.max(0, customRetryTask.copies - customCompletedCopies)}份`}</button>
+      </div></div> : null}
 
       {previewImage ? (
         <div className="merchant-modal-backdrop" role="presentation" onClick={() => setPreviewImage(null)}>

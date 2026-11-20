@@ -12,6 +12,8 @@ import { createOrderStore } from "./order-store.js";
 import { createMerchantStore } from "./merchant-store.js";
 import { createCommerceStore } from "./commerce-store.js";
 import { createPrintStore } from "./print-store.js";
+import { createCustomPrintService } from "./custom-print.js";
+import { CUSTOM_LAYOUT_MODE } from "../shared/custom-print-geometry.js";
 import { PUBLIC_PREVIEW_WATERMARK_LABEL } from "./watermark-label.js";
 import { buildPublicPreviewQrUrl, renderPublicPreviewQr } from "./watermark-qr.js";
 
@@ -46,6 +48,7 @@ const adminSessionRoot = path.join(rootDir, "data", "admin-sessions");
 const appSettingsPath = path.join(rootDir, "data", "app-settings.json");
 const apiProviderDataPath = path.join(rootDir, "data", "api-providers.json");
 const orderDbPath = path.join(rootDir, "data", "orders.sqlite");
+const customPrintRoot = path.join(rootDir, "data", "custom-prints");
 const storageBackupRoot = path.join(rootDir, "data", "storage-backups");
 const storageExportTempRoot = path.join(rootDir, "data", "storage-export-temp");
 const orderAssetPublicRoot = path.join(rootDir, "public", "order-assets");
@@ -436,6 +439,7 @@ const printStore = createPrintStore({ dbPath: orderDbPath });
 setInterval(() => {
   try {
     printStore.requeueStaleJobs();
+    printStore.expireStaleCustomJobs();
   } catch (error) {
     console.error("[print] 重置超时打印任务失败", error);
   }
@@ -1341,6 +1345,7 @@ app.get("/api/merchant/overview", async (req, res, next) => {
       },
       // 打印机状态取该店家绑定的设备；未绑定设备时 connected 为 false。
       printer: {
+        customPrintSupported: Boolean(device?.supportedLayoutModes.includes(CUSTOM_LAYOUT_MODE)),
         connected: Boolean(device),
         online: deviceHealth.healthy,
         offline: deviceHealth.code === "offline",
@@ -1449,16 +1454,11 @@ app.get("/api/merchant/tasks", async (req, res, next) => {
     const account = await requireMerchantAccount(req);
     const visitorIds = await listStoreOwnerVisitorIds(account.id);
     const limit = Math.min(Math.max(Number(req.query?.limit || 20), 1), 100);
-    if (!visitorIds.length) {
-      res.json({ total: 0, page: 1, limit, items: [] });
-      return;
-    }
     const todayOnly = String(req.query?.today || "") === "1";
     // 认知书有独立商户页，当前工作台只展示小画任务。
-    const result = orderStore.listOrders({
+    const result = printStore.listMerchantTaskReferences({
+      ownerId: account.id,
       visitorIds,
-      paymentStatus: "paid",
-      excludeExperienceType: "body-book",
       paidFrom: todayOnly ? getShanghaiDayStartIso() : "",
       page: req.query?.page,
       limit
@@ -1469,7 +1469,9 @@ app.get("/api/merchant/tasks", async (req, res, next) => {
       page: result.page,
       limit: result.limit,
       unitPriceCents,
-      items: result.items.map((order) => {
+      items: result.items.map((reference) => {
+        if (reference.kind === "custom") return customPrintService.toTask(printStore.readPrintJob(reference.id));
+        const order = orderStore.readOrderWithRelations(reference.id);
         const buyer = order.accountId ? commerceStore.readAccount(order.accountId) : null;
         return toMerchantTask(
           {
@@ -1492,6 +1494,15 @@ app.post("/api/merchant/print-jobs/:jobId/retry", async (req, res, next) => {
     const account = await requireMerchantAccount(req);
     const job = printStore.readPrintJob(req.params.jobId);
     if (!job) throw createHttpError(404, "打印任务不存在。");
+    if (job.layoutMode === CUSTOM_LAYOUT_MODE) {
+      if (job.storeOwnerAccountId !== account.id) throw createHttpError(403, "该任务不属于你的店铺。");
+      if (job.status !== "failed") throw createHttpError(400, "只有失败的打印任务可以重试。");
+      const completed = req.body?.completedCopies;
+      if (!Number.isInteger(completed) || completed < 0 || completed > job.copies) throw createHttpError(400, "请核对已出纸份数。");
+      if (completed === job.copies) return res.json({ job: printStore.retryPrintJob(job.id, { completedCopies: completed }) });
+      const device = customPrintService.requireDevice(account.id);
+      return res.json({ job: printStore.retryPrintJob(job.id, { deviceId: device.deviceId, completedCopies: completed }) });
+    }
     const order = orderStore.readOrder(job.orderId);
     if (!order || String(order.storeOwnerAccountId || "") !== account.id) {
       throw createHttpError(403, "该任务不属于你的店铺。");
@@ -1576,6 +1587,9 @@ app.get("/api/merchant/jobs/:jobId/original", async (req, res, next) => {
     res.status(error.status || 500).json({ message: error.publicMessage || "下载原图失败，请稍后再试。" });
   }
 });
+
+const customPrintService = createCustomPrintService({ root: customPrintRoot, printStore, resolveMerchantAccess, resolveDeviceHealth });
+customPrintService.register(app, upload);
 
 app.get("/api/merchant/settings", async (req, res, next) => {
   try {
@@ -5201,7 +5215,8 @@ app.post("/api/print-agent/heartbeat", requirePrintDevice, (req, res) => {
     printerState: String(req.body?.printerState || "unknown"),
     reasons: Array.isArray(req.body?.reasons) ? req.body.reasons : [],
     hardwareModel: String(req.body?.hardwareModel || req.body?.model || ""),
-    firmwareVersion: String(req.body?.firmwareVersion || req.body?.version || "")
+    firmwareVersion: String(req.body?.firmwareVersion || req.body?.version || ""),
+    supportedLayoutModes: req.body?.supportedLayoutModes
   });
   markPrintDeviceSeen(device.deviceId);
   handlePrintDeviceReasons(device, device.reasons);
@@ -5213,13 +5228,18 @@ app.post("/api/print-agent/heartbeat", requirePrintDevice, (req, res) => {
 });
 
 app.get("/api/print-agent/jobs/next", requirePrintDevice, (req, res) => {
-  const job = printStore.claimNextJob(req.printDevice.deviceId);
+  const requestedModes = String(req.query?.layoutModes || "2up").split(",");
+  const modes = requestedModes.filter((mode) => mode === "2up" || req.printDevice.supportedLayoutModes.includes(mode));
+  const job = printStore.claimNextJob(req.printDevice.deviceId, modes);
   if (!job) return res.json({ job: null });
   res.json({
     job: {
       jobId: job.id,
       orderNo: job.orderId,
       layoutMode: job.layoutMode,
+      copies: job.copies,
+      completedCopies: job.completedCopies,
+      attempt: job.attempt,
       files: job.imageUrls.map((url, index) => ({
         name: `${job.id}-${index}`,
         downloadUrl: `/api/print-agent/jobs/${job.id}/files/${index}`
@@ -5228,18 +5248,30 @@ app.get("/api/print-agent/jobs/next", requirePrintDevice, (req, res) => {
   });
 });
 
-app.get("/api/print-agent/jobs/:jobId/files/:index", requirePrintDevice, (req, res, next) => {
+app.get("/api/print-agent/jobs/:jobId/files/:index", requirePrintDevice, async (req, res, next) => {
   try {
     const job = printStore.readPrintJob(req.params.jobId);
     if (!job || job.deviceId !== req.printDevice.deviceId) throw createHttpError(404, "打印任务不存在。");
     const assetUrl = job.imageUrls[Number(req.params.index)];
     if (!assetUrl) throw createHttpError(404, "文件不存在。");
-    const filePath = resolvePublicAssetFilePath(assetUrl);
+    const filePath = job.layoutMode === CUSTOM_LAYOUT_MODE
+      ? await customPrintService.sheetPath(job)
+      : resolvePublicAssetFilePath(assetUrl);
     if (!filePath) throw createHttpError(404, "文件不存在。");
     res.sendFile(filePath);
   } catch (error) {
     next(error);
   }
+});
+
+app.post("/api/print-agent/jobs/:jobId/progress", requirePrintDevice, (req, res, next) => {
+  try {
+    const job = printStore.readPrintJob(req.params.jobId);
+    if (!job || job.deviceId !== req.printDevice.deviceId) throw createHttpError(404, "打印任务不存在。");
+    const updated = printStore.updateCustomProgress(job.id, req.body?.completedCopies, req.body?.attempt);
+    if (!updated) throw createHttpError(409, "任务状态或打印份数已变化。");
+    res.json({ job: updated });
+  } catch (error) { next(error); }
 });
 
 app.post("/api/print-agent/jobs/:jobId/result", requirePrintDevice, (req, res, next) => {
@@ -5248,6 +5280,9 @@ app.post("/api/print-agent/jobs/:jobId/result", requirePrintDevice, (req, res, n
     if (!job || job.deviceId !== req.printDevice.deviceId) throw createHttpError(404, "打印任务不存在。");
     const status = String(req.body?.status || "").trim();
     if (status !== "printed" && status !== "failed") throw createHttpError(400, "状态不合法。");
+    if (job.layoutMode === CUSTOM_LAYOUT_MODE && (job.status !== "claimed" || req.body?.attempt !== job.attempt || (status === "printed" && job.completedCopies !== job.copies))) {
+      throw createHttpError(409, "任务状态或打印进度不匹配。");
+    }
     const finishedJob = printStore.finishPrintJob(job.id, status, String(req.body?.error || ""));
     if (finishedJob?.status === "failed") notifyPrintJobFailed(finishedJob);
     res.json({ job: finishedJob });
@@ -5415,6 +5450,7 @@ app.post("/api/admin/print-jobs/:id/retry", requireAdmin, (req, res, next) => {
   try {
     const job = printStore.readPrintJob(req.params.id);
     if (!job) throw createHttpError(404, "打印任务不存在。");
+    if (job.layoutMode === CUSTOM_LAYOUT_MODE) throw createHttpError(409, "自定义打印请在商户工作台核对实际出纸份数后重试。");
     // 失败任务可能没有设备归属，重试时按订单的店家补绑当前设备。
     const order = job.orderId ? orderStore.readOrder(job.orderId) : null;
     const device = order?.storeOwnerAccountId
@@ -8715,7 +8751,8 @@ async function buildStorageSummary() {
       summarizeStorageDirectory("公开预览图", generatedPreviewRoot, "generatedPreviews"),
       summarizeStorageDirectory("任务缩略图", generatedThumbnailRoot, "generatedThumbnails"),
       summarizeStorageDirectory("任务参考图", jobReferenceRoot, "jobReferences"),
-      summarizeStorageDirectory("参考图缩略图", jobReferenceThumbnailRoot, "jobReferenceThumbnails")
+      summarizeStorageDirectory("参考图缩略图", jobReferenceThumbnailRoot, "jobReferenceThumbnails"),
+      summarizeStorageDirectory("商户自定义打印", customPrintRoot, "customPrints")
     ]),
     listStorageBackups(),
     readAppSettings()

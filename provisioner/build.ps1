@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Python = "python"
 )
 
@@ -23,6 +23,9 @@ if (-not (Test-Path $offlineSource)) {
   $offlineSource = Join-Path (Split-Path -Parent $root) "print-agent\offline"
 }
 if (Test-Path $offlineSource) {
+  $syncOfflineTool = Join-Path (Split-Path -Parent $root) "tools\update-print-offline-bundle.py"
+  & $Python $syncOfflineTool --directory $offlineSource
+  if ($LASTEXITCODE -ne 0) { throw "同步离线包打印代理失败" }
   $target = Join-Path $root "dist\offline"
   New-Item -ItemType Directory -Path $target -Force | Out-Null
   Copy-Item "$offlineSource\petpaint-offline-*.tgz" $target -Force

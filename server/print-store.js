@@ -30,6 +30,7 @@ function mapDeviceRow(row) {
     reasons: safeJsonParse(row.printer_reasons, []),
     hardwareModel: String(row.hardware_model || ""),
     firmwareVersion: String(row.firmware_version || ""),
+    supportedLayoutModes: safeJsonParse(row.supported_layout_modes, []),
     provisionSource: String(row.provision_source || "legacy"),
     provisionedAt: row.provisioned_at || null,
     lastSeenAt: row.last_seen_at || null,
@@ -47,6 +48,11 @@ function mapJobRow(row) {
     attempt: Number(row.attempt || 0),
     imageUrls: safeJsonParse(row.image_urls, []),
     layoutMode: String(row.layout_mode || "2up"),
+    storeOwnerAccountId: String(row.store_owner_account_id || ""),
+    creatorAccountId: String(row.creator_account_id || ""),
+    metadata: safeJsonParse(row.metadata, {}),
+    copies: Number(row.copies || 1),
+    completedCopies: Number(row.completed_copies || 0),
     errorMessage: String(row.error_message || ""),
     createdAt: row.created_at || null,
     claimedAt: row.claimed_at || null,
@@ -109,6 +115,15 @@ export function createPrintStore({ dbPath }) {
   // 老设备没有制盘记录，统一标记为 legacy；新设备在创建时写入 manual / usb。
   ensureDeviceColumn("provision_source", "TEXT NOT NULL DEFAULT 'legacy'");
   ensureDeviceColumn("provisioned_at", "TEXT");
+  ensureDeviceColumn("supported_layout_modes", "TEXT NOT NULL DEFAULT '[]'");
+  const jobColumns = db.prepare("PRAGMA table_info(print_jobs)").all().map((column) => column.name);
+  for (const [name, definition] of Object.entries({
+    store_owner_account_id: "TEXT NOT NULL DEFAULT ''", creator_account_id: "TEXT NOT NULL DEFAULT ''",
+    metadata: "TEXT NOT NULL DEFAULT '{}'", copies: "INTEGER NOT NULL DEFAULT 1", completed_copies: "INTEGER NOT NULL DEFAULT 0"
+  })) {
+    if (!jobColumns.includes(name)) db.exec(`ALTER TABLE print_jobs ADD COLUMN ${name} ${definition}`);
+  }
+  db.exec("CREATE INDEX IF NOT EXISTS idx_print_jobs_owner ON print_jobs(store_owner_account_id, created_at)");
 
   const readDeviceByDeviceIdStatement = db.prepare("SELECT * FROM print_devices WHERE device_id = ?");
   const readDeviceByTokenStatement = db.prepare("SELECT * FROM print_devices WHERE token_hash = ?");
@@ -227,7 +242,8 @@ export function createPrintStore({ dbPath }) {
     printerState = "unknown",
     reasons = [],
     hardwareModel = "",
-    firmwareVersion = ""
+    firmwareVersion = "",
+    supportedLayoutModes = []
   } = {}) {
     const safeReasons = Array.isArray(reasons) ? reasons.map((item) => String(item || "")).filter(Boolean) : [];
     const now = nowIso();
@@ -236,9 +252,11 @@ export function createPrintStore({ dbPath }) {
       "printer_state = ?",
       "printer_reasons = ?",
       "last_seen_at = ?",
-      "provisioned_at = COALESCE(provisioned_at, ?)"
+      "provisioned_at = COALESCE(provisioned_at, ?)",
+      "supported_layout_modes = ?"
     ];
-    const values = [String(printerState || "unknown"), JSON.stringify(safeReasons), now, now];
+    const modes = Array.isArray(supportedLayoutModes) ? supportedLayoutModes.filter((mode) => mode === "2up" || mode === "custom-sheet-v1") : [];
+    const values = [String(printerState || "unknown"), JSON.stringify(safeReasons), now, now, JSON.stringify(modes)];
     const normalizedModel = String(hardwareModel || "").trim().slice(0, 40);
     const normalizedFirmware = String(firmwareVersion || "").trim().slice(0, 40);
     if (normalizedModel) {
@@ -264,13 +282,14 @@ export function createPrintStore({ dbPath }) {
     imageUrls = [],
     status = "queued",
     errorMessage = "",
-    layoutMode = "2up"
+    layoutMode = "2up",
+    storeOwnerAccountId = "", creatorAccountId = "", metadata = {}, copies = 1
   }) {
     const existing = findPrintJobByOrder(orderId);
     if (existing) return existing;
     const info = db.prepare(`
-      INSERT INTO print_jobs (order_id, device_id, status, image_urls, layout_mode, error_message, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO print_jobs (order_id, device_id, status, image_urls, layout_mode, error_message, created_at, store_owner_account_id, creator_account_id, metadata, copies)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       String(orderId || ""),
       String(deviceId || ""),
@@ -278,7 +297,7 @@ export function createPrintStore({ dbPath }) {
       JSON.stringify(Array.isArray(imageUrls) ? imageUrls : []),
       String(layoutMode || "2up"),
       String(errorMessage || ""),
-      nowIso()
+      nowIso(), String(storeOwnerAccountId), String(creatorAccountId), JSON.stringify(metadata), copies
     );
     return mapJobRow(readJobStatement.get(Number(info.lastInsertRowid)));
   }
@@ -320,12 +339,14 @@ export function createPrintStore({ dbPath }) {
     return { printing: Number(row?.printing || 0), queued: Number(row?.queued || 0) };
   }
 
-  function claimNextJob(deviceId) {
+  function claimNextJob(deviceId, supportedLayoutModes = ["2up"]) {
+    const modes = supportedLayoutModes.filter((mode) => mode === "2up" || mode === "custom-sheet-v1");
+    if (!modes.length) return null;
     const candidate = db.prepare(`
       SELECT id FROM print_jobs
-      WHERE device_id = ? AND status = 'queued'
+      WHERE device_id = ? AND status = 'queued' AND layout_mode IN (${modes.map(() => "?").join(",")})
       ORDER BY id ASC LIMIT 1
-    `).get(String(deviceId || ""));
+    `).get(String(deviceId || ""), ...modes);
     if (!candidate) return null;
     const info = db.prepare(`
       UPDATE print_jobs SET status = 'claimed', claimed_at = ?, attempt = attempt + 1
@@ -344,15 +365,17 @@ export function createPrintStore({ dbPath }) {
     return mapJobRow(readJobStatement.get(Number(jobId)));
   }
 
-  function retryPrintJob(jobId, { deviceId = "" } = {}) {
+  function retryPrintJob(jobId, { deviceId = "", completedCopies } = {}) {
     const job = readPrintJob(jobId);
     if (!job || job.status !== "failed") return job;
     // 失败任务可能是创建时没有设备（device_id 为空），重试时补绑当前设备，否则代理永远领不到。
-    const nextDeviceId = String(job.deviceId || "").trim() || String(deviceId || "").trim();
+    const nextDeviceId = job.layoutMode === "custom-sheet-v1" ? String(deviceId || job.deviceId) : String(job.deviceId || "").trim() || String(deviceId || "").trim();
+    if (job.layoutMode === "custom-sheet-v1" && (!Number.isInteger(completedCopies) || completedCopies < 0 || completedCopies > job.copies)) throw new Error("请核对已出纸份数");
+    const confirmedComplete = job.layoutMode === "custom-sheet-v1" && completedCopies === job.copies;
     db.prepare(`
-      UPDATE print_jobs SET status = 'queued', device_id = ?, error_message = '', claimed_at = NULL, finished_at = NULL
+      UPDATE print_jobs SET status = ?, device_id = ?, completed_copies = ?, error_message = '', claimed_at = NULL, finished_at = ?
       WHERE id = ?
-    `).run(nextDeviceId, Number(jobId));
+    `).run(confirmedComplete ? "printed" : "queued", nextDeviceId, completedCopies ?? job.completedCopies, confirmedComplete ? nowIso() : null, Number(jobId));
     return mapJobRow(readJobStatement.get(Number(jobId)));
   }
 
@@ -360,9 +383,37 @@ export function createPrintStore({ dbPath }) {
     const cutoff = staleBeforeIso || new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const info = db.prepare(`
       UPDATE print_jobs SET status = 'queued', claimed_at = NULL
-      WHERE status = 'claimed' AND claimed_at IS NOT NULL AND claimed_at < ?
+      WHERE status = 'claimed' AND layout_mode <> 'custom-sheet-v1' AND claimed_at IS NOT NULL AND claimed_at < ?
     `).run(cutoff);
     return Number(info.changes || 0);
+  }
+
+  function updateCustomProgress(jobId, completedCopies, attempt) {
+    const job = readPrintJob(jobId);
+    if (!job || job.layoutMode !== "custom-sheet-v1" || job.status !== "claimed" || job.attempt !== attempt || !Number.isInteger(completedCopies) || completedCopies < job.completedCopies || completedCopies > job.copies) return null;
+    db.prepare("UPDATE print_jobs SET completed_copies = ?, claimed_at = ? WHERE id = ? AND status = 'claimed' AND attempt = ?")
+      .run(completedCopies, nowIso(), job.id, attempt);
+    return readPrintJob(job.id);
+  }
+
+  function expireStaleCustomJobs() {
+    return db.prepare(`UPDATE print_jobs SET status = 'failed', error_message = '打印进度中断，请核对实际出纸份数后重试', finished_at = ?
+      WHERE layout_mode = 'custom-sheet-v1' AND status = 'claimed' AND claimed_at < ?`)
+      .run(nowIso(), new Date(Date.now() - 10 * 60 * 1000).toISOString()).changes;
+  }
+
+  function listMerchantTaskReferences({ ownerId, visitorIds = [], paidFrom = "", page = 1, limit = 20 }) {
+    const ownership = visitorIds.length ? `(store_owner_account_id = ? OR visitor_id IN (${visitorIds.map(() => "?").join(",")}))` : "store_owner_account_id = ?";
+    const query = `SELECT 'order' AS kind, id, COALESCE(paid_at, created_at) AS sort_at FROM orders
+      WHERE ${ownership} AND payment_status = 'paid' AND experience_type <> 'body-book' ${paidFrom ? "AND paid_at >= ?" : ""}
+      UNION ALL SELECT 'custom' AS kind, CAST(id AS TEXT) AS id, created_at AS sort_at FROM print_jobs
+      WHERE store_owner_account_id = ? AND layout_mode = 'custom-sheet-v1' ${paidFrom ? "AND created_at >= ?" : ""}`;
+    const params = [ownerId, ...visitorIds, ...(paidFrom ? [paidFrom] : []), ownerId, ...(paidFrom ? [paidFrom] : [])];
+    const total = Number(db.prepare(`SELECT COUNT(*) AS total FROM (${query})`).get(...params).total);
+    const safeLimit = Math.max(1, Math.min(100, Math.trunc(Number(limit) || 20)));
+    const safePage = Math.min(Math.max(1, Math.trunc(Number(page) || 1)), Math.max(1, Math.ceil(total / safeLimit)));
+    const items = db.prepare(`SELECT * FROM (${query}) ORDER BY sort_at DESC, kind, id DESC LIMIT ? OFFSET ?`).all(...params, safeLimit, (safePage - 1) * safeLimit);
+    return { total, page: safePage, limit: safeLimit, items };
   }
 
   return {
@@ -387,6 +438,8 @@ export function createPrintStore({ dbPath }) {
     claimNextJob,
     finishPrintJob,
     retryPrintJob,
-    requeueStaleJobs
+    requeueStaleJobs,
+    updateCustomProgress, expireStaleCustomJobs, listMerchantTaskReferences,
+    close: () => db.close()
   };
 }

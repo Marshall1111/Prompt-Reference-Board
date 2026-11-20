@@ -1,0 +1,110 @@
+// Isolated loopback fixture: never connects to production accounts or printers.
+import assert from "node:assert/strict";
+import path from "node:path";
+import { tmpdir } from "node:os";
+import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import express from "express";
+import multer from "multer";
+import sharp from "sharp";
+import { chromium } from "playwright-core";
+import { createPrintStore } from "../server/print-store.js";
+import { createCustomPrintService } from "../server/custom-print.js";
+
+const projectRoot = fileURLToPath(new URL("../", import.meta.url));
+const root = await mkdtemp(path.join(tmpdir(), "custom-print-browser-"));
+const shots = path.join(tmpdir(), "petpaint-custom-print-screenshots");
+await mkdir(shots, { recursive: true });
+const store = createPrintStore({ dbPath: path.join(root, "orders.sqlite") });
+const { device } = store.createPrintDevice({ storeOwnerAccountId: "test-owner", printerName: "cp1500" });
+store.touchPrintDevice(device.deviceId, { printerState: "idle", supportedLayoutModes: ["custom-sheet-v1"] });
+const app = express(); app.use(express.json());
+const service = createCustomPrintService({ root: path.join(root, "files"), printStore: store,
+  resolveMerchantAccess: async (req) => { req.webAccount = { id: "test-owner" }; return { merchantAccount: req.webAccount, role: "owner" }; },
+  resolveDeviceHealth: () => ({ healthy: true }) });
+service.register(app, multer({ storage: multer.memoryStorage(), limits: { fileSize: 40 * 1024 * 1024 } }));
+app.get("/api/merchant/me", (_req, res) => res.json({ authenticated: true, isMerchant: true, role: "owner", merchant: { accountId: "test-owner", name: "打印测试店" }, settings: {} }));
+app.get("/api/merchant/overview", (_req, res) => res.json({ printer: { connected: true, online: true, customPrintSupported: true }, wallet: { balanceCents: 0, todayIncomeCents: 0, unitPriceCents: 0 } }));
+app.get("/api/merchant/redemption-codes", (_req, res) => res.json({ totalCount: 0, remainingCount: 0, items: [] }));
+let createdJob;
+app.get("/api/merchant/tasks", (_req, res) => {
+  const task = store.findPrintJobByOrder(createdJob?.orderId || "");
+  res.json({ total: task ? 1 : 0, page: 1, limit: 20, items: task ? [service.toTask(task)] : [] });
+});
+app.use(express.static(path.join(projectRoot, "dist")));
+app.use((error, _req, res, _next) => res.status(error.status || 500).json({ message: error.message }));
+app.use((_req, res) => res.sendFile(path.join(projectRoot, "dist", "index.html")));
+const server = app.listen(0, "127.0.0.1"); await new Promise((resolve) => server.once("listening", resolve));
+let browser;
+try {
+  browser = await chromium.launch({ channel: "msedge", headless: true });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  const page = await context.newPage(); const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("response", async (response) => {
+    if (response.url().endsWith("/api/merchant/custom-print/jobs") && response.status() === 201) createdJob = (await response.json()).job;
+  });
+  await page.goto(`http://127.0.0.1:${server.address().port}/merchant`);
+  await page.getByRole("button", { name: "自定义打印", exact: true }).click();
+  const photo = await sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1000"><rect width="750" height="1000" fill="#eb6262"/><rect x="750" width="750" height="1000" fill="#5a90d8"/><circle cx="750" cy="500" r="280" fill="#ffd777"/><path d="M620 500h260M750 370v260" stroke="#ffffff" stroke-width="32"/></svg>')).png().toBuffer();
+  await page.getByLabel("上传打印图片").setInputFiles({ name: "test-photo.png", mimeType: "image/png", buffer: photo });
+  await page.getByRole("heading", { name: "裁切图片" }).waitFor();
+  await page.getByLabel("打印宽度", { exact: true }).fill("40");
+  await page.getByLabel("打印高度", { exact: true }).fill("30");
+  await page.getByRole("button", { name: "确认裁切，加入相纸" }).waitFor({ state: "visible" });
+  const stage = page.locator(".custom-crop-stage"); await stage.scrollIntoViewIfNeeded();
+  const box = await stage.boundingBox(), cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+  const cdp = await context.newCDPSession(page);
+  const touch = (type, points) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: points.map(([id, x, y]) => ({ id, x, y, radiusX: 3, radiusY: 3, force: 1 })) });
+  const originalWidth = await page.locator(".custom-crop-stage > img").evaluate((img) => img.getBoundingClientRect().width);
+  await touch("touchStart", [[1, cx - 30, cy], [2, cx + 30, cy]]);
+  await touch("touchMove", [[1, cx - 55, cy], [2, cx + 55, cy]]);
+  await touch("touchEnd", []);
+  await page.waitForFunction((before) => document.querySelector(".custom-crop-stage > img").getBoundingClientRect().width > before * 1.5, originalWidth);
+  const beforePan = await page.locator(".custom-crop-stage > img").getAttribute("style");
+  await touch("touchStart", [[1, cx, cy]]); await touch("touchMove", [[1, cx + 25, cy + 12]]); await touch("touchEnd", []);
+  await page.waitForFunction((before) => document.querySelector(".custom-crop-stage > img").getAttribute("style") !== before, beforePan);
+  await page.screenshot({ path: path.join(shots, "crop-mobile.png"), fullPage: true });
+  await page.getByRole("button", { name: "确认裁切，加入相纸" }).click();
+  await page.getByRole("button", { name: "图1 · 裁切添加" }).click();
+  await page.getByLabel("打印宽度", { exact: true }).fill("30"); await page.getByLabel("打印高度", { exact: true }).fill("20");
+  await page.getByRole("button", { name: "确认裁切，加入相纸" }).click();
+  assert.equal(await page.locator(".custom-paper [data-item-id]").count(), 2);
+  await page.getByRole("button", { name: "图片1 · 40×30", exact: true }).click();
+  await page.getByLabel("排版旋转角度").fill("30");
+  const sheet = page.locator(".custom-paper"); await sheet.scrollIntoViewIfNeeded();
+  const paperBounds = await sheet.boundingBox();
+  assert.ok(Math.abs(paperBounds.width / paperBounds.height - 100 / 148) < 0.001, "paper must display the physical aspect ratio");
+  const selected = page.locator(".custom-paper [data-item-id]").first();
+  const dimensions = await selected.locator("svg").evaluate((svg) => [svg.getAttribute("width"), svg.getAttribute("height")]);
+  const b = await selected.boundingBox(), px = b.x + b.width / 2, py = b.y + b.height / 2;
+  const beforeRotate = await selected.getAttribute("transform");
+  await touch("touchStart", [[1, px - 20, py], [2, px + 20, py]]);
+  await touch("touchMove", [[1, px - 35, py - 15], [2, px + 35, py + 15]]);
+  await touch("touchEnd", []);
+  assert.deepEqual(await selected.locator("svg").evaluate((svg) => [svg.getAttribute("width"), svg.getAttribute("height")]), dimensions, "pinch on paper must not scale physical dimensions");
+  assert.notEqual(await selected.getAttribute("transform"), beforeRotate, "two fingers rotate the photo");
+  assert.equal(await sheet.locator("line").count(), 8);
+  await page.screenshot({ path: path.join(shots, "layout-mobile.png"), fullPage: true });
+  await page.getByRole("button", { name: "查看打印预览 · 2张图" }).click();
+  await page.getByRole("heading", { name: "确认打印版面" }).waitFor();
+  await page.getByLabel("打印份数", { exact: true }).fill("2");
+  await page.screenshot({ path: path.join(shots, "preview-mobile.png"), fullPage: true });
+  await page.getByRole("button", { name: "提交打印 · 2份" }).click();
+  await page.getByRole("heading", { name: "打印测试店", exact: true }).waitFor();
+  await page.getByText("自定义打印 · 2张图 · 0/2份完成", { exact: true }).waitFor();
+  assert.equal(createdJob.copies, 2); assert.equal(createdJob.metadata.layout.items.length, 2);
+  assert.equal(createdJob.metadata.layout.items[0].widthMm, 40); assert.equal(createdJob.metadata.layout.items[0].heightMm, 30);
+  assert.deepEqual(errors, []);
+  // Desktop uses the same millimetre sheet and numeric rotation controls.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByRole("button", { name: "自定义打印", exact: true }).click();
+  const desktopBounds = await page.locator(".custom-paper").boundingBox();
+  assert.ok(Math.abs(desktopBounds.width / desktopBounds.height - 100 / 148) < 0.001);
+  await page.screenshot({ path: path.join(shots, "editor-desktop.png") });
+  console.log(`PASS: mobile crop pan/pinch, fixed-size rotation, guides, preview, queue and desktop rendering. Screenshots: ${shots}`);
+} finally {
+  await browser?.close();
+  await new Promise((resolve) => { server.close(resolve); server.closeAllConnections(); });
+  store.close(); await rm(root, { recursive: true, force: true });
+}

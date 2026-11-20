@@ -9,6 +9,9 @@
     "server": "node server/index.js",
     "build": "vite build",
     "start": "node server/index.js",
+    "test:custom-print": "node --test tests/custom-print.test.mjs",
+    "test:custom-print:browser": "node tests/custom-print-browser.mjs",
+    "test:custom-print:server": "node tests/custom-print-server.mjs",
     "backfill:thumbnails": "node tools/backfill-image-thumbnails.mjs",
     "backfill:style-previews": "node tools/backfill-style-publication-previews.mjs",
     "backfill:style-sorts": "node tools/backfill-style-publication-sort-orders.mjs"
@@ -26,5 +29,8 @@
     "sharp": "^0.34.2",
     "tencentcloud-sdk-nodejs": "^4.1.271",
     "vite": "^7.2.5"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.65.1"
   }
 }

@@ -106,6 +106,8 @@ python print_agent.py layout a.jpg --save out.jpg
 
 ## 全新设备部署（树莓派 4B / 斐讯 N1）
 
+商户自定义打印使用新增的 `custom-sheet-v1` 模式，直接打印服务端生成的100×148毫米整页版面，保留裁切、位置、角度和浅灰辅助线。需要同时更新 `agent.py`、`print_agent.py`，并配置Postcard纸型与 `print-scaling=none`；详见 [商户自定义打印与升级说明](../docs/商户自定义打印.md)。普通订单仍沿用每页最多四图的自动排版。
+
 > 上门安装、零基础操作请直接看《[现场设备配置手册](../docs/现场设备配置手册.md)》；下面是给开发同学看的简版。
 
 系统刷好（Raspberry Pi OS 或 Armbian，64 位）并联网后，只需要两步：
