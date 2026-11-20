@@ -11774,40 +11774,9 @@ async function createAdminPrintDeviceBatch({ count, labelPrefix, hardwareModel, 
   return payload;
 }
 
-function buildPrintDevicesCsv(devices) {
-  const escape = (value) => {
-    const text = String(value ?? "");
-    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-  };
-  const rows = [
-    ["deviceId", "token", "label", "hardwareModel", "printerName", "provisionSource", "createdAt"],
-    ...devices.map((device) => [
-      device.deviceId,
-      device.token,
-      device.label,
-      device.hardwareModel,
-      device.printerName,
-      device.provisionSource,
-      device.createdAt
-    ])
-  ];
-  return `\uFEFF${rows.map((row) => row.map(escape).join(",")).join("\r\n")}\r\n`;
-}
-
-function downloadPrintDevicesCsv(devices, filename = "print-devices-batch.csv") {
-  const blob = new Blob([buildPrintDevicesCsv(devices)], { type: "text/csv;charset=utf-8" });
-  const objectUrl = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = objectUrl;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
-}
-
-async function exportAdminPrintDevicesCsv() {
-  const response = await fetch("/api/admin/print-devices/export");
+async function exportAdminPrintDevicesCsv({ includeBound = false } = {}) {
+  const query = includeBound ? "?includeBound=1" : "";
+  const response = await fetch(`/api/admin/print-devices/export${query}`);
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
     throw new Error(payload.message || "导出设备 CSV 失败。");
@@ -14231,6 +14200,10 @@ function PrintDeviceAdminPage() {
   const [batchForm, setBatchForm] = useState({ count: 10, labelPrefix: "N1-", hardwareModel: "n1", printerName: "cp1500" });
   const [tokenModal, setTokenModal] = useState(null);
   const [bindSelection, setBindSelection] = useState({});
+  const [editingDeviceId, setEditingDeviceId] = useState("");
+  const [labelDraft, setLabelDraft] = useState("");
+  const [savingLabel, setSavingLabel] = useState(false);
+  const labelEditRef = useRef({ cancel: false, saving: false });
 
   const ownerLabel = (owner) => owner.storeName
     || owner.username
@@ -14276,10 +14249,7 @@ function PrintDeviceAdminPage() {
         printerName: batchForm.printerName.trim()
       });
       const devices = payload.devices || [];
-      if (devices.length) {
-        downloadPrintDevicesCsv(devices, `print-devices-batch-${new Date().toISOString().slice(0, 10)}.csv`);
-      }
-      setNotice(`已创建 ${devices.length} 台设备，CSV 已开始下载。`);
+      setNotice(`已创建 ${devices.length} 台设备。点击「下载 CSV」可导出全部库存设备。`);
       await refresh();
     } catch (nextError) {
       setError(nextError.message || "批量创建设备失败。");
@@ -14291,12 +14261,51 @@ function PrintDeviceAdminPage() {
   async function exportCsv() {
     setBusy(true); setError(""); setNotice("");
     try {
-      const result = await exportAdminPrintDevicesCsv();
+      const result = await exportAdminPrintDevicesCsv({ includeBound: true });
       setNotice(`已导出 ${result.filename}${result.skipped ? `，跳过 ${result.skipped} 台没有令牌的设备` : ""}。`);
     } catch (nextError) {
       setError(nextError.message || "导出设备 CSV 失败。");
     } finally {
       setBusy(false);
+    }
+  }
+
+  function startEditLabel(device) {
+    if (labelEditRef.current.saving) return;
+    labelEditRef.current = { cancel: false, saving: false };
+    setEditingDeviceId(device.deviceId);
+    setLabelDraft(device.label || "");
+  }
+
+  function cancelEditLabel() {
+    setEditingDeviceId("");
+    setLabelDraft("");
+  }
+
+  async function saveLabel(device) {
+    if (labelEditRef.current.cancel || labelEditRef.current.saving) return;
+    const label = labelDraft.trim();
+    if (!label) {
+      setError("设备名称不能为空。");
+      cancelEditLabel();
+      return;
+    }
+    if (label === (device.label || "")) {
+      cancelEditLabel();
+      return;
+    }
+    labelEditRef.current.saving = true;
+    setSavingLabel(true); setError(""); setNotice("");
+    try {
+      await updateAdminPrintDevice(device.deviceId, { label });
+      await refresh();
+      setNotice(`设备名称已改为「${label}」。`);
+      cancelEditLabel();
+    } catch (nextError) {
+      setError(nextError.message || "修改设备名称失败。");
+    } finally {
+      labelEditRef.current.saving = false;
+      setSavingLabel(false);
     }
   }
 
@@ -14371,18 +14380,18 @@ function PrintDeviceAdminPage() {
   const summary = inventory.summary || {};
 
   return <section className="task-page referral-admin-page" aria-label="设备库存">
-    <div className="task-toolbar"><div><p className="eyebrow">Print devices</p><h2>设备库存</h2><p className="storage-note">批量创建设备并导出 CSV 给制盘工具；发货前在这里或商户信息维护里绑定商户。已上线的旧设备也会显示在列表中。</p></div><div className="task-toolbar-actions"><button className="secondary-button" disabled={busy || loading} onClick={refresh} type="button"><RefreshCw size={18} /><span>{loading ? "刷新中" : "刷新"}</span></button><button className="secondary-button" disabled={busy} onClick={exportCsv} type="button"><Download size={18} /><span>导出未绑定 CSV</span></button></div></div>
+    <div className="task-toolbar"><div><p className="eyebrow">Print devices</p><h2>设备库存</h2><p className="storage-note">批量创建设备并导出 CSV 给制盘工具；发货前在这里或商户信息维护里绑定商户。已上线的旧设备也会显示在列表中。</p></div><div className="task-toolbar-actions"><button className="secondary-button" disabled={busy || loading} onClick={refresh} type="button"><RefreshCw size={18} /><span>{loading ? "刷新中" : "刷新"}</span></button></div></div>
     {error ? <p className="error-note">{error}</p> : null}{notice ? <p className="success-note">{notice}</p> : null}
 
     <div className="referral-admin-card">
-      <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Batch</p><h3>批量创建设备</h3><p className="storage-note">设备创建后处于未绑定状态，token 只在创建和导出时可见，请立即导出 CSV 交给制盘工具。</p></div></div>
+      <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Batch</p><h3>批量创建设备</h3><p className="storage-note">「创建」只新增库存设备；「下载 CSV」会导出全部库存设备的令牌（含已绑定设备），请交给制盘工具并妥善保管。</p></div></div>
       <div className="store-profile-grid">
         <label className="field-label">数量<input className="field-inline-input" max={200} min={1} onChange={(event) => setBatchForm((current) => ({ ...current, count: event.target.value }))} type="number" value={batchForm.count} /></label>
         <label className="field-label">备注前缀<input className="field-inline-input" onChange={(event) => setBatchForm((current) => ({ ...current, labelPrefix: event.target.value }))} placeholder="N1-" value={batchForm.labelPrefix} /></label>
         <label className="field-label">硬件型号<input className="field-inline-input" onChange={(event) => setBatchForm((current) => ({ ...current, hardwareModel: event.target.value }))} placeholder="n1 / rpi" value={batchForm.hardwareModel} /></label>
         <label className="field-label">CUPS 队列名<input className="field-inline-input" onChange={(event) => setBatchForm((current) => ({ ...current, printerName: event.target.value }))} placeholder="cp1500" value={batchForm.printerName} /></label>
       </div>
-      <div className="merchant-modal-actions"><button className="maintenance-button" disabled={busy} onClick={createBatch} type="button">创建并下载 CSV</button></div>
+      <div className="merchant-modal-actions"><button className="maintenance-button" disabled={busy} onClick={createBatch} type="button">创建</button><button className="secondary-button" disabled={busy} onClick={exportCsv} type="button"><Download size={18} /><span>下载 CSV</span></button></div>
     </div>
 
     <div className="task-filters">
@@ -14398,14 +14407,14 @@ function PrintDeviceAdminPage() {
         <thead><tr><th>设备</th><th>型号 / 来源</th><th>绑定商户</th><th>状态</th><th>最后心跳</th><th /></tr></thead>
         <tbody>
           {devices.map((device) => <tr key={device.deviceId}>
-            <td><div className="user-admin-identity"><strong>{device.label || device.deviceId}</strong><span>{device.deviceId}</span></div></td>
+            <td><div className="user-admin-identity">{editingDeviceId === device.deviceId ? <input autoFocus className="field-inline-input" maxLength={40} onBlur={() => { void saveLabel(device); }} onChange={(event) => setLabelDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } else if (event.key === "Escape") { event.preventDefault(); labelEditRef.current.cancel = true; cancelEditLabel(); } }} value={labelDraft} /> : <div className="device-label-name"><strong>{device.label || device.deviceId}</strong><button aria-label="修改设备名称" className="icon-button device-label-edit" disabled={savingLabel} onClick={() => startEditLabel(device)} title="修改设备名称" type="button"><Pencil size={14} /></button></div>}<span>{device.deviceId}</span></div></td>
             <td><div className="user-admin-identity"><strong>{device.hardwareModel || "未上报"}</strong><span>{sourceLabel(device)} · 固件 {device.firmwareVersion || "未上报"}</span></div></td>
             <td>{device.storeOwnerAccountId != null ? <div className="user-admin-identity"><strong>{device.storeOwnerName || "已绑定"}</strong><span>{device.storeOwnerWechatId || device.storeOwnerUsername || `#${String(device.storeOwnerAccountId).slice(-8)}`}</span></div> : <div className="store-owner-wechat-value"><select className="field-inline-input" onChange={(event) => setBindSelection((current) => ({ ...current, [device.deviceId]: event.target.value }))} value={bindSelection[device.deviceId] || ""}><option value="">选择商户</option>{storeOwners.map((owner) => <option key={owner.id} value={owner.id}>{ownerLabel(owner)}</option>)}</select><button className="secondary-button" disabled={busy || !bindSelection[device.deviceId]} onClick={() => bindDevice(device)} type="button">绑定</button></div>}</td>
             <td><span className={`merchant-badge ${device.healthy ? "is-online" : "is-offline"}`}>{statusLabel(device)}</span></td>
             <td>{device.lastSeenAt ? formatDateTime(device.lastSeenAt) : "从未上报"}</td>
             <td><div className="store-owner-wechat-value"><button className="secondary-button" disabled={busy} onClick={() => showToken(device)} type="button">查看令牌</button>{device.storeOwnerAccountId != null ? <button className="danger-button" disabled={busy} onClick={() => unbindDevice(device)} type="button">解绑</button> : device.lastSeenAt ? null : <button className="danger-button" disabled={busy} onClick={() => deleteDevice(device)} type="button">删除</button>}</div></td>
           </tr>)}
-          {!devices.length ? <tr><td colSpan="6" className="order-table-empty">{loading ? "正在读取设备库存…" : "暂无设备。先在上方批量创建，或导出历史未绑定设备。"}</td></tr> : null}
+          {!devices.length ? <tr><td colSpan="6" className="order-table-empty">{loading ? "正在读取设备库存…" : "暂无设备。先在上方批量创建，再下载 CSV。"}</td></tr> : null}
         </tbody>
       </table>
     </div>

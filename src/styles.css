@@ -6697,6 +6697,31 @@ h2 {
   color: #60706d;
 }
 
+.device-label-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.device-label-name strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.device-label-name .device-label-edit {
+  flex: none;
+  width: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 6px;
+  color: #60706d;
+}
+
 .user-admin-number,
 .user-admin-date {
   white-space: nowrap;
