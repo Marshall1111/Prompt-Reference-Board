@@ -20,12 +20,16 @@ import time
 import urllib.request
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 # ---------- 基础参数 ----------
 DPI = 300
 GUIDE_COLOR = (190, 190, 190)   # 裁切辅助线的浅灰色
 GUIDE_WIDTH_PX = 2
+# 输出锐化：缩放和直发打印都会让画面发软，佳能自带软件默认做了类似的清晰度增强
+SHARPEN_RADIUS = 0.8
+SHARPEN_PERCENT = 70
+SHARPEN_THRESHOLD = 3
 
 # 默认版面参数（4x6 纸 + 50x74 成品），实际以 config.json 的 profile 段为准
 DEFAULT_PROFILE = {
@@ -402,10 +406,21 @@ def wait_job(cfg: dict, job_id: int, timeout: float = 120.0) -> int:
 
 
 # ---------- CLI ----------
+def sharpen_output(img: Image.Image) -> Image.Image:
+    """打印前按成品分辨率做一次轻量输出锐化，抵消缩放和直发打印的软化。"""
+    return img.filter(
+        ImageFilter.UnsharpMask(
+            radius=SHARPEN_RADIUS, percent=SHARPEN_PERCENT, threshold=SHARPEN_THRESHOLD
+        )
+    )
+
+
 def save_and_print(img: Image.Image, cfg: dict, save: str | None, name: str) -> None:
     out = Path(save) if save else BASE_DIR / f"{name}.jpg"
     img = apply_compensation(img, cfg)
-    img.save(out, "JPEG", quality=96, dpi=(DPI, DPI))
+    img = sharpen_output(img)
+    # 4:2:0 会把色度分辨率减半，彩色边缘容易发虚，打印件统一按 4:4:4 存
+    img.save(out, "JPEG", quality=96, subsampling=0, dpi=(DPI, DPI))
     print(f"已生成: {out}  ({img.width}x{img.height}px)")
     if save:
         return
