@@ -14,14 +14,15 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
 import time
 import urllib.error
 import urllib.request
-from print_agent import custom_paper_origin
 from pathlib import Path
+from print_agent import _attr, _parse_attrs, custom_paper_origin
 
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "agent.json"
@@ -41,15 +42,27 @@ DEFAULT_CONFIG = {
     "poll_interval_sec": 8,
     # CUPS 队列清空后，热升华打印机还要继续出纸的时长（秒/张），用于避免提前报“已打印”。
     "print_seconds_per_sheet": 50,
+    # CUPS 因缺纸等故障停止队列后不会自己恢复，代理检测到停止时按间隔尝试重新启用。
+    "auto_recover_queue": True,
+    "queue_recover_interval_sec": 180,
 }
 
-# 打印机状态关键字 → 服务端识别的 CUPS reason 标记
+# 打印机状态关键字 → 服务端识别的 CUPS reason 标记（lpstat 回退路径使用）
 REASON_RULES = [
     (("media-empty", "media empty", "out of paper", "缺纸"), "media-empty-error"),
     (("media-jam", "jam", "卡纸"), "media-jam-error"),
     (("cover-open", "cover open", "机盖"), "cover-open-error"),
     (("offline", "离线"), "offline-report"),
 ]
+
+# CUPS 的 printer-state 枚举值与代理上报用的状态名。
+CUPS_IPP_STATE = {3: "idle", 4: "processing", 5: "stopped"}
+
+# CUPS 里个别原因名称与服务端标记不同，统一成服务端认识的写法。
+REASON_ALIASES = {
+    "media-needed-error": "media-empty-error",
+    "media-needed-warning": "media-empty-warning",
+}
 
 
 def log(message: str) -> None:
@@ -113,7 +126,7 @@ def printer_connected(cfg: dict) -> bool:
     return False
 
 
-def query_printer(cfg: dict) -> tuple[str, list[str]]:
+def lpstat_printer_status(cfg: dict) -> tuple[str, list[str]]:
     queue = cfg["printer_name"]
     try:
         brief = run(["lpstat", "-p", queue]).stdout.lower()
@@ -135,9 +148,83 @@ def query_printer(cfg: dict) -> tuple[str, list[str]]:
     for keywords, reason in REASON_RULES:
         if any(keyword in haystack for keyword in keywords) and reason not in reasons:
             reasons.append(reason)
+    return state, reasons
+
+
+def cups_printer_status(cfg: dict) -> tuple[str, list[str]] | None:
+    """从本机 CUPS 的 IPP 接口读取真实状态与原因。
+
+    lpstat 的文本输出不带 printer-state-reasons，缺纸时队列往往仍是 now printing，
+    只有 IPP 的 printer-state-reasons 能稳定反映 media-empty / media-jam 等故障。
+    """
+    queue = cfg["printer_name"]
+    printer_uri = f"ipp://localhost:631/printers/{queue}"
+    body = b"\x01\x01" + struct.pack(">H", 0x000B) + struct.pack(">I", 1) + b"\x01"
+    body += _attr(0x47, "attributes-charset", b"utf-8")
+    body += _attr(0x48, "attributes-natural-language", b"zh-cn")
+    body += _attr(0x45, "printer-uri", printer_uri.encode())
+    body += _attr(0x44, "requested-attributes", b"printer-state")
+    body += _attr(0x44, "requested-attributes", b"printer-state-reasons")
+    body += _attr(0x44, "requested-attributes", b"printer-is-accepting-jobs")
+    body += b"\x03"
+    req = urllib.request.Request(
+        f"http://localhost:631/printers/{queue}", data=body, headers={"Content-Type": "application/ipp"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = resp.read()
+    except OSError:
+        return None
+    if len(data) < 8 or int.from_bytes(data[2:4], "big") >= 0x0400:
+        return None
+
+    state = ""
+    reasons: list[str] = []
+    for tag, name, value in _parse_attrs(data):
+        if name == "printer-state" and tag in (0x21, 0x23):
+            state = CUPS_IPP_STATE.get(int.from_bytes(value, "big"), "")
+        elif name == "printer-state-reasons":
+            reason = value.decode("utf-8", "replace").strip()
+            if reason and reason != "none":
+                reasons.append(REASON_ALIASES.get(reason, reason))
+    if not state:
+        return None
+    return state, reasons
+
+
+def query_printer(cfg: dict) -> tuple[str, list[str]]:
+    result = cups_printer_status(cfg)
+    state, reasons = result if result else lpstat_printer_status(cfg)
     if not printer_connected(cfg):
         reasons.append("printer-disconnected")
-    return state, reasons
+    return state, list(dict.fromkeys(reasons))
+
+
+_queue_recovery_at = 0.0
+
+
+def maybe_recover_queue(cfg: dict, state: str) -> bool:
+    """CUPS 因报错停队列后不会自动恢复，故障排除后由代理重新启用。"""
+    global _queue_recovery_at
+    if not cfg.get("auto_recover_queue", True):
+        return False
+    if state != "stopped":
+        _queue_recovery_at = 0.0
+        return False
+    if not printer_connected(cfg):
+        return False
+    interval = float(cfg.get("queue_recover_interval_sec") or 180)
+    if time.time() - _queue_recovery_at < interval:
+        return False
+    _queue_recovery_at = time.time()
+    queue = cfg["printer_name"]
+    enable = run(["cupsenable", queue])
+    run(["cupsaccept", queue])
+    if enable.returncode == 0:
+        log(f"打印机队列 {queue} 已重新启用")
+        return True
+    log(f"打印机队列 {queue} 自动恢复失败：{(enable.stderr or enable.stdout).strip()}")
+    return False
 
 
 def submit_to_cups(cfg: dict, jpeg: Path) -> str:
@@ -153,7 +240,8 @@ def submit_to_cups(cfg: dict, jpeg: Path) -> str:
 
 def send_heartbeat_quietly(cfg: dict) -> None:
     try:
-        heartbeat(cfg)
+        # 出纸等待期间不做队列恢复，避免把正在等待的任务重新拉起。
+        heartbeat(cfg, allow_recovery=False)
     except Exception:  # noqa: BLE001 - 心跳失败不能影响出纸
         pass
 
@@ -175,6 +263,9 @@ def wait_cups_job(cfg: dict, job_id: str, timeout: float | None = None) -> None:
             break
         time.sleep(2)
     else:
+        # 超时后取消队列里的残留任务，避免补纸后把已判定失败的任务又打出来。
+        if job_id:
+            run(["cancel", job_id])
         raise RuntimeError("打印任务超时未完成，请检查打印机。")
 
     tail_end = time.time() + min(tail, max(0.0, deadline - time.time()))
@@ -268,8 +359,10 @@ def handle_job(cfg: dict, job: dict) -> None:
         shutil.rmtree(workdir, ignore_errors=True)
 
 
-def heartbeat(cfg: dict) -> None:
+def heartbeat(cfg: dict, allow_recovery: bool = True) -> None:
     state, reasons = query_printer(cfg)
+    if allow_recovery and maybe_recover_queue(cfg, state):
+        state, reasons = query_printer(cfg)
     request(cfg, "POST", "/api/print-agent/heartbeat", {"printerState": state, "reasons": reasons, "supportedLayoutModes": supported_layout_modes(cfg), "firmwareVersion": "custom-sheet-v1"})
 
 

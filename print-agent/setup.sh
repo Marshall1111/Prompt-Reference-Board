@@ -124,6 +124,11 @@ lpadmin -p "$QUEUE_NAME" -o PageSize=Postcard -o StpBorderless=True
 cupsenable "$QUEUE_NAME"
 cupsaccept "$QUEUE_NAME"
 
+# 打印代理在故障排除后需要用 cupsenable 自动恢复队列，cupsenable 要求 lpadmin 组权限。
+if getent group lpadmin >/dev/null 2>&1; then
+  usermod -aG lpadmin "$RUN_USER" || true
+fi
+
 log "安装 print-agent"
 chmod +x "$AGENT_DIR/agent.py" "$AGENT_DIR/print_agent.py"
 sed -e "s#^User=.*#User=${RUN_USER}#" \

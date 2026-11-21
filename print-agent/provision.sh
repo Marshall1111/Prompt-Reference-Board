@@ -164,6 +164,11 @@ else
   echo "队列已创建：$QUEUE_NAME -> $USB_URI"
 fi
 
+# 打印代理在故障排除后需要用 cupsenable 自动恢复队列，cupsenable 要求 lpadmin 组权限。
+if getent group lpadmin >/dev/null 2>&1; then
+  usermod -aG lpadmin "$RUN_USER" || true
+fi
+
 # ---------------------------------------------------------------- 7. WiFi
 if [ "$SKIP_WIFI" = "1" ]; then
   log "跳过 WiFi 配置"

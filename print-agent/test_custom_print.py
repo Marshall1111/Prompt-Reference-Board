@@ -1,4 +1,6 @@
 import json
+import struct
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -58,6 +60,45 @@ class CustomPrintTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 agent.print_custom_job(cfg, job, [Path("sheet.png")], Path(directory))
             self.assertEqual(submit.call_count, 1)
+
+    def test_query_printer_reads_cups_ipp_reasons(self):
+        body = (
+            b"\x01\x01\x00\x00\x00\x00\x00\x01"
+            + b"\x04"
+            + agent._attr(0x23, "printer-state", struct.pack(">i", 5))
+            + agent._attr(0x44, "printer-state-reasons", b"media-empty-error")
+            + b"\x03"
+        )
+
+        class FakeResponse:
+            def __init__(self, data):
+                self.data = data
+
+            def read(self):
+                return self.data
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        with patch.object(agent.urllib.request, "urlopen", return_value=FakeResponse(body)), patch.object(agent, "printer_connected", return_value=True):
+            self.assertEqual(agent.query_printer({"printer_name": "cp1500"}), ("stopped", ["media-empty-error"]))
+
+    def test_stopped_queue_recovers_after_cooldown(self):
+        calls = []
+
+        def fake_run(cmd, timeout=30):
+            calls.append(cmd)
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        cfg = {"printer_name": "cp1500", "auto_recover_queue": True, "queue_recover_interval_sec": 180}
+        with patch.object(agent, "printer_connected", return_value=True), patch.object(agent, "run", side_effect=fake_run):
+            agent._queue_recovery_at = 0
+            self.assertTrue(agent.maybe_recover_queue(cfg, "stopped"))
+            self.assertFalse(agent.maybe_recover_queue(cfg, "stopped"))
+        self.assertEqual(calls[0], ["cupsenable", "cp1500"])
 
 
 if __name__ == "__main__":
