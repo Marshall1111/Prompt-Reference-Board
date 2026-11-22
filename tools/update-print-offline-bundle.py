@@ -30,7 +30,7 @@ def update_archive(archive: Path) -> None:
     try:
         with tarfile.open(archive, "r:gz") as original, tarfile.open(temporary, "w:gz", compresslevel=6) as updated:
             for member in original:
-                name = member.name.removeprefix("./")
+                name = member.name[2:] if member.name.startswith("./") else member.name
                 if name in REPLACEMENTS:
                     data = REPLACEMENTS[name].read_bytes()
                     # Bash scripts shipped from Windows must use LF line endings.
@@ -46,7 +46,7 @@ def update_archive(archive: Path) -> None:
         # Verify every replaced file before atomically replacing the old archive.
         with tarfile.open(temporary, "r:gz") as check:
             for name, source in REPLACEMENTS.items():
-                member = next(m for m in check.getmembers() if m.name.removeprefix("./") == name)
+                member = next(m for m in check.getmembers() if (m.name[2:] if m.name.startswith("./") else m.name) == name)
                 expected = source.read_bytes()
                 if name.endswith(".sh"):
                     expected = expected.replace(b"\r\n", b"\n")

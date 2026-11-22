@@ -2,4 +2,5 @@ __pycache__/
 *.jpg
 *.png
 agent.json
-offline/
+offline/*
+!offline/*.tgz
