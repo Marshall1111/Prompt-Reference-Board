@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import csv
-import glob
 import json
 import os
 import sys
@@ -12,7 +11,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
 
-from core import Box, BoxError, local_ipv4, scan_ssh, subnet_prefix
+from core import Box, BoxError, find_offline_package, local_ipv4, scan_ssh, subnet_prefix
 
 APP_TITLE = "小画家盒子配置工具"
 DEFAULT_SERVER = "https://www.petpaint.top"
@@ -39,24 +38,6 @@ def save_name_cache(cache: dict[str, str]) -> None:
             json.dump(cache, fh, ensure_ascii=False, indent=2)
     except OSError:
         pass
-
-
-def app_dir() -> str:
-    if getattr(sys, "frozen", False):
-        return os.path.dirname(sys.executable)
-    return os.path.dirname(os.path.abspath(__file__))
-
-
-def find_offline_package() -> str:
-    roots = [
-        os.path.join(app_dir(), "offline"),
-        os.path.join(os.path.dirname(app_dir()), "print-agent", "offline"),
-    ]
-    for root in roots:
-        matches = sorted(glob.glob(os.path.join(root, "petpaint-offline-*.tgz")))
-        if matches:
-            return matches[-1]
-    return ""
 
 
 class App(tk.Tk):
@@ -682,4 +663,15 @@ class App(tk.Tk):
 
 
 if __name__ == "__main__":
-    App().mainloop()
+    import argparse
+
+    parser = argparse.ArgumentParser(description=APP_TITLE)
+    parser.add_argument("--bridge", action="store_true", help="只启动本地桥接服务，供 petpaint.top 后台调用")
+    parser.add_argument("--port", type=int, default=8791, help="桥接服务端口，默认 8791")
+    args = parser.parse_args()
+    if args.bridge:
+        from bridge import serve
+
+        serve(args.port)
+    else:
+        App().mainloop()

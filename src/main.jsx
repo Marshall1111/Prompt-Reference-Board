@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCallback } from "react";
-import { Activity, AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, Clipboard, Cpu, Download, Eye, GripVertical, HardDrive, Home, Image as ImageIcon, ImageUp, Layers3, ListTodo, LoaderCircle, MemoryStick, Pencil, Plus, QrCode, RefreshCw, Save, Search, Server, Settings, Share2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Wifi, X, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, Clipboard, Cpu, Download, Eye, GripVertical, HardDrive, Home, Image as ImageIcon, ImageUp, Layers3, ListTodo, LoaderCircle, MemoryStick, Pencil, Plus, QrCode, RefreshCw, Save, Search, Server, Settings, Share2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Video, Wifi, X, XCircle } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import HTMLFlipBook from "react-pageflip";
 import { createLabeledQrPngDataUrl, createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
 import "./styles.css";
 import CustomPrintEditor from "./CustomPrintEditor.jsx";
+import AdminVideoWorkshopPage from "./AdminVideoWorkshopPage.jsx";
+import PrintDeviceProvisionDialog from "./PrintDeviceProvisionDialog.jsx";
 
 const DEFAULT_CONTACT_WECHAT_ID = "PetPaint";
 const DEFAULT_ORDER_ADDRESS = {
@@ -324,6 +326,7 @@ function readRoute() {
   if (pathname === "/admin/merchants") return "admin-referrals";
   if (pathname === "/admin/store-owners") return "admin-store-owners";
   if (pathname === "/admin/print-devices") return "admin-print-devices";
+  if (pathname === "/admin/video-workshop") return "admin-video-workshop";
   if (pathname === "/admin/referrals") return "admin-referrals";
   if (pathname === "/admin/styles") return "admin-gallery";
   if (pathname === "/admin/style-publications") return "admin-style-publications";
@@ -540,6 +543,7 @@ function App() {
       "admin-referrals": "推荐管理",
       "admin-store-owners": "商户管理",
       "admin-print-devices": "设备库存",
+      "admin-video-workshop": "视频工坊",
       "admin-visits": "访问记录",
       "admin-user-clip": "图片资产",
       "public-style-picker": "风格选择",
@@ -573,6 +577,7 @@ function App() {
       "admin-referrals": "/admin/referrals",
       "admin-store-owners": "/admin/store-owners",
       "admin-print-devices": "/admin/print-devices",
+      "admin-video-workshop": "/admin/video-workshop",
       "admin-tasks": "/admin/tasks",
       "admin-batch": "/admin/batch",
       "admin-invites": "/admin/invites",
@@ -1940,6 +1945,10 @@ function AdminApp({ navigate, route }) {
               <Cpu size={18} />
               <span>设备库存</span>
             </button>
+            <button aria-current={route === "admin-video-workshop" ? "page" : undefined} className={`nav-button ${route === "admin-video-workshop" ? "is-active" : ""}`} onClick={() => navigate("admin-video-workshop")} type="button">
+              <Video size={18} />
+              <span>视频工坊</span>
+            </button>
             <button aria-current={route === "admin-batch" ? "page" : undefined} className={`nav-button ${route === "admin-batch" ? "is-active" : ""}`} onClick={() => navigate("admin-batch")} type="button">
               <Layers3 size={18} />
               <span>批量生成</span>
@@ -2010,6 +2019,8 @@ function AdminApp({ navigate, route }) {
           <StoreOwnerAdminPage />
         ) : route === "admin-print-devices" ? (
           <PrintDeviceAdminPage />
+        ) : route === "admin-video-workshop" ? (
+          <AdminVideoWorkshopPage />
         ) : route === "admin-users" ? (
           <UserAdminPage onOpenClip={openUserClip} />
         ) : route === "admin-visits" ? (
@@ -14163,7 +14174,7 @@ function StoreOwnerAdminPage() {
             <div className="store-profile-grid">
               <label className="field-label">设备备注<input className="field-inline-input" onChange={(event) => setDeviceDraft((current) => ({ ...current, label: event.target.value }))} placeholder="例如：前台树莓派" value={deviceDraft.label} /></label>
               <label className="field-label">CUPS 队列名<input className="field-inline-input" onChange={(event) => setDeviceDraft((current) => ({ ...current, printerName: event.target.value }))} placeholder="cp1500" value={deviceDraft.printerName} /></label>
-              <div className="field-label">设备型号<strong>{profile.device.hardwareModel || "未上报"}</strong><span className="storage-note">来源：{profile.device.provisionSource === "usb" ? "U 盘制盘" : profile.device.provisionSource === "manual" ? "手工配置" : "旧设备"}</span></div>
+              <div className="field-label">设备型号<strong>{profile.device.hardwareModel || "未上报"}</strong><span className="storage-note">来源：{profile.device.provisionSource === "web" ? "网页配置" : profile.device.provisionSource === "usb" ? "U 盘制盘" : profile.device.provisionSource === "manual" ? "手工配置" : "旧设备"}</span></div>
               <div className="field-label">固件版本<strong>{profile.device.firmwareVersion || "未上报"}</strong></div>
               <div className="field-label">设备状态<span className={`merchant-badge ${profile.device.healthy ? "is-online" : "is-offline"}`}>{profile.device.healthy ? "在线" : profile.device.lastSeenAt ? "离线 / 异常" : "未激活"}</span><span className="storage-note">ID：{profile.device.deviceId}</span><span className="storage-note">最后心跳：{profile.device.lastSeenAt ? formatDateTime(profile.device.lastSeenAt) : "从未上报"}</span></div>
             </div>
@@ -14199,6 +14210,7 @@ function PrintDeviceAdminPage() {
   const [search, setSearch] = useState("");
   const [batchForm, setBatchForm] = useState({ count: 10, labelPrefix: "N1-", hardwareModel: "n1", printerName: "cp1500" });
   const [tokenModal, setTokenModal] = useState(null);
+  const [provisionDevice, setProvisionDevice] = useState(null);
   const [bindSelection, setBindSelection] = useState({});
   const [editingDeviceId, setEditingDeviceId] = useState("");
   const [labelDraft, setLabelDraft] = useState("");
@@ -14211,7 +14223,7 @@ function PrintDeviceAdminPage() {
     || owner.storeWechatId
     || String(owner.id);
   const statusLabel = (device) => (device.healthy ? "在线" : device.lastSeenAt ? "离线" : "未激活");
-  const sourceLabel = (device) => (device.provisionSource === "usb" ? "U 盘制盘" : device.provisionSource === "manual" ? "手工配置" : "旧设备");
+  const sourceLabel = (device) => (device.provisionSource === "web" ? "网页配置" : device.provisionSource === "usb" ? "U 盘制盘" : device.provisionSource === "manual" ? "手工配置" : "旧设备");
 
   async function refresh() {
     setLoading(true);
@@ -14412,12 +14424,18 @@ function PrintDeviceAdminPage() {
             <td>{device.storeOwnerAccountId != null ? <div className="user-admin-identity"><strong>{device.storeOwnerName || "已绑定"}</strong><span>{device.storeOwnerWechatId || device.storeOwnerUsername || `#${String(device.storeOwnerAccountId).slice(-8)}`}</span></div> : <div className="store-owner-wechat-value"><select className="field-inline-input" onChange={(event) => setBindSelection((current) => ({ ...current, [device.deviceId]: event.target.value }))} value={bindSelection[device.deviceId] || ""}><option value="">选择商户</option>{storeOwners.map((owner) => <option key={owner.id} value={owner.id}>{ownerLabel(owner)}</option>)}</select><button className="secondary-button" disabled={busy || !bindSelection[device.deviceId]} onClick={() => bindDevice(device)} type="button">绑定</button></div>}</td>
             <td><span className={`merchant-badge ${device.healthy ? "is-online" : "is-offline"}`}>{statusLabel(device)}</span></td>
             <td>{device.lastSeenAt ? formatDateTime(device.lastSeenAt) : "从未上报"}</td>
-            <td><div className="store-owner-wechat-value"><button className="secondary-button" disabled={busy} onClick={() => showToken(device)} type="button">查看令牌</button>{device.storeOwnerAccountId != null ? <button className="danger-button" disabled={busy} onClick={() => unbindDevice(device)} type="button">解绑</button> : device.lastSeenAt ? null : <button className="danger-button" disabled={busy} onClick={() => deleteDevice(device)} type="button">删除</button>}</div></td>
+            <td><div className="store-owner-wechat-value"><button className="secondary-button" disabled={busy} onClick={() => setProvisionDevice(device)} type="button">配置</button><button className="secondary-button" disabled={busy} onClick={() => showToken(device)} type="button">查看令牌</button>{device.storeOwnerAccountId != null ? <button className="danger-button" disabled={busy} onClick={() => unbindDevice(device)} type="button">解绑</button> : device.lastSeenAt ? null : <button className="danger-button" disabled={busy} onClick={() => deleteDevice(device)} type="button">删除</button>}</div></td>
           </tr>)}
           {!devices.length ? <tr><td colSpan="6" className="order-table-empty">{loading ? "正在读取设备库存…" : "暂无设备。先在上方批量创建，再下载 CSV。"}</td></tr> : null}
         </tbody>
       </table>
     </div>
+
+    {provisionDevice ? <PrintDeviceProvisionDialog
+      device={provisionDevice}
+      onClose={() => setProvisionDevice(null)}
+      onProvisioned={refresh}
+    /> : null}
 
     {tokenModal ? <div className="referral-withdrawal-backdrop" role="presentation" onClick={() => setTokenModal(null)}>
       <div className="referral-withdrawal-modal store-profile-modal" onClick={(event) => event.stopPropagation()}>

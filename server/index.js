@@ -12,6 +12,7 @@ import { createOrderStore } from "./order-store.js";
 import { createMerchantStore } from "./merchant-store.js";
 import { createCommerceStore } from "./commerce-store.js";
 import { createPrintStore } from "./print-store.js";
+import { createVideoWorkshop } from "./video-workshop.js";
 import { createCustomPrintService } from "./custom-print.js";
 import { CUSTOM_LAYOUT_MODE } from "../shared/custom-print-geometry.js";
 import { PUBLIC_PREVIEW_WATERMARK_LABEL } from "./watermark-label.js";
@@ -436,6 +437,26 @@ const ipRequestLog = new Map();
 const orderStore = createOrderStore({ dbPath: orderDbPath });
 const commerceStore = createCommerceStore({ dbPath: orderDbPath });
 const printStore = createPrintStore({ dbPath: orderDbPath });
+// 优先显式配置，其次使用随 npm 安装的 ffmpeg-static，最后回退系统 PATH。
+async function resolveVideoFfmpegPath() {
+  const configured = String(process.env.FFMPEG_PATH || "").trim();
+  if (configured) return configured;
+  try {
+    const ffmpegStatic = await import("ffmpeg-static");
+    const binary = ffmpegStatic?.default || ffmpegStatic;
+    if (typeof binary === "string" && binary) return binary;
+  } catch {
+    // 未安装 ffmpeg-static，继续使用系统 ffmpeg。
+  }
+  return "ffmpeg";
+}
+
+const videoWorkshop = createVideoWorkshop({
+  rootDir,
+  dataRoot: path.join(rootDir, "data", "private-video-workshop"),
+  ffmpegPath: await resolveVideoFfmpegPath()
+});
+await videoWorkshop.init();
 setInterval(() => {
   try {
     printStore.requeueStaleJobs();
@@ -457,6 +478,13 @@ const upload = multer({
     const allowed = new Set(["image/jpeg", "image/png", "image/webp", "image/svg+xml"]);
     const ok = allowed.has(file.mimetype);
     cb(ok ? null : new Error("UNSUPPORTED_IMAGE_TYPE"), ok);
+  }
+});
+const audioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    cb(null, true);
   }
 });
 const activeImageJobs = new Map();
@@ -1024,6 +1052,7 @@ function sampleWeightedStyles(styles, count) {
 const jsonBodyParser = express.json({ limit: "1mb" });
 app.use((req, res, next) => {
   if (req.path === "/api/payments/wechat/notify") return next();
+  if (req.path === "/api/admin/video-workshop/jobs" && req.method === "POST") return next();
   return jsonBodyParser(req, res, next);
 });
 app.use(visitorSessionMiddleware);
@@ -4923,6 +4952,300 @@ app.get("/api/admin/store-owner-invites", requireAdmin, (_req, res, next) => {
       inviteCode: commerceStore.getOrCreateReferralLink(account.id)?.token || ""
     }));
     res.json({ storeOwners });
+  } catch (error) {
+    next(error);
+  }
+});
+
+function normalizeVideoWorkshopParams(input = {}) {
+  const even = (value, fallback, min, max) => {
+    let next = Math.trunc(Number(value));
+    if (!Number.isFinite(next)) next = fallback;
+    next = Math.max(min, Math.min(max, next));
+    return next % 2 === 0 ? next : next + 1;
+  };
+  const numeric = (value, fallback, min, max) => {
+    let next = Number(value);
+    if (!Number.isFinite(next)) next = fallback;
+    return Math.max(min, Math.min(max, next));
+  };
+  return {
+    framesPer: even(input.framesPer, 24, 2, 240),
+    endFrames: even(input.endFrames, 62, 2, 600),
+    zoom: numeric(input.zoom, 0.04, 0, 0.3),
+    width: even(input.width, 1080, 360, 2160),
+    height: even(input.height, 1620, 360, 2160)
+  };
+}
+
+async function resolveOfflineBundleFile() {
+  const offlineDir = process.env.PETPAINT_OFFLINE_DIR
+    ? path.resolve(process.env.PETPAINT_OFFLINE_DIR)
+    : path.join(rootDir, "provisioner", "dist", "offline");
+  let entries = [];
+  try {
+    entries = await readdir(offlineDir, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+  const candidates = entries
+    .filter((entry) => entry.isFile() && entry.name.startsWith("petpaint-offline-") && entry.name.endsWith(".tgz"))
+    .map((entry) => entry.name)
+    .sort();
+  if (!candidates.length) return null;
+  const fileName = candidates[candidates.length - 1];
+  const filePath = path.join(offlineDir, fileName);
+  const info = await stat(filePath);
+  return { fileName, filePath, size: info.size, updatedAt: info.mtime.toISOString() };
+}
+
+app.post("/api/admin/video-workshop/jobs", requireAdmin, express.json({ limit: "8mb" }), async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const rawJobs = Array.isArray(body.jobs) ? body.jobs : [];
+    if (rawJobs.length !== 6) throw createHttpError(400, "请选择 6 个任务后再生成。");
+    const jobIds = rawJobs.map((item) => String(item?.jobId || "").trim());
+    if (jobIds.some((jobId) => !jobId) || new Set(jobIds).size !== 6) {
+      throw createHttpError(400, "任务列表无效，请重新选择。");
+    }
+
+    const pairs = [];
+    for (let index = 0; index < jobIds.length; index += 1) {
+      const jobId = jobIds[index];
+      const job = await readImageJob(jobId);
+      if (!job) throw createHttpError(404, `任务 ${jobId} 不存在。`);
+      if (String(job.status || "") !== "succeeded") throw createHttpError(400, `任务 ${jobId} 尚未完成。`);
+      const resultFile = await resolveJobImageFile(job);
+      if (!resultFile) throw createHttpError(400, `任务 ${jobId} 缺少转绘图。`);
+      const references = Array.isArray(job.originalReferences)
+        ? [...job.originalReferences].sort((left, right) => Number(left?.order || 0) - Number(right?.order || 0))
+        : [];
+      if (!references.length) throw createHttpError(400, `任务 ${jobId} 缺少参考图。`);
+      let referenceIndex = Number(rawJobs[index]?.referenceIndex);
+      if (!Number.isInteger(referenceIndex) || referenceIndex < 0 || referenceIndex >= references.length) {
+        referenceIndex = references.length > 1 ? 1 : 0;
+      }
+      const referenceFile = getJobReferenceFilePath(jobId, references[referenceIndex].url);
+      if (!(await fileExists(referenceFile))) throw createHttpError(400, `任务 ${jobId} 的参考图已不可用。`);
+      pairs.push({ before: referenceFile, after: resultFile });
+    }
+
+    const params = normalizeVideoWorkshopParams(body.params);
+    const match = String(body.endPagePng || "").match(/^data:image\/png;base64,([A-Za-z0-9+/=\s]+)$/);
+    if (!match) throw createHttpError(400, "结尾页图片无效。");
+    const endPageBuffer = Buffer.from(match[1].replace(/\s+/g, ""), "base64");
+    if (!endPageBuffer.length) throw createHttpError(400, "结尾页图片为空。");
+    if (endPageBuffer.length > 8 * 1024 * 1024) throw createHttpError(413, "结尾页图片过大。");
+    const sharp = await loadSharpModule();
+    if (!sharp) throw createHttpError(500, "服务器图片处理组件不可用。");
+    const endPageMeta = await sharp(endPageBuffer).metadata().catch(() => null);
+    if (!endPageMeta || endPageMeta.format !== "png") throw createHttpError(400, "结尾页必须是 PNG 图片。");
+    if (endPageMeta.width !== params.width || endPageMeta.height !== params.height) {
+      throw createHttpError(400, `结尾页尺寸必须为 ${params.width}×${params.height}。`);
+    }
+
+    const job = await videoWorkshop.createJob({
+      pairs,
+      params,
+      endPageBuffer,
+      bgm: body.bgm,
+      jobIds,
+      siteUrl: String(body.siteUrl || "").trim(),
+      topText: String(body.topText || "").trim(),
+      bottomText: String(body.bottomText || "").trim()
+    });
+    res.status(201).json({ job });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/video-workshop/jobs", requireAdmin, async (req, res, next) => {
+  try {
+    const limit = Math.max(1, Math.min(50, Number(req.query?.limit) || 20));
+    const jobs = await videoWorkshop.listJobs();
+    res.json({
+      jobs: jobs.slice(0, limit).map((job) => (
+        job.status === "succeeded" ? { ...job, downloadUrl: buildVideoDownloadPath(job.id) } : job
+      ))
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/video-workshop/jobs/:jobId", requireAdmin, async (req, res, next) => {
+  try {
+    const job = await videoWorkshop.getJob(req.params.jobId);
+    if (!job) throw createHttpError(404, "任务不存在。");
+    res.json({ job });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 微信内置浏览器不支持直接下载文件，生成可在系统浏览器打开的签名链接（7 天有效）。
+function getVideoDownloadSecret() {
+  return String(
+    process.env.WECHAT_OAUTH_STATE_SECRET ||
+    process.env.WECHAT_OAUTH_APP_SECRET ||
+    "local-video-download-secret"
+  );
+}
+
+function signVideoDownload(jobId, expiresAt) {
+  return createHmac("sha256", getVideoDownloadSecret()).update(`${jobId}:${expiresAt}`).digest("base64url");
+}
+
+function buildVideoDownloadPath(jobId) {
+  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+  return `/api/video-workshop/jobs/${encodeURIComponent(jobId)}/file?exp=${expiresAt}&sig=${signVideoDownload(jobId, expiresAt)}`;
+}
+
+function assertVideoDownloadSignature(req) {
+  const expiresAt = Number(req.query?.exp || 0);
+  const signature = String(req.query?.sig || "");
+  if (!Number.isFinite(expiresAt) || expiresAt < Date.now() || !signature) {
+    throw createHttpError(403, "下载链接已失效，请回后台重新获取。");
+  }
+  const expected = Buffer.from(signVideoDownload(req.params.jobId, expiresAt));
+  const provided = Buffer.from(signature);
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+    throw createHttpError(403, "下载链接无效。");
+  }
+}
+
+async function serveVideoJobFile(req, res, jobId, { attachment = false } = {}) {
+  const job = await videoWorkshop.getJob(jobId);
+  if (!job) throw createHttpError(404, "任务不存在。");
+  if (job.status !== "succeeded") throw createHttpError(409, "任务尚未生成完成。");
+  const filePath = path.join(videoWorkshop.jobDir(job.id), "output.mp4");
+  const info = await stat(filePath).catch(() => null);
+  if (!info?.isFile()) throw createHttpError(404, "成片文件不存在。");
+
+  res.setHeader("Content-Type", "video/mp4");
+  res.setHeader("Accept-Ranges", "bytes");
+  res.setHeader("Content-Disposition", `${attachment ? "attachment" : "inline"}; filename="petpaint-video-${job.id}.mp4"`);
+
+  const rangeHeader = String(req.headers.range || "");
+  if (!rangeHeader) {
+    res.setHeader("Content-Length", info.size);
+    createReadStream(filePath).pipe(res);
+    return;
+  }
+  const rangeMatch = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+  if (!rangeMatch) {
+    res.status(416).setHeader("Content-Range", `bytes */${info.size}`);
+    res.end();
+    return;
+  }
+  const start = rangeMatch[1] ? Number(rangeMatch[1]) : 0;
+  const end = rangeMatch[2] ? Math.min(Number(rangeMatch[2]), info.size - 1) : info.size - 1;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start >= info.size) {
+    res.status(416).setHeader("Content-Range", `bytes */${info.size}`);
+    res.end();
+    return;
+  }
+  res.status(206);
+  res.setHeader("Content-Range", `bytes ${start}-${end}/${info.size}`);
+  res.setHeader("Content-Length", end - start + 1);
+  createReadStream(filePath, { start, end }).pipe(res);
+}
+
+app.get("/api/video-workshop/jobs/:jobId/file", async (req, res, next) => {
+  try {
+    assertVideoDownloadSignature(req);
+    await serveVideoJobFile(req, res, req.params.jobId, { attachment: req.query?.download === "1" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/video-workshop/jobs/:jobId/file", requireAdmin, async (req, res, next) => {
+  try {
+    await serveVideoJobFile(req, res, req.params.jobId, { attachment: req.query?.download === "1" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/video-workshop/jobs/:jobId", requireAdmin, async (req, res, next) => {
+  try {
+    await videoWorkshop.deleteJob(req.params.jobId);
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/video-workshop/bgm", requireAdmin, async (_req, res, next) => {
+  try {
+    res.json(await videoWorkshop.listBgm());
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/video-workshop/bgm", requireAdmin, audioUpload.single("file"), async (req, res, next) => {
+  try {
+    const file = req.file;
+    if (!file) throw createHttpError(400, "请选择音频文件。");
+    const extension = path.extname(String(file.originalname || "")).toLowerCase();
+    if (![".mp3", ".m4a", ".wav", ".aac"].includes(extension)) {
+      throw createHttpError(400, "仅支持 mp3 / m4a / wav / aac 音频。");
+    }
+    const bgm = await videoWorkshop.saveBgm(file.buffer, file.originalname);
+    res.status(201).json({ bgm });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/video-workshop/bgm/:bgmId", requireAdmin, async (req, res, next) => {
+  try {
+    await videoWorkshop.deleteBgm(req.params.bgmId);
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/offline-bundle", requireAdmin, async (_req, res, next) => {
+  try {
+    const bundle = await resolveOfflineBundleFile();
+    if (!bundle) throw createHttpError(404, "服务器尚未放置离线包。");
+    res.json({
+      fileName: bundle.fileName,
+      size: bundle.size,
+      updatedAt: bundle.updatedAt,
+      downloadUrl: "/api/admin/offline-bundle/file"
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/offline-bundle/file", requireAdmin, async (_req, res, next) => {
+  try {
+    const bundle = await resolveOfflineBundleFile();
+    if (!bundle) throw createHttpError(404, "服务器尚未放置离线包。");
+    res.setHeader("Content-Type", "application/gzip");
+    res.setHeader("Content-Disposition", `attachment; filename="${bundle.fileName}"`);
+    res.setHeader("Content-Length", bundle.size);
+    createReadStream(bundle.filePath).pipe(res);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/print-devices/:deviceId/provision-record", requireAdmin, (req, res, next) => {
+  try {
+    const deviceId = String(req.params.deviceId || "").trim();
+    if (!deviceId) throw createHttpError(400, "缺少设备 ID。");
+    const device = printStore.recordPrintDeviceProvision(deviceId, { ok: req.body?.ok !== false });
+    if (!device) throw createHttpError(404, "设备不存在。");
+    res.json({ ok: true, device });
   } catch (error) {
     next(error);
   }

@@ -13578,3 +13578,282 @@ textarea {
   justify-content: flex-end;
   margin-top: 12px;
 }
+
+/* ---------- 视频工坊 ---------- */
+.vw-end-page-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.vw-end-page-fields {
+  flex: 1 1 520px;
+}
+
+.vw-end-preview {
+  flex: 0 0 220px;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.vw-end-preview img {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid #d8d8dc;
+  background: #000;
+}
+
+.vw-task-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.vw-nowrap {
+  white-space: nowrap;
+  word-break: keep-all;
+  flex: 0 0 auto;
+}
+
+.vw-keyword-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #d8d8dc;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.vw-keyword-box span {
+  white-space: nowrap;
+  word-break: keep-all;
+  flex: 0 0 auto;
+  color: #4b5563;
+  font-size: 0.85rem;
+}
+
+.vw-keyword-box input {
+  width: 200px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+}
+
+.vw-task-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .vw-task-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .vw-task-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vw-task-card {
+  appearance: none;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e2e2e6;
+  border-radius: 14px;
+  background: #fff;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vw-task-card:hover {
+  border-color: #c9c9d2;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.vw-task-card.is-selected {
+  border-color: #111827;
+  background: #f7fbff;
+  box-shadow: inset 0 0 0 1px #111827;
+}
+
+.vw-task-images {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.vw-task-images figure {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.vw-task-images img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #f3f4f6;
+}
+
+.vw-task-images figcaption {
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+}
+
+.vw-thumb-empty {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+  background: #f3f4f6;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.vw-task-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.vw-job-thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid #e2e2e6;
+  display: block;
+}
+
+.user-admin-table tbody tr.is-selected td {
+  background: #eef5ff;
+}
+
+.vw-selected-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.vw-selected-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e2e2e6;
+  border-radius: 12px;
+  background: #fafafc;
+}
+
+.vw-selected-item .user-admin-identity {
+  flex: 1;
+}
+
+.vw-selected-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.vw-job-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.vw-job-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #e2e2e6;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.vw-job-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vw-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: #ececf0;
+  overflow: hidden;
+}
+
+.vw-progress span {
+  display: block;
+  height: 100%;
+  background: #111827;
+  transition: width 0.3s ease;
+}
+
+.vw-video {
+  width: 100%;
+  max-height: 420px;
+  border-radius: 10px;
+  background: #000;
+}
+
+.vw-upload-button {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+/* ---------- 设备配置弹窗 ---------- */
+.vw-provision-modal {
+  width: min(980px, calc(100vw - 32px));
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.vw-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.vw-log {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+  background: #0b0b0d;
+  color: #c8f7c5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.vw-provision-status {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}

@@ -14,6 +14,8 @@
 - 一台可公网访问的 Linux 云服务器
 - 一个已经备案并能签发 HTTPS 证书的域名
 - Node.js 运行环境
+- 视频工坊的 `ffmpeg`：默认随 `npm install` 安装 `ffmpeg-static`，不需要系统 ffmpeg
+  - 如果服务器无法下载 `ffmpeg-static`，也可以 `sudo apt install -y ffmpeg`，并在 `.env` 里设置 `FFMPEG_PATH=/usr/bin/ffmpeg`
 - 项目代码和 `.env`
 - 可写的持久化目录
 - 微信公众平台的小程序管理权限
@@ -49,6 +51,13 @@
 
 这次上线默认单实例运行，不做多机共享文件系统。
 
+视频工坊的数据都在 `data/` 下：
+
+- `data/private-video-workshop/jobs/`：视频任务、结尾页、BGM 副本与成片
+- `data/private-video-workshop/bgm/`：后台上传的背景音乐（最多 20 个）
+
+默认只保留最近 30 个已结束任务和 14 天内的成片，无需额外清理脚本。
+
 ## 3. 服务器上的环境变量
 
 服务器根目录准备 `.env`，至少包含：
@@ -75,6 +84,9 @@ IMAGE_API_DUCKCODING_MODEL=gpt-image-2
 
 KUAIPAO_IMAGE_TIMEOUT_MS=1800000
 PORT=3000
+
+# 可选：视频工坊使用的 ffmpeg 路径；不填时优先使用 ffmpeg-static，再回退系统 ffmpeg
+# FFMPEG_PATH=/usr/bin/ffmpeg
 ```
 
 说明：

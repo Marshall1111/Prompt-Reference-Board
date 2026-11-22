@@ -18,6 +18,13 @@ if (Test-Path "dist") { Remove-Item "dist" -Recurse -Force }
   main.py
 if ($LASTEXITCODE -ne 0) { throw "打包失败" }
 
+# 桥接助手单独打成控制台程序，双击后有可见窗口和日志，关闭窗口即停止服务。
+& $Python -m PyInstaller --noconfirm --clean --onefile --console `
+  --name PetpaintProvisionerBridge `
+  --collect-submodules paramiko `
+  bridge_main.py
+if ($LASTEXITCODE -ne 0) { throw "打包桥接助手失败" }
+
 $offlineSource = Join-Path $root "offline"
 if (-not (Test-Path $offlineSource)) {
   $offlineSource = Join-Path (Split-Path -Parent $root) "print-agent\offline"
@@ -34,3 +41,4 @@ if (Test-Path $offlineSource) {
 }
 
 Write-Host "完成：$root\dist\PetpaintProvisioner.exe" -ForegroundColor Green
+Write-Host "完成：$root\dist\PetpaintProvisionerBridge.exe" -ForegroundColor Green

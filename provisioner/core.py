@@ -2,14 +2,35 @@
 
 from __future__ import annotations
 
+import glob
 import json
 import os
 import shlex
 import socket
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 
 import paramiko
+
+
+def app_dir() -> str:
+    """参考 exe / 脚本所在目录，用于查找随包分发的离线包。"""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def find_offline_package() -> str:
+    roots = [
+        os.path.join(app_dir(), "offline"),
+        os.path.join(os.path.dirname(app_dir()), "print-agent", "offline"),
+    ]
+    for root in roots:
+        matches = sorted(glob.glob(os.path.join(root, "petpaint-offline-*.tgz")))
+        if matches:
+            return matches[-1]
+    return ""
 
 
 def local_ipv4() -> str:

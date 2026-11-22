@@ -233,6 +233,18 @@ export function createPrintStore({ dbPath }) {
     return mapDeviceRow(readDeviceByDeviceIdStatement.get(String(deviceId || "")));
   }
 
+  function recordPrintDeviceProvision(deviceId, { ok = true } = {}) {
+    const device = readDeviceByDeviceIdStatement.get(String(deviceId || ""));
+    if (!device) return null;
+    if (ok) {
+      db.prepare(`
+        UPDATE print_devices SET provision_source = 'web', provisioned_at = ?
+        WHERE device_id = ?
+      `).run(nowIso(), String(deviceId || ""));
+    }
+    return mapDeviceRow(readDeviceByDeviceIdStatement.get(String(deviceId || "")));
+  }
+
   function deletePrintDevice(deviceId) {
     const result = db.prepare("DELETE FROM print_devices WHERE device_id = ?").run(String(deviceId || ""));
     return Number(result.changes || 0) > 0;
@@ -426,6 +438,7 @@ export function createPrintStore({ dbPath }) {
     listAvailablePrintDevices,
     bindPrintDevice,
     updatePrintDevice,
+    recordPrintDeviceProvision,
     deletePrintDevice,
     touchPrintDevice,
     createPrintJob,
