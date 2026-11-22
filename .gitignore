@@ -34,3 +34,6 @@ public/generated-thumbnails/
 public/job-references/
 public/job-reference-thumbnails/
 .trae/
+__pycache__/
+*.pyc
+*.mp4

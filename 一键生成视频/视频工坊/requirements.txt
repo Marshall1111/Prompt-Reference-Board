@@ -1,0 +1,6 @@
+pillow>=9.0
+numpy>=1.19
+imageio-ffmpeg>=0.4
+requests>=2.20
+qrcode>=7.3
+pyinstaller>=5.0

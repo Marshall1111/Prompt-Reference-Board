@@ -4913,6 +4913,21 @@ app.get("/api/admin/store-owners", requireAdmin, async (req, res, next) => {
   }
 });
 
+// 供本地工具生成店家邀请码：只返回店名、微信与邀请短码，不含手机号等敏感信息。
+app.get("/api/admin/store-owner-invites", requireAdmin, (_req, res, next) => {
+  try {
+    const storeOwners = commerceStore.listStoreOwners().map((account) => ({
+      accountId: account.id,
+      storeName: String(account.storeName || "").trim(),
+      wechatId: String(account.storeWechatId || ""),
+      inviteCode: commerceStore.getOrCreateReferralLink(account.id)?.token || ""
+    }));
+    res.json({ storeOwners });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/admin/store-owners", requireAdmin, (req, res, next) => {
   try {
     const accountId = String(req.body?.accountId || "").trim();
