@@ -120,6 +120,7 @@ $tarArgs = @(
   "--exclude=data/custom-prints",
   "--exclude=data/storage-backups",
   "--exclude=data/storage-export-temp",
+  "--exclude=data/agent-releases",
   "--exclude=data/orders.sqlite",
   "--exclude=data/orders.sqlite-shm",
   "--exclude=data/orders.sqlite-wal",

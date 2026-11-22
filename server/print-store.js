@@ -30,10 +30,37 @@ function mapDeviceRow(row) {
     reasons: safeJsonParse(row.printer_reasons, []),
     hardwareModel: String(row.hardware_model || ""),
     firmwareVersion: String(row.firmware_version || ""),
+    agentVersion: String(row.agent_version || ""),
+    agentReleaseId: String(row.agent_release_id || ""),
+    agentPreviousVersion: String(row.agent_previous_version || ""),
+    agentPreviousReleaseId: String(row.agent_previous_release_id || ""),
+    agentUpdateState: String(row.agent_update_state || ""),
+    agentUpdateKind: String(row.agent_update_kind || ""),
+    agentUpdateTargetReleaseId: String(row.agent_update_target_release_id || ""),
+    agentUpdateTargetVersion: String(row.agent_update_target_version || ""),
+    agentUpdateError: String(row.agent_update_error || ""),
+    agentUpdateAt: row.agent_update_at || null,
     supportedLayoutModes: safeJsonParse(row.supported_layout_modes, []),
+    printConfig: safeJsonParse(row.print_config, null),
+    printConfigRev: Number(row.print_config_rev || 0),
+    printConfigAppliedRev: Number(row.print_config_applied_rev || 0),
+    printConfigUpdatedAt: row.print_config_updated_at || null,
     provisionSource: String(row.provision_source || "legacy"),
     provisionedAt: row.provisioned_at || null,
     lastSeenAt: row.last_seen_at || null,
+    createdAt: row.created_at || null
+  };
+}
+
+function mapAgentReleaseRow(row) {
+  if (!row) return null;
+  return {
+    releaseId: String(row.release_id || ""),
+    version: String(row.version || ""),
+    filePath: String(row.file_path || ""),
+    sha256: String(row.sha256 || ""),
+    size: Number(row.size || 0),
+    note: String(row.note || ""),
     createdAt: row.created_at || null
   };
 }
@@ -100,6 +127,16 @@ export function createPrintStore({ dbPath }) {
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_print_jobs_order ON print_jobs(order_id);
     CREATE INDEX IF NOT EXISTS idx_print_jobs_device_status ON print_jobs(device_id, status);
+
+    CREATE TABLE IF NOT EXISTS agent_releases (
+      release_id TEXT PRIMARY KEY,
+      version TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      sha256 TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    );
   `);
 
   // 兼容旧库：后台需要随时查看明文令牌，缺列时补上（老设备该列为空）。
@@ -116,6 +153,26 @@ export function createPrintStore({ dbPath }) {
   ensureDeviceColumn("provision_source", "TEXT NOT NULL DEFAULT 'legacy'");
   ensureDeviceColumn("provisioned_at", "TEXT");
   ensureDeviceColumn("supported_layout_modes", "TEXT NOT NULL DEFAULT '[]'");
+  // 设备级打印参数：rev 每次保存加一，设备上报已应用版本，心跳据此判断是否需要下发。
+  ensureDeviceColumn("print_config", "TEXT NOT NULL DEFAULT ''");
+  ensureDeviceColumn("print_config_rev", "INTEGER NOT NULL DEFAULT 0");
+  ensureDeviceColumn("print_config_applied_rev", "INTEGER NOT NULL DEFAULT 0");
+  ensureDeviceColumn("print_config_updated_at", "TEXT");
+  // 远程更新状态：'' 表示从未推送，pending 等待设备拉取，applied 已写入待重启确认，succeeded 已确认，failed 失败。
+  for (const [name, definition] of Object.entries({
+    agent_version: "TEXT NOT NULL DEFAULT ''",
+    agent_release_id: "TEXT NOT NULL DEFAULT ''",
+    agent_previous_version: "TEXT NOT NULL DEFAULT ''",
+    agent_previous_release_id: "TEXT NOT NULL DEFAULT ''",
+    agent_update_state: "TEXT NOT NULL DEFAULT ''",
+    agent_update_kind: "TEXT NOT NULL DEFAULT ''",
+    agent_update_target_release_id: "TEXT NOT NULL DEFAULT ''",
+    agent_update_target_version: "TEXT NOT NULL DEFAULT ''",
+    agent_update_error: "TEXT NOT NULL DEFAULT ''",
+    agent_update_at: "TEXT"
+  })) {
+    ensureDeviceColumn(name, definition);
+  }
   const jobColumns = db.prepare("PRAGMA table_info(print_jobs)").all().map((column) => column.name);
   for (const [name, definition] of Object.entries({
     store_owner_account_id: "TEXT NOT NULL DEFAULT ''", creator_account_id: "TEXT NOT NULL DEFAULT ''",
@@ -233,15 +290,14 @@ export function createPrintStore({ dbPath }) {
     return mapDeviceRow(readDeviceByDeviceIdStatement.get(String(deviceId || "")));
   }
 
-  function recordPrintDeviceProvision(deviceId, { ok = true } = {}) {
+  function updatePrintConfig(deviceId, config) {
     const device = readDeviceByDeviceIdStatement.get(String(deviceId || ""));
     if (!device) return null;
-    if (ok) {
-      db.prepare(`
-        UPDATE print_devices SET provision_source = 'web', provisioned_at = ?
-        WHERE device_id = ?
-      `).run(nowIso(), String(deviceId || ""));
-    }
+    db.prepare(`
+      UPDATE print_devices
+      SET print_config = ?, print_config_rev = print_config_rev + 1, print_config_updated_at = ?
+      WHERE device_id = ?
+    `).run(JSON.stringify(config || {}), nowIso(), String(deviceId || ""));
     return mapDeviceRow(readDeviceByDeviceIdStatement.get(String(deviceId || "")));
   }
 
@@ -255,7 +311,12 @@ export function createPrintStore({ dbPath }) {
     reasons = [],
     hardwareModel = "",
     firmwareVersion = "",
-    supportedLayoutModes = []
+    agentVersion = "",
+    agentReleaseId = "",
+    agentPreviousVersion = "",
+    agentPreviousReleaseId = "",
+    supportedLayoutModes = [],
+    printConfigAppliedRev = -1
   } = {}) {
     const safeReasons = Array.isArray(reasons) ? reasons.map((item) => String(item || "")).filter(Boolean) : [];
     const now = nowIso();
@@ -279,12 +340,218 @@ export function createPrintStore({ dbPath }) {
       assignments.push("firmware_version = ?");
       values.push(normalizedFirmware);
     }
+    const normalizedAgentVersion = String(agentVersion || "").trim().slice(0, 40);
+    if (normalizedAgentVersion) {
+      assignments.push("agent_version = ?");
+      values.push(normalizedAgentVersion);
+    }
+    const normalizedReleaseId = String(agentReleaseId || "").trim().slice(0, 64);
+    if (normalizedReleaseId) {
+      assignments.push("agent_release_id = ?");
+      values.push(normalizedReleaseId);
+    }
+    const normalizedPrevious = String(agentPreviousVersion || "").trim().slice(0, 40);
+    if (normalizedPrevious) {
+      assignments.push("agent_previous_version = ?");
+      values.push(normalizedPrevious);
+    }
+    const normalizedPreviousReleaseId = String(agentPreviousReleaseId || "").trim().slice(0, 64);
+    if (normalizedPreviousReleaseId) {
+      assignments.push("agent_previous_release_id = ?");
+      values.push(normalizedPreviousReleaseId);
+    }
+    const normalizedAppliedRev = Number(printConfigAppliedRev);
+    if (Number.isInteger(normalizedAppliedRev) && normalizedAppliedRev >= 0) {
+      assignments.push("print_config_applied_rev = ?");
+      values.push(normalizedAppliedRev);
+    }
     values.push(String(deviceId || ""));
     db.prepare(`
       UPDATE print_devices
       SET ${assignments.join(", ")}
       WHERE device_id = ?
     `).run(...values);
+    return mapDeviceRow(readDeviceByDeviceIdStatement.get(String(deviceId || "")));
+  }
+
+  function createAgentRelease({ releaseId, version, filePath, sha256, size, note = "" } = {}) {
+    db.prepare(`
+      INSERT INTO agent_releases (release_id, version, file_path, sha256, size, note, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      String(releaseId || ""),
+      String(version || ""),
+      String(filePath || ""),
+      String(sha256 || "").toLowerCase(),
+      Number(size || 0),
+      String(note || "").slice(0, 200),
+      nowIso()
+    );
+    return readAgentRelease(releaseId);
+  }
+
+  function readAgentRelease(releaseId) {
+    return mapAgentReleaseRow(
+      db.prepare("SELECT * FROM agent_releases WHERE release_id = ?").get(String(releaseId || ""))
+    );
+  }
+
+  function listAgentReleases(limit = 20) {
+    return db.prepare("SELECT * FROM agent_releases ORDER BY created_at DESC, release_id DESC LIMIT ?")
+      .all(Math.max(1, Math.min(100, Math.trunc(Number(limit) || 20))))
+      .map(mapAgentReleaseRow);
+  }
+
+  function queueAgentUpdate(deviceIds, release) {
+    const now = nowIso();
+    const statement = db.prepare(`
+      UPDATE print_devices
+      SET agent_update_state = 'pending',
+          agent_update_kind = 'release',
+          agent_update_target_release_id = ?,
+          agent_update_target_version = ?,
+          agent_update_error = '',
+          agent_update_at = ?
+      WHERE device_id = ?
+    `);
+    let queued = 0;
+    const skipped = [];
+    for (const deviceId of deviceIds) {
+      const info = statement.run(
+        String(release.releaseId || ""),
+        String(release.version || ""),
+        now,
+        String(deviceId || "")
+      );
+      if (Number(info.changes || 0) > 0) queued += 1;
+      else skipped.push(String(deviceId || ""));
+    }
+    return { queued, skipped };
+  }
+
+  function queueAgentRollback(deviceIds) {
+    const now = nowIso();
+    const statement = db.prepare(`
+      UPDATE print_devices
+      SET agent_update_state = 'pending',
+          agent_update_kind = 'rollback',
+          agent_update_target_release_id = ?,
+          agent_update_target_version = ?,
+          agent_update_error = '',
+          agent_update_at = ?
+      WHERE device_id = ?
+    `);
+    let queued = 0;
+    const skipped = [];
+    for (const deviceId of deviceIds) {
+      const row = readDeviceByDeviceIdStatement.get(String(deviceId || ""));
+      const previousVersion = String(row?.agent_previous_version || "");
+      const previousReleaseId = String(row?.agent_previous_release_id || "");
+      if (!row || !previousVersion) {
+        skipped.push(String(deviceId || ""));
+        continue;
+      }
+      const info = statement.run(previousReleaseId, previousVersion, now, String(deviceId || ""));
+      if (Number(info.changes || 0) > 0) queued += 1;
+      else skipped.push(String(deviceId || ""));
+    }
+    return { queued, skipped };
+  }
+
+  // 心跳时把待执行的更新任务带给设备；只有 pending 才下发，避免重复安装。
+  function takeAgentUpdate(deviceId) {
+    const row = readDeviceByDeviceIdStatement.get(String(deviceId || ""));
+    if (!row) return null;
+    if (String(row.agent_update_state || "") !== "pending") return null;
+    const kind = String(row.agent_update_kind || "");
+    const targetVersion = String(row.agent_update_target_version || "");
+    const targetReleaseId = String(row.agent_update_target_release_id || "");
+
+    if (kind === "release") {
+      if (!targetReleaseId) return null;
+      // 设备已经装过这一版（上次回报丢失等），直接补记成功，避免反复下载。
+      if (String(row.agent_version || "") === targetVersion && String(row.agent_release_id || "") === targetReleaseId) {
+        db.prepare(`
+          UPDATE print_devices SET agent_update_state = 'succeeded', agent_update_error = '', agent_update_at = ?
+          WHERE device_id = ?
+        `).run(nowIso(), String(deviceId || ""));
+        return null;
+      }
+      const release = readAgentRelease(targetReleaseId);
+      if (!release) return null;
+      return {
+        kind: "release",
+        releaseId: release.releaseId,
+        version: release.version,
+        sha256: release.sha256,
+        size: release.size,
+        downloadUrl: `/api/print-agent/updates/${encodeURIComponent(release.releaseId)}/file`
+      };
+    }
+    if (kind === "rollback" && targetVersion) {
+      return { kind: "rollback", version: targetVersion };
+    }
+    return null;
+  }
+
+  function recordAgentUpdateResult(deviceId, {
+    state = "",
+    kind = "",
+    releaseId = "",
+    version = "",
+    error = ""
+  } = {}) {
+    const row = readDeviceByDeviceIdStatement.get(String(deviceId || ""));
+    if (!row || !["applied", "failed", "succeeded"].includes(state)) return null;
+    const now = nowIso();
+    const nextVersion = String(version || "").trim().slice(0, 40);
+    const nextReleaseId = String(releaseId || "").trim().slice(0, 64);
+
+    if (state === "failed") {
+      db.prepare(`
+        UPDATE print_devices
+        SET agent_update_state = 'failed', agent_update_error = ?, agent_update_at = ?
+        WHERE device_id = ?
+      `).run(String(error || "更新失败").slice(0, 300), now, String(deviceId || ""));
+    } else {
+      const assignments = ["agent_update_state = ?", "agent_update_error = ''", "agent_update_at = ?"];
+      const values = [state, now];
+      if (nextVersion) {
+        assignments.push("agent_version = ?");
+        values.push(nextVersion);
+      }
+      if (kind === "release" && nextReleaseId) {
+        assignments.push("agent_release_id = ?");
+        values.push(nextReleaseId);
+      }
+      values.push(String(deviceId || ""));
+      db.prepare(`
+        UPDATE print_devices SET ${assignments.join(", ")} WHERE device_id = ?
+      `).run(...values);
+    }
+    return mapDeviceRow(readDeviceByDeviceIdStatement.get(String(deviceId || "")));
+  }
+
+  // 设备重启后带着新版本心跳，才算真正更新成功。
+  function confirmAgentUpdateFromHeartbeat(deviceId, { agentVersion = "", agentReleaseId = "" } = {}) {
+    const row = readDeviceByDeviceIdStatement.get(String(deviceId || ""));
+    if (!row) return null;
+    const state = String(row.agent_update_state || "");
+    if (state !== "pending" && state !== "applied") return mapDeviceRow(row);
+    const kind = String(row.agent_update_kind || "");
+    const targetVersion = String(row.agent_update_target_version || "");
+    const targetReleaseId = String(row.agent_update_target_release_id || "");
+    const version = String(agentVersion || "").trim();
+    const releaseId = String(agentReleaseId || "").trim();
+    // 有 releaseId 时必须匹配 releaseId，避免版本号忘了递增时被误判为已更新。
+    const matched = targetReleaseId
+      ? releaseId === targetReleaseId
+      : Boolean(targetVersion && version === targetVersion);
+    if (!matched) return mapDeviceRow(row);
+    db.prepare(`
+      UPDATE print_devices SET agent_update_state = 'succeeded', agent_update_error = '', agent_update_at = ?
+      WHERE device_id = ?
+    `).run(nowIso(), String(deviceId || ""));
     return mapDeviceRow(readDeviceByDeviceIdStatement.get(String(deviceId || "")));
   }
 
@@ -438,9 +705,17 @@ export function createPrintStore({ dbPath }) {
     listAvailablePrintDevices,
     bindPrintDevice,
     updatePrintDevice,
-    recordPrintDeviceProvision,
+    updatePrintConfig,
     deletePrintDevice,
     touchPrintDevice,
+    createAgentRelease,
+    readAgentRelease,
+    listAgentReleases,
+    queueAgentUpdate,
+    queueAgentRollback,
+    takeAgentUpdate,
+    recordAgentUpdateResult,
+    confirmAgentUpdateFromHeartbeat,
     createPrintJob,
     readPrintJob,
     findPrintJobByOrder,

@@ -12,20 +12,37 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
 import shutil
 import struct
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from print_agent import _attr, _parse_attrs, custom_paper_origin
 
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "agent.json"
+# 版面/校准参数由服务端下发，单独存于 config.json；agent.json 里的设备身份与连接信息不参与下发。
+PRINT_CONFIG_PATH = BASE_DIR / "config.json"
+PRINT_CONFIG_PROFILE_KEYS = (
+    "sheet_width_mm", "sheet_height_mm", "piece_width_mm", "piece_height_mm",
+    "gap_mm", "print_x0_mm", "print_x1_mm", "print_y0_mm", "print_y1_mm",
+)
+PRINT_CONFIG_NUMERIC_KEYS = ("scale_x", "scale_y", "offset_x_mm", "offset_y_mm")
+VERSION_PATH = BASE_DIR / "VERSION"
+STATE_PATH = BASE_DIR / "agent-state.json"
+UPDATE_PENDING_PATH = BASE_DIR / "update-pending.json"
+UPDATE_DIR = BASE_DIR / "updates"
+BACKUP_DIR = BASE_DIR / "backup"
+AGENT_FILES = ("agent.py", "print_agent.py", "VERSION")
 CUSTOM_LAYOUT_MODE = "custom-sheet-v1"
 DEFAULT_CONFIG = {
     "server_url": "http://192.168.31.148:3000",
@@ -78,6 +95,272 @@ def load_config() -> dict:
     )
     log(f"已生成配置模板: {CONFIG_PATH}，请填入 device_id / device_token 后重启。")
     return dict(DEFAULT_CONFIG)
+
+
+# ---------- 版本与远程更新 ----------
+def read_local_version() -> str:
+    try:
+        return VERSION_PATH.read_text(encoding="utf-8").strip() or "0.0.0"
+    except OSError:
+        return "0.0.0"
+
+
+def read_state() -> dict:
+    try:
+        data = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def write_state(state: dict) -> None:
+    STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def agent_identity() -> dict:
+    state = read_state()
+    return {
+        "agentVersion": read_local_version(),
+        "agentReleaseId": str(state.get("releaseId") or ""),
+        "agentPreviousVersion": str(state.get("previousVersion") or ""),
+        "agentPreviousReleaseId": str(state.get("previousReleaseId") or ""),
+        "printConfigRev": int(state.get("printConfigRev") or 0),
+    }
+
+
+def apply_print_config(payload: dict) -> None:
+    """把服务端下发的版面/校准参数合并进 config.json，保留 printer_ip 等本地配置。
+
+    print_agent.py 每次执行都会重新读取 config.json，所以写完即时生效，无需重启。
+    """
+    incoming = payload.get("printConfig")
+    if not isinstance(incoming, dict):
+        return
+    try:
+        rev = int(incoming.get("rev") or 0)
+    except (TypeError, ValueError):
+        return
+    state = read_state()
+    if rev <= int(state.get("printConfigRev") or 0):
+        return
+    config = incoming.get("config")
+    if not isinstance(config, dict):
+        return
+
+    current: dict = {}
+    try:
+        loaded = json.loads(PRINT_CONFIG_PATH.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            current = loaded
+    except (OSError, json.JSONDecodeError):
+        current = {}
+    profile = current.get("profile")
+    if not isinstance(profile, dict):
+        profile = {}
+    incoming_profile = config.get("profile")
+    if isinstance(incoming_profile, dict):
+        for key in PRINT_CONFIG_PROFILE_KEYS:
+            value = incoming_profile.get(key)
+            if value is not None:
+                try:
+                    profile[key] = float(value)
+                except (TypeError, ValueError):
+                    pass
+    current["profile"] = profile
+    for key in PRINT_CONFIG_NUMERIC_KEYS:
+        value = config.get(key)
+        if value is not None:
+            try:
+                current[key] = float(value)
+            except (TypeError, ValueError):
+                pass
+    media = config.get("media")
+    if isinstance(media, str) and media.strip():
+        current["media"] = media.strip()
+    seconds = config.get("print_seconds_per_sheet")
+    if seconds is not None:
+        try:
+            current["print_seconds_per_sheet"] = int(round(float(seconds)))
+        except (TypeError, ValueError):
+            pass
+
+    temporary = PRINT_CONFIG_PATH.with_name("config.json.new")
+    temporary.write_text(json.dumps(current, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.replace(temporary, PRINT_CONFIG_PATH)
+    state["printConfigRev"] = rev
+    write_state(state)
+    log(f"已应用服务端打印参数 rev={rev}")
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def replace_file(source: Path, target: Path) -> None:
+    """先写临时文件再原子替换，避免重启时读到半个文件。"""
+    temporary = target.with_name(target.name + ".new")
+    shutil.copy2(source, temporary)
+    os.replace(temporary, target)
+
+
+def backup_current_files() -> Path | None:
+    target = BACKUP_DIR / time.strftime("%Y%m%d%H%M%S")
+    target.mkdir(parents=True, exist_ok=True)
+    copied = False
+    for name in AGENT_FILES:
+        source = BASE_DIR / name
+        if source.exists():
+            shutil.copy2(source, target / name)
+            copied = True
+    return target if copied else None
+
+
+def latest_backup() -> Path | None:
+    if not BACKUP_DIR.is_dir():
+        return None
+    candidates = sorted((path for path in BACKUP_DIR.iterdir() if path.is_dir()), key=lambda path: path.name)
+    return candidates[-1] if candidates else None
+
+
+def report_update(cfg: dict, payload: dict) -> None:
+    try:
+        request(cfg, "POST", "/api/print-agent/updates/result", payload)
+    except Exception as error:  # noqa: BLE001 - 回报失败不能影响更新流程
+        log(f"更新结果回报失败：{error}")
+
+
+def confirm_applied_update(cfg: dict) -> None:
+    """重启后第一次心跳成功，才确认更新完成并清掉待确认标记。"""
+    if not UPDATE_PENDING_PATH.exists():
+        return
+    try:
+        pending = json.loads(UPDATE_PENDING_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        pending = {}
+    report_update(cfg, {
+        "kind": str(pending.get("kind") or "release"),
+        "releaseId": str(pending.get("releaseId") or ""),
+        "version": read_local_version(),
+        "state": "succeeded",
+    })
+    try:
+        UPDATE_PENDING_PATH.unlink()
+    except OSError:
+        pass
+
+
+def apply_rollback(cfg: dict, update: dict) -> None:
+    backup = latest_backup()
+    if not backup or not (backup / "agent.py").exists():
+        report_update(cfg, {"kind": "rollback", "state": "failed", "error": "设备上没有可回滚的上一版"})
+        return
+    state = read_state()
+    for name in AGENT_FILES:
+        source = backup / name
+        if source.exists():
+            replace_file(source, BASE_DIR / name)
+    write_state({
+        "releaseId": str(state.get("previousReleaseId") or ""),
+        "version": read_local_version(),
+        "previousReleaseId": str(state.get("releaseId") or ""),
+        "previousVersion": str(state.get("version") or ""),
+        "appliedAt": datetime.now(timezone.utc).isoformat(),
+    })
+    UPDATE_PENDING_PATH.write_text(
+        json.dumps({"kind": "rollback", "releaseId": str(state.get("previousReleaseId") or "")}),
+        encoding="utf-8",
+    )
+    report_update(cfg, {"kind": "rollback", "state": "applied", "version": read_local_version()})
+    log(f"已回滚到 {read_local_version()}，准备重启")
+    os._exit(0)
+
+
+def apply_release(cfg: dict, update: dict) -> None:
+    release_id = str(update.get("releaseId") or "")
+    state = read_state()
+    if release_id and release_id == str(state.get("releaseId") or ""):
+        report_update(cfg, {
+            "kind": "release", "releaseId": release_id,
+            "state": "succeeded", "version": read_local_version(),
+        })
+        return
+
+    work = UPDATE_DIR / release_id
+    shutil.rmtree(work, ignore_errors=True)
+    work.mkdir(parents=True, exist_ok=True)
+    archive = work / "agent.tgz"
+    staging = work / "staging"
+    download(cfg, str(update.get("downloadUrl") or ""), archive)
+
+    expected_size = int(update.get("size") or 0)
+    if expected_size and archive.stat().st_size != expected_size:
+        raise RuntimeError(f"更新包大小不一致：{archive.stat().st_size} != {expected_size}")
+    expected_sha = str(update.get("sha256") or "").lower()
+    if expected_sha and sha256_file(archive) != expected_sha:
+        raise RuntimeError("更新包校验失败（sha256 不一致）")
+
+    staging.mkdir()
+    with tarfile.open(archive, "r:gz") as bundle:
+        members = [
+            member for member in bundle.getmembers()
+            if member.isfile() and Path(member.name).name in AGENT_FILES
+        ]
+        bundle.extractall(staging, members=members)
+    for name in AGENT_FILES:
+        if not (staging / name).is_file():
+            raise RuntimeError(f"更新包缺少 {name}")
+
+    check = subprocess.run(
+        [sys.executable, "-m", "py_compile", str(staging / "agent.py"), str(staging / "print_agent.py")],
+        capture_output=True, text=True, timeout=60,
+    )
+    if check.returncode != 0:
+        raise RuntimeError((check.stderr or check.stdout or "新版本编译校验失败").strip()[:300])
+
+    backup_current_files()
+    for name in AGENT_FILES:
+        replace_file(staging / name, BASE_DIR / name)
+    write_state({
+        "releaseId": release_id,
+        "version": read_local_version(),
+        "previousReleaseId": str(state.get("releaseId") or ""),
+        "previousVersion": str(state.get("version") or ""),
+        "appliedAt": datetime.now(timezone.utc).isoformat(),
+    })
+    UPDATE_PENDING_PATH.write_text(
+        json.dumps({"kind": "release", "releaseId": release_id}), encoding="utf-8"
+    )
+    report_update(cfg, {
+        "kind": "release", "releaseId": release_id,
+        "state": "applied", "version": read_local_version(),
+    })
+    shutil.rmtree(work, ignore_errors=True)
+    log(f"已更新到 {read_local_version()}（{release_id}），准备重启")
+    os._exit(0)
+
+
+def apply_update(cfg: dict, update: dict) -> None:
+    kind = str(update.get("kind") or "")
+    try:
+        if kind == "rollback":
+            apply_rollback(cfg, update)
+        elif kind == "release":
+            apply_release(cfg, update)
+    except Exception as error:  # noqa: BLE001 - 更新失败要回报并继续用旧版本运行
+        message = str(error) or error.__class__.__name__
+        shutil.rmtree(UPDATE_DIR / str(update.get("releaseId") or ""), ignore_errors=True)
+        report_update(cfg, {
+            "kind": kind or "release",
+            "releaseId": str(update.get("releaseId") or ""),
+            "state": "failed",
+            "error": message[:300],
+        })
+        log(f"更新失败：{message}")
+
 
 
 # ---------- HTTP ----------
@@ -359,15 +642,28 @@ def handle_job(cfg: dict, job: dict) -> None:
         shutil.rmtree(workdir, ignore_errors=True)
 
 
-def heartbeat(cfg: dict, allow_recovery: bool = True) -> None:
+def heartbeat(cfg: dict, allow_recovery: bool = True) -> dict:
     state, reasons = query_printer(cfg)
     if allow_recovery and maybe_recover_queue(cfg, state):
         state, reasons = query_printer(cfg)
-    request(cfg, "POST", "/api/print-agent/heartbeat", {"printerState": state, "reasons": reasons, "supportedLayoutModes": supported_layout_modes(cfg), "firmwareVersion": "custom-sheet-v1"})
+    payload = request(cfg, "POST", "/api/print-agent/heartbeat", {
+        "printerState": state,
+        "reasons": reasons,
+        "supportedLayoutModes": supported_layout_modes(cfg),
+        "firmwareVersion": "custom-sheet-v1",
+        **agent_identity(),
+    })
+    # 心跳成功说明新版本已能正常运行，此时才确认更新完成。
+    confirm_applied_update(cfg)
+    return payload
 
 
 def run_once(cfg: dict) -> bool:
-    heartbeat(cfg)
+    payload = heartbeat(cfg) or {}
+    update = payload.get("update")
+    if isinstance(update, dict) and update:
+        apply_update(cfg, update)
+    apply_print_config(payload)
     modes = ",".join(supported_layout_modes(cfg))
     payload = request(cfg, "GET", f"/api/print-agent/jobs/next?layoutModes={modes}")
     job = payload.get("job")

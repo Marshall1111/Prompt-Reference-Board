@@ -12,6 +12,8 @@ import { createOrderStore } from "./order-store.js";
 import { createMerchantStore } from "./merchant-store.js";
 import { createCommerceStore } from "./commerce-store.js";
 import { createPrintStore } from "./print-store.js";
+import { DEFAULT_PRINT_CONFIG, normalizePrintConfig } from "./print-config.js";
+import { createAgentUpdateService } from "./agent-update.js";
 import { createVideoWorkshop } from "./video-workshop.js";
 import { createCustomPrintService } from "./custom-print.js";
 import { CUSTOM_LAYOUT_MODE } from "../shared/custom-print-geometry.js";
@@ -437,6 +439,11 @@ const ipRequestLog = new Map();
 const orderStore = createOrderStore({ dbPath: orderDbPath });
 const commerceStore = createCommerceStore({ dbPath: orderDbPath });
 const printStore = createPrintStore({ dbPath: orderDbPath });
+const agentUpdates = createAgentUpdateService({
+  rootDir,
+  dataRoot: path.join(rootDir, "data"),
+  printStore
+});
 // 优先显式配置，其次使用随 npm 安装的 ffmpeg-static，最后回退系统 PATH。
 async function resolveVideoFfmpegPath() {
   const configured = String(process.env.FFMPEG_PATH || "").trim();
@@ -4978,28 +4985,6 @@ function normalizeVideoWorkshopParams(input = {}) {
   };
 }
 
-async function resolveOfflineBundleFile() {
-  const offlineDir = process.env.PETPAINT_OFFLINE_DIR
-    ? path.resolve(process.env.PETPAINT_OFFLINE_DIR)
-    : path.join(rootDir, "provisioner", "dist", "offline");
-  let entries = [];
-  try {
-    entries = await readdir(offlineDir, { withFileTypes: true });
-  } catch (error) {
-    if (error.code === "ENOENT") return null;
-    throw error;
-  }
-  const candidates = entries
-    .filter((entry) => entry.isFile() && entry.name.startsWith("petpaint-offline-") && entry.name.endsWith(".tgz"))
-    .map((entry) => entry.name)
-    .sort();
-  if (!candidates.length) return null;
-  const fileName = candidates[candidates.length - 1];
-  const filePath = path.join(offlineDir, fileName);
-  const info = await stat(filePath);
-  return { fileName, filePath, size: info.size, updatedAt: info.mtime.toISOString() };
-}
-
 app.post("/api/admin/video-workshop/jobs", requireAdmin, express.json({ limit: "8mb" }), async (req, res, next) => {
   try {
     const body = req.body || {};
@@ -5206,46 +5191,6 @@ app.delete("/api/admin/video-workshop/bgm/:bgmId", requireAdmin, async (req, res
   try {
     await videoWorkshop.deleteBgm(req.params.bgmId);
     res.json({ ok: true });
-  } catch (error) {
-    next(error);
-  }
-});
-
-app.get("/api/admin/offline-bundle", requireAdmin, async (_req, res, next) => {
-  try {
-    const bundle = await resolveOfflineBundleFile();
-    if (!bundle) throw createHttpError(404, "服务器尚未放置离线包。");
-    res.json({
-      fileName: bundle.fileName,
-      size: bundle.size,
-      updatedAt: bundle.updatedAt,
-      downloadUrl: "/api/admin/offline-bundle/file"
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-app.get("/api/admin/offline-bundle/file", requireAdmin, async (_req, res, next) => {
-  try {
-    const bundle = await resolveOfflineBundleFile();
-    if (!bundle) throw createHttpError(404, "服务器尚未放置离线包。");
-    res.setHeader("Content-Type", "application/gzip");
-    res.setHeader("Content-Disposition", `attachment; filename="${bundle.fileName}"`);
-    res.setHeader("Content-Length", bundle.size);
-    createReadStream(bundle.filePath).pipe(res);
-  } catch (error) {
-    next(error);
-  }
-});
-
-app.post("/api/admin/print-devices/:deviceId/provision-record", requireAdmin, (req, res, next) => {
-  try {
-    const deviceId = String(req.params.deviceId || "").trim();
-    if (!deviceId) throw createHttpError(400, "缺少设备 ID。");
-    const device = printStore.recordPrintDeviceProvision(deviceId, { ok: req.body?.ok !== false });
-    if (!device) throw createHttpError(404, "设备不存在。");
-    res.json({ ok: true, device });
   } catch (error) {
     next(error);
   }
@@ -5504,6 +5449,44 @@ app.patch("/api/admin/print-devices/:deviceId", requireAdmin, (req, res, next) =
   }
 });
 
+app.get("/api/admin/print-devices/:deviceId/print-config", requireAdmin, (req, res, next) => {
+  try {
+    const device = printStore.readPrintDevice(req.params.deviceId);
+    if (!device) throw createHttpError(404, "打印设备不存在。");
+    res.json({
+      config: device.printConfig || DEFAULT_PRINT_CONFIG,
+      rev: device.printConfigRev,
+      appliedRev: device.printConfigAppliedRev,
+      updatedAt: device.printConfigUpdatedAt
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/api/admin/print-devices/:deviceId/print-config", requireAdmin, (req, res, next) => {
+  try {
+    const device = printStore.readPrintDevice(req.params.deviceId);
+    if (!device) throw createHttpError(404, "打印设备不存在。");
+    let config;
+    try {
+      config = normalizePrintConfig(req.body?.config ?? req.body);
+    } catch (error) {
+      throw createHttpError(400, error?.message || "打印参数不合法。");
+    }
+    const updated = printStore.updatePrintConfig(device.deviceId, config);
+    res.json({
+      ok: true,
+      config: updated.printConfig,
+      rev: updated.printConfigRev,
+      appliedRev: updated.printConfigAppliedRev,
+      updatedAt: updated.printConfigUpdatedAt
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.delete("/api/admin/print-devices/:deviceId", requireAdmin, (req, res, next) => {
   try {
     const device = printStore.readPrintDevice(req.params.deviceId);
@@ -5549,20 +5532,111 @@ app.get("/api/public/store-owner/device-status", async (req, res, next) => {
 });
 
 app.post("/api/print-agent/heartbeat", requirePrintDevice, (req, res) => {
+  // 老版本 agent 不上报 printConfigRev，此时传 -1 表示“未上报”，避免把已应用版本重置为 0。
+  const hasPrintConfigRev = Object.prototype.hasOwnProperty.call(req.body || {}, "printConfigRev");
+  const reportedPrintConfigRev = Math.max(0, Math.trunc(Number(req.body?.printConfigRev) || 0));
   const device = printStore.touchPrintDevice(req.printDevice.deviceId, {
     printerState: String(req.body?.printerState || "unknown"),
     reasons: Array.isArray(req.body?.reasons) ? req.body.reasons : [],
     hardwareModel: String(req.body?.hardwareModel || req.body?.model || ""),
     firmwareVersion: String(req.body?.firmwareVersion || req.body?.version || ""),
-    supportedLayoutModes: req.body?.supportedLayoutModes
+    agentVersion: String(req.body?.agentVersion || ""),
+    agentReleaseId: String(req.body?.agentReleaseId || ""),
+    agentPreviousVersion: String(req.body?.agentPreviousVersion || ""),
+    agentPreviousReleaseId: String(req.body?.agentPreviousReleaseId || ""),
+    supportedLayoutModes: req.body?.supportedLayoutModes,
+    printConfigAppliedRev: hasPrintConfigRev ? reportedPrintConfigRev : -1
+  });
+  printStore.confirmAgentUpdateFromHeartbeat(device.deviceId, {
+    agentVersion: String(req.body?.agentVersion || ""),
+    agentReleaseId: String(req.body?.agentReleaseId || "")
   });
   markPrintDeviceSeen(device.deviceId);
   handlePrintDeviceReasons(device, device.reasons);
+  // 只在设备上报的版本落后时才下发，避免每 8 秒重复传输同一份参数。
+  const printConfig = Number(device.printConfigRev || 0) > reportedPrintConfigRev
+    ? { rev: Number(device.printConfigRev || 0), config: device.printConfig || DEFAULT_PRINT_CONFIG }
+    : null;
   res.json({
     ok: true,
     deviceId: device.deviceId,
-    pendingJobs: printStore.countPendingJobs(device.deviceId)
+    pendingJobs: printStore.countPendingJobs(device.deviceId),
+    update: printStore.takeAgentUpdate(device.deviceId),
+    printConfig
   });
+});
+
+app.get("/api/print-agent/updates/:releaseId/file", requirePrintDevice, (req, res, next) => {
+  try {
+    const release = agentUpdates.getRelease(req.params.releaseId);
+    if (!release) throw createHttpError(404, "更新包不存在。");
+    const device = printStore.readPrintDevice(req.printDevice.deviceId);
+    if (!device || device.agentUpdateState !== "pending" || device.agentUpdateTargetReleaseId !== release.releaseId) {
+      throw createHttpError(403, "当前设备没有这个更新任务。");
+    }
+    const file = agentUpdates.readReleaseFile(release.releaseId);
+    if (!file) throw createHttpError(404, "更新包文件已丢失。");
+    res.sendFile(file.filePath);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/print-agent/updates/result", requirePrintDevice, (req, res, next) => {
+  try {
+    const state = String(req.body?.state || "").trim();
+    if (!["applied", "failed", "succeeded"].includes(state)) throw createHttpError(400, "状态不合法。");
+    printStore.recordAgentUpdateResult(req.printDevice.deviceId, {
+      state,
+      kind: String(req.body?.kind || "").trim(),
+      releaseId: String(req.body?.releaseId || "").trim(),
+      version: String(req.body?.version || "").trim(),
+      error: String(req.body?.error || "").trim()
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/agent-releases", requireAdmin, async (req, res, next) => {
+  try {
+    const release = await agentUpdates.createRelease({ note: String(req.body?.note || "").trim() });
+    res.status(201).json({ ok: true, release });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/agent-releases", requireAdmin, (req, res, next) => {
+  try {
+    res.json({ releases: printStore.listAgentReleases(20) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/agent-updates/push", requireAdmin, (req, res, next) => {
+  try {
+    const deviceIds = Array.isArray(req.body?.deviceIds) ? req.body.deviceIds.map(String) : [];
+    const result = agentUpdates.queueUpdate({
+      deviceIds,
+      all: Boolean(req.body?.all),
+      releaseId: String(req.body?.releaseId || "").trim()
+    });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/agent-updates/rollback", requireAdmin, (req, res, next) => {
+  try {
+    const deviceIds = Array.isArray(req.body?.deviceIds) ? req.body.deviceIds.map(String) : [];
+    res.json({ ok: true, ...agentUpdates.queueRollback({ deviceIds }) });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/api/print-agent/jobs/next", requirePrintDevice, (req, res) => {

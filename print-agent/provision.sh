@@ -234,7 +234,14 @@ AGENT_SRC="$OFFLINE_DIR/print-agent"
 AGENT_DIR="/opt/petpaint/print-agent"
 mkdir -p "$AGENT_DIR"
 cp -f "$AGENT_SRC/agent.py" "$AGENT_SRC/print_agent.py" "$AGENT_SRC/config.json" "$AGENT_DIR/"
+if [ -f "$AGENT_SRC/VERSION" ]; then
+  cp -f "$AGENT_SRC/VERSION" "$AGENT_DIR/VERSION"
+else
+  echo "1.0.0" > "$AGENT_DIR/VERSION"
+fi
 chmod +x "$AGENT_DIR/agent.py" "$AGENT_DIR/print_agent.py"
+# 目录交给运行用户，print-agent 才能自行下载并替换程序实现远程更新。
+chown -R "$RUN_USER": "$AGENT_DIR"
 sed -e "s#^User=.*#User=${RUN_USER}#" \
     -e "s#/home/pi/print-agent#${AGENT_DIR}#g" \
     "$AGENT_SRC/print-agent.service" > /etc/systemd/system/print-agent.service
@@ -263,6 +270,7 @@ with open(path, "w", encoding="utf-8") as fh:
 PY
   chown "$RUN_USER": "$AGENT_DIR/agent.json"
   chmod 600 "$AGENT_DIR/agent.json"
+  chown -R "$RUN_USER": "$AGENT_DIR"
   systemctl enable print-agent >/dev/null
   systemctl restart print-agent
   sleep 3

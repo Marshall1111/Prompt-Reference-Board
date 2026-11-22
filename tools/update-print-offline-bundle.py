@@ -15,7 +15,10 @@ REPLACEMENTS = {
     "petpaint-offline/provision.sh": PROJECT / "print-agent" / "provision.sh",
     "petpaint-offline/print-agent/agent.py": PROJECT / "print-agent" / "agent.py",
     "petpaint-offline/print-agent/print_agent.py": PROJECT / "print-agent" / "print_agent.py",
+    "petpaint-offline/print-agent/VERSION": PROJECT / "print-agent" / "VERSION",
 }
+# 旧离线包里没有 VERSION，允许补写新条目；其余条目缺失仍视为失败。
+APPENDABLE = {"petpaint-offline/print-agent/VERSION"}
 
 
 def update_archive(archive: Path) -> None:
@@ -41,8 +44,20 @@ def update_archive(archive: Path) -> None:
                     found.add(name)
                 else:
                     updated.addfile(member, original.extractfile(member) if member.isfile() else None)
-        if found != set(REPLACEMENTS):
-            raise ValueError(f"Archive is missing agent entries: {set(REPLACEMENTS) - found}")
+            missing = set(REPLACEMENTS) - found
+            if missing - APPENDABLE:
+                raise ValueError(f"Archive is missing agent entries: {missing - APPENDABLE}")
+            for name in missing:
+                source = REPLACEMENTS[name]
+                data = source.read_bytes()
+                if name.endswith(".sh"):
+                    data = data.replace(b"\r\n", b"\n")
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                info.mode = 0o644
+                info.mtime = int(source.stat().st_mtime)
+                updated.addfile(info, io.BytesIO(data))
+                found.add(name)
         # Verify every replaced file before atomically replacing the old archive.
         with tarfile.open(temporary, "r:gz") as check:
             for name, source in REPLACEMENTS.items():

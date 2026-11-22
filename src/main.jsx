@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCallback } from "react";
-import { Activity, AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, Clipboard, Cpu, Download, Eye, GripVertical, HardDrive, Home, Image as ImageIcon, ImageUp, Layers3, ListTodo, LoaderCircle, MemoryStick, Pencil, Plus, QrCode, RefreshCw, Save, Search, Server, Settings, Share2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Video, Wifi, X, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, Clipboard, Cpu, Download, Eye, GripVertical, HardDrive, Home, Image as ImageIcon, ImageUp, Layers3, ListTodo, LoaderCircle, MemoryStick, Pencil, Plus, QrCode, RefreshCw, Save, Search, Server, Settings, Share2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Upload, Video, Wifi, X, XCircle } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import HTMLFlipBook from "react-pageflip";
 import { createLabeledQrPngDataUrl, createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
 import "./styles.css";
 import CustomPrintEditor from "./CustomPrintEditor.jsx";
 import AdminVideoWorkshopPage from "./AdminVideoWorkshopPage.jsx";
-import PrintDeviceProvisionDialog from "./PrintDeviceProvisionDialog.jsx";
+import PrintConfigDialog from "./PrintConfigDialog.jsx";
 
 const DEFAULT_CONTACT_WECHAT_ID = "PetPaint";
 const DEFAULT_ORDER_ADDRESS = {
@@ -11774,6 +11774,46 @@ async function fetchAdminPrintDeviceToken(deviceId) {
   return payload;
 }
 
+async function createAdminAgentRelease() {
+  const response = await fetch("/api/admin/agent-releases", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({})
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "发布 Agent 新版本失败。");
+  return payload;
+}
+
+async function fetchAdminAgentReleases() {
+  const response = await fetch("/api/admin/agent-releases");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "读取 Agent 版本失败。");
+  return payload;
+}
+
+async function pushAdminAgentUpdate(body) {
+  const response = await fetch("/api/admin/agent-updates/push", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "推送 Agent 更新失败。");
+  return payload;
+}
+
+async function rollbackAdminAgentUpdate(deviceIds) {
+  const response = await fetch("/api/admin/agent-updates/rollback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ deviceIds })
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "回滚 Agent 版本失败。");
+  return payload;
+}
+
 async function createAdminPrintDeviceBatch({ count, labelPrefix, hardwareModel, printerName }) {
   const response = await fetch("/api/admin/print-devices/batch", {
     method: "POST",
@@ -14210,7 +14250,8 @@ function PrintDeviceAdminPage() {
   const [search, setSearch] = useState("");
   const [batchForm, setBatchForm] = useState({ count: 10, labelPrefix: "N1-", hardwareModel: "n1", printerName: "cp1500" });
   const [tokenModal, setTokenModal] = useState(null);
-  const [provisionDevice, setProvisionDevice] = useState(null);
+  const [configDevice, setConfigDevice] = useState(null);
+  const [latestAgentRelease, setLatestAgentRelease] = useState(null);
   const [bindSelection, setBindSelection] = useState({});
   const [editingDeviceId, setEditingDeviceId] = useState("");
   const [labelDraft, setLabelDraft] = useState("");
@@ -14224,6 +14265,8 @@ function PrintDeviceAdminPage() {
     || String(owner.id);
   const statusLabel = (device) => (device.healthy ? "在线" : device.lastSeenAt ? "离线" : "未激活");
   const sourceLabel = (device) => (device.provisionSource === "web" ? "网页配置" : device.provisionSource === "usb" ? "U 盘制盘" : device.provisionSource === "manual" ? "手工配置" : "旧设备");
+  const updateLabel = (device) => ({ pending: "待更新", applied: "待确认", succeeded: "已更新", failed: "更新失败" })[device.agentUpdateState] || "";
+  const updateBadgeClass = (state) => (state === "failed" ? "is-offline" : state === "succeeded" ? "is-online" : state === "applied" ? "is-processing" : "is-pending");
 
   async function refresh() {
     setLoading(true);
@@ -14245,6 +14288,77 @@ function PrintDeviceAdminPage() {
   useEffect(() => {
     void refresh();
   }, []);
+
+  useEffect(() => {
+    fetchAdminAgentReleases()
+      .then((payload) => setLatestAgentRelease((payload.releases || [])[0] || null))
+      .catch(() => {});
+  }, []);
+
+  async function publishAgentRelease() {
+    if (!window.confirm("发布当前 print-agent 版本？发布后可以对设备推送更新。")) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const payload = await createAdminAgentRelease();
+      setLatestAgentRelease(payload.release);
+      setNotice(`已发布 Agent ${payload.release.version}（${payload.release.releaseId}）。`);
+    } catch (nextError) {
+      setError(nextError.message || "发布 Agent 新版本失败。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function pushAgentUpdate(device) {
+    if (!latestAgentRelease) {
+      setError("请先发布 Agent 新版本。");
+      return;
+    }
+    if (!window.confirm(`把 Agent ${latestAgentRelease.version} 推送给 ${device.label || device.deviceId}？设备下次轮询会自动更新并重启。`)) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const payload = await pushAdminAgentUpdate({ deviceIds: [device.deviceId] });
+      await refresh();
+      setNotice(payload.queued ? "更新已排队，等待设备拉取。" : "没有需要更新的设备。");
+    } catch (nextError) {
+      setError(nextError.message || "推送 Agent 更新失败。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function pushAgentUpdateAll() {
+    if (!latestAgentRelease) {
+      setError("请先发布 Agent 新版本。");
+      return;
+    }
+    if (!window.confirm(`把 Agent ${latestAgentRelease.version} 推送给全部设备？在线设备会陆续自动更新。`)) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const payload = await pushAdminAgentUpdate({ all: true });
+      await refresh();
+      setNotice(`已排队 ${Number(payload.queued || 0)} 台设备。`);
+    } catch (nextError) {
+      setError(nextError.message || "推送 Agent 更新失败。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function rollbackAgent(device) {
+    if (!device.agentPreviousVersion) return;
+    if (!window.confirm(`把 ${device.label || device.deviceId} 回滚到 Agent ${device.agentPreviousVersion}？设备会重启一次。`)) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const payload = await rollbackAdminAgentUpdate([device.deviceId]);
+      await refresh();
+      setNotice(payload.queued ? "回滚任务已排队。" : "该设备没有可回滚的版本。");
+    } catch (nextError) {
+      setError(nextError.message || "回滚 Agent 版本失败。");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function createBatch() {
     const count = Math.trunc(Number(batchForm.count));
@@ -14392,7 +14506,7 @@ function PrintDeviceAdminPage() {
   const summary = inventory.summary || {};
 
   return <section className="task-page referral-admin-page" aria-label="设备库存">
-    <div className="task-toolbar"><div><p className="eyebrow">Print devices</p><h2>设备库存</h2><p className="storage-note">批量创建设备并导出 CSV 给制盘工具；发货前在这里或商户信息维护里绑定商户。已上线的旧设备也会显示在列表中。</p></div><div className="task-toolbar-actions"><button className="secondary-button" disabled={busy || loading} onClick={refresh} type="button"><RefreshCw size={18} /><span>{loading ? "刷新中" : "刷新"}</span></button></div></div>
+    <div className="task-toolbar"><div><p className="eyebrow">Print devices</p><h2>设备库存</h2><p className="storage-note">批量创建设备并导出 CSV 给制盘工具；发货前在这里或商户信息维护里绑定商户。已上线的旧设备也会显示在列表中。Agent 更新只替换打印程序，并在下一次心跳时生效。</p></div><div className="task-toolbar-actions"><button className="secondary-button" disabled={busy || loading} onClick={publishAgentRelease} type="button"><Upload size={18} /><span>发布新版本</span></button><button className="secondary-button" disabled={busy || loading || !latestAgentRelease} onClick={pushAgentUpdateAll} type="button"><RefreshCw size={18} /><span>全部升级</span></button><button className="secondary-button" disabled={busy || loading} onClick={refresh} type="button"><RefreshCw size={18} /><span>{loading ? "刷新中" : "刷新"}</span></button></div></div>
     {error ? <p className="error-note">{error}</p> : null}{notice ? <p className="success-note">{notice}</p> : null}
 
     <div className="referral-admin-card">
@@ -14411,6 +14525,7 @@ function PrintDeviceAdminPage() {
       <span className="merchant-badge is-online">已绑定 {Number(summary.bound || 0)}</span>
       <span className="merchant-badge is-offline">未绑定 {Number(summary.unbound || 0)}</span>
       <span className="merchant-badge is-online">在线 {Number(summary.online || 0)}</span>
+      <span className="merchant-badge is-processing">Agent 最新 {latestAgentRelease?.version || "未发布"}</span>
       <label className="search-box"><Search size={18} /><input onChange={(event) => setSearch(event.target.value)} placeholder="搜索设备 ID、备注、型号或商户" value={search} /></label>
     </div>
 
@@ -14420,21 +14535,21 @@ function PrintDeviceAdminPage() {
         <tbody>
           {devices.map((device) => <tr key={device.deviceId}>
             <td><div className="user-admin-identity">{editingDeviceId === device.deviceId ? <input autoFocus className="field-inline-input" maxLength={40} onBlur={() => { void saveLabel(device); }} onChange={(event) => setLabelDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } else if (event.key === "Escape") { event.preventDefault(); labelEditRef.current.cancel = true; cancelEditLabel(); } }} value={labelDraft} /> : <div className="device-label-name"><strong>{device.label || device.deviceId}</strong><button aria-label="修改设备名称" className="icon-button device-label-edit" disabled={savingLabel} onClick={() => startEditLabel(device)} title="修改设备名称" type="button"><Pencil size={14} /></button></div>}<span>{device.deviceId}</span></div></td>
-            <td><div className="user-admin-identity"><strong>{device.hardwareModel || "未上报"}</strong><span>{sourceLabel(device)} · 固件 {device.firmwareVersion || "未上报"}</span></div></td>
+            <td><div className="user-admin-identity"><strong>{device.hardwareModel || "未上报"}</strong><span>{sourceLabel(device)} · 固件 {device.firmwareVersion || "未上报"} · Agent {device.agentVersion || "未上报"}</span></div></td>
             <td>{device.storeOwnerAccountId != null ? <div className="user-admin-identity"><strong>{device.storeOwnerName || "已绑定"}</strong><span>{device.storeOwnerWechatId || device.storeOwnerUsername || `#${String(device.storeOwnerAccountId).slice(-8)}`}</span></div> : <div className="store-owner-wechat-value"><select className="field-inline-input" onChange={(event) => setBindSelection((current) => ({ ...current, [device.deviceId]: event.target.value }))} value={bindSelection[device.deviceId] || ""}><option value="">选择商户</option>{storeOwners.map((owner) => <option key={owner.id} value={owner.id}>{ownerLabel(owner)}</option>)}</select><button className="secondary-button" disabled={busy || !bindSelection[device.deviceId]} onClick={() => bindDevice(device)} type="button">绑定</button></div>}</td>
-            <td><span className={`merchant-badge ${device.healthy ? "is-online" : "is-offline"}`}>{statusLabel(device)}</span></td>
+            <td><div className="device-status-badges"><span className={`merchant-badge ${device.healthy ? "is-online" : "is-offline"}`}>{statusLabel(device)}</span>{device.agentUpdateState ? <span className={`merchant-badge ${updateBadgeClass(device.agentUpdateState)}`} title={device.agentUpdateError || ""}>{updateLabel(device)}</span> : null}</div></td>
             <td>{device.lastSeenAt ? formatDateTime(device.lastSeenAt) : "从未上报"}</td>
-            <td><div className="store-owner-wechat-value"><button className="secondary-button" disabled={busy} onClick={() => setProvisionDevice(device)} type="button">配置</button><button className="secondary-button" disabled={busy} onClick={() => showToken(device)} type="button">查看令牌</button>{device.storeOwnerAccountId != null ? <button className="danger-button" disabled={busy} onClick={() => unbindDevice(device)} type="button">解绑</button> : device.lastSeenAt ? null : <button className="danger-button" disabled={busy} onClick={() => deleteDevice(device)} type="button">删除</button>}</div></td>
+            <td><div className="store-owner-wechat-value"><button className="secondary-button" disabled={busy} onClick={() => setConfigDevice(device)} type="button">打印参数</button><button className="secondary-button" disabled={busy || !latestAgentRelease} onClick={() => pushAgentUpdate(device)} type="button">升级</button>{device.agentPreviousVersion ? <button className="secondary-button" disabled={busy} onClick={() => rollbackAgent(device)} type="button">回滚</button> : null}<button className="secondary-button" disabled={busy} onClick={() => showToken(device)} type="button">查看令牌</button>{device.storeOwnerAccountId != null ? <button className="danger-button" disabled={busy} onClick={() => unbindDevice(device)} type="button">解绑</button> : device.lastSeenAt ? null : <button className="danger-button" disabled={busy} onClick={() => deleteDevice(device)} type="button">删除</button>}</div></td>
           </tr>)}
           {!devices.length ? <tr><td colSpan="6" className="order-table-empty">{loading ? "正在读取设备库存…" : "暂无设备。先在上方批量创建，再下载 CSV。"}</td></tr> : null}
         </tbody>
       </table>
     </div>
 
-    {provisionDevice ? <PrintDeviceProvisionDialog
-      device={provisionDevice}
-      onClose={() => setProvisionDevice(null)}
-      onProvisioned={refresh}
+    {configDevice ? <PrintConfigDialog
+      device={configDevice}
+      onClose={() => setConfigDevice(null)}
+      onSaved={refresh}
     /> : null}
 
     {tokenModal ? <div className="referral-withdrawal-backdrop" role="presentation" onClick={() => setTokenModal(null)}>
