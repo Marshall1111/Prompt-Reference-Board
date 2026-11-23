@@ -12,7 +12,8 @@ const DEFAULT_END_PAGE = {
 
 const DEFAULT_PARAMS = {
   framesPer: 24,
-  endFrames: 62,
+  endFrames: 92,
+  coverSeconds: 2,
   zoom: 0.04,
   width: 1080,
   height: 1620
@@ -183,6 +184,8 @@ export default function AdminVideoWorkshopPage() {
   const [bgmOptions, setBgmOptions] = useState({ builtin: null, uploads: [] });
   const [bgmSelection, setBgmSelection] = useState("builtin");
   const [bgmUploading, setBgmUploading] = useState(false);
+  const [templateInfo, setTemplateInfo] = useState(null);
+  const [templateUploading, setTemplateUploading] = useState(false);
 
   const [query, setQuery] = useState({ styleId: "", search: "", page: 1 });
   const [searchDraft, setSearchDraft] = useState("");
@@ -211,15 +214,17 @@ export default function AdminVideoWorkshopPage() {
     let disposed = false;
     (async () => {
       try {
-        const [stylesPayload, ownersPayload, bgmPayload] = await Promise.all([
+        const [stylesPayload, ownersPayload, bgmPayload, templatePayload] = await Promise.all([
           fetchJson("/api/styles"),
           fetchJson("/api/admin/store-owner-invites"),
-          fetchJson("/api/admin/video-workshop/bgm")
+          fetchJson("/api/admin/video-workshop/bgm"),
+          fetchJson("/api/admin/video-workshop/template")
         ]);
         if (disposed) return;
         setStyles(Array.isArray(stylesPayload) ? stylesPayload : stylesPayload.styles || []);
         setStoreOwners(ownersPayload.storeOwners || []);
         setBgmOptions({ builtin: bgmPayload.builtin || null, uploads: bgmPayload.uploads || [] });
+        setTemplateInfo(templatePayload.template || null);
       } catch (nextError) {
         if (!disposed) setError(nextError.message || "读取基础数据失败。");
       }
@@ -354,6 +359,34 @@ export default function AdminVideoWorkshopPage() {
     }
   }
 
+  async function uploadTemplate(file) {
+    if (!file) return;
+    setTemplateUploading(true); setError(""); setNotice("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const payload = await fetchJson("/api/admin/video-workshop/template", { method: "POST", body: form });
+      setTemplateInfo(payload.template || null);
+      setNotice(`已上传结尾页封面模板 ${payload.template?.name || ""}。`);
+    } catch (nextError) {
+      setError(nextError.message || "上传模板失败。");
+    } finally {
+      setTemplateUploading(false);
+    }
+  }
+
+  async function deleteTemplate() {
+    if (!window.confirm("确认删除自定义模板并恢复默认模板？已提交的任务不受影响。")) return;
+    setError(""); setNotice("");
+    try {
+      const payload = await fetchJson("/api/admin/video-workshop/template", { method: "DELETE" });
+      setTemplateInfo(payload.template || null);
+      setNotice("已恢复默认模板。");
+    } catch (nextError) {
+      setError(nextError.message || "删除模板失败。");
+    }
+  }
+
   async function submitJob() {
     if (selected.length !== MAX_SELECTION) {
       setError(`请先选择 ${MAX_SELECTION} 个任务，当前 ${selected.length} 个。`);
@@ -419,7 +452,7 @@ export default function AdminVideoWorkshopPage() {
       <div>
         <p className="eyebrow">Video workshop</p>
         <h2>视频工坊</h2>
-        <p className="storage-note">选择 6 个已完成任务，浏览器生成结尾页，服务器异步渲染成片。参数与桌面版保持一致（350 帧 / 30fps ≈ 11.67 秒）。</p>
+        <p className="storage-note">选择 6 个已完成任务，浏览器生成结尾页，服务器异步渲染成片。参数与桌面版保持一致（380 帧 / 30fps ≈ 12.67 秒）。</p>
       </div>
       <div className="task-toolbar-actions">
         <button className="secondary-button" disabled={jobsLoading} onClick={loadJobs} type="button"><RefreshCw size={18} /><span>{jobsLoading ? "读取中" : "刷新任务"}</span></button>
@@ -489,6 +522,22 @@ export default function AdminVideoWorkshopPage() {
 
     <div className="referral-admin-card">
       <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Step 2</p><h3>结尾页</h3><p className="storage-note">结尾页在本机浏览器生成并提交 PNG，所见即所得。</p></div></div>
+      <div className="vw-cover-template-row">
+        <div className="vw-cover-template-preview">
+          {templateInfo ? <img alt="结尾页封面模板" src={templateInfo.url} /> : <span>加载中…</span>}
+        </div>
+        <div className="vw-cover-template-info">
+          <strong>结尾页封面模板（亚克力冰箱贴）</strong>
+          <p className="storage-note">生成时用第 6 个任务的转绘结果替换模板中冰箱贴内的图片，并把成品图放在结尾页前（默认 2 秒，可在 Step 3 调整）。{templateInfo?.isDefault ? "当前使用默认模板，不上传则一直沿用。" : "当前使用自定义模板。"}</p>
+          <div className="store-owner-wechat-value">
+            <label className="secondary-button vw-upload-button">
+              {templateUploading ? "上传中…" : templateInfo?.isDefault ? "上传自定义模板" : "更换图片"}
+              <input accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => { void uploadTemplate(event.target.files?.[0]); event.target.value = ""; }} type="file" />
+            </label>
+            {templateInfo && !templateInfo.isDefault ? <button className="danger-button" onClick={() => { void deleteTemplate(); }} type="button">恢复默认</button> : null}
+          </div>
+        </div>
+      </div>
       <div className="vw-end-page-layout">
         <div className="store-profile-grid vw-end-page-fields">
           <label className="field-label">落地网址<input className="field-inline-input" onChange={(event) => setEndPage((current) => ({ ...current, siteUrl: event.target.value }))} value={endPage.siteUrl} /></label>
@@ -524,7 +573,8 @@ export default function AdminVideoWorkshopPage() {
       <div className="task-toolbar compact-toolbar"><div><p className="eyebrow">Step 3</p><h3>生成</h3><p className="storage-note">服务器单并发渲染，提交后可离开当前页面，稍后回来查看结果。</p></div></div>
       <div className="store-profile-grid">
         <label className="field-label">每张帧数<input className="field-inline-input" max={240} min={2} onChange={(event) => setParams((current) => ({ ...current, framesPer: Number(event.target.value) || 24 }))} step={2} type="number" value={params.framesPer} /></label>
-        <label className="field-label">结尾帧数<input className="field-inline-input" max={600} min={2} onChange={(event) => setParams((current) => ({ ...current, endFrames: Number(event.target.value) || 62 }))} step={2} type="number" value={params.endFrames} /></label>
+        <label className="field-label">结尾帧数<input className="field-inline-input" max={600} min={2} onChange={(event) => setParams((current) => ({ ...current, endFrames: Number(event.target.value) || 92 }))} step={2} type="number" value={params.endFrames} /></label>
+        <label className="field-label">成品图秒数<input className="field-inline-input" max={10} min={0} onChange={(event) => setParams((current) => ({ ...current, coverSeconds: Math.max(0, Math.min(10, Number(event.target.value) || 0)) }))} step={0.5} type="number" value={params.coverSeconds} /></label>
         <label className="field-label">推近幅度<input className="field-inline-input" max={0.3} min={0} onChange={(event) => setParams((current) => ({ ...current, zoom: Number(event.target.value) || 0 }))} step={0.01} type="number" value={params.zoom} /></label>
         <label className="field-label">宽<input className="field-inline-input" max={2160} min={360} onChange={(event) => setParams((current) => ({ ...current, width: Math.max(360, Math.min(2160, Number(event.target.value) || 1080)) }))} step={2} type="number" value={params.width} /></label>
         <label className="field-label">高<input className="field-inline-input" max={2160} min={360} onChange={(event) => setParams((current) => ({ ...current, height: Math.max(360, Math.min(2160, Number(event.target.value) || 1620)) }))} step={2} type="number" value={params.height} /></label>
@@ -558,7 +608,7 @@ export default function AdminVideoWorkshopPage() {
               {job.status === "succeeded" ? "已完成" : job.status === "failed" ? "失败" : job.status === "running" ? "生成中" : "排队中"}
             </span>
           </div>
-          <p className="storage-note">{formatTime(job.createdAt)} · {job.bgmName || "内置 BGM"} · {formatBytes(job.outputBytes)}</p>
+          <p className="storage-note">{formatTime(job.createdAt)} · {job.bgmName || "内置 BGM"} · {formatBytes(job.outputBytes)}{job.coverJobId ? ` · 封面任务 ${job.coverJobId}` : ""}</p>
           {job.status === "running" || job.status === "queued" ? <div className="vw-progress"><span style={{ width: `${Math.max(2, job.progress || 0)}%` }} /></div> : null}
           <p className="storage-note">{job.message || ""}{job.error ? `：${job.error}` : ""}</p>
           {job.status === "succeeded" ? <video className="vw-video" controls playsInline preload="metadata" src={job.downloadUrl || `/api/admin/video-workshop/jobs/${encodeURIComponent(job.id)}/file`} /> : null}

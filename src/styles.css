@@ -13626,6 +13626,37 @@ textarea {
   background: #000;
 }
 
+.vw-cover-template-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.vw-cover-template-preview {
+  flex: 0 0 160px;
+  width: 160px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  border: 1px solid #d8d8dc;
+  background: #000;
+  color: #9a9aa0;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+.vw-cover-template-preview img {
+  width: 100%;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.vw-cover-template-info {
+  display: grid;
+  gap: 6px;
+}
+
 .vw-task-filters {
   display: flex;
   align-items: flex-end;

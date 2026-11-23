@@ -458,10 +458,120 @@ async function resolveVideoFfmpegPath() {
   return "ffmpeg";
 }
 
+// 视频工坊结尾页封面：用模板图（图一）+ 第 6 个任务转绘结果（图二）生成冰箱贴成品图。
+const VIDEO_COVER_PROMPT = "把图一中亚克力冰箱贴内的图片，替换成图二，比例2:3";
+const VIDEO_COVER_SIZE = "1024x1536";
+const VIDEO_COVER_WAIT_LIMIT_MS = 8 * 60 * 1000;
+const VIDEO_COVER_POLL_INTERVAL_MS = 1500;
+
+async function createVideoCoverJob({ templatePath, templateName, templateMime, resultPath }) {
+  const providers = getImageProviders();
+  const settings = await readAppSettings();
+  const provider = resolveImageProvider("", providers, settings);
+  if (!provider) throw createHttpError(503, "暂无可用的生图服务，请稍后再试。");
+  const providerChain = getProviderFallbackChain("", providers, settings);
+
+  const [templateBuffer, resultBuffer] = await Promise.all([
+    readFile(templatePath),
+    readFile(resultPath)
+  ]);
+  const resultMime = mimeForExtension(path.extname(String(resultPath || "")).toLowerCase()) || "image/png";
+  const coverJobId = randomUUID();
+  const files = [
+    {
+      fieldname: "image",
+      originalname: String(templateName || path.basename(templatePath)),
+      mimetype: String(templateMime || "image/png"),
+      size: templateBuffer.length,
+      buffer: templateBuffer
+    },
+    {
+      fieldname: "image",
+      originalname: path.basename(String(resultPath || "result.png")),
+      mimetype: resultMime,
+      size: resultBuffer.length,
+      buffer: resultBuffer
+    }
+  ];
+
+  const originalReferences = await persistImageJobReferences(coverJobId, files);
+  const now = new Date().toISOString();
+  const telemetry = {
+    styleId: "video-workshop-cover",
+    styleName: "视频工坊·结尾页封面",
+    requestedProviderIdRaw: provider.id,
+    requestedProvider: toTelemetryProvider(provider),
+    providerChain: toTelemetryProviderList(providerChain)
+  };
+  await saveImageJob({
+    jobId: coverJobId,
+    experienceType: "video-workshop",
+    status: "queued",
+    message: "视频工坊结尾页封面已提交。",
+    result: null,
+    createdAt: now,
+    updatedAt: now,
+    completedAt: null,
+    prompt: VIDEO_COVER_PROMPT,
+    size: VIDEO_COVER_SIZE,
+    referenceCount: files.length,
+    originalReferences,
+    styleId: "video-workshop-cover",
+    styleName: "视频工坊·结尾页封面",
+    styleGroupId: "video-workshop",
+    styleGroupName: "视频工坊",
+    provider: { id: provider.id, name: provider.name, model: provider.model },
+    mode: "edit",
+    ownerAdmin: true,
+    visibility: "admin",
+    telemetry
+  });
+  runImageJob({
+    jobId: coverJobId,
+    body: {
+      size: VIDEO_COVER_SIZE,
+      quality: "medium",
+      output_format: "png",
+      background: "opaque",
+      moderation: "auto"
+    },
+    files,
+    outputFormat: "png",
+    prompt: VIDEO_COVER_PROMPT,
+    provider,
+    providers: providerChain,
+    telemetry
+  }).catch((error) => console.error("Video workshop cover generation failed.", error));
+  return coverJobId;
+}
+
+async function waitForVideoCover(coverJobId, { onProgress } = {}) {
+  const deadline = Date.now() + VIDEO_COVER_WAIT_LIMIT_MS;
+  while (Date.now() < deadline) {
+    const job = await readImageJob(coverJobId);
+    if (!job) throw new Error("结尾页封面任务不存在。");
+    if (job.status === "succeeded") {
+      const file = await resolveJobImageFile(job);
+      if (!file) throw new Error("结尾页封面结果图缺失。");
+      return file;
+    }
+    if (job.status === "failed" || job.status === "cancelled") {
+      throw new Error(String(job.error || job.message || "结尾页封面生成失败。"));
+    }
+    if (typeof onProgress === "function") {
+      await onProgress(Number(job.progress || 0), String(job.message || ""));
+    }
+    await new Promise((resolve) => setTimeout(resolve, VIDEO_COVER_POLL_INTERVAL_MS));
+  }
+  throw new Error("结尾页封面生成超时。");
+}
+
 const videoWorkshop = createVideoWorkshop({
   rootDir,
   dataRoot: path.join(rootDir, "data", "private-video-workshop"),
-  ffmpegPath: await resolveVideoFfmpegPath()
+  ffmpegPath: await resolveVideoFfmpegPath(),
+  createCoverJob: createVideoCoverJob,
+  waitForCover: waitForVideoCover
 });
 await videoWorkshop.init();
 setInterval(() => {
@@ -4978,7 +5088,8 @@ function normalizeVideoWorkshopParams(input = {}) {
   };
   return {
     framesPer: even(input.framesPer, 24, 2, 240),
-    endFrames: even(input.endFrames, 62, 2, 600),
+    endFrames: even(input.endFrames, 92, 2, 600),
+    coverSeconds: Math.round(numeric(input.coverSeconds, 2, 0, 10) * 2) / 2,
     zoom: numeric(input.zoom, 0.04, 0, 0.3),
     width: even(input.width, 1080, 360, 2160),
     height: even(input.height, 1620, 360, 2160)
@@ -5193,6 +5304,59 @@ app.delete("/api/admin/video-workshop/bgm/:bgmId", requireAdmin, async (req, res
   try {
     await videoWorkshop.deleteBgm(req.params.bgmId);
     res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/video-workshop/template", requireAdmin, async (_req, res, next) => {
+  try {
+    res.json({ template: await videoWorkshop.getTemplateInfo() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/video-workshop/template", requireAdmin, upload.single("file"), async (req, res, next) => {
+  try {
+    const file = req.file;
+    if (!file) throw createHttpError(400, "请选择图片文件。");
+    const mimeType = String(file.mimetype || "").toLowerCase();
+    if (!["image/png", "image/jpeg", "image/webp"].includes(mimeType)) {
+      throw createHttpError(400, "仅支持 PNG / JPEG / WebP 图片。");
+    }
+    const sharp = await loadSharpModule();
+    try {
+      await sharp(file.buffer).metadata();
+    } catch (error) {
+      throw createHttpError(400, "图片无法解析，请更换文件。");
+    }
+    const template = await videoWorkshop.saveTemplate(file.buffer, {
+      originalName: file.originalname,
+      mimeType
+    });
+    res.status(201).json({ template });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/video-workshop/template", requireAdmin, async (_req, res, next) => {
+  try {
+    await videoWorkshop.deleteTemplate();
+    res.json({ ok: true, template: await videoWorkshop.getTemplateInfo() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/video-workshop/template/file", requireAdmin, async (_req, res, next) => {
+  try {
+    const template = await videoWorkshop.getTemplateFile();
+    if (!template) throw createHttpError(404, "缺少结尾页封面模板图。");
+    res.type(template.mimeType || "image/png");
+    res.setHeader("Cache-Control", "no-store");
+    createReadStream(template.path).pipe(res);
   } catch (error) {
     next(error);
   }
@@ -17504,7 +17668,9 @@ function toPublicImageJob(job) {
   const result = normalizeJobResult(job.result);
   return {
     jobId: String(job.jobId || ""),
-    experienceType: job.experienceType === "admin-provider-test" ? "admin-provider-test" : normalizePublicExperienceType(job.experienceType),
+    experienceType: ["admin-provider-test", "video-workshop"].includes(job.experienceType)
+      ? job.experienceType
+      : normalizePublicExperienceType(job.experienceType),
     status: job.status,
     message: job.message || "",
     result,

@@ -15,6 +15,13 @@ const MAX_JOB_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_BGM_FILES = 20;
 const JOB_TIMEOUT_MS = 15 * 60 * 1000;
 const PROGRESS_WRITE_INTERVAL_MS = 500;
+const TEMPLATE_META_FILENAME = "template.json";
+const DEFAULT_TEMPLATE_FILENAME = "cover-template-default.png";
+const TEMPLATE_EXT_BY_MIME = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/webp": ".webp"
+};
 
 function todayStamp() {
   const now = new Date();
@@ -40,6 +47,7 @@ function publicJob(job) {
     durationMs: Number(job.durationMs || 0),
     params: job.params || null,
     jobIds: Array.isArray(job.jobIds) ? job.jobIds : [],
+    coverJobId: String(job.coverJobId || ""),
     bgmName: String(job.bgmName || ""),
     siteUrl: String(job.siteUrl || ""),
     topText: String(job.topText || ""),
@@ -54,10 +62,14 @@ export function createVideoWorkshop({
   rootDir,
   dataRoot,
   ffmpegPath = process.env.FFMPEG_PATH || "ffmpeg",
-  logger = console
+  logger = console,
+  createCoverJob = null,
+  waitForCover = null
 }) {
   const jobsRoot = path.join(dataRoot, "jobs");
   const bgmRoot = path.join(dataRoot, "bgm");
+  const templateRoot = path.join(dataRoot, "template");
+  const defaultTemplatePath = path.join(rootDir, "server", "assets", DEFAULT_TEMPLATE_FILENAME);
   const builtinBgmPath = path.join(rootDir, "server", "assets", "bgm.m4a");
   const queue = [];
   let runningJobId = "";
@@ -164,6 +176,7 @@ export function createVideoWorkshop({
   async function init() {
     await mkdir(jobsRoot, { recursive: true });
     await mkdir(bgmRoot, { recursive: true });
+    await mkdir(templateRoot, { recursive: true });
     const entries = await readdir(jobsRoot, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory() || !JOB_ID_PATTERN.test(entry.name)) continue;
@@ -254,6 +267,100 @@ export function createVideoWorkshop({
     return { path: builtinBgmPath, name: "内置 BGM" };
   }
 
+  function templateMetaPath() {
+    return path.join(templateRoot, TEMPLATE_META_FILENAME);
+  }
+
+  async function readTemplateMeta() {
+    try {
+      return JSON.parse(await readFile(templateMetaPath(), "utf-8"));
+    } catch (error) {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    }
+  }
+
+  async function getTemplateFile() {
+    const meta = await readTemplateMeta();
+    if (meta?.filename) {
+      const customPath = path.join(templateRoot, String(meta.filename));
+      if (existsSync(customPath)) {
+        return {
+          path: customPath,
+          name: String(meta.name || meta.filename),
+          mimeType: String(meta.mimeType || ""),
+          updatedAt: String(meta.updatedAt || ""),
+          isDefault: false
+        };
+      }
+    }
+    if (!existsSync(defaultTemplatePath)) return null;
+    const info = await stat(defaultTemplatePath);
+    return {
+      path: defaultTemplatePath,
+      name: DEFAULT_TEMPLATE_FILENAME,
+      mimeType: "image/png",
+      updatedAt: info.mtime.toISOString(),
+      isDefault: true
+    };
+  }
+
+  async function getTemplateInfo() {
+    const file = await getTemplateFile();
+    if (!file) return null;
+    const info = await stat(file.path);
+    const updatedAt = file.updatedAt || info.mtime.toISOString();
+    return {
+      name: file.isDefault ? "默认模板" : file.name,
+      mimeType: file.mimeType,
+      size: info.size,
+      updatedAt,
+      isDefault: Boolean(file.isDefault),
+      url: `/api/admin/video-workshop/template/file?v=${encodeURIComponent(updatedAt)}`
+    };
+  }
+
+  async function clearTemplateFiles() {
+    await mkdir(templateRoot, { recursive: true });
+    const entries = await readdir(templateRoot, { withFileTypes: true });
+    await Promise.all(entries
+      .filter((entry) => entry.isFile())
+      .map((entry) => rm(path.join(templateRoot, entry.name), { force: true })));
+  }
+
+  async function saveTemplate(buffer, { originalName = "", mimeType = "" } = {}) {
+    const extension = TEMPLATE_EXT_BY_MIME[String(mimeType || "")];
+    if (!extension) {
+      const error = new Error("仅支持 PNG / JPEG / WebP 图片。");
+      error.status = 400;
+      throw error;
+    }
+    await clearTemplateFiles();
+    const filename = `template${extension}`;
+    const updatedAt = new Date().toISOString();
+    await writeFile(path.join(templateRoot, filename), buffer);
+    const meta = {
+      filename,
+      name: String(originalName || filename),
+      mimeType: String(mimeType),
+      size: buffer.length,
+      updatedAt
+    };
+    await writeFile(templateMetaPath(), JSON.stringify(meta, null, 2), "utf-8");
+    return {
+      name: meta.name,
+      mimeType: meta.mimeType,
+      size: meta.size,
+      updatedAt,
+      isDefault: false,
+      url: `/api/admin/video-workshop/template/file?v=${encodeURIComponent(updatedAt)}`
+    };
+  }
+
+  async function deleteTemplate() {
+    await clearTemplateFiles();
+  }
+
   async function createJob({
     pairs,
     params,
@@ -264,6 +371,30 @@ export function createVideoWorkshop({
     topText,
     bottomText
   }) {
+    const template = await getTemplateFile();
+    if (!template) {
+      const error = new Error("服务器缺少结尾页封面模板图。");
+      error.status = 500;
+      throw error;
+    }
+    if (typeof createCoverJob !== "function" || typeof waitForCover !== "function") {
+      const error = new Error("结尾页封面生成服务不可用。");
+      error.status = 500;
+      throw error;
+    }
+    const sixth = Array.isArray(pairs) ? pairs[5] : null;
+    if (!sixth?.after) {
+      const error = new Error("缺少第 6 个任务的转绘结果图。");
+      error.status = 400;
+      throw error;
+    }
+    const coverJobId = await createCoverJob({
+      templatePath: template.path,
+      templateName: template.name,
+      templateMime: template.mimeType,
+      resultPath: sixth.after
+    });
+
     const id = createId("vw");
     const directory = jobDir(id);
     await mkdir(directory, { recursive: true });
@@ -289,6 +420,7 @@ export function createVideoWorkshop({
       params,
       pairs,
       jobIds,
+      coverJobId,
       bgmName: bgmFile.name,
       bgmExt,
       siteUrl: String(siteUrl || ""),
@@ -340,7 +472,51 @@ export function createVideoWorkshop({
 
     runningJobId = jobId;
     const startedAt = Date.now();
-    await updateJob(jobId, { status: "running", progress: 1, message: "准备素材", startedAt: new Date(startedAt).toISOString() }, { force: true });
+    await updateJob(jobId, {
+      status: "running",
+      progress: 1,
+      message: job.coverJobId ? "生成结尾页封面 0%" : "准备素材",
+      startedAt: new Date(startedAt).toISOString()
+    }, { force: true });
+
+    let coverPath = "";
+    if (job.coverJobId) {
+      try {
+        const coverFile = await waitForCover(job.coverJobId, {
+          onProgress: async (progress) => {
+            const rounded = Math.max(0, Math.min(100, Math.round(Number(progress) || 0)));
+            await updateJob(jobId, {
+              progress: 1 + Math.min(3, (rounded / 100) * 3),
+              message: `生成结尾页封面 ${rounded}%`
+            });
+          }
+        });
+        if (!coverFile) throw new Error("结尾页封面结果图缺失。");
+        const coverExtension = path.extname(coverFile) || ".png";
+        coverPath = path.join(jobDir(jobId), `cover${coverExtension}`);
+        await copyFile(coverFile, coverPath);
+      } catch (error) {
+        runningJobId = "";
+        await withMetaLock(jobId, async () => {
+          const current = await readMeta(jobId);
+          if (!current) return;
+          await writeMeta({
+            ...current,
+            status: "failed",
+            message: "结尾页封面生成失败",
+            error: String(error?.message || error || "结尾页封面生成失败"),
+            durationMs: Date.now() - startedAt,
+            finishedAt: new Date().toISOString(),
+            pairs: undefined
+          });
+        });
+        await prune();
+        setImmediate(() => {
+          runNext().catch((nextError) => logger.error?.("[video] 队列推进失败", nextError));
+        });
+        return;
+      }
+    }
 
     const inputPath = path.join(jobDir(jobId), "render-input.json");
     const outputPath = path.join(jobDir(jobId), "output.mp4");
@@ -348,6 +524,7 @@ export function createVideoWorkshop({
       jobId,
       outputPath,
       endPagePath: path.join(jobDir(jobId), "end.png"),
+      coverPath,
       bgmPath: path.join(jobDir(jobId), `bgm${job.bgmExt || ".m4a"}`),
       pairs: Array.isArray(job.pairs) ? job.pairs : [],
       params: job.params
@@ -511,6 +688,10 @@ export function createVideoWorkshop({
     saveBgm,
     deleteBgm,
     resolveBgmFile,
+    getTemplateInfo,
+    getTemplateFile,
+    saveTemplate,
+    deleteTemplate,
     builtinBgmPath,
     jobDir
   };

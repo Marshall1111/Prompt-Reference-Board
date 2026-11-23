@@ -15808,6 +15808,7 @@ function modeLabel(mode) {
 
 function publicExperienceLabel(experienceType) {
   if (experienceType === "admin-provider-test") return "供应商测试";
+  if (experienceType === "video-workshop") return "视频工坊";
   if (experienceType === "body-book") return "宝宝身体认知书";
   if (experienceType === "fridge-magnet") return "冰箱贴";
   if (experienceType === "draw-card") return "抽卡";
