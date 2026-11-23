@@ -5052,7 +5052,7 @@ app.get("/api/admin/video-workshop/jobs", requireAdmin, async (req, res, next) =
     const jobs = await videoWorkshop.listJobs();
     res.json({
       jobs: jobs.slice(0, limit).map((job) => (
-        job.status === "succeeded" ? { ...job, downloadUrl: buildVideoDownloadPath(job.id) } : job
+        job.status === "succeeded" ? { ...job, downloadUrl: buildVideoDownloadPath(job) } : job
       ))
     });
   } catch (error) {
@@ -5083,9 +5083,11 @@ function signVideoDownload(jobId, expiresAt) {
   return createHmac("sha256", getVideoDownloadSecret()).update(`${jobId}:${expiresAt}`).digest("base64url");
 }
 
-function buildVideoDownloadPath(jobId) {
-  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
-  return `/api/video-workshop/jobs/${encodeURIComponent(jobId)}/file?exp=${expiresAt}&sig=${signVideoDownload(jobId, expiresAt)}`;
+// 有效期锚定在任务完成时间，同一任务每次返回的链接保持一致，避免轮询时视频反复重载。
+function buildVideoDownloadPath(job) {
+  const issuedAt = Date.parse(job.finishedAt || job.createdAt || "") || Date.now();
+  const expiresAt = issuedAt + 30 * 24 * 60 * 60 * 1000;
+  return `/api/video-workshop/jobs/${encodeURIComponent(job.id)}/file?exp=${expiresAt}&sig=${signVideoDownload(job.id, expiresAt)}`;
 }
 
 function assertVideoDownloadSignature(req) {

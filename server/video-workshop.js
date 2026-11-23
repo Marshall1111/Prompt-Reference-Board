@@ -63,6 +63,19 @@ export function createVideoWorkshop({
   let runningJobId = "";
   let lastProgressWriteAt = 0;
 
+  // 同一个任务的 meta 读写必须串行，否则迟到的进度更新会把 finalize 写入的终态覆盖回 running。
+  const metaQueues = new Map();
+  function withMetaLock(jobId, task) {
+    const previous = metaQueues.get(jobId) || Promise.resolve();
+    const run = previous.then(task, task);
+    const settled = run.then(() => {}, () => {});
+    metaQueues.set(jobId, settled);
+    settled.then(() => {
+      if (metaQueues.get(jobId) === settled) metaQueues.delete(jobId);
+    });
+    return run;
+  }
+
   const jobDir = (jobId) => path.join(jobsRoot, jobId);
   const metaPath = (jobId) => path.join(jobDir(jobId), "meta.json");
 
@@ -81,14 +94,16 @@ export function createVideoWorkshop({
   }
 
   async function updateJob(jobId, patch, { force = false } = {}) {
-    const job = await readMeta(jobId);
-    if (!job) return null;
-    const next = { ...job, ...patch };
-    if (force || !TERMINAL_STATUSES.has(next.status)) {
-      lastProgressWriteAt = Date.now();
-    }
-    await writeMeta(next);
-    return next;
+    return withMetaLock(jobId, async () => {
+      const job = await readMeta(jobId);
+      if (!job) return null;
+      const next = { ...job, ...patch };
+      if (force || !TERMINAL_STATUSES.has(next.status)) {
+        lastProgressWriteAt = Date.now();
+      }
+      await writeMeta(next);
+      return next;
+    });
   }
 
   async function listJobs() {
@@ -355,8 +370,9 @@ export function createVideoWorkshop({
       finished = true;
       if (timer) clearTimeout(timer);
       runningJobId = "";
-      const current = await readMeta(jobId);
-      if (current) {
+      await withMetaLock(jobId, async () => {
+        const current = await readMeta(jobId);
+        if (!current) return;
         await writeMeta({
           ...current,
           ...patch,
@@ -364,7 +380,7 @@ export function createVideoWorkshop({
           finishedAt: new Date().toISOString(),
           pairs: undefined
         });
-      }
+      });
       if (!keepLog) await rm(inputPath, { force: true });
       await prune();
       setImmediate(() => {
@@ -403,11 +419,12 @@ export function createVideoWorkshop({
         await finalize({ status: "failed", message: "生成失败", error: text.slice(6) }, { keepLog: true });
         return;
       }
-      const current = await readMeta(jobId);
-      if (current) {
+      await withMetaLock(jobId, async () => {
+        const current = await readMeta(jobId);
+        if (!current) return;
         appendLog(current, `${text}\n`);
         await writeMeta(current);
-      }
+      });
     };
 
     child.stdout.setEncoding("utf-8");
@@ -426,10 +443,12 @@ export function createVideoWorkshop({
     child.stderr.on("data", (chunk) => {
       if (finished) return;
       stderrTail = (stderrTail + chunk).slice(-4000);
-      readMeta(jobId).then((value) => {
-        if (!value || finished) return null;
-        appendLog(value, chunk);
-        return writeMeta(value);
+      withMetaLock(jobId, async () => {
+        if (finished) return null;
+        const latest = await readMeta(jobId);
+        if (!latest) return null;
+        appendLog(latest, chunk);
+        return writeMeta(latest);
       }).catch(() => {});
     });
 
