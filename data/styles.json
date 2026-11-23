@@ -1,5 +1,25 @@
 [
   {
+    "id": "style_1795408060064",
+    "title": "GTA 风格",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1795408060064/cover.webp",
+    "imageUpdatedAt": "2026-11-23T04:27:40.064Z",
+    "personImage": "",
+    "personImageUpdatedAt": null,
+    "personThumbnailImage": "",
+    "petImage": "",
+    "petImageUpdatedAt": null,
+    "petThumbnailImage": "",
+    "prompt": "把我上传的这张照片，完整地重新画成一幅GTA6加载画面风格的插画海报。人物的姿势、角度、发型、衣服和表情，以及整张照片的构图和背景位置，都和原照片保持一致。\r\n画风：美式漫画插画，粗而干净的黑色描边，赛璐璐硬边阴影，大色块平涂。人物的脸和皮肤也用两三层硬边色块画阴影，不要写实的皮肤质感，五官稍做风格化，但保留本人的特征。\r\n配色：霓虹粉、橙红、品紫和青蓝的高饱和撞色，日落天空画成一条条渐变色带，棕榈树画成深紫色剪影。\r\n排版：在画面上方空处加一个大号、粗体、倾斜的英文手写标题 \"Sunset Drive\"，下面一行小字 \"Palm Coast\"。\r\n整张都是插画，不保留任何照片质感。除了这两行英文，不要其他文字、招牌字、车标、品牌logo和水印。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1795396161466",
     "title": "萌宠星空油画",
     "tags": [
@@ -10,11 +30,11 @@
     "drawCardWeight": 100,
     "image": "/style-previews/style_1795396161466/cover.webp",
     "imageUpdatedAt": "2026-11-23T01:09:21.466Z",
-    "personImage": "",
-    "personImageUpdatedAt": null,
+    "personImage": "/style-previews/style_1795396161466/cover.webp",
+    "personImageUpdatedAt": "2026-11-23T01:09:21.466Z",
     "personThumbnailImage": "",
-    "petImage": "",
-    "petImageUpdatedAt": null,
+    "petImage": "/style-previews/style_1795396161466/cover.webp",
+    "petImageUpdatedAt": "2026-11-23T01:09:21.466Z",
     "petThumbnailImage": "",
     "prompt": "将图片里的宠物放到梵高的星空场景中，让宠物仰望繁星，整体改为油画风格。",
     "useStyleImageAsReference": false
