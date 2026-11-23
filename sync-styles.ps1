@@ -42,6 +42,30 @@ function Get-UnixEpochSeconds {
   return [DateTimeOffset]::new($Dt.ToUniversalTime()).ToUnixTimeSeconds()
 }
 
+function Get-RemoteSha256Map {
+  param([string]$RemoteDir)
+
+  # 一次取回整个目录的哈希，避免逐文件 ssh 往返。
+  $raw = & ssh @sshArgs "${RemoteUser}@${RemoteHost}" "cd '${RemoteAppPath}/public' && find '${RemoteDir}' -type f -exec sha256sum {} +" 2>$null
+  if ($LASTEXITCODE -ne 0) {
+    throw "获取远程 ${RemoteDir} 文件哈希失败"
+  }
+
+  $prefix = "${RemoteDir}/"
+  $map = @{}
+  foreach ($line in $raw) {
+    if ([string]::IsNullOrWhiteSpace($line)) { continue }
+    $idx = $line.IndexOf(' ')
+    if ($idx -lt 0) { continue }
+    $hash = $line.Substring(0, $idx).ToLowerInvariant()
+    $rel = $line.Substring($idx + 1).TrimStart(' ')
+    if ($rel.StartsWith("./")) { $rel = $rel.Substring(2) }
+    if ($rel.StartsWith($prefix)) { $rel = $rel.Substring($prefix.Length) }
+    $map[$rel] = $hash
+  }
+  return $map
+}
+
 function Sync-IncrementalDirectory {
   param(
     [string]$RemoteDir,
@@ -80,13 +104,31 @@ function Sync-IncrementalDirectory {
     }
   }
 
-  # 3. 对比: 本地不存在 / 大小不同 / 修改时间不同 => 需要更新
+  # 3. 对比: 本地不存在 / 大小不同 => 必须更新；
+  #    大小相同但 mtime 不同 => 用 sha256 复核，内容一致只对齐 mtime，避免服务器批量改过时间戳后整目录重下。
   $changed = @()
+  $suspects = @()
   foreach ($rel in $remoteFiles.Keys) {
     $r = $remoteFiles[$rel]
     if (-not $localFiles.ContainsKey($rel)) { $changed += $rel; continue }
     $l = $localFiles[$rel]
-    if ($l.size -ne $r.size -or $l.mtime -ne $r.mtime) { $changed += $rel }
+    if ($l.size -ne $r.size) { $changed += $rel; continue }
+    if ($l.mtime -ne $r.mtime) { $suspects += $rel }
+  }
+
+  if ($suspects.Count -gt 0) {
+    Write-Host "  大小一致但时间戳不同 $($suspects.Count) 个，校验 sha256 ..." -ForegroundColor Gray
+    $remoteHashes = Get-RemoteSha256Map -RemoteDir $RemoteDir
+    foreach ($rel in $suspects) {
+      $localPath = Join-Path $localBase $rel
+      $remoteHash = $remoteHashes[$rel]
+      if (-not $remoteHash -or -not (Test-Path -LiteralPath $localPath)) { $changed += $rel; continue }
+      $localHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $localPath).Hash.ToLowerInvariant()
+      if ($localHash -ne $remoteHash) { $changed += $rel; continue }
+      # 内容一致，只把本地 mtime 对齐到服务器，下次同步就不会再判为变更。
+      (Get-Item -LiteralPath $localPath).LastWriteTimeUtc = [DateTimeOffset]::FromUnixTimeSeconds([int64]$remoteFiles[$rel].mtime).UtcDateTime
+      $localFiles[$rel].mtime = $remoteFiles[$rel].mtime
+    }
   }
 
   if ($changed.Count -eq 0) {
@@ -99,9 +141,17 @@ function Sync-IncrementalDirectory {
 
   if (Test-Path $LocalTempTar) { Remove-Item $LocalTempTar -Force }
 
-  # 4. 只打包需要更新的文件
-  $tarArgs = ($changed | ForEach-Object { "'${RemoteDir}/$_'" }) -join ' '
-  & ssh @sshArgs "${RemoteUser}@${RemoteHost}" "cd '${RemoteAppPath}/public' && tar -czf '${RemoteTempTar}' $tarArgs"
+  # 4. 只打包需要更新的文件。
+  # 文件多时把路径拼进 ssh 命令行会超过 Windows 的命令行长度上限，改为先传清单再用 tar -T。
+  $remoteList = "${RemoteTempTar}.list"
+  $localList = "${LocalTempTar}.list"
+  $lines = $changed | ForEach-Object { "${RemoteDir}/$_" }
+  [System.IO.File]::WriteAllText($localList, (($lines -join "`n") + "`n"), (New-Object System.Text.UTF8Encoding($false)))
+
+  & scp @scpArgs $localList "${RemoteUser}@${RemoteHost}:${remoteList}"
+  if ($LASTEXITCODE -ne 0) { throw "上传 ${RemoteDir} 文件清单失败" }
+
+  & ssh @sshArgs "${RemoteUser}@${RemoteHost}" "cd '${RemoteAppPath}/public' && tar -czf '${RemoteTempTar}' -T '${remoteList}'"
   if ($LASTEXITCODE -ne 0) { throw "在服务器上打包 ${RemoteDir} 失败" }
 
   & scp @scpArgs "${RemoteUser}@${RemoteHost}:${RemoteTempTar}" $LocalTempTar
@@ -111,10 +161,11 @@ function Sync-IncrementalDirectory {
   if ($LASTEXITCODE -ne 0) { throw "解压 ${RemoteDir} 失败" }
 
   # 5. 清理远程临时文件
-  & ssh @sshArgs "${RemoteUser}@${RemoteHost}" "rm -f '${RemoteTempTar}'"
+  & ssh @sshArgs "${RemoteUser}@${RemoteHost}" "rm -f '${RemoteTempTar}' '${remoteList}'"
   if ($LASTEXITCODE -ne 0) { throw "清理远程临时文件失败" }
 
   if (Test-Path $LocalTempTar) { Remove-Item $LocalTempTar -Force }
+  if (Test-Path $localList) { Remove-Item $localList -Force }
 }
 
 Require-Command "ssh"

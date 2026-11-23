@@ -3050,5 +3050,271 @@
     "sortOrders": {
       "日常": 26
     }
+  },
+  {
+    "publicationId": "f8aed544fc9e7b5f8d4b05b17fc2a1eb",
+    "jobId": "032e26c8-2312-4bef-a486-75de6631e815",
+    "styleId": "style_1795395328503",
+    "styleName": "冰箱门卫",
+    "prompt": "治愈系毛绒玩具写真，图一中软萌小动物毛绒公仔，保留动物原生特征，造型圆润蓬松；戴着绿色塑料袋头套+绿色方框眼镜，表情无辜搞怪，正举着一把绿色玩具枪对准镜头，俏皮又带点小酷；纯色米白色背景，简洁干净，暖调柔和自然光，光线均匀打在公仔身上，突出蓬松柔软的毛绒质感，画面软乎乎的，充满可爱搞怪的氛围感，高清细节，毛发根根分明，质感细腻，整体风格治愈又俏皮。画面上方标题“不许吃”，手写Q萌字体，可爱饱满，字体白色描边",
+    "tags": [
+      "推荐",
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/f8aed544fc9e7b5f8d4b05b17fc2a1eb/effect.webp",
+    "effectGridImageUrl": "/style-publications/f8aed544fc9e7b5f8d4b05b17fc2a1eb/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/f8aed544fc9e7b5f8d4b05b17fc2a1eb/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/032e26c8-2312-4bef-a486-75de6631e815.png",
+    "sourceReferenceImageUrl": "/job-references/032e26c8-2312-4bef-a486-75de6631e815/1-1795395271302.jpg",
+    "createdAt": "2026-11-23T01:06:02.682Z",
+    "updatedAt": "2026-11-23T01:06:02.682Z",
+    "sortOrders": {
+      "推荐": 34,
+      "宠物": 39
+    }
+  },
+  {
+    "publicationId": "981e3fbffc41335945537decf99a94d1",
+    "jobId": "ee2a0999-e19d-4288-91f7-9462d2a70f3e",
+    "styleId": "style_1795395308117",
+    "styleName": "圣诞复古宠物海报",
+    "prompt": "生成一张竖版复古美式印刷海报，参考第二张图中的宠物作为唯一宠物主角，保持毛色、眼睛、圆睁眼神和呆萌表情，宠物半身出镜、正面可爱。佩戴圣诞节趣味头套道具。使用高饱和撞色纯色背景，色彩分区明显，点缀爪印、星星、小闪光等装饰元素。整体呈现复古油墨质感、做旧噪点颗粒、轻微纸张磨损纹理、旧海报印刷网点效果。画面文字包含标题：“MERRY CHRISTMAS ”。文字为复古美式粗体标题，位于海报上方或下方，排版清晰，带轻微油墨错位和磨损边缘。保持宠物主角身份、毛色、眼睛颜色与表情一致，宫格整齐、海报整体商业完成度高。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/981e3fbffc41335945537decf99a94d1/effect.webp",
+    "effectGridImageUrl": "/style-publications/981e3fbffc41335945537decf99a94d1/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/981e3fbffc41335945537decf99a94d1/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/ee2a0999-e19d-4288-91f7-9462d2a70f3e.png",
+    "sourceReferenceImageUrl": "/job-references/ee2a0999-e19d-4288-91f7-9462d2a70f3e/1-1795395196520.jpg",
+    "createdAt": "2026-11-23T01:06:09.382Z",
+    "updatedAt": "2026-11-23T01:06:09.382Z",
+    "sortOrders": {
+      "宠物": 40
+    }
+  },
+  {
+    "publicationId": "2b4c1c8a619f58ccb79fa17dac34b9bc",
+    "jobId": "85bd06ab-be4c-4e1c-aeef-f4b66daac15d",
+    "styleId": "style_1795393916932",
+    "styleName": "萌宠复古画框",
+    "prompt": "宠物戴着白色褶皱领饰，从带有复古花纹、装着色彩艳丽花卉的蓝色花瓶旁的画框中探出身子，背景为深棕色，画面下方有纤细的“Petpaint Art Portrait”文字，整体呈现出古典艺术肖像风格的宠物摄影效果，非常逼真，复古",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/2b4c1c8a619f58ccb79fa17dac34b9bc/effect.webp",
+    "effectGridImageUrl": "/style-publications/2b4c1c8a619f58ccb79fa17dac34b9bc/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/2b4c1c8a619f58ccb79fa17dac34b9bc/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/85bd06ab-be4c-4e1c-aeef-f4b66daac15d.png",
+    "sourceReferenceImageUrl": "/job-references/85bd06ab-be4c-4e1c-aeef-f4b66daac15d/1-1795393820163.jpg",
+    "createdAt": "2026-11-23T01:06:16.966Z",
+    "updatedAt": "2026-11-23T01:06:16.966Z",
+    "sortOrders": {
+      "宠物": 41
+    }
+  },
+  {
+    "publicationId": "7a1f49ea0176af31603991981b8e8e5d",
+    "jobId": "c36246a7-0e8b-4b5c-a2e4-fb4f35bd11cc",
+    "styleId": "style_1795393360396",
+    "styleName": "萌宠多格海报",
+    "prompt": "生成一张竖版复古美式印刷海报，参考第一张图的4行3列规整网格宫格结构，共12格，每格是一张独立小海报并以粗线边框分隔。参考第二张图中的宠物作为唯一宠物主角，将所有宫格的萌宠面部统一替换为这只宠物，保持毛色、眼睛、圆睁眼神和呆萌表情，宠物半身出镜、正面可爱。12格分别佩戴不同趣味头套道具：垃圾袋头套、汉堡配饰加奶茶、粉色卷发筒、白毛巾头巾、爆炸头假发、橙子头套、奶酪盒、汉堡头套、超人面具、美元纸币头套、白花花环、西瓜头套。每格使用高饱和撞色纯色背景，色彩分区明显，点缀爪印、星星、小闪光等装饰元素。整体呈现复古油墨质感、做旧噪点颗粒、轻微纸张磨损纹理、旧海报印刷网点效果。画面文字包含十二个宫格标题，按从左到右、从上到下顺序分别为：“PET BAG”“BURGER PET”“PINK CURLY”“TOWEL PET”“FRO PET”“ORANGE PET”“CHEESE PET”“BURGER HEAD”“SUPER PET”“PET MONEY”“FLOWER PET”“WATERMELON PET”。文字为复古美式粗体标题，位于每个小海报上方或下方，排版清晰，带轻微油墨错位和磨损边缘。保持宠物主角身份、毛色、眼睛颜色与表情一致，宫格整齐、海报整体商业完成度高。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/7a1f49ea0176af31603991981b8e8e5d/effect.webp",
+    "effectGridImageUrl": "/style-publications/7a1f49ea0176af31603991981b8e8e5d/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/7a1f49ea0176af31603991981b8e8e5d/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/c36246a7-0e8b-4b5c-a2e4-fb4f35bd11cc.png",
+    "sourceReferenceImageUrl": "/job-references/c36246a7-0e8b-4b5c-a2e4-fb4f35bd11cc/2-1795393482253.jpg",
+    "createdAt": "2026-11-23T01:06:20.842Z",
+    "updatedAt": "2026-11-23T01:06:20.842Z",
+    "sortOrders": {
+      "宠物": 42
+    }
+  },
+  {
+    "publicationId": "c71be89a372341f06541d825445d1b12",
+    "jobId": "adfd762a-b5d2-44a8-92bd-01de560c0571",
+    "styleId": "style_1795393544688",
+    "styleName": "萌宠发财",
+    "prompt": "摄影，色彩以暖调为主，米白底色搭配喜庆的红（帽子）、贵气的金（墨镜字、元宝、麻将字、“get rich” 字样），构图采用中心聚焦式，主体动物居于画面中上部，下方堆叠的元宝、硬币与 “恭喜发财” 四个字组成的毛绒玩具质感的麻将牌，元素层次紧凑且重点突出；主体物是戴红色小财神帽、 印着“钱来” 墨镜的动物。“get rich” 字样位于画面背景，被动物身体遮挡一部分。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/c71be89a372341f06541d825445d1b12/effect.webp",
+    "effectGridImageUrl": "/style-publications/c71be89a372341f06541d825445d1b12/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/c71be89a372341f06541d825445d1b12/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/adfd762a-b5d2-44a8-92bd-01de560c0571.png",
+    "sourceReferenceImageUrl": "/job-references/adfd762a-b5d2-44a8-92bd-01de560c0571/1-1795393431236.jpg",
+    "createdAt": "2026-11-23T01:06:24.956Z",
+    "updatedAt": "2026-11-23T01:06:24.956Z",
+    "sortOrders": {
+      "宠物": 43
+    }
+  },
+  {
+    "publicationId": "7bbb3633a53be690bef998660a186c51",
+    "jobId": "a9edf116-80e6-4a43-8494-f6517722d815",
+    "styleId": "style_1795393258677",
+    "styleName": "巴宝莉萌宠",
+    "prompt": "将第1张图片里的宠物头戴棕色贝雷帽，带着围巾，穿着巴宝莉风衣 饰品：整体造型充满复古英伦风格。 姿势：坐在装饰有大量鲜花、蝴蝶元素的箱子里 情境 周围增添更多暗色复古干花和带有光泽感的蝴蝶装饰，营造出一种更浓郁的复古、神秘且略带诡异的氛围。 摄影风格 色彩：搭配多彩鲜花与暗色干花，再加上更深色背景衬托，色彩对比更加强烈，营造出更神秘而华丽的视觉效果。 构图：宠物处于画面中心位置，周围的鲜花、玩偶等元素更加丰富画面层次，构图紧凑且富有故事感，突出神秘复古主题。 摄影技术：光线柔和且明暗对比更明显，突出宠物的面部轮廓、毛发质感以及服装细节，增强画面的立体感和神秘感，营造出更浓郁的哥特式氛围。大师，写实，艺术照，超高清。完美构图。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/7bbb3633a53be690bef998660a186c51/effect.webp",
+    "effectGridImageUrl": "/style-publications/7bbb3633a53be690bef998660a186c51/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/7bbb3633a53be690bef998660a186c51/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/a9edf116-80e6-4a43-8494-f6517722d815.png",
+    "sourceReferenceImageUrl": "/job-references/a9edf116-80e6-4a43-8494-f6517722d815/1-1795392983673.jpg",
+    "createdAt": "2026-11-23T01:06:39.021Z",
+    "updatedAt": "2026-11-23T01:06:39.021Z",
+    "sortOrders": {
+      "宠物": 44
+    }
+  },
+  {
+    "publicationId": "8c9cb5612e6deb0a894ea145c642e81a",
+    "jobId": "89db12f1-1476-479c-9b3a-0ba48dce8e35",
+    "styleId": "style_1795393360396",
+    "styleName": "萌宠多格海报",
+    "prompt": "生成一张竖版复古美式印刷海报，参考第一张图的4行3列规整网格宫格结构，共12格，每格是一张独立小海报并以粗线边框分隔。参考第二张图中的宠物作为唯一宠物主角，将所有宫格的萌宠面部统一替换为这只宠物，保持毛色、眼睛、圆睁眼神和呆萌表情，宠物半身出镜、正面可爱。12格分别佩戴不同趣味头套道具：垃圾袋头套、汉堡配饰加奶茶、粉色卷发筒、白毛巾头巾、爆炸头假发、橙子头套、奶酪盒、汉堡头套、超人面具、美元纸币头套、白花花环、西瓜头套。每格使用高饱和撞色纯色背景，色彩分区明显，点缀爪印、星星、小闪光等装饰元素。整体呈现复古油墨质感、做旧噪点颗粒、轻微纸张磨损纹理、旧海报印刷网点效果。画面文字包含十二个宫格标题，按从左到右、从上到下顺序分别为：“PET BAG”“BURGER PET”“PINK CURLY”“TOWEL PET”“FRO PET”“ORANGE PET”“CHEESE PET”“BURGER HEAD”“SUPER PET”“PET MONEY”“FLOWER PET”“WATERMELON PET”。文字为复古美式粗体标题，位于每个小海报上方或下方，排版清晰，带轻微油墨错位和磨损边缘。保持宠物主角身份、毛色、眼睛颜色与表情一致，宫格整齐、海报整体商业完成度高。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/8c9cb5612e6deb0a894ea145c642e81a/effect.webp",
+    "effectGridImageUrl": "/style-publications/8c9cb5612e6deb0a894ea145c642e81a/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/8c9cb5612e6deb0a894ea145c642e81a/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/89db12f1-1476-479c-9b3a-0ba48dce8e35.png",
+    "sourceReferenceImageUrl": "/job-references/89db12f1-1476-479c-9b3a-0ba48dce8e35/2-1795392939470.jpg",
+    "createdAt": "2026-11-23T01:06:47.637Z",
+    "updatedAt": "2026-11-23T01:06:47.637Z",
+    "sortOrders": {
+      "宠物": 45
+    }
+  },
+  {
+    "publicationId": "cbe0f5e9fe7a167a088c31e4d0c53463",
+    "jobId": "66999c8e-d7ea-43fe-ac4b-db12a6596f8b",
+    "styleId": "style_1795392330154",
+    "styleName": "美式复古宠物",
+    "prompt": "保持宠物外观，美式复古写真风格，佩戴条纹复古背心和领巾，戴软呢礼帽，深蓝色背景，泛黄复古光影，轻微噪点，表情呆萌可爱。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/cbe0f5e9fe7a167a088c31e4d0c53463/effect.webp",
+    "effectGridImageUrl": "/style-publications/cbe0f5e9fe7a167a088c31e4d0c53463/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/cbe0f5e9fe7a167a088c31e4d0c53463/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/66999c8e-d7ea-43fe-ac4b-db12a6596f8b.png",
+    "sourceReferenceImageUrl": "/job-references/66999c8e-d7ea-43fe-ac4b-db12a6596f8b/1-1795392253437.jpg",
+    "createdAt": "2026-11-23T01:06:53.884Z",
+    "updatedAt": "2026-11-23T01:06:53.884Z",
+    "sortOrders": {
+      "宠物": 46
+    }
+  },
+  {
+    "publicationId": "87bd728c0ea3de319f1530d21ff59675",
+    "jobId": "68bb9d80-c9d2-45f7-9f6f-8fa9c4c6af5c",
+    "styleId": "style_1795396045082",
+    "styleName": "宠物军装油画",
+    "prompt": "一幅精致细腻的油画，图片中的宠物身着华丽的复古军装，军装主体为深墨绿色，装饰着大量精致的金色元素，包括肩章处的金色流苏、领口和衣襟上复杂的金色花纹与纽扣，胸前挂满了色彩斑斓、造型各异的勋章，整体尽显高贵威严。背景是深沉的暗色调，营造出庄重且富有历史感的氛围，画面采用写实的艺术风格，光影细腻，质感丰富，细节满满。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/87bd728c0ea3de319f1530d21ff59675/effect.webp",
+    "effectGridImageUrl": "/style-publications/87bd728c0ea3de319f1530d21ff59675/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/87bd728c0ea3de319f1530d21ff59675/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/68bb9d80-c9d2-45f7-9f6f-8fa9c4c6af5c.png",
+    "sourceReferenceImageUrl": "/job-references/68bb9d80-c9d2-45f7-9f6f-8fa9c4c6af5c/1-1795392041982.jpg",
+    "createdAt": "2026-11-23T01:07:29.281Z",
+    "updatedAt": "2026-11-23T01:07:29.281Z",
+    "sortOrders": {
+      "宠物": 47
+    }
+  },
+  {
+    "publicationId": "da9aad8fe3b81cc97f19527bb4a53d52",
+    "jobId": "35de6a1f-7eec-4eec-acc2-2c1df49709c8",
+    "styleId": "style_1795391803007",
+    "styleName": "萌宠生日派对",
+    "prompt": "宠物戴着带有彩色圆点的透明派对帽，穿着同款彩色圆点的透明围脖，趴在粉色毛绒质感的表面上。背景改为纯黑色，上方添加“HAPPY BIRTHDAY TO YOU”文字，整体营造温馨可爱的宠物生日氛围",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/da9aad8fe3b81cc97f19527bb4a53d52/effect.webp",
+    "effectGridImageUrl": "/style-publications/da9aad8fe3b81cc97f19527bb4a53d52/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/da9aad8fe3b81cc97f19527bb4a53d52/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/35de6a1f-7eec-4eec-acc2-2c1df49709c8.png",
+    "sourceReferenceImageUrl": "/job-references/35de6a1f-7eec-4eec-acc2-2c1df49709c8/1-1795391720050.jpg",
+    "createdAt": "2026-11-23T01:07:34.333Z",
+    "updatedAt": "2026-11-23T01:07:34.333Z",
+    "sortOrders": {
+      "宠物": 48
+    }
+  },
+  {
+    "publicationId": "a5ede636b0a37095f2269fc0860efba5",
+    "jobId": "ac71bffe-011f-4711-870c-d5fb863751a3",
+    "styleId": "style_1795391290247",
+    "styleName": "萌宠汽水广告",
+    "prompt": "基于输入图片中的小猫形象生成一张美式复古汽水广告拼贴海报，保留宠物脸型、毛色、表情和姿态，将眼睛调整为大大的圆亮眼睛。整体为复古波普印刷艺术风格，半调粗网点纹理，粗糙泛黄做旧纸品肌理，油墨颗粒质感，轻微套色偏移，复古褪色配色，以正红色、钴蓝色、米奶白、焦糖棕为主色调，9:16竖版构图，50年代复古汽水招贴画氛围。画面顶部放置巨大红边圆形徽章，内部为巨大粗体复古衬线大字“STAY FIZZY”；右上角为锯齿边黄色爆炸贴纸，文字“ICE COLD. CAT APPROVED.”。画面中心是宠物，位于圆形徽章下方，周围有圆形气泡图案、星星装饰。画面左上方为撕边方形贴纸，粗体文字“ZERO THOUGHTS. FULL FLAVOR.”；左中部为复古瓶盖造型徽章与爆炸图案，大字“POP!”；左下方为圆形价格贴纸，文字“only 99¢”，旁边有红色五角星装饰。画面右侧放置复古厚玻璃樱桃汽水瓶，深色冒泡饮料，红白蓝条纹吸管，瓶身标签文字“CUTE SODA”“CHERRY”“FIZZY & FUN!”，标签印有小黑猫头像。右下角为撕边米黄色便签贴纸，文字“99% CUTE”“1% BUBBLES”。最底部为蓝白方格棋盘底纹。整张画面布满旧纸张折痕、斑驳污渍、磨损毛边、老旧印刷网点，整体复古怀旧、老式汽水广告质感。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/a5ede636b0a37095f2269fc0860efba5/effect.webp",
+    "effectGridImageUrl": "/style-publications/a5ede636b0a37095f2269fc0860efba5/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/a5ede636b0a37095f2269fc0860efba5/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/ac71bffe-011f-4711-870c-d5fb863751a3.png",
+    "sourceReferenceImageUrl": "/job-references/ac71bffe-011f-4711-870c-d5fb863751a3/1-1795391087990.jpg",
+    "createdAt": "2026-11-23T01:07:40.763Z",
+    "updatedAt": "2026-11-23T01:07:40.763Z",
+    "sortOrders": {
+      "宠物": 49
+    }
+  },
+  {
+    "publicationId": "0de80f9e476d481782c9bd756b1a7092",
+    "jobId": "b5b71d23-5346-4dd7-a843-f4de87dddfac",
+    "styleId": "style_1795396161466",
+    "styleName": "萌宠星空油画",
+    "prompt": "将图片里的宠物放到梵高的星空场景中，让宠物仰望繁星，整体改为油画风格。",
+    "tags": [
+      "宠物"
+    ],
+    "effectImageUrl": "/style-publications/0de80f9e476d481782c9bd756b1a7092/effect.webp",
+    "effectGridImageUrl": "/style-publications/0de80f9e476d481782c9bd756b1a7092/effect-small.webp",
+    "effectGridWidth": 427,
+    "effectGridHeight": 640,
+    "referenceImageUrl": "/style-publications/0de80f9e476d481782c9bd756b1a7092/reference.webp",
+    "sourceEffectImageUrl": "/generated-images/b5b71d23-5346-4dd7-a843-f4de87dddfac.png",
+    "sourceReferenceImageUrl": "/job-references/b5b71d23-5346-4dd7-a843-f4de87dddfac/1-1795396080667.jpg",
+    "createdAt": "2026-11-23T01:09:26.935Z",
+    "updatedAt": "2026-11-23T01:09:26.935Z",
+    "sortOrders": {
+      "宠物": 50
+    }
   }
 ]

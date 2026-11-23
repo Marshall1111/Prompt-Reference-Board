@@ -99,9 +99,17 @@ function Sync-IncrementalDirectory {
 
   if (Test-Path $LocalTempTar) { Remove-Item $LocalTempTar -Force }
 
-  # 4. 只打包需要更新的文件
-  $tarArgs = ($changed | ForEach-Object { "'${RemoteDir}/$_'" }) -join ' '
-  & ssh @sshArgs "${RemoteUser}@${RemoteHost}" "cd '${RemoteAppPath}/public' && tar -czf '${RemoteTempTar}' $tarArgs"
+  # 4. 只打包需要更新的文件。
+  # 文件多时把路径拼进 ssh 命令行会超过 Windows 的命令行长度上限，改为先传清单再用 tar -T。
+  $remoteList = "${RemoteTempTar}.list"
+  $localList = "${LocalTempTar}.list"
+  $lines = $changed | ForEach-Object { "${RemoteDir}/$_" }
+  [System.IO.File]::WriteAllText($localList, (($lines -join "`n") + "`n"), (New-Object System.Text.UTF8Encoding($false)))
+
+  & scp @scpArgs $localList "${RemoteUser}@${RemoteHost}:${remoteList}"
+  if ($LASTEXITCODE -ne 0) { throw "上传 ${RemoteDir} 文件清单失败" }
+
+  & ssh @sshArgs "${RemoteUser}@${RemoteHost}" "cd '${RemoteAppPath}/public' && tar -czf '${RemoteTempTar}' -T '${remoteList}'"
   if ($LASTEXITCODE -ne 0) { throw "在服务器上打包 ${RemoteDir} 失败" }
 
   & scp @scpArgs "${RemoteUser}@${RemoteHost}:${RemoteTempTar}" $LocalTempTar
@@ -111,10 +119,11 @@ function Sync-IncrementalDirectory {
   if ($LASTEXITCODE -ne 0) { throw "解压 ${RemoteDir} 失败" }
 
   # 5. 清理远程临时文件
-  & ssh @sshArgs "${RemoteUser}@${RemoteHost}" "rm -f '${RemoteTempTar}'"
+  & ssh @sshArgs "${RemoteUser}@${RemoteHost}" "rm -f '${RemoteTempTar}' '${remoteList}'"
   if ($LASTEXITCODE -ne 0) { throw "清理远程临时文件失败" }
 
   if (Test-Path $LocalTempTar) { Remove-Item $LocalTempTar -Force }
+  if (Test-Path $localList) { Remove-Item $localList -Force }
 }
 
 Require-Command "ssh"
