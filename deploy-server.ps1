@@ -140,7 +140,10 @@ $remoteCommand = @(
   "tar -xzf '$RemoteArchivePath' -C '$RemoteAppPath'",
   "sudo chown -R '$RemoteUser':'$RemoteUser' '$RemoteAppPath'",
   "cd '$RemoteAppPath'",
-  "npm install",
+  # 仅当 package-lock.json 变化时才安装依赖；需要强制重装时删除服务器上的 .deploy-package-lock.md5。
+  "md5sum package-lock.json | cut -d' ' -f1 > .deploy-package-lock.new",
+  "if ! cmp -s .deploy-package-lock.new .deploy-package-lock.md5; then npm install && md5sum package-lock.json | cut -d' ' -f1 > .deploy-package-lock.md5; fi",
+  "rm -f .deploy-package-lock.new",
   "if grep -q '""backfill:thumbnails""' package.json; then npm run backfill:thumbnails; fi",
   "if grep -q '""backfill:style-previews""' package.json; then npm run backfill:style-previews; fi",
   "npm run build",
