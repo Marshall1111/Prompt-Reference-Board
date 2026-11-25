@@ -10109,10 +10109,45 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [qrEnabled, setQrEnabled] = useState(false);
+  const [qrSiteUrl, setQrSiteUrl] = useState("https://www.petpaint.top");
+  const [qrInviteCode, setQrInviteCode] = useState("");
+  const [storeOwners, setStoreOwners] = useState([]);
+  const [comparisonEnabled, setComparisonEnabled] = useState(false);
 
   const styleMap = useMemo(() => new Map(styles.map((style) => [style.id, style])), [styles]);
   const selectedGroup = groups.find((group) => group.id === selectedGroupId) || null;
   const selectedStyles = selectedStyleIds.map((styleId) => styleMap.get(styleId)).filter(Boolean);
+  const effectivePhotoCount = Math.max(1, references.length);
+  const taskCount = effectivePhotoCount * selectedStyles.length;
+  const effectiveSize = comparisonEnabled ? "1024x1365" : size;
+  const qrPreviewUrl = useMemo(() => {
+    let base = qrSiteUrl.trim() || "https://www.petpaint.top";
+    if (!/^https?:\/\//i.test(base)) base = `https://${base}`;
+    try {
+      const parsed = new URL(base);
+      const styleId = selectedStyles[0]?.id || "";
+      if (styleId) parsed.searchParams.append("sameStyleId", styleId);
+      const inviteCode = qrInviteCode.trim();
+      if (inviteCode) parsed.searchParams.append("invite", inviteCode);
+      return parsed.toString();
+    } catch {
+      return base;
+    }
+  }, [qrSiteUrl, qrInviteCode, selectedStyles]);
+
+  useEffect(() => {
+    let disposed = false;
+    fetch("/api/admin/store-owner-invites")
+      .then((response) => response.json())
+      .then((payload) => {
+        if (!disposed) setStoreOwners(Array.isArray(payload.storeOwners) ? payload.storeOwners : []);
+      })
+      .catch(() => {});
+    return () => {
+      disposed = true;
+    };
+  }, []);
 
   useEffect(() => {
     refreshImageProviders()
@@ -10186,7 +10221,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
 
   function addReferences(files) {
     setReferences((current) => {
-      const availableSlots = Math.max(0, 10 - current.length);
+      const availableSlots = Math.max(0, 20 - current.length);
       const nextFiles = files.slice(0, availableSlots);
       return [
         ...current,
@@ -10224,39 +10259,70 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
       setError("请先选择接口供应商。");
       return;
     }
+    if (taskCount > 200) {
+      setError(`单次最多提交 200 个任务（照片数 × 风格数），当前 ${taskCount} 个，请减少照片或风格。`);
+      return;
+    }
+    if (qrEnabled) {
+      const rawSiteUrl = qrSiteUrl.trim();
+      const normalizedSiteUrl = /^https?:\/\//i.test(rawSiteUrl) ? rawSiteUrl : `https://${rawSiteUrl}`;
+      try {
+        new URL(normalizedSiteUrl);
+      } catch {
+        setError("请填写有效的二维码落地网址。");
+        return;
+      }
+    }
 
     setIsSubmitting(true);
     setError("");
-    setStatusMessage("正在提交批量任务…");
+    setStatusMessage("正在准备批量任务…");
 
     try {
-      const uploadedReferences = await Promise.all(getOrderedReferences(references).map(prepareReferenceForUpload));
-      let submitted = 0;
+      const orderedReferences = getOrderedReferences(references);
+      const uploadedReferenceIds = [];
 
-      for (const style of selectedStyles) {
+      for (let index = 0; index < orderedReferences.length; index += 1) {
+        setStatusMessage(`正在上传第 ${index + 1}/${orderedReferences.length} 张原图…`);
+        const prepared = await prepareReferenceForUpload(orderedReferences[index]);
         const formData = new FormData();
-        formData.append("prompt", promptOverride.trim() || style.prompt);
-        formData.append("size", size);
-        formData.append("provider", selectedProvider);
-        formData.append("styleId", style.id);
-        formData.append("styleName", getStyleDisplayName(style));
-        formData.append("styleGroupId", selectedGroup.id);
-        formData.append("styleGroupName", selectedGroup.name);
-        Object.entries(GENERATION_DEFAULTS).forEach(([key, value]) => formData.append(key, value));
-
-        const mergedReferences = await buildBatchReferencesForStyle(style, uploadedReferences);
-        mergedReferences.forEach((reference) => formData.append("reference", reference.file));
-
-        const response = await fetch("/api/image-jobs", {
+        formData.append("reference", prepared.file);
+        const uploadResponse = await fetch("/api/image-references", {
           method: "POST",
           body: formData
         });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.message || `提交 ${getStyleDisplayName(style)} 失败。`);
-        submitted += 1;
+        const uploadPayload = await uploadResponse.json();
+        if (!uploadResponse.ok) {
+          throw new Error(uploadPayload.message || `上传第 ${index + 1} 张原图失败。`);
+        }
+        const referenceId = uploadPayload.reference?.referenceId;
+        if (!referenceId) throw new Error("参考图上传返回异常，请重试。");
+        uploadedReferenceIds.push(referenceId);
       }
 
-      setStatusMessage(`批量任务已提交，共 ${submitted} 个风格。`);
+      setStatusMessage(`正在提交 ${taskCount} 个任务…`);
+      const response = await fetch("/api/image-jobs/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          styleGroupId: selectedGroup.id,
+          provider: selectedProvider,
+          size,
+          promptOverride: promptOverride.trim(),
+          referenceIdGroups: uploadedReferenceIds.map((referenceId) => [referenceId]),
+          comparison: comparisonEnabled,
+          qrEnabled,
+          qrSiteUrl: qrSiteUrl.trim(),
+          qrInviteCode: qrInviteCode.trim(),
+          output_format: GENERATION_DEFAULTS.output_format
+        })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || "批量任务提交失败。");
+      const submitted = Number(payload.submittedCount || 0);
+      setStatusMessage(
+        `批量任务已提交，共 ${submitted} 个任务（${Math.max(1, uploadedReferenceIds.length)} 张照片 × ${selectedStyles.length} 种风格）。`
+      );
     } catch (nextError) {
       setError(nextError.message);
     } finally {
@@ -10355,7 +10421,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
                 <p className="eyebrow">Batch submit</p>
                 <h2>批量提交</h2>
                 <p className="storage-note">
-                  已选风格组：{selectedGroup?.name || "未选择"}，共 {selectedStyles.length} 个风格，比例 {getSizeLabel(size)}
+                  已选风格组：{selectedGroup?.name || "未选择"}，共 {selectedStyles.length} 个风格 × {effectivePhotoCount} 张原图 = {taskCount} 个任务，比例 {getSizeLabel(effectiveSize)}
                 </p>
               </div>
             </div>
@@ -10371,21 +10437,69 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
             </label>
             <label className="field-label">
               比例
-              <select disabled value={size}>
+              <select disabled value={effectiveSize}>
                 {GENERATION_SIZE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
               </select>
-              <span className="storage-note">批量提交会自动使用当前风格组设置的比例。</span>
+              <span className="storage-note">
+                {comparisonEnabled ? "对比图固定 3:4（1024×1365）。" : "批量提交会自动使用当前风格组设置的比例。"}
+              </span>
+            </label>
+            <label className="toggle-field">
+              <input checked={comparisonEnabled} onChange={(event) => setComparisonEnabled(event.target.checked)} type="checkbox" />
+              <span>制作对比图（上半原图 / 下半转绘，3:4）</span>
+            </label>
+            <p className="storage-note">启用后会在每个风格提示词前拼接固定对比图前缀，并强制使用 3:4 比例。</p>
+            <label className="toggle-field">
+              <input checked={qrEnabled} onChange={(event) => setQrEnabled(event.target.checked)} type="checkbox" />
+              <span>添加二维码</span>
+            </label>
+            {qrEnabled && (
+              <>
+                <div className="store-profile-grid">
+                  <label className="field-label">
+                    落地网址
+                    <input onChange={(event) => setQrSiteUrl(event.target.value)} placeholder="https://www.petpaint.top" value={qrSiteUrl} />
+                  </label>
+                  <label className="field-label">
+                    小画店家
+                    <select
+                      onChange={(event) => {
+                        const owner = storeOwners.find((item) => item.accountId === event.target.value);
+                        setQrInviteCode(owner?.inviteCode || "");
+                      }}
+                      value={storeOwners.find((item) => item.inviteCode && item.inviteCode === qrInviteCode)?.accountId || ""}
+                    >
+                      <option value="">不指定店家</option>
+                      {storeOwners.map((owner) => (
+                        <option key={owner.accountId} value={owner.accountId}>
+                          {owner.storeName || owner.accountId}
+                          {owner.inviteCode ? ` · ${owner.inviteCode}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field-label">
+                    邀请码
+                    <input onChange={(event) => setQrInviteCode(event.target.value)} placeholder="选填，用于邀请归因" value={qrInviteCode} />
+                  </label>
+                  <div className="field-label">
+                    二维码示例
+                    <span className="device-token-value">{qrPreviewUrl}</span>
+                  </div>
+                </div>
+                <p className="storage-note">风格 ID 自动取当前任务的实际风格，二维码下方固定显示「扫码做同款」。</p>
+              </>
+            )}
+            <label className="field-label">
+              追加补充说明（可选）
+              <textarea onChange={(event) => setPromptOverride(event.target.value)} placeholder="留空则只使用每个风格自己的提示词；填写后会追加到每个风格提示词末尾。" value={promptOverride} />
             </label>
             <label className="field-label">
-              覆盖提示词（可选）
-              <textarea onChange={(event) => setPromptOverride(event.target.value)} placeholder="留空则每个风格使用自己的提示词。" value={promptOverride} />
-            </label>
-            <label className="field-label">
-              上传参考图
+              上传原图（最多 20 张）
               <input
                 accept="image/png,image/jpeg,image/webp"
                 multiple
@@ -10396,7 +10510,7 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
                 type="file"
               />
             </label>
-            <p className="storage-note">批量规则：风格有自带参考图时，示例图会作为图一，你上传的参考图会从图二开始；没有自带参考图时，你上传的参考图会从图一开始。</p>
+            <p className="storage-note">批量规则：每张原图 × 每种风格 = 一个独立任务；风格有自带参考图时，示例图会作为图一，你的原图作为图二；没有自带参考图时，你的原图作为图一。</p>
             {references.length > 0 && (
               <div className="reference-list">
                 {getOrderedReferences(references).map((reference) => (
@@ -10416,10 +10530,11 @@ function BatchGeneratePage({ groups, onCreateGroup, onDeleteGroup, onUpdateGroup
                 ))}
               </div>
             )}
+            {taskCount > 200 && <p className="error-note">单次最多提交 200 个任务（当前 {taskCount} 个），请减少照片或风格。</p>}
             {statusMessage && <p className="storage-note">{statusMessage}</p>}
             {error && <p className="error-note">{error}</p>}
             <div className="card-actions generator-actions">
-              <button className="copy-button" disabled={isSubmitting || !selectedGroupId} onClick={submitBatchJobs} type="button">
+              <button className="copy-button" disabled={isSubmitting || !selectedGroupId || taskCount > 200} onClick={submitBatchJobs} type="button">
                 {isSubmitting ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
                 <span>{isSubmitting ? "提交中" : "提交整组任务"}</span>
               </button>

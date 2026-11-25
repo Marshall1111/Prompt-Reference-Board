@@ -609,6 +609,12 @@ const queuedImageJobRuns = new Map();
 const queuedImageJobIds = new Set();
 let imageQueuePumpScheduled = false;
 let imageQueuePumpRunning = false;
+// 同时运行的生图任务数上限，默认 6，可通过环境变量调整。
+const IMAGE_JOB_CONCURRENCY = (() => {
+  const parsed = Number.parseInt(String(process.env.IMAGE_JOB_CONCURRENCY || ""), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 6;
+})();
+let activeImageJobRunCount = 0;
 const IMAGE_JOB_TIMEOUT_MS = 3 * 60 * 1000;
 const imageJobWatchdogTimers = new Map();
 const imageJobDurationSamples = new Map();
@@ -3969,19 +3975,85 @@ app.post("/api/image-jobs", requireAdmin, upload.array("reference", 10), async (
   }
 });
 
+const BATCH_MAX_PHOTOS = 20;
+const BATCH_MAX_JOBS = 200;
+const BATCH_MAX_REFERENCES_PER_JOB = 10;
+const BATCH_COMPARISON_SIZE = "1024x1365";
+const BATCH_QR_TEXT = "扫码做同款";
+// 与用户指定的对比图前缀逐字一致，末尾直接拼接风格提示词。
+const BATCH_COMPARISON_PROMPT_PREFIX =
+  "请把我上传的每一张照片分别制作成一张独立的高级设计海报，每张图片单独成稿，不进行多图拼接。整体采用 3:4 竖版构图，画面上下严格等分为两个区域，各占 50%。\n上半区域：保留原始照片，主体身份、结构、动作姿态、真实质感、自然光影以及原本的色彩氛围均需维持不变，只做轻度高级调色，让整体更接近艺术杂志与展览视觉。为了适配画幅，可以自然补充和延展环境背景，但禁止拉伸、变形或改动主体本身。\n下半区域：";
+
+function parseBatchBoolean(value) {
+  const text = String(value ?? "").trim().toLowerCase();
+  return ["1", "true", "on", "yes"].includes(text);
+}
+
+function buildBatchQrUrl(siteUrl, styleId, inviteCode) {
+  let base = String(siteUrl || "").trim() || "https://www.petpaint.top";
+  if (!/^https?:\/\//i.test(base)) base = `https://${base}`;
+  let parsed;
+  try {
+    parsed = new URL(base);
+  } catch {
+    return base;
+  }
+  const safeStyleId = String(styleId || "").trim();
+  const safeInviteCode = String(inviteCode || "").trim();
+  if (safeStyleId) parsed.searchParams.append("sameStyleId", safeStyleId);
+  if (safeInviteCode) parsed.searchParams.append("invite", safeInviteCode);
+  return parsed.toString();
+}
+
+// referenceIdGroups 允许二维数组或 JSON 字符串；扁平数组按“一组参考图”处理。
+function parseReferenceIdGroups(value) {
+  let raw = value;
+  if (typeof raw === "string") {
+    const text = raw.trim();
+    if (!text) return [[]];
+    if (text.startsWith("[")) {
+      try {
+        raw = JSON.parse(text);
+      } catch {
+        raw = [[text]];
+      }
+    } else {
+      raw = [[text]];
+    }
+  }
+  if (!Array.isArray(raw)) return [[]];
+
+  const candidates = raw.some(Array.isArray) ? raw : [raw];
+  const normalized = [];
+  for (const group of candidates) {
+    const items = Array.isArray(group) ? group : [group];
+    const ids = [];
+    for (const item of items) {
+      const id = String(item || "").trim();
+      if (id && !ids.includes(id)) ids.push(id);
+    }
+    if (ids.length) normalized.push(ids.slice(0, BATCH_MAX_REFERENCES_PER_JOB));
+  }
+  return normalized.length ? normalized : [[]];
+}
+
 app.post("/api/image-jobs/batch", requireAdmin, async (req, res) => {
   const body = req.body || {};
-  const referenceIds = parseReferenceIds(body.referenceIds);
+  const photoGroups = body.referenceIdGroups !== undefined
+    ? parseReferenceIdGroups(body.referenceIdGroups)
+    : [parseReferenceIds(body.referenceIds)];
+  const allReferenceIds = photoGroups.flat();
   let preparedJobs = [];
 
   try {
     const styleGroupId = String(body.styleGroupId || "").trim();
     const promptOverride = String(body.promptOverride || "").trim();
+    const comparison = parseBatchBoolean(body.comparison);
+    const qrEnabled = parseBatchBoolean(body.qrEnabled);
     const providers = getImageProviders();
     const settings = await readAppSettings();
     const provider = resolveImageProvider(body.provider, providers, settings);
     const providerChain = getProviderFallbackChain(body.provider, providers, settings);
-    let sharedReferenceFiles = [];
     let groups = [];
     let styles = [];
     let group = null;
@@ -3996,6 +4068,10 @@ app.post("/api/image-jobs/batch", requireAdmin, async (req, res) => {
       return res.status(400).json({ message: "Please choose a valid provider first." });
     }
 
+    if (photoGroups.length > BATCH_MAX_PHOTOS) {
+      return res.status(400).json({ message: `单次最多上传 ${BATCH_MAX_PHOTOS} 张原图。` });
+    }
+
     [groups, styles] = await Promise.all([readStyleGroups(), readStyles()]);
     group = groups.find((item) => item.id === styleGroupId) || null;
     if (!group) {
@@ -4008,71 +4084,100 @@ app.post("/api/image-jobs/batch", requireAdmin, async (req, res) => {
       return res.status(400).json({ message: "The selected style group has no valid styles." });
     }
 
-    sharedReferenceFiles = await collectReferenceFiles([], referenceIds);
-    if (sharedReferenceFiles.some((file) => file.mimetype === "image/svg+xml")) {
+    if (groupStyles.length * photoGroups.length > BATCH_MAX_JOBS) {
+      return res.status(400).json({
+        message: `单次最多提交 ${BATCH_MAX_JOBS} 个任务（照片数 × 风格数），请减少照片或风格。`
+      });
+    }
+
+    const photoFileGroups = await Promise.all(
+      photoGroups.map((ids) => collectReferenceFiles([], ids))
+    );
+    if (photoFileGroups.some((files) => files.some((file) => file.mimetype === "image/svg+xml"))) {
       return res.status(400).json({ message: "Reference images only support JPG, PNG, or WebP." });
     }
 
     for (const style of groupStyles) {
-      const prompt = promptOverride || String(style.prompt || "").trim();
-      const referenceFiles = await buildBatchReferenceFiles(style, sharedReferenceFiles);
-      const now = new Date().toISOString();
-      const jobId = randomUUID();
-      const styleName = formatStyleName(style);
-      const originalReferences = await persistImageJobReferences(jobId, referenceFiles);
-      const job = {
-        jobId,
-        status: "queued",
-        message: "Batch job submitted. Waiting to run.",
-        result: null,
-        createdAt: now,
-        updatedAt: now,
-        completedAt: null,
-        prompt,
-        size: normalizeSize(body.size),
-        referenceCount: referenceFiles.length,
-        originalReferences,
-        styleId: String(style.id || ""),
-        styleName,
-        styleGroupId: group.id,
-        styleGroupName: group.name,
-        provider: {
-          id: provider.id,
-          name: provider.name,
-          model: provider.model
-        },
-        mode: referenceFiles.length ? "edit" : "generation",
-        telemetry: {
-          requestedProviderIdRaw: String(body.provider || "").trim(),
-          requestedProvider: toTelemetryProvider(provider),
-          providerChain: toTelemetryProviderList(providerChain),
-          attempts: [],
-          finalProvider: null,
-          finalError: ""
-        }
-      };
-
-      preparedJobs.push({
-        job: job,
-        runArgs: {
-          jobId: jobId,
-          body: { ...body, styleId: style.id, styleName: styleName, styleGroupId: group.id, styleGroupName: group.name },
-          files: referenceFiles.map(cloneReferenceFile),
-          outputFormat: normalizeOption(body.output_format, ["png", "jpeg", "webp"], "png"),
-          prompt: prompt,
-          provider: provider,
-          providers: providerChain,
+      for (const photoFiles of photoFileGroups) {
+        const stylePrompt = String(style.prompt || "").trim();
+        const basePrompt = promptOverride
+          ? [stylePrompt, promptOverride].filter(Boolean).join("\n")
+          : stylePrompt;
+        const prompt = comparison ? `${BATCH_COMPARISON_PROMPT_PREFIX}${basePrompt}` : basePrompt;
+        const referenceFiles = await buildBatchReferenceFiles(style, photoFiles);
+        const now = new Date().toISOString();
+        const jobId = randomUUID();
+        const styleName = formatStyleName(style);
+        const originalReferences = await persistImageJobReferences(jobId, referenceFiles);
+        const job = {
+          jobId,
+          status: "queued",
+          message: "Batch job submitted. Waiting to run.",
+          result: null,
+          createdAt: now,
+          updatedAt: now,
+          completedAt: null,
+          prompt,
+          size: comparison ? BATCH_COMPARISON_SIZE : normalizeSize(body.size),
+          referenceCount: referenceFiles.length,
+          originalReferences,
+          styleId: String(style.id || ""),
+          styleName,
+          styleGroupId: group.id,
+          styleGroupName: group.name,
+          batchOptions: {
+            comparison,
+            qrEnabled,
+            qrUrl: qrEnabled ? buildBatchQrUrl(body.qrSiteUrl, style.id, body.qrInviteCode) : "",
+            qrText: qrEnabled ? BATCH_QR_TEXT : ""
+          },
+          provider: {
+            id: provider.id,
+            name: provider.name,
+            model: provider.model
+          },
+          mode: referenceFiles.length ? "edit" : "generation",
           telemetry: {
-            requestedProviderIdRaw: String(body.provider || "").trim()
+            requestedProviderIdRaw: String(body.provider || "").trim(),
+            requestedProvider: toTelemetryProvider(provider),
+            providerChain: toTelemetryProviderList(providerChain),
+            attempts: [],
+            finalProvider: null,
+            finalError: ""
           }
-        }
-      });
+        };
+
+        preparedJobs.push({
+          job: job,
+          runArgs: {
+            jobId: jobId,
+            body: {
+              ...body,
+              styleId: style.id,
+              styleName: styleName,
+              styleGroupId: group.id,
+              styleGroupName: group.name,
+              size: comparison ? BATCH_COMPARISON_SIZE : normalizeSize(body.size)
+            },
+            files: referenceFiles.map(cloneReferenceFile),
+            outputFormat: normalizeOption(body.output_format, ["png", "jpeg", "webp"], "png"),
+            prompt: prompt,
+            provider: provider,
+            providers: providerChain,
+            telemetry: {
+              requestedProviderIdRaw: String(body.provider || "").trim()
+            }
+          }
+        });
+      }
     }
 
     await Promise.all(preparedJobs.map((item) => saveImageJob(item.job)));
 
     res.status(202).json({
       group: group,
+      photoCount: photoFileGroups.length,
+      styleCount: groupStyles.length,
       submittedCount: preparedJobs.length,
       jobs: preparedJobs.map((item) => toPublicImageJob(item.job))
     });
@@ -4094,8 +4199,8 @@ app.post("/api/image-jobs/batch", requireAdmin, async (req, res) => {
     console.error(error);
     res.status(error.status || 500).json({ message: error.publicMessage || "Failed to submit batch jobs." });
   } finally {
-    if (referenceIds.length) {
-      await deleteTemporaryReferences(referenceIds);
+    if (allReferenceIds.length) {
+      await deleteTemporaryReferences(allReferenceIds);
     }
   }
 });
@@ -16196,18 +16301,19 @@ function scheduleImageQueuePump() {
 
 async function pumpImageQueue() {
   // 单泵互斥：同一时刻只允许一个泵在推进队列，避免多个泵并发取到
-  // 同一个任务导致重复启动。while(true) 会一直把当前队列清空。
+  // 同一个任务导致重复启动。每次推进最多补足到并发上限。
   if (imageQueuePumpRunning) return;
   imageQueuePumpRunning = true;
   try {
-    while (true) {
+    // 最多同时运行 IMAGE_JOB_CONCURRENCY 个任务，其余留在队列中等待。
+    // 每个任务完成后都会再次触发 pump，接住运行期间新提交的任务。
+    while (activeImageJobRunCount < IMAGE_JOB_CONCURRENCY) {
       const next = await takeNextQueuedImageJob();
       if (!next) return;
       queuedImageJobIds.delete(next.jobId);
       queuedImageJobRuns.delete(next.jobId);
-      // 并发数量限制已移除：一次性启动当前队列里的所有任务，
-      // 每个任务完成后都会再次触发 pump，以接住运行期间新提交的任务。
       activeImageJobs.set(next.jobId, { queued: true });
+      activeImageJobRunCount += 1;
       armImageJobWatchdog(next.jobId);
       const runner = next.kind === "body-book-mock"
         ? runBodyBookMockJob(next)
@@ -16215,6 +16321,7 @@ async function pumpImageQueue() {
       Promise.resolve(runner)
         .catch((error) => failQueuedImageJob(next.jobId, error))
         .finally(() => {
+          activeImageJobRunCount = Math.max(0, activeImageJobRunCount - 1);
           activeImageJobs.delete(next.jobId);
           clearImageJobWatchdog(next.jobId);
           scheduleImageQueuePump();
@@ -16222,7 +16329,7 @@ async function pumpImageQueue() {
     }
   } finally {
     imageQueuePumpRunning = false;
-    if (queuedImageJobIds.size) scheduleImageQueuePump();
+    if (queuedImageJobIds.size && activeImageJobRunCount < IMAGE_JOB_CONCURRENCY) scheduleImageQueuePump();
   }
 }
 
@@ -16717,6 +16824,82 @@ async function applyMerchantLogoToOriginal(jobId, bytes, mimeType) {
   }
 }
 
+function createBatchQrOverlay(width, height, { url, text = BATCH_QR_TEXT } = {}) {
+  const safeWidth = Math.max(1, Math.round(width || 1024));
+  const safeHeight = Math.max(1, Math.round(height || 1024));
+  const minSide = Math.min(safeWidth, safeHeight);
+  const margin = Math.max(16, Math.round(minSide * 0.03));
+  const plateWidth = Math.max(120, Math.round(minSide * 0.22));
+  const padding = Math.max(8, Math.round(plateWidth * 0.11));
+  const qrSize = Math.max(72, plateWidth - padding * 2);
+  const labelFontSize = Math.max(
+    12,
+    Math.min(
+      Math.round(qrSize * 0.11),
+      Math.floor((plateWidth - padding * 2) / Math.max(1, PUBLIC_PREVIEW_WATERMARK_LABEL.advanceEm))
+    )
+  );
+  const labelHeight = Math.round(labelFontSize * 1.35);
+  const gap = Math.max(4, Math.round(qrSize * 0.1));
+  const plateHeight = padding + qrSize + gap + labelHeight + Math.round(padding * 0.6);
+  const left = Math.max(0, safeWidth - plateWidth - margin);
+  const top = Math.max(0, safeHeight - plateHeight - margin);
+  const labelScale = labelFontSize / PUBLIC_PREVIEW_WATERMARK_LABEL.unitsPerEm;
+  const labelX = left + padding;
+  const labelY = top + padding + qrSize + gap + labelFontSize;
+  const safeText = String(text || "").replace(/[<>&"]/g, "");
+  return Buffer.from(`<svg width="${safeWidth}" height="${safeHeight}" viewBox="0 0 ${safeWidth} ${safeHeight}" xmlns="http://www.w3.org/2000/svg">
+  <title>${safeText}</title>
+  <rect x="${left}" y="${top}" width="${plateWidth}" height="${plateHeight}" rx="${Math.round(plateWidth * 0.06)}" fill="#ffffff" fill-opacity="0.96" stroke="#e5e7eb" stroke-width="2"/>
+  ${renderPublicPreviewQr({
+    url,
+    x: left + padding,
+    y: top + padding,
+    size: qrSize,
+    quiet: Math.round(qrSize * 0.08)
+  })}
+  <path d="${PUBLIC_PREVIEW_WATERMARK_LABEL.path}" transform="translate(${labelX} ${labelY}) scale(${labelScale} ${-labelScale})" fill="#0b0b0d"/>
+</svg>`);
+}
+
+async function applyBatchQrToOriginal(jobId, bytes, mimeType) {
+  if (!bytes?.length) return { bytes, applied: false };
+  try {
+    const job = await readImageJob(jobId);
+    const options = job?.batchOptions || {};
+    const qrUrl = String(options.qrUrl || "").trim();
+    if (!options.qrEnabled || !qrUrl) return { bytes, applied: false };
+    const sharp = await loadSharpModule();
+    if (!sharp) return { bytes, applied: false };
+    const metadata = await sharp(bytes, { animated: false }).metadata();
+    const orientation = Number(metadata?.orientation || 1);
+    const swapDimensions = orientation >= 5 && orientation <= 8;
+    const sourceWidth = Number(metadata?.width || 0);
+    const sourceHeight = Number(metadata?.height || 0);
+    const width = swapDimensions ? sourceHeight : sourceWidth;
+    const height = swapDimensions ? sourceWidth : sourceHeight;
+    if (!width || !height) return { bytes, applied: false };
+    const overlay = createBatchQrOverlay(width, height, {
+      url: qrUrl,
+      text: options.qrText || BATCH_QR_TEXT
+    });
+    const pipeline = sharp(bytes, { animated: false })
+      .rotate()
+      .composite([{ input: overlay, top: 0, left: 0 }]);
+    if (mimeType === "image/png") {
+      pipeline.png();
+    } else if (mimeType === "image/webp") {
+      pipeline.webp({ quality: 90 });
+    } else {
+      pipeline.jpeg({ quality: 92 });
+    }
+    return { bytes: await pipeline.toBuffer(), applied: true };
+  } catch (error) {
+    console.warn(`Batch QR composite skipped for job ${jobId}.`, error?.message || error);
+    return { bytes, applied: false };
+  }
+}
+
 async function persistImageJobResult(jobId, result, outputFormat) {
   if (!result.imageDataUrl) return persistRemoteImageJobResult(jobId, result, outputFormat);
 
@@ -16728,12 +16911,14 @@ async function persistImageJobResult(jobId, result, outputFormat) {
   const bytes = Buffer.from(match[2], "base64");
   await mkdir(generatedImageRoot, { recursive: true });
   const originalPath = path.join(generatedImageRoot, filename);
-  await writeFile(originalPath, bytes);
-  const preview = await createPublicPreview(jobId, bytes);
-  const thumbnail = await createGeneratedImageThumbnail(jobId, bytes);
-  // 水印预览图和缩略图先用干净原图生成，再把商户 Logo 只写入无水印原图。
-  const logoedBytes = await applyMerchantLogoToOriginal(jobId, bytes, match[1]);
-  if (logoedBytes !== bytes) await writeFile(originalPath, logoedBytes);
+  // 先把批量二维码写入原图，再用最终字节生成预览/缩略图；商户 Logo 仍只写入无水印原图。
+  const qrResult = await applyBatchQrToOriginal(jobId, bytes, match[1]);
+  const finalBytes = qrResult?.bytes || bytes;
+  await writeFile(originalPath, finalBytes);
+  const preview = await createPublicPreview(jobId, finalBytes, { plain: Boolean(qrResult?.applied) });
+  const thumbnail = await createGeneratedImageThumbnail(jobId, finalBytes);
+  const logoedBytes = await applyMerchantLogoToOriginal(jobId, finalBytes, match[1]);
+  if (logoedBytes !== finalBytes) await writeFile(originalPath, logoedBytes);
 
   return {
     ...result,
@@ -16763,12 +16948,14 @@ async function persistRemoteImageJobResult(jobId, result, outputFormat) {
   const bytes = Buffer.from(await response.arrayBuffer());
   await mkdir(generatedImageRoot, { recursive: true });
   const originalPath = path.join(generatedImageRoot, filename);
-  await writeFile(originalPath, bytes);
-  const preview = await createPublicPreview(jobId, bytes);
-  const thumbnail = await createGeneratedImageThumbnail(jobId, bytes);
-  // 水印预览图和缩略图先用干净原图生成，再把商户 Logo 只写入无水印原图。
-  const logoedBytes = await applyMerchantLogoToOriginal(jobId, bytes, contentType);
-  if (logoedBytes !== bytes) await writeFile(originalPath, logoedBytes);
+  // 先把批量二维码写入原图，再用最终字节生成预览/缩略图；商户 Logo 仍只写入无水印原图。
+  const qrResult = await applyBatchQrToOriginal(jobId, bytes, contentType);
+  const finalBytes = qrResult?.bytes || bytes;
+  await writeFile(originalPath, finalBytes);
+  const preview = await createPublicPreview(jobId, finalBytes, { plain: Boolean(qrResult?.applied) });
+  const thumbnail = await createGeneratedImageThumbnail(jobId, finalBytes);
+  const logoedBytes = await applyMerchantLogoToOriginal(jobId, finalBytes, contentType);
+  if (logoedBytes !== finalBytes) await writeFile(originalPath, logoedBytes);
 
   return {
     ...result,
@@ -17685,6 +17872,12 @@ function toPublicImageJob(job) {
     styleName: String(job.styleName || ""),
     styleGroupId: String(job.styleGroupId || ""),
     styleGroupName: String(job.styleGroupName || ""),
+    batchOptions: job.batchOptions ? {
+      comparison: job.batchOptions.comparison === true,
+      qrEnabled: job.batchOptions.qrEnabled === true,
+      qrUrl: String(job.batchOptions.qrUrl || ""),
+      qrText: String(job.batchOptions.qrText || "")
+    } : null,
     bodyBookProjectId: String(job.bodyBookProjectId || ""),
     durationSeconds: computeDurationSeconds(job),
     totalTokens: Number(result?.usage?.total_tokens || result?.usage?.totalTokens || 0),
@@ -17782,12 +17975,11 @@ async function createGeneratedImageThumbnail(jobId, bytes) {
   });
 }
 
-async function createPublicPreview(jobId, bytes) {
+async function createPublicPreview(jobId, bytes, { plain = false } = {}) {
   const sharp = await loadSharpModule();
   if (!sharp || !bytes?.length) return null;
 
   try {
-    const qrUrl = buildPublicPreviewQrUrl(await resolvePublicPreviewQrTarget(jobId));
     const resized = await sharp(bytes, { animated: false })
       .rotate()
       .resize({
@@ -17799,10 +17991,13 @@ async function createPublicPreview(jobId, bytes) {
       .toBuffer({ resolveWithObject: true });
     const width = Number(resized.info?.width || 0) || PUBLIC_PREVIEW_MAX_EDGE;
     const height = Number(resized.info?.height || 0) || PUBLIC_PREVIEW_MAX_EDGE;
-    const transformed = await sharp(resized.data, { animated: false })
-      .composite([{ input: createPublicPreviewWatermark(width, height, qrUrl) }])
-      .webp({ quality: 88 })
-      .toBuffer({ resolveWithObject: true });
+    // 批量二维码任务使用无水印预览，避免底部黑条遮住右下角二维码。
+    const pipeline = plain
+      ? sharp(resized.data, { animated: false })
+      : sharp(resized.data, { animated: false }).composite([
+          { input: createPublicPreviewWatermark(width, height, buildPublicPreviewQrUrl(await resolvePublicPreviewQrTarget(jobId))) }
+        ]);
+    const transformed = await pipeline.webp({ quality: 88 }).toBuffer({ resolveWithObject: true });
     await mkdir(generatedPreviewRoot, { recursive: true });
     await writeFile(path.join(generatedPreviewRoot, `${jobId}.webp`), transformed.data);
     return {
