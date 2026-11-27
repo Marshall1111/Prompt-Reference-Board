@@ -1,5 +1,45 @@
 [
   {
+    "id": "style_1795744784614",
+    "title": "高饱和撞色平涂",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1795744784614/cover.webp",
+    "imageUpdatedAt": "2026-11-27T01:59:44.614Z",
+    "personImage": "",
+    "personImageUpdatedAt": null,
+    "personThumbnailImage": "",
+    "petImage": "",
+    "petImageUpdatedAt": null,
+    "petThumbnailImage": "",
+    "prompt": "参考图一配色，把图二变成画棒蜡笔手绘插画，粗粝纸张颗粒肌理，高饱和撞色平涂，粗黑轮廓线，复古童趣，怪诞诙谐，扁平色块，随性笔触，无文字。",
+    "useStyleImageAsReference": false
+  },
+  {
+    "id": "style_1795646038950",
+    "title": "姜饼人",
+    "tags": [
+      "新风格"
+    ],
+    "subjectType": "both",
+    "drawCardEnabled": true,
+    "drawCardWeight": 100,
+    "image": "/style-previews/style_1795646038950/cover.webp",
+    "imageUpdatedAt": "2026-11-25T22:33:58.950Z",
+    "personImage": "/style-previews/style_1795646038950/cover.webp",
+    "personImageUpdatedAt": "2026-11-25T22:33:58.950Z",
+    "personThumbnailImage": "",
+    "petImage": "/style-previews/style_1795646038950/cover.webp",
+    "petImageUpdatedAt": "2026-11-25T22:33:58.950Z",
+    "petThumbnailImage": "",
+    "prompt": "将附件真实照片中的人物重绘为中景略拉远正俯拍烘焙摄影质感的手工圣诞糖霜姜饼人肖像饼干（baked gingerbread portrait cookie with piped royal icing）。人物从脸、发型到身体转为焦糖棕烘烤姜饼与立体蛋白糖霜（彩绘糖霜版，非素饼），既像精品圣诞饼干，又能一眼认出本人神态。\r\n\t\r\n以真实照片定人数与身份：单人1块；双人或三人如情侣亲子生成2–3块亲密并排，保留身高头身差与互动。提取脸型、发型刘海、眉眼眼神、真实表情及眼镜/耳饰/发夹等锚点，男女老幼自然讨喜（男生眉眼清爽不过重腮红；萌娃圆脸大眼）。\r\n\t\r\n略放大头像接Q版短胖身体，外廓顺发型与圣诞帽切割，6–8mm烘焙厚度带烤边、气孔与肉桂糖粒；面团锁色主面#CB7949、高光#E6A05A、烤边#87431A。成人儿童均保持平整饼干脸基，五官一律用平滑2D挤花糖霜细线与小色块（不做毛发眉、立体浮雕鼻或喷枪阴影）：#4A2A18深可可画眉眼嘴鼻，眼点极小#F8F4EE白高光，唇点柔和莓果粉或浅暖棕，颊点浅粉斜杠；头发用顺滑深可可或暖棕糖霜，仅浅焦糖提纹，不画白挑染线。斜戴#C6352B红+#F8F4EE白圣诞帽；\r\n大头小身体，头身比1:2。\r\n不保留原图的服装。衣饰仅取（圣诞红、#3A6B47松针绿、奶白）与极简花纹做纯色糖霜毛衣，省略印花、Logo与文字，配白波浪边、2–3颗糖果纽扣与少量白雪花。\r\n\t\r\n平放于纯白背景，轻撒薄白面粉。特写半身照均拉远俯拍留足边距。顶角斜入1–2枝南天竹绿叶红浆果点缀，不遮主体。\r\n\t\r\n暖自然侧顶窗光与柔和短投影；无文字水印边框；严禁真人肤质、写实眼球与贴脸拼贴感。",
+    "useStyleImageAsReference": false
+  },
+  {
     "id": "style_1795599222324",
     "title": "韩式平面插图",
     "tags": [
@@ -10,11 +50,11 @@
     "drawCardWeight": 100,
     "image": "/style-previews/style_1795599222324/cover.webp",
     "imageUpdatedAt": "2026-11-25T09:33:42.324Z",
-    "personImage": "",
-    "personImageUpdatedAt": null,
+    "personImage": "/style-previews/style_1795599222324/cover.webp",
+    "personImageUpdatedAt": "2026-11-25T09:33:42.324Z",
     "personThumbnailImage": "",
-    "petImage": "",
-    "petImageUpdatedAt": null,
+    "petImage": "/style-previews/style_1795599222324/cover.webp",
+    "petImageUpdatedAt": "2026-11-25T09:33:42.324Z",
     "petThumbnailImage": "",
     "prompt": "只以你收到的这张照片为依据，制作一张  竖版高端设计海报，整张就是作品本身。\r\n\t\r\n从照片里提取最具辨识度的主体、轮廓、姿势与叙事关系，重构成一幅轻松笨拙的韩式平面编辑插图。保留原图的整体布局、物体关系与核心动作，但去掉逼真的光影、透视与材质细节，把主体简化成圆润、简洁、略带夸张的几何形状，配粗糙、抖动、部分破损的手绘黑色轮廓与纯色填充，保持一眼可认但仍不过于写实。\r\n\t\r\n构图保持一个清晰的视觉中心，其他元素作辅助点缀，靠大小差异、错位、遮挡、细微裁剪与不完全对称制造俏皮的节奏。背景用大面积明亮的纯色与负空间托住主体，保留左右或局部完整的色块作缓冲，避免杂乱场景，让整张更像精心设计的儿童图画书或独立编辑插图，而不是卡通化的照片。\r\n\t\r\n色彩从照片里取最鲜艳、最易识别的颜色，转成高色度、高纯度的有限数量平面色块，可以是鲜艳的蓝、红、黄、绿、白及其他色彩关系，带孩童般的张力，但不机械套用固定配色。背景与主体形成鲜明的区域对比，避免渐变、阴影、浑浊的灰、复杂混合与塑料质感。\r\n\t\r\n文字遵循笨拙但设计意识强烈的编辑逻辑：从这张照片的主题、动作、情感或故事里提炼一个简短的英文标题，再配几个简短短语、宾语、地名、数字或俏皮的注释。主标题可以用略带手写感、粗细不均或倾斜的字体，小字保持清晰克制；文字可以沿主体轮廓、色块边缘、负空间或画框轴线对齐，也可以轻微旋转、错位、分割与交织，让它像插图本身的一部分，而不是后来贴上去的排版。\r\n\t\r\n画面不放账号、水印或商业标志；只在右下角用极小号排两行固定文字：第一行「ARABIAN NIGHTS · NO.0011」，第二行「prompt by Rehe」，距右边缘不少于画面宽度的百分之五、距下边缘不少于画面高度的百分之三，不覆盖插图主体。\r\n\t\r\n避开：卡通化的照片、写实光影与透视、渐变与阴影、浑浊灰、塑料质感、机械套用的固定配色、他人固定文案或编号体系。",
     "useStyleImageAsReference": false
