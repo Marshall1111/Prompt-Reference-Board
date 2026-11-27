@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCallback } from "react";
-import { Activity, AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, Clipboard, Cpu, Download, Eye, GripVertical, HardDrive, Home, Image as ImageIcon, ImageUp, Layers3, ListTodo, LoaderCircle, MemoryStick, Pencil, Plus, QrCode, RefreshCw, Save, Search, Server, Settings, Share2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Upload, Video, Wifi, X, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CheckCircle2, Clipboard, Cpu, Download, Eye, GripVertical, HardDrive, Home, Image as ImageIcon, ImageUp, Layers3, ListTodo, LoaderCircle, MemoryStick, Pencil, Plus, QrCode, RefreshCw, Save, ScanLine, Search, Server, Settings, Share2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Upload, Video, Wifi, X, XCircle } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import HTMLFlipBook from "react-pageflip";
 import { createLabeledQrPngDataUrl, createQrSvgDataUrl, downloadQrPng, downloadQrSvg } from "./qr-code";
@@ -6176,6 +6176,7 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
   const [stylePickerError, setStylePickerError] = useState("");
   const [sameStyleNotice, setSameStyleNotice] = useState("");
   const [isLoadingStylePicker, setIsLoadingStylePicker] = useState(false);
+  const [isScanningQr, setIsScanningQr] = useState(false);
   const [recentTaskItems, setRecentTaskItems] = useState([]);
   const [recentTasksLoading, setRecentTasksLoading] = useState(false);
   const [recentTasksError, setRecentTasksError] = useState("");
@@ -6543,6 +6544,110 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
       setStylePickerError(nextError.message || "读取风格发布失败，请稍后再试。");
     } finally {
       setIsLoadingStylePicker(false);
+    }
+  }
+
+  // 扫码进入做同款：只接受本站二维码，解析出风格 ID 后跳转首页，由现有逻辑自动进入做同款模式。
+  async function openScannedQrTarget(rawText) {
+    const text = normalizeScannedQrText(rawText);
+    if (!text) {
+      await showAppDialog({ message: "没有识别到二维码内容，请重试。" });
+      return;
+    }
+    let target;
+    try {
+      target = new URL(text, window.location.origin);
+    } catch {
+      await showAppDialog({ message: "请扫描 AI小画家 的二维码。" });
+      return;
+    }
+    const allowedHosts = new Set([window.location.host, "www.petpaint.top", "petpaint.top"]);
+    if (!["http:", "https:"].includes(target.protocol) || !allowedHosts.has(target.host)) {
+      await showAppDialog({ message: "请扫描 AI小画家 的二维码。" });
+      return;
+    }
+    const styleId = String(target.searchParams.get("sameStyleId") || target.searchParams.get("styleId") || "").trim();
+    if (styleId) {
+      const invite = String(target.searchParams.get("invite") || "").trim();
+      const next = new URL("/", target.origin);
+      next.searchParams.set("sameStyleId", styleId);
+      if (invite) next.searchParams.set("invite", invite);
+      window.location.assign(next.toString());
+      return;
+    }
+    // 本站二维码但没有风格参数时按原链接跳转，例如商户落地页。
+    window.location.assign(target.toString());
+  }
+
+  async function scanSameStyleQrCode() {
+    if (isScanningQr) return;
+    setIsScanningQr(true);
+    setError("");
+    try {
+      const wx = await loadWechatJssdk();
+      const pageUrl = window.location.href.split("#")[0];
+      const response = await fetch(`/api/wechat/js-config?url=${encodeURIComponent(pageUrl)}`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.message || "扫码功能暂不可用。");
+      const resultStr = await new Promise((resolve, reject) => {
+        let settled = false;
+        let graceTimer = null;
+        let watchdogTimer = null;
+        const startedAt = Date.now();
+        function cleanupScanListeners() {
+          document.removeEventListener("visibilitychange", handleScanReturn);
+          window.removeEventListener("focus", handleScanReturn);
+          window.removeEventListener("pageshow", handleScanReturn);
+          if (graceTimer) { window.clearTimeout(graceTimer); graceTimer = null; }
+          if (watchdogTimer) { window.clearTimeout(watchdogTimer); watchdogTimer = null; }
+        }
+        function finishScan(handler, value) {
+          if (settled) return;
+          settled = true;
+          cleanupScanListeners();
+          handler(value);
+        }
+        // 部分微信版本用户退出扫码面板时不会触发 fail 回调，这里在回到页面后兜底复位，避免一直卡在「扫码中」。
+        function handleScanReturn() {
+          if (settled || graceTimer || document.visibilityState === "hidden") return;
+          if (Date.now() - startedAt < 800) return;
+          graceTimer = window.setTimeout(() => finishScan(reject, new Error("scanQRCode:cancel")), 1200);
+        }
+        document.addEventListener("visibilitychange", handleScanReturn);
+        window.addEventListener("focus", handleScanReturn);
+        window.addEventListener("pageshow", handleScanReturn);
+        // 极端情况下扫码面板始终未打开，也不能让按钮一直停留在「扫码中」。
+        watchdogTimer = window.setTimeout(() => finishScan(reject, new Error("scanQRCode:cancel")), 150000);
+        wx.config({
+          debug: false,
+          appId: payload.appId,
+          timestamp: payload.timestamp,
+          nonceStr: payload.nonceStr,
+          signature: payload.signature,
+          jsApiList: ["scanQRCode"]
+        });
+        wx.ready(() => {
+          wx.scanQRCode({
+            needResult: 1,
+            scanType: ["qrCode"],
+            success: (result) => finishScan(resolve, String(result?.resultStr || "")),
+            fail: (scanError) => finishScan(reject, scanError || new Error("扫码失败"))
+          });
+        });
+        wx.error((configError) => finishScan(reject, configError || new Error("扫码不可用")));
+      });
+      await openScannedQrTarget(resultStr);
+    } catch (nextError) {
+      const message = String(nextError?.errMsg || nextError?.message || "");
+      // 用户在扫码界面点取消不提示错误。
+      if (!/cancel/i.test(message)) {
+        const friendly = /config|signature|jsapi|js-sdk|配置/i.test(message) || !message
+          ? "扫码暂不可用，请使用微信「扫一扫」。"
+          : message;
+        await showAppDialog({ message: friendly });
+      }
+    } finally {
+      setIsScanningQr(false);
     }
   }
 
@@ -7015,6 +7120,8 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
   };
 
   const isDrawCardExperience = experienceType === "draw-card";
+  // 扫码依赖微信 JS-SDK，仅在微信内置浏览器中展示入口。
+  const canScanQr = isDrawCardExperience && isWechatBrowserClient();
   const canStart = Boolean(referenceFile) && !isSubmitting;
   const canStartSameStyleDraw = Boolean(referenceFile) && Boolean(lockedSameStyle) && !isLoadingStylePicker && !isSubmitting;
   const activeResult = activeResultIndex >= 0 ? toDisplayResult((recentTasks ? recentTaskDisplayItems : displayItems)[activeResultIndex]) : activeResultIndex === -3 ? activeClipPreview : null;
@@ -7929,9 +8036,16 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
               </div>
             )}
             <div className="draw-card-recent-tasks-actions">
-              <button className="draw-card-secondary" onClick={() => window.location.assign("/clip")} type="button">
-                <span>去卡夹</span>
-              </button>
+              {canScanQr ? (
+                <button className="draw-card-secondary" disabled={isScanningQr} onClick={scanSameStyleQrCode} type="button">
+                  {isScanningQr ? <LoaderCircle className="spin" size={18} /> : <ScanLine size={18} />}
+                  <span>{isScanningQr ? "扫码中" : "继续扫码"}</span>
+                </button>
+              ) : (
+                <button className="draw-card-secondary" onClick={() => window.location.assign("/clip")} type="button">
+                  <span>去卡夹</span>
+                </button>
+              )}
               <button className="draw-card-secondary" onClick={() => window.location.assign("/styles")} type="button">
                 <span>更多风格</span>
               </button>
@@ -7978,8 +8092,12 @@ function PublicExperiencePage({ config, standaloneStylePicker = false, recentTas
                 ) : null}
               </div>
 
-              {isDrawCardExperience && sameStyleId && lockedSameStyle ? (
-                <p className="draw-card-same-style-name">风格：{lockedSameStyle.name || lockedSameStyle.title}</p>
+              {isDrawCardExperience && sameStyleId ? (
+                lockedSameStyle
+                  ? <p className="draw-card-same-style-name">风格：{lockedSameStyle.name || lockedSameStyle.title}</p>
+                  : !isLoadingStylePicker
+                    ? <p className="error-note draw-card-inline-error">该风格不存在或已停用，请重新选择风格。</p>
+                    : null
               ) : null}
               <section className={`draw-card-upload-panel ${referenceFile ? "has-image" : ""}`}>
                 <label className="draw-card-upload" htmlFor={`${experienceType}-input`}>
@@ -16392,6 +16510,38 @@ function syncOrderQuantitiesWithClipItems(currentQuantities, items) {
 
 function isWechatBrowserClient() {
   return /MicroMessenger/i.test(window.navigator?.userAgent || "");
+}
+
+// 微信 JS-SDK 只在需要扫码时按需加载，避免拖慢首页首屏。
+const WECHAT_JS_SDK_SRC = "https://res.wx.qq.com/open/js/jweixin-1.6.0.js";
+let wechatJssdkLoadPromise = null;
+
+function loadWechatJssdk() {
+  if (window.wx?.scanQRCode) return Promise.resolve(window.wx);
+  if (wechatJssdkLoadPromise) return wechatJssdkLoadPromise;
+  wechatJssdkLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = WECHAT_JS_SDK_SRC;
+    script.async = true;
+    script.onload = () => (window.wx?.scanQRCode ? resolve(window.wx) : reject(new Error("扫码组件加载失败")));
+    script.onerror = () => reject(new Error("扫码组件加载失败"));
+    document.head.appendChild(script);
+  }).catch((error) => {
+    wechatJssdkLoadPromise = null;
+    throw error;
+  });
+  return wechatJssdkLoadPromise;
+}
+
+// 二维码结果通常直接是文本；条形码会带 "EAN_13," 之类前缀，这里去掉前缀。
+function normalizeScannedQrText(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const commaIndex = text.indexOf(",");
+  if (commaIndex > 0 && text.slice(commaIndex + 1).trim().startsWith("http")) {
+    return text.slice(commaIndex + 1).trim();
+  }
+  return text;
 }
 
 function formatBytes(value) {

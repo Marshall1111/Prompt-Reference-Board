@@ -1832,6 +1832,55 @@ app.get("/api/auth/wechat/callback", async (req, res, next) => {
   }
 });
 
+// 小画首页「扫码做同款」：返回公众号 JS-SDK 的 config 签名参数。
+// 只允许为本站页面地址签名，避免被外部站点当作通用签名服务。
+const WECHAT_JS_CONFIG_RATE_LIMIT = 20;
+const WECHAT_JS_CONFIG_RATE_WINDOW_MS = 60 * 1000;
+const wechatJsConfigRequestLog = new Map();
+
+app.get("/api/wechat/js-config", async (req, res, next) => {
+  try {
+    const now = Date.now();
+    const visitorKey = String(req.visitorId || "");
+    if (visitorKey) {
+      const recent = pruneTimestamps(wechatJsConfigRequestLog, visitorKey, WECHAT_JS_CONFIG_RATE_WINDOW_MS, now);
+      if (recent.length >= WECHAT_JS_CONFIG_RATE_LIMIT) {
+        throw createHttpError(429, "扫码请求过于频繁，请稍后再试。");
+      }
+      recent.push(now);
+      wechatJsConfigRequestLog.set(visitorKey, recent);
+    }
+
+    const { appId, appSecret } = getWechatAlertConfig();
+    if (!appId || !appSecret) throw createHttpError(503, "扫码功能暂未配置完成。");
+
+    const rawUrl = String(req.query?.url || "").trim();
+    let target;
+    try {
+      target = new URL(rawUrl);
+    } catch {
+      throw createHttpError(400, "页面地址不合法。");
+    }
+    if (!["http:", "https:"].includes(target.protocol)) throw createHttpError(400, "页面地址不合法。");
+
+    const allowedHosts = new Set(["www.petpaint.top", "petpaint.top"]);
+    try {
+      const requestHost = new URL(getRequestOrigin(req)).host;
+      if (requestHost) allowedHosts.add(requestHost);
+    } catch {}
+    if (!allowedHosts.has(target.host)) throw createHttpError(400, "页面地址不合法。");
+
+    const signatureUrl = `${target.origin}${target.pathname}${target.search}`;
+    const ticket = await getWechatJsapiTicket();
+    const nonceStr = randomUUID().replace(/-/g, "");
+    const timestamp = Math.floor(now / 1000);
+    const signature = buildWechatJsapiSignature({ ticket, nonceStr, timestamp, url: signatureUrl });
+    res.json({ appId, timestamp, nonceStr, signature });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/referrals/link", requireWebAccount, async (req, res, next) => {
   try {
     assertRegisteredAccount(req);
@@ -12285,6 +12334,49 @@ async function getWechatAlertAccessToken(force = false) {
       });
   }
   return wechatAlertTokenPending;
+}
+
+// 公众号 JS-SDK：jsapi_ticket 与 access_token 共用调用配额，缓存 7000 秒并做并发去重。
+let wechatJsapiTicketCache = { ticket: "", expiresAt: 0 };
+let wechatJsapiTicketPending = null;
+
+async function requestWechatJsapiTicket() {
+  const token = await getWechatAlertAccessToken();
+  const url = new URL("https://api.weixin.qq.com/cgi-bin/ticket/getticket");
+  url.searchParams.set("access_token", token);
+  url.searchParams.set("type", "jsapi");
+  const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || Number(payload.errcode || 0) !== 0 || !payload.ticket) {
+    throw new Error(`获取 jsapi_ticket 失败：${payload.errcode || response.status} ${payload.errmsg || ""}`.trim());
+  }
+  return {
+    ticket: String(payload.ticket),
+    expiresAt: Date.now() + Math.max(60, Number(payload.expires_in || 7200) - 300) * 1000
+  };
+}
+
+async function getWechatJsapiTicket(force = false) {
+  if (!force && wechatJsapiTicketCache.ticket && wechatJsapiTicketCache.expiresAt > Date.now()) {
+    return wechatJsapiTicketCache.ticket;
+  }
+  if (!wechatJsapiTicketPending) {
+    wechatJsapiTicketPending = requestWechatJsapiTicket()
+      .then((result) => {
+        wechatJsapiTicketCache = result;
+        return result.ticket;
+      })
+      .finally(() => {
+        wechatJsapiTicketPending = null;
+      });
+  }
+  return wechatJsapiTicketPending;
+}
+
+// 计算 JS-SDK config 签名：url 必须与前端当前页面地址一致且不含 #。
+function buildWechatJsapiSignature({ ticket, nonceStr, timestamp, url }) {
+  const raw = `jsapi_ticket=${ticket}&noncestr=${nonceStr}&timestamp=${timestamp}&url=${url}`;
+  return createHash("sha1").update(raw).digest("hex");
 }
 
 // 工作台提示：未关注服务号时展示关注二维码。缓存 60 秒，兼顾接口调用量与「我已关注」的刷新体感。
