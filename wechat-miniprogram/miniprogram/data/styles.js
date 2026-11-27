@@ -11,7 +11,7 @@ const styles = [
     "drawCardWeight": 100,
     "image": "/images-small/style_1795744784614.jpg",
     "prompt": "参考图一配色，把图二变成画棒蜡笔手绘插画，粗粝纸张颗粒肌理，高饱和撞色平涂，粗黑轮廓线，复古童趣，怪诞诙谐，扁平色块，随性笔触，无文字。",
-    "useStyleImageAsReference": false
+    "useStyleImageAsReference": true
   },
   {
     "id": "style_1795646038950",
